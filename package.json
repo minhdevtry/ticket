@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "description": "VuiHoc ticket bots: Tiểu Linh intake on top of the shared bot-core library.",
-  "workspaces": ["packages/*", "apps/*"],
+  "workspaces": ["packages/*", "apps/*", "docs"],
   "engines": { "bun": ">=1.4.0" },
   "packageManager": "bun@1.4.4",
   "scripts": {
@@ -12,7 +12,14 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "scan": "bun run scripts/scan-public.ts",
-    "verify": "bun run lint && bun run check && bun run test && bun run scan"
+    "test:scripts": "bun test scripts/docs-tools.test.ts",
+    "docs:gen": "bun run scripts/gen-docs.ts",
+    "docs:dev": "bun run docs:gen && bun run --cwd docs dev",
+    "docs:build": "bun run docs:gen && bun run --cwd docs build",
+    "docs:snippets": "bun run scripts/check-doc-snippets.ts",
+    "docs:refs": "bun run scripts/check-docs-refs.ts",
+    "docs:check": "bun run docs:build && bun run docs:snippets && bun run docs:refs",
+    "verify": "bun run lint && bun run check && bun run test && bun run test:scripts && bun run scan && bun run docs:snippets && bun run docs:refs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
