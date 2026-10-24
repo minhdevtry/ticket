@@ -1,0 +1,16 @@
+[Unit]
+Description=Tiểu Linh 2 chạy bóng: proxy giữ secret (MiniMax, itsaplan)
+
+[Service]
+# Cài bằng: deploy/dev/tl2-shadow.sh systemd-install (thay @REPO@, @BUN@).
+ExecStartPre=/bin/mkdir -p %h/.local/share/tl2-shadow/logs
+ExecStart=@BUN@ run @REPO@/tools/tl2-shadow/proxy.ts
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=yes
+StandardOutput=append:%h/.local/share/tl2-shadow/logs/proxy.log
+StandardError=inherit
+
+[Install]
+WantedBy=default.target
