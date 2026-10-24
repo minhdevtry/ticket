@@ -1,5 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { stripChannelEnvelope, extractChannelEnvelope } from "./channel-envelope";
+import {
+  extractChannelEnvelope,
+  INTERNAL_CALLBACK_TOKENS,
+  isInternalCallbackToken,
+  stripChannelEnvelope,
+} from "./channel-envelope";
 
 // Nguyên văn phần "Mô tả" của TECH-924 (26/09): model chuyển cả phong bì OpenClaw vào intake_step.
 const TECH_924 = `hỗ trợ giúp mình zalo app của mình bị lag ạ
@@ -211,5 +216,34 @@ describe("extractChannelEnvelope (CM)", () => {
     const info = extractChannelEnvelope("Em là giáo viên mới T26");
     expect(info.sender_id).toBeUndefined();
     expect(info.chat_id).toBeUndefined();
+  });
+});
+
+describe("isInternalCallbackToken (TECH-1148, lifted from Tiểu Linh)", () => {
+  it("nhận token nút nội bộ và mã máy, không nhận nhãn chữ người đọc", () => {
+    expect(Object.keys(INTERNAL_CALLBACK_TOKENS).sort()).toEqual(["ignore", "nil", "none", "noop"]);
+    expect(isInternalCallbackToken("noop")).toBe(true);
+    expect(isInternalCallbackToken("NOOP")).toBe(true);
+    expect(isInternalCallbackToken("  none  ")).toBe(true);
+    expect(isInternalCallbackToken("ignore")).toBe(true);
+    expect(isInternalCallbackToken("reporter_ok:481")).toBe(true);
+    expect(isInternalCallbackToken("Sự cố mới")).toBe(false);
+    expect(isInternalCallbackToken("")).toBe(false);
+    expect(isInternalCallbackToken(null)).toBe(false);
+    expect(isInternalCallbackToken(undefined)).toBe(false);
+  });
+
+  it("stripChannelEnvelope bỏ hẳn dòng callback_data mang token nội bộ", () => {
+    expect(stripChannelEnvelope("callback_data: noop")).toBe("");
+    expect(stripChannelEnvelope("callback_data: NOOP")).toBe("");
+    expect(stripChannelEnvelope("callback_data:   noop  ")).toBe("");
+    expect(stripChannelEnvelope("callback_data: none")).toBe("");
+    expect(stripChannelEnvelope("callback_data: ignore")).toBe("");
+    // Kèm tin nhắn thật: giữ tin thật, bỏ dòng noop.
+    expect(stripChannelEnvelope("App Duo báo lỗi 502\ncallback_data: noop")).toBe(
+      "App Duo báo lỗi 502",
+    );
+    // Nhãn nút chữ người đọc vẫn được giữ.
+    expect(stripChannelEnvelope("callback_data: Sự cố mới")).toBe("Sự cố mới");
   });
 });

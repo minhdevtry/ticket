@@ -56,6 +56,8 @@ export {
 // ── channel envelope ─────────────────────────────────────────────────────────
 export {
   type ChannelEnvelopeInfo,
+  INTERNAL_CALLBACK_TOKENS,
+  isInternalCallbackToken,
   stripChannelEnvelope,
   extractChannelEnvelope,
 } from "./channel-envelope";

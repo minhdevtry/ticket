@@ -29,6 +29,15 @@ export type ApplySchema = (db: Database, opts: { wal: boolean }) => void;
 export interface LazyDbOptions {
   /** Áp schema của bot ngay sau khi mở. Không truyền thì mở DB trần. */
   applySchema?: ApplySchema;
+  /**
+   * Việc cần làm khi mở/áp schema file thật lỗi:
+   *  - `"degrade"` (mặc định, ADR-0003): log rồi hạ xuống `:memory:` rỗng — bot chạy
+   *    tiếp coi như "chưa biết gì, hỏi lại";
+   *  - `"throw"`: ném lỗi cho caller. Dùng khi caller tự có đường lùi (vd trả
+   *    `undefined` và bỏ tính năng) và một DB trống giả sẽ che mất lỗi cấu hình.
+   *    NGUỒN: Tiểu Linh (lookup ask-learning dựa vào ngoại lệ này).
+   */
+  onOpenError?: "degrade" | "throw";
 }
 
 /** Đánh dấu các kết nối đã bị hạ xuống `:memory:` vì không mở được file thật. */
@@ -100,6 +109,7 @@ export function makeOpenLazyDb(options: LazyDbOptions = {}): (dbPath: string) =>
         options.applySchema?.(db, { wal: true });
         return db;
       } catch (err) {
+        if (options.onOpenError === "throw") throw err;
         // ADR-0003 điểm 3: file hỏng/khoá/đĩa đầy không được làm chết bot.
         getLogger().warn?.(
           `lazy-db: không mở được "${dbPath}" (${err instanceof Error ? err.message : String(err)}); ` +

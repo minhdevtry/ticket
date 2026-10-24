@@ -36,6 +36,25 @@ const CALLBACK_LINE = /^\s*callback_data\s*:\s*([^\n]*)$/i;
 // Payload nút dạng mã máy "tên_lệnh:đối_số" (không phải nhãn chữ người đọc).
 const MACHINE_PAYLOAD = /^[a-z][a-z0-9_]*:[\w:.-]+$/i;
 
+/** Token payload nút nội bộ (như "noop" của nút đã khoá) — TECH-1148. */
+export const INTERNAL_CALLBACK_TOKENS: Record<string, true> = {
+  noop: true,
+  none: true,
+  ignore: true,
+  nil: true,
+};
+
+/**
+ * `true` khi `token` là payload nút nội bộ ("noop", "none"…) hoặc mã máy dạng
+ * `lệnh:đối_số` — tức KHÔNG phải nhãn chữ người đọc, không phải lời người báo.
+ * Dùng để loại khỏi tiêu đề/mô tả/triệu chứng. NGUỒN: Tiểu Linh (TECH-1148).
+ */
+export function isInternalCallbackToken(token: string | null | undefined): boolean {
+  if (!token) return false;
+  const clean = token.trim().toLowerCase();
+  return Boolean(INTERNAL_CALLBACK_TOKENS[clean]) || MACHINE_PAYLOAD.test(clean);
+}
+
 // Khoá định danh kênh trong JSON phong bì.
 const ENVELOPE_KEYS = /"(chat_id|sender_id|message_id|inbound_event_kind|username)"\s*:/i;
 
@@ -149,9 +168,9 @@ export function stripChannelEnvelope(text: string | null | undefined): string {
     // callback_data: <nhãn nút> — người dùng BẤM NÚT: giữ lại nhãn, đó là câu trả lời của họ.
     const callback = line.match(CALLBACK_LINE);
     if (callback) {
-      // Payload máy ("reporter_ok:481", "confirm_done:12") thì bỏ.
+      // Payload máy ("reporter_ok:481", "confirm_done:12") hoặc token nội bộ ("noop") thì bỏ — TECH-940, TECH-1148.
       const label = (callback[1] ?? "").trim();
-      if (label && !MACHINE_PAYLOAD.test(label)) out.push(label);
+      if (label && !isInternalCallbackToken(label)) out.push(label);
       i++;
       continue;
     }

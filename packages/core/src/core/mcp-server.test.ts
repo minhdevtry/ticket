@@ -114,3 +114,34 @@ describe("runOnHttp — MCP qua HTTP (bug thật: thiếu auth lọt qua, và 'A
     expect(JSON.parse(body2.result.content[0].text).echoed).toBe("lần 2");
   });
 });
+
+describe("createMcpServer — tool ném lỗi", () => {
+  /**
+   * Cổng thật: tool ném lỗi thì host phải nhận kết quả bình thường mang cờ
+   * `loi`, không phải một exception để model tự quyết định nói gì.
+   */
+  it("tool ném lỗi thì server trả kết quả có cờ loi, không ném lên host", async () => {
+    const server = createMcpServer({
+      name: "test",
+      version: "0",
+      tools: [
+        defineTool({
+          name: "no_op",
+          description: "tool luôn hỏng",
+          inputSchema: {},
+          handler: () => {
+            throw new Error("ổ cắm rút rồi");
+          },
+        }),
+      ],
+    });
+
+    // biome-ignore lint/suspicious/noExplicitAny: đọc registry nội bộ của McpServer trong test
+    const registered = (server as any)._registeredTools?.no_op;
+    expect(registered).toBeDefined();
+    const res = await registered.handler({}, {});
+    const payload = JSON.parse(res.content[0].text);
+    expect(payload.loi).toBe(true);
+    expect(payload.thong_bao_cho_nguoi_dung).toContain("ổ cắm rút rồi");
+  });
+});
