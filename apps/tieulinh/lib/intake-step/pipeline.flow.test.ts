@@ -12,7 +12,7 @@ import {
   type IntakePipelineOptions,
   type PendingButtonsSink,
 } from "./pipeline";
-import type { ItsaplanClient, ItsaplanIssue } from "../itsaplan/client";
+import type { ItsaplanClient, ItsaplanIssue } from "@vuihoc/bot-core/itsaplan";
 import type { InlineButton } from "../gate/types";
 import type { IntakeDocument } from "../intake-document/types";
 import type { UrgencyRules } from "../../mcp/shared/index";

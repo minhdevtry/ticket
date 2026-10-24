@@ -11,7 +11,7 @@ import * as fs from "node:fs";
 // Tự động nạp .env nếu tồn tại
 loadEnvFile(".env");
 
-import { ItsaplanClient } from "../lib/itsaplan/client";
+import { ItsaplanClient } from "@vuihoc/bot-core/itsaplan";
 import { checkIdentity, registerIdentity } from "../mcp/shared/tools/identity";
 import { validateFields } from "../mcp/shared/tools/validate-fields";
 import { assessPriority } from "../mcp/shared/tools/assess-priority";

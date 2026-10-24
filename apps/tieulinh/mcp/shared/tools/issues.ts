@@ -1,13 +1,13 @@
 import { z } from "zod";
-import { ItsaplanClient } from "../../../lib/itsaplan/client";
-import { findIssueByIdentifier, resolveProject } from "../../../lib/itsaplan/project";
+import { createItsaplanClient } from "../../../lib/itsaplan/client-factory";
+import { findIssueByIdentifier, resolveProject } from "@vuihoc/bot-core/itsaplan";
+import { uploadAttachments } from "../../../lib/itsaplan/upload";
 import {
-  uploadAttachments,
   spliceAttachmentsIntoDescription,
   formatAttachmentMarkdown,
-} from "../../../lib/itsaplan/attachments";
+} from "@vuihoc/bot-core/itsaplan";
 import { findRecentInboundMedia } from "../../../lib/media";
-import { resolveFriendlyStatusName } from "../../../lib/itsaplan/status";
+import { resolveFriendlyStatusName } from "@vuihoc/bot-core/itsaplan";
 import { describeState } from "../../../lib/itsaplan/state-messages";
 import { isOwnTicket } from "../../../lib/itsaplan/ownership";
 import { getSharedBindingRepo } from "../../../lib/storage/binding-repository";
@@ -70,7 +70,7 @@ export function getIssue(
   vocabulary: IssueVocabulary = DEFAULT_ISSUE_VOCABULARY,
   options: OwnTicketsOnlyOptions = {},
 ): AnyMcpTool {
-  const client = new ItsaplanClient(config.baseUrl, config.apiKey);
+  const client = createItsaplanClient(config.baseUrl, config.apiKey);
   const sampleId = `${config.projectKey}-42`;
   return defineTool({
     name: "get_issue",
@@ -243,7 +243,7 @@ export function updateIssue(
   vocabulary: IssueVocabulary = DEFAULT_ISSUE_VOCABULARY,
   options: UpdateIssueOptions = {},
 ): AnyMcpTool {
-  const client = new ItsaplanClient(config.baseUrl, config.apiKey);
+  const client = createItsaplanClient(config.baseUrl, config.apiKey);
   const sampleId = `${config.projectKey}-42`;
   const repo = () => (dbPath ? getSharedBindingRepo(dbPath) : undefined);
 

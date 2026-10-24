@@ -1,14 +1,14 @@
 import { complete, extractJson } from "./llm";
-import type { ItsaplanClient } from "../lib/itsaplan/client";
+import type { ItsaplanClient } from "@vuihoc/bot-core/itsaplan";
 import type { OnyxConnectorManager } from "../lib/onyx/connector-manager";
 import { redactIncidentPII } from "@vuihoc/bot-core/core";
 import { evaluatePreLlmFilter, evaluatePostLlmFilter } from "../lib/onyx/filter";
 import { buildOnyxDocumentBody, parseVuihocMeta } from "../lib/onyx/document";
-import { issueWebUrl, resolveProjectTeamRef } from "../lib/itsaplan/project";
+import { issueWebUrl, resolveProjectTeamRef } from "@vuihoc/bot-core/itsaplan";
 import { getLogger } from "@vuihoc/bot-core/core";
 import { markBotComment, stripCommentHtml } from "@vuihoc/bot-core/core";
 import type { OnyxServiceConfig } from "../lib/onyx/config";
-import { identifierInProject } from "./project-lock";
+import { identifierInProject } from "@vuihoc/bot-core/itsaplan";
 
 export interface IngestionResult {
   success: boolean;

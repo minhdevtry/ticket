@@ -27,8 +27,8 @@
  *   4. Báo cáo trước/sau: đếm nhãn.
  */
 
+import { createItsaplanClient } from "../lib/itsaplan/client-factory";
 import fs from "node:fs";
-import { ItsaplanClient } from "../lib/itsaplan/client";
 import type { Record as Neo4jRecord } from "neo4j-driver";
 import { MemgraphClient } from "../lib/kg/memgraph-client";
 import {
@@ -65,7 +65,7 @@ const env = loadEnv();
 // ---------- main ----------
 
 const memgraph = new MemgraphClient();
-const itsaplan = new ItsaplanClient(env.ITSAPLAN_BASE_URL!, env.ITSAPLAN_API_KEY!);
+const itsaplan = createItsaplanClient(env.ITSAPLAN_BASE_URL!, env.ITSAPLAN_API_KEY!);
 
 interface Row {
   identifier: string;

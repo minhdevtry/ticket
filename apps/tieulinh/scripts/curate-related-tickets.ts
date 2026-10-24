@@ -8,13 +8,14 @@
  * Mặc định là CHẠY THỬ (dry-run), chỉ tính toán và in kết quả, không ghi gì lên Itsaplan.
  * CẢNH BÁO: --apply ghi lên Itsaplan thật (cả ticket cũ) — chỉ chạy khi người dùng đồng ý sau khi xem bản chạy thử.
  */
+import { createItsaplanClient } from "../lib/itsaplan/client-factory";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ItsaplanClient, type ItsaplanIssue } from "../lib/itsaplan/client";
+import { type ItsaplanIssue } from "@vuihoc/bot-core/itsaplan";
 import { MemgraphClient } from "../lib/kg/memgraph-client";
 import { LlmSimilarTickets } from "../lib/kg/similar-ticket-source";
 import { OnyxRestSearchClient } from "../lib/onyx/rest-search";
-import { classifyColumn } from "../lib/itsaplan/ticket-state";
+import { classifyColumn } from "@vuihoc/bot-core/itsaplan";
 import {
   RelatedTicketsCurator,
   type CuratorResult,
@@ -64,7 +65,7 @@ async function retry<T>(f: () => Promise<T>): Promise<T> {
   }
 }
 
-const itsaplan = new ItsaplanClient(baseUrl, apiKey);
+const itsaplan = createItsaplanClient(baseUrl, apiKey);
 const memgraph = new MemgraphClient();
 
 // Mode "suggested" (ticket chưa ghim) chỉ gợi ý được khi có cấu hình Onyx + LLM;

@@ -16,8 +16,8 @@
  *
  * Nightly (không tự cài — xem docs/INTAKE-ASK-LEARNING-20261016.md): chạy `ingest` theo lịch.
  */
+import { createItsaplanClient } from "../lib/itsaplan/client-factory";
 import * as fs from "node:fs";
-import { ItsaplanClient } from "../lib/itsaplan/client";
 import {
   isLlmConfigured,
   llmConfigFromEnv,
@@ -151,7 +151,7 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<number
     const baseUrl = env.ITSAPLAN_BASE_URL ?? "";
     const apiKey = env.ITSAPLAN_AGENT_KEY || env.ITSAPLAN_API_KEY || "";
     const client =
-      deps.itsaplan ?? (baseUrl && apiKey ? new ItsaplanClient(baseUrl, apiKey) : undefined);
+      deps.itsaplan ?? (baseUrl && apiKey ? createItsaplanClient(baseUrl, apiKey) : undefined);
     if (!client) {
       console.error("Thiếu ITSAPLAN_BASE_URL / ITSAPLAN_API_KEY (hoặc dùng --from-jsonl)");
       return 2;

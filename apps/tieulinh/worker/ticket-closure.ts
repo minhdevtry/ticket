@@ -14,9 +14,9 @@
  * `issue.updated`, webhook có thể tới lại — trạng thái không đổi thì bỏ qua.
  */
 import type { Database } from "bun:sqlite";
-import type { ItsaplanClient } from "../lib/itsaplan/client";
-import type { ProjectColumnStates, TicketState } from "../lib/itsaplan/ticket-state";
-import { resolveFriendlyStatusName } from "../lib/itsaplan/status";
+import type { ItsaplanClient } from "@vuihoc/bot-core/itsaplan";
+import type { ProjectColumnStates, TicketState } from "@vuihoc/bot-core/itsaplan";
+import { resolveFriendlyStatusName } from "@vuihoc/bot-core/itsaplan";
 import { describeState } from "../lib/itsaplan/state-messages";
 import type { TicketBinding, TicketBindingRepository } from "../lib/storage/binding-repository";
 import { markBotComment } from "@vuihoc/bot-core/core";
@@ -29,10 +29,10 @@ import { getLogger } from "@vuihoc/bot-core/core";
 import type { Notifier } from "./notifier";
 import {
   identifierInProject,
-  isTieuLinhProject,
   normalizeProjectKey,
   projectOfIdentifier,
-} from "./project-lock";
+} from "@vuihoc/bot-core/itsaplan";
+import { isTieuLinhProject } from "./project-lock";
 
 export type TicketDoneHandler = (issueId: number, identifier: string) => Promise<void>;
 

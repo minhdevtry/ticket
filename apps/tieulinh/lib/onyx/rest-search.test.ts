@@ -1,7 +1,7 @@
 import { describe, expect, it, mock, beforeEach, afterEach } from "bun:test";
 import { OnyxRestSearchClient } from "./rest-search";
 import { getLogger, setLogger } from "@vuihoc/bot-core/core";
-import type { ItsaplanClient, ItsaplanIssue } from "../itsaplan/client";
+import type { ItsaplanClient, ItsaplanIssue } from "@vuihoc/bot-core/itsaplan";
 import type { IntakeLogger } from "@vuihoc/bot-core/core";
 
 describe("OnyxRestSearchClient", () => {

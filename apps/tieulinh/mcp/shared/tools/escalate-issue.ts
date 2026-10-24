@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { ItsaplanClient } from "../../../lib/itsaplan/client";
-import { findIssueByIdentifier } from "../../../lib/itsaplan/project";
+import { createItsaplanClient } from "../../../lib/itsaplan/client-factory";
+import { findIssueByIdentifier } from "@vuihoc/bot-core/itsaplan";
 import { markBotComment } from "@vuihoc/bot-core/core";
 import { escapeItsaplanMarkdown } from "../../../lib/html-entities";
 import { defineTool, type AnyMcpTool } from "@vuihoc/bot-core/core";
@@ -22,7 +22,7 @@ export interface EscalateVocabulary {
  * được.
  */
 export function escalateIssue(config: TrackerConfig, vocabulary: EscalateVocabulary): AnyMcpTool {
-  const client = new ItsaplanClient(config.baseUrl, config.apiKey);
+  const client = createItsaplanClient(config.baseUrl, config.apiKey);
 
   return defineTool({
     name: "escalate_issue",

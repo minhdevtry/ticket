@@ -19,9 +19,9 @@
  * nhắc ticket khác, không cần tốn lượt LLM cho chúng. LLM chỉ dùng để phân
  * loại phần còn lại; lỗi LLM/API thì chỉ log và bỏ qua, không đoán.
  */
-import type { ItsaplanClient } from "../lib/itsaplan/client";
+import type { ItsaplanClient } from "@vuihoc/bot-core/itsaplan";
 import type { TicketBindingRepository } from "../lib/storage/binding-repository";
-import { findIssueByIdentifier } from "../lib/itsaplan/project";
+import { findIssueByIdentifier } from "@vuihoc/bot-core/itsaplan";
 import { isSystemActor } from "../lib/kg/human-signals";
 import { symptomsOfDescription } from "../lib/kg/similar-finder";
 import {
@@ -31,7 +31,7 @@ import {
   stripCommentHtml,
 } from "@vuihoc/bot-core/core";
 import { complete, extractJson, isLlmConfigured, type LlmConfig } from "./llm";
-import { projectOfIdentifier } from "./project-lock";
+import { projectOfIdentifier } from "@vuihoc/bot-core/itsaplan";
 import { getLogger } from "@vuihoc/bot-core/core";
 
 /** Mã ticket dạng "TECH-123" nhắc trong một câu — dùng để lọc thô trước khi gọi LLM. */

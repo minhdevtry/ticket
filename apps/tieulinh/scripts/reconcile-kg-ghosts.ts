@@ -33,12 +33,12 @@
  *   - --project <KEY>: chọn project Itsaplan (mặc định ITSAPLAN_PROJECT_KEY
  *     từ env hoặc "TECH").
  */
+import { createItsaplanClient } from "../lib/itsaplan/client-factory";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ItsaplanClient } from "../lib/itsaplan/client";
 import { MemgraphClient } from "../lib/kg/memgraph-client";
 import { getLogger } from "@vuihoc/bot-core/core";
-import { classifyColumn } from "../lib/itsaplan/ticket-state";
+import { classifyColumn } from "@vuihoc/bot-core/itsaplan";
 
 // Nạp .env từ apps/tieulinh/ vì Bun chỉ load từ CWD — chạy script trực tiếp từ
 // root repo mà không `cd intake` thì MEMGRAPH_URI / ITSAPLAN_* sẽ trống.
@@ -76,7 +76,7 @@ if (!baseUrl || !apiKey) {
   process.exit(1);
 }
 
-const itsaplan = new ItsaplanClient(baseUrl, apiKey);
+const itsaplan = createItsaplanClient(baseUrl, apiKey);
 const memgraph = new MemgraphClient();
 
 // Cột trạng thái theo cấu hình project (không hard-code vì project khác có

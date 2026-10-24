@@ -1,5 +1,5 @@
-import type { ItsaplanClient } from "../lib/itsaplan/client";
-import { findIssueByIdentifier, parseIdentifier } from "../lib/itsaplan/project";
+import type { ItsaplanClient } from "@vuihoc/bot-core/itsaplan";
+import { findIssueByIdentifier, parseIdentifier } from "@vuihoc/bot-core/itsaplan";
 import { getLogger } from "@vuihoc/bot-core/core";
 import { isSystemActor } from "../lib/kg/human-signals";
 

@@ -1,5 +1,5 @@
-import { ItsaplanClient } from "../../lib/itsaplan/client";
-const c = new ItsaplanClient(process.env.ITSAPLAN_BASE_URL!, process.env.ITSAPLAN_API_KEY!);
+import { createItsaplanClient } from "../../lib/itsaplan/client-factory";
+const c = createItsaplanClient(process.env.ITSAPLAN_BASE_URL!, process.env.ITSAPLAN_API_KEY!);
 if (process.env.WAIT) await Bun.sleep(Number(process.env.WAIT) * 1000);
 const i: any = await c.getIssueByNumber("TECH", Number(process.argv[2]));
 console.log(

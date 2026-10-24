@@ -11,7 +11,7 @@ import { TicketBindingRepository } from "../storage/binding-repository";
 import { DraftSessionRepository } from "../storage/session-repository";
 import { FieldExtractor } from "./extractor";
 import { IntakeStepPipeline, type IntakePipelineOptions } from "./pipeline";
-import type { ItsaplanClient, ItsaplanIssue } from "../itsaplan/client";
+import type { ItsaplanClient, ItsaplanIssue } from "@vuihoc/bot-core/itsaplan";
 import type { IntakeDocument } from "../intake-document/types";
 import type { IntakePacket } from "../intake-document/packet";
 import { isInvalidTitle, deriveFallbackTitle, splitMultiIncidentReport } from "./multi-incident";

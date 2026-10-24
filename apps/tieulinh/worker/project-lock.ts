@@ -1,43 +1,10 @@
-/**
- * Khoá dự án cho worker.
- *
- * Mỗi dự án một process worker (ITSAPLAN_PROJECT_KEY), nhưng webhook Itsaplan
- * không lọc theo dự án và hai worker dùng chung file SQLite. Mọi đường xử lý
- * phải tự hỏi "ticket này có phải của mình không" — hàm ở đây là câu trả lời
- * duy nhất, để các nơi không tự so chuỗi mỗi chỗ một kiểu.
- */
-
-/** Chuẩn hoá mã dự án: bỏ khoảng trắng, viết hoa; rỗng → null (không khoá). */
-export function normalizeProjectKey(projectKey?: string | null): string | null {
-  const key = String(projectKey ?? "")
-    .trim()
-    .toUpperCase();
-  return key.length > 0 ? key : null;
-}
-
-/** Tiền tố dự án của một identifier "TECH-12" → "TECH"; không đọc được → null. */
-export function projectOfIdentifier(identifier?: string | null): string | null {
-  const match = String(identifier ?? "")
-    .trim()
-    .match(/^([A-Za-z][A-Za-z0-9_]*)-(\d+)$/);
-  return match ? match[1].toUpperCase() : null;
-}
+import { normalizeProjectKey, projectOfIdentifier } from "@vuihoc/bot-core/itsaplan";
 
 /**
- * Identifier có thuộc dự án worker không.
- *
- * - Worker không khai dự án → nhận tất (giữ hành vi cũ cho môi trường test).
- * - Không đọc được dự án từ identifier → KHÔNG nhận: không biết là của ai thì
- *   không được đụng vào (trước đây tiền tố rỗng lại lọt qua).
+ * Khoá dự án chung (`normalizeProjectKey`, `projectOfIdentifier`,
+ * `identifierInProject`) nằm ở `@vuihoc/bot-core/itsaplan`. File này chỉ giữ luật
+ * RIÊNG của Tiểu Linh: mã dự án nào thuộc phạm vi bot này.
  */
-export function identifierInProject(
-  identifier: string | null | undefined,
-  projectKey?: string | null,
-): boolean {
-  const own = normalizeProjectKey(projectKey);
-  if (!own) return true;
-  return projectOfIdentifier(identifier) === own;
-}
 
 /**
  * Dự án có thuộc phạm vi của Tiểu Linh (mặc định "TECH", hoặc dự án worker khi không phải "PO").

@@ -10,7 +10,7 @@ import type { TicketBinding } from "../lib/storage/binding-repository";
 import { getLogger } from "@vuihoc/bot-core/core";
 import { TelegramTransport } from "../lib/telegram/transport";
 import { stripBotMentions } from "@vuihoc/bot-core/core";
-import type { TicketState } from "../lib/itsaplan/ticket-state";
+import type { TicketState } from "@vuihoc/bot-core/itsaplan";
 
 /**
  * Tiền tố callback của nút "👍 Đã ổn". Nút cũ gửi trước 24/09 dùng `confirm_done:`

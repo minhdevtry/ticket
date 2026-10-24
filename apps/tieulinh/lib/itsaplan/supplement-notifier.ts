@@ -25,8 +25,13 @@
  *    gửi thêm tin ngắn tới kênh trực ca Telegram (mặc định tắt an toàn).
  */
 
-import type { ItsaplanClient, ItsaplanIssue, ProjectAssignee, ProjectColumn } from "./client";
-import { classifyColumn, type TicketState } from "./ticket-state";
+import type {
+  ItsaplanClient,
+  ItsaplanIssue,
+  ProjectAssignee,
+  ProjectColumn,
+} from "@vuihoc/bot-core/itsaplan";
+import { classifyColumn, type TicketState } from "@vuihoc/bot-core/itsaplan";
 import { isSystemActor } from "../kg/human-signals";
 import { isBotComment, markBotComment } from "@vuihoc/bot-core/core";
 import { escapeItsaplanMarkdown } from "../html-entities";

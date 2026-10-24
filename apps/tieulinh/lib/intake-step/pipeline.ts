@@ -1,5 +1,5 @@
-import type { ItsaplanClient, ItsaplanIssue, ProjectColumn } from "../itsaplan/client";
-import { classifyColumn, type TicketState } from "../itsaplan/ticket-state";
+import type { ItsaplanClient, ItsaplanIssue, ProjectColumn } from "@vuihoc/bot-core/itsaplan";
+import { classifyColumn, type TicketState } from "@vuihoc/bot-core/itsaplan";
 import {
   closedTicketRefusalMessage,
   resolveSupplementMentionTarget,
@@ -12,8 +12,9 @@ import {
   parseIdentifier,
   resolveLabelsForIssue,
   resolveProjectTeamRef,
-} from "../itsaplan/project";
-import { formatAttachmentMarkdown, uploadAttachments } from "../itsaplan/attachments";
+} from "@vuihoc/bot-core/itsaplan";
+import { formatAttachmentMarkdown } from "@vuihoc/bot-core/itsaplan";
+import { uploadAttachments } from "../itsaplan/upload";
 import {
   buildAdviceComment,
   formatTicketDescription,

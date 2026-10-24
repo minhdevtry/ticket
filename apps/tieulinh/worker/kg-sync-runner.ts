@@ -13,7 +13,7 @@
  */
 import type { KgSyncRepository } from "../lib/storage/kg-sync-repository";
 import { getLogger } from "@vuihoc/bot-core/core";
-import { identifierInProject, normalizeProjectKey } from "./project-lock";
+import { identifierInProject, normalizeProjectKey } from "@vuihoc/bot-core/itsaplan";
 
 export interface KgSyncGate {
   enabled: boolean;

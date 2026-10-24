@@ -4,7 +4,7 @@ import { getLogger } from "@vuihoc/bot-core/core";
 import { stripBotMentions, stripCommentHtml } from "@vuihoc/bot-core/core";
 import { isCommentRecentlyForwarded } from "../lib/formatting.local";
 import { decodeHtmlEntities } from "../lib/html-entities";
-import { identifierInProject, normalizeProjectKey } from "./project-lock";
+import { identifierInProject, normalizeProjectKey } from "@vuihoc/bot-core/itsaplan";
 
 export interface AgentRunnerOptions {
   itsaplanBaseUrl: string;

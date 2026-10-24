@@ -1,17 +1,18 @@
-import type { ItsaplanClient } from "../lib/itsaplan/client";
+import type { ItsaplanClient } from "@vuihoc/bot-core/itsaplan";
 import type { TicketClosure } from "./ticket-closure";
 import { REPORTER_OK_CALLBACK } from "./notifier";
 import type { TicketBindingRepository } from "../lib/storage/binding-repository";
 import { getLogger } from "@vuihoc/bot-core/core";
 import { markBotComment } from "@vuihoc/bot-core/core";
 import { escapeItsaplanMarkdown } from "../lib/html-entities";
-import { classifyColumn } from "../lib/itsaplan/ticket-state";
+import { classifyColumn } from "@vuihoc/bot-core/itsaplan";
 import {
   closedTicketRefusalMessage,
   resolveSupplementMentionTarget,
 } from "../lib/itsaplan/supplement-notifier";
 import { TelegramTransport } from "../lib/telegram/transport";
-import { identifierInProject, isTieuLinhProject, projectOfIdentifier } from "./project-lock";
+import { identifierInProject, projectOfIdentifier } from "@vuihoc/bot-core/itsaplan";
+import { isTieuLinhProject } from "./project-lock";
 
 export interface TelegramHandlerOptions {
   itsaplan: ItsaplanClient;

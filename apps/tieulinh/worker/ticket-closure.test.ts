@@ -2,10 +2,10 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import { Database } from "bun:sqlite";
 import { applySchema } from "../lib/storage/schema";
 import { TicketBindingRepository } from "../lib/storage/binding-repository";
-import { ProjectColumnStates } from "../lib/itsaplan/ticket-state";
-import type { ItsaplanClient, ProjectColumn } from "../lib/itsaplan/client";
+import { ProjectColumnStates } from "@vuihoc/bot-core/itsaplan";
+import type { ItsaplanClient, ProjectColumn } from "@vuihoc/bot-core/itsaplan";
 import type { Notifier } from "./notifier";
-import type { TicketState } from "../lib/itsaplan/ticket-state";
+import type { TicketState } from "@vuihoc/bot-core/itsaplan";
 import { TicketClosure } from "./ticket-closure";
 
 // Cột THẬT của TECH (tra 24/09/2026): Resolved nằm nhóm completed, cạnh Done.

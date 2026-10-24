@@ -5,7 +5,7 @@ import { IntakeDocumentRepository } from "../../lib/intake-document/repository";
 import { FieldExtractor } from "../../lib/intake-step/extractor";
 import { intakeStep } from "./tools/intake-step";
 import { inspectTools } from "./tools/inspect-tools";
-import type { ItsaplanClient, ItsaplanIssue } from "../../lib/itsaplan/client";
+import type { ItsaplanClient, ItsaplanIssue } from "@vuihoc/bot-core/itsaplan";
 import validationRules from "./domain/validation-rules.json";
 import fieldRequirements from "./domain/required_fields.json";
 import productMapping from "./domain/product_mapping.json";

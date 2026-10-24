@@ -1,9 +1,9 @@
 import type { Database } from "bun:sqlite";
-import type { ItsaplanClient } from "../lib/itsaplan/client";
-import { issueWebUrl, resolveProjectTeamRef } from "../lib/itsaplan/project";
+import type { ItsaplanClient } from "@vuihoc/bot-core/itsaplan";
+import { issueWebUrl, resolveProjectTeamRef } from "@vuihoc/bot-core/itsaplan";
 import type { Notifier } from "./notifier";
 import { getLogger } from "@vuihoc/bot-core/core";
-import { normalizeProjectKey } from "./project-lock";
+import { normalizeProjectKey } from "@vuihoc/bot-core/itsaplan";
 
 /**
  * Theo dõi SLA tiếp nhận: cảnh báo trực ca khi ticket quá hạn mà chưa ai nhận.

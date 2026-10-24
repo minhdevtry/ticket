@@ -1,6 +1,6 @@
 import http from "node:http";
 import { createHmac, timingSafeEqual } from "node:crypto";
-import type { ItsaplanClient } from "../lib/itsaplan/client";
+import type { ItsaplanClient } from "@vuihoc/bot-core/itsaplan";
 import { getLogger } from "@vuihoc/bot-core/core";
 import type { ReporterOkResult, ReporterReplyResult } from "./ticket-closure";
 

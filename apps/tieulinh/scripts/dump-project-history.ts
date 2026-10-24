@@ -8,7 +8,7 @@
  * Cần ITSAPLAN_BASE_URL + ITSAPLAN_API_KEY (Bun tự nạp apps/tieulinh/.env). File dump
  * chứa dữ liệu thật (SĐT, tên) — thư mục data/history/ đã bị .gitignore.
  */
-import { ItsaplanClient } from "../lib/itsaplan/client";
+import { createItsaplanClient } from "../lib/itsaplan/client-factory";
 
 const arg = (name: string, fallback: string) => {
   const i = process.argv.indexOf(name);
@@ -23,7 +23,7 @@ if (!baseUrl || !apiKey) {
   console.error("Thiếu ITSAPLAN_BASE_URL / ITSAPLAN_API_KEY.");
   process.exit(1);
 }
-const client = new ItsaplanClient(baseUrl, apiKey);
+const client = createItsaplanClient(baseUrl, apiKey);
 
 // Itsaplan trả 500 khi bị gọi dồn — thử lại có giãn cách.
 async function retry<T>(f: () => Promise<T>): Promise<T> {

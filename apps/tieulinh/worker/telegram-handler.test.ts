@@ -3,7 +3,7 @@ import { TelegramWebhookHandler } from "./telegram-handler";
 import { Database } from "bun:sqlite";
 import { applySchema } from "../lib/storage/schema";
 import { TicketBindingRepository } from "../lib/storage/binding-repository";
-import type { ItsaplanClient } from "../lib/itsaplan/client";
+import type { ItsaplanClient } from "@vuihoc/bot-core/itsaplan";
 import type { TicketClosure } from "./ticket-closure";
 
 describe("TelegramWebhookHandler", () => {

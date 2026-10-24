@@ -1,18 +1,19 @@
 import { z } from "zod";
+import { createItsaplanClient } from "../../../lib/itsaplan/client-factory";
 import { stripChannelEnvelope, isInternalCallbackToken } from "@vuihoc/bot-core/core";
-import { ItsaplanClient } from "../../../lib/itsaplan/client";
+import type { ItsaplanClient } from "@vuihoc/bot-core/itsaplan";
 import {
   issueWebUrl,
   resolveBacklogColumn,
   resolveLabel,
   resolveLabelsForIssue,
   resolveProject,
-} from "../../../lib/itsaplan/project";
+} from "@vuihoc/bot-core/itsaplan";
+import { uploadAttachments } from "../../../lib/itsaplan/upload";
 import {
-  uploadAttachments,
   spliceAttachmentsIntoDescription,
   type UploadedAttachment,
-} from "../../../lib/itsaplan/attachments";
+} from "@vuihoc/bot-core/itsaplan";
 import { findRecentInboundMedia } from "../../../lib/media";
 import {
   getSharedBindingRepo,
@@ -299,7 +300,7 @@ export function createIssue<TShape extends z.ZodRawShape>(
   dbPath?: string,
   confirmButtonLabel: string = "✅ Đúng rồi, xác nhận",
 ): AnyMcpTool {
-  const client = new ItsaplanClient(config.baseUrl, config.apiKey);
+  const client = createItsaplanClient(config.baseUrl, config.apiKey);
 
   const inputSchema = {
     ...domain.inputShape,
