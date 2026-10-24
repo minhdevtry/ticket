@@ -5,6 +5,7 @@ import {
   renderFull,
   renderMarkdown,
   renderTable,
+  stripControl,
   summarize,
   wrap,
 } from "./compare.ts";
@@ -69,6 +70,17 @@ describe("compare", () => {
     const md = renderMarkdown([pair(1)]);
     expect(md.split("\n")).toHaveLength(3);
     expect(md).toContain("| Giờ |");
+  });
+
+  it("stripControl: chuỗi ESC và ký tự điều khiển không lọt ra terminal", () => {
+    const evil = "ok\u001b[2J\u001b]0;tiêu đề\u0007x\u0000y\u0085z";
+    expect(stripControl(evil)).toBe("okxyz");
+    const p = pair(1);
+    p.text = evil;
+    p.tl2.reply = "\u001b[31mđỏ";
+    for (const out of [renderTable([p], 100), renderFull([p]), renderMarkdown([p])]) {
+      expect(out).not.toContain("\u001b");
+    }
   });
 
   it("filterPairs theo thời gian, chat, giới hạn", () => {

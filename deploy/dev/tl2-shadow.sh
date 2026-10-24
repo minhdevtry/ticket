@@ -61,8 +61,10 @@ case "$cmd" in
     for s in "${services[@]}"; do
       if p="$(pid_of "$s")"; then echo "$s: chạy (pid $p)"; else echo "$s: dừng"; fi
     done
-    port="${SHADOW_PORT:-3106}"
-    curl -fsS -m 3 "http://127.0.0.1:${port}/health" 2>/dev/null && echo || echo "relay /health: không trả lời" ;;
+    cfg="${TL2_SHADOW_ENV:-$HOME/.config/ticket/tl2-shadow.env}"
+    port="${SHADOW_PORT:-$(grep -E '^SHADOW_PORT=' "$cfg" 2>/dev/null | cut -d= -f2 || true)}"; port="${port:-3106}"
+    bind="${SHADOW_BIND:-$(grep -E '^SHADOW_BIND=' "$cfg" 2>/dev/null | cut -d= -f2 || true)}"; bind="${bind:-127.0.0.1}"
+    curl -fsS -m 3 "http://${bind}:${port}/health" 2>/dev/null && echo || echo "relay /health: không trả lời" ;;
   logs)
     s="${2:-relay}"; tail -n 40 -f "$logs/$s.log" ;;
   systemd-install)

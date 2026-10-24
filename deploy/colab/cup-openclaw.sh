@@ -38,11 +38,20 @@ sha="$(git rev-parse --verify --quiet "${ref}^{commit}")" || { echo "Không tìm
 short="${sha:0:12}"
 echo "== ref ${ref} -> ${short} (chỉ code đã commit)"
 
-# Chặn nhầm: bản lưu không được chứa file giống secret.
-if git archive "$sha" | tar -t | grep -Eq '(^|/)(\.env(\..*)?|[^/]*\.(pem|key|sqlite3?|db))$' ; then
-  echo "Bản lưu của ${ref} chứa file giống secret/DB; dừng." >&2
+# Chặn nhầm: bản lưu không được chứa file giống secret/DB. Lấy danh sách vào biến rồi grep (không
+# pipe vào `grep -q`: với pipefail, grep thoát sớm làm đường ống báo lỗi và chốt chặn không bao giờ kích hoạt).
+archive_list="$(git archive "$sha" | tar -t)"
+secret_re='(^|/)\.env(\..*)?$|\.(pem|key|p12|pfx|jks|keystore|crt|sqlite3?|db|db-wal|db-shm|sql|sql\.gz|dump|tfstate|token)$|(^|/)id_(rsa|dsa|ecdsa|ed25519)(\.pub)?$|(^|/)(\.npmrc|\.netrc|\.scan-denylist)$|(^|/)(secrets?|credentials?)(/|$)'
+suspect="$(grep -Ev '(^|/)\.env\.example$' <<<"$archive_list" | grep -E "$secret_re" || true)"
+if [ -n "$suspect" ]; then
+  echo "Bản lưu của ${ref} chứa file giống secret/DB; dừng:" >&2
+  echo "$suspect" | head -5 >&2
   exit 1
 fi
+
+case "$model" in *[!A-Za-z0-9._-]*|"") echo "--model không hợp lệ: $model" >&2; exit 2 ;; esac
+q_model="$(printf '%q' "$model")"
+q_api="$(printf '%q' "$api")"
 
 sshc() { ssh -o BatchMode=yes -o ConnectTimeout=20 "$host" "$@"; }
 
@@ -71,8 +80,9 @@ else
 fi
 
 echo "== bootstrap gateway"
-sshc "set -e; ln -sfn ${remote} \$HOME/tl2/current; cd ${remote} && bun run tools/tl2-shadow/colab/bootstrap.ts --release ${remote} --api ${api} --model ${model}"
+sshc "set -e; touch ${remote}; ln -sfn ${remote} \$HOME/tl2/current; cd ${remote} && bun run tools/tl2-shadow/colab/bootstrap.ts --release ${remote} --api ${q_api} --model ${q_model}"
 
 echo "== dọn bản cũ (giữ ${keep})"
-sshc "cd \$HOME/tl2/releases && ls -1t | grep -v '\.tmp\$' | tail -n +$((keep + 1)) | xargs -r rm -rf"
+# Không bao giờ xoá bản `current` đang trỏ tới (kể cả khi nó cũ hơn theo mtime vì đã được triển khai lại).
+sshc "cd \$HOME/tl2/releases && cur=\$(basename \$(readlink -f \$HOME/tl2/current)) && ls -1t | grep -v '\.tmp\$' | grep -vx \"\$cur\" | tail -n +${keep} | xargs -r rm -rf"
 echo "== xong. Token gateway ở ~/tl2/home/gateway.token trên ${host}; relay lấy qua tunnel.ts."

@@ -30,4 +30,4 @@ deploy/dev/tl2-shadow.sh start                # proxy + tunnel + relay trên má
 deploy/dev/tl2-shadow.sh stop
 ```
 
-Chi tiết và cấu hình: [tools/tl2-shadow/README.md](../tools/tl2-shadow/README.md). Unit systemd mẫu ở `deploy/systemd/` (cài bằng `deploy/dev/tl2-shadow.sh systemd-install`).
+Chi tiết và cấu hình: [docs/how-to/shadow-tl2.md](../docs/how-to/shadow-tl2.md). Unit systemd mẫu ở `deploy/systemd/` (cài bằng `deploy/dev/tl2-shadow.sh systemd-install`).

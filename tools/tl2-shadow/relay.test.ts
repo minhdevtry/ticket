@@ -39,6 +39,10 @@ describe("normalizeEvent", () => {
     expect(normalizeEvent({ ...inbound(1, 5), chatId: "" })).toBeNull();
     expect(normalizeEvent({ ...inbound(1, 5), kind: "lạ" })).toBeNull();
     expect(normalizeEvent("chuỗi")).toBeNull();
+    for (const chatId of ["1".repeat(65), "a b", "../x", "1\n2", "x/y"]) {
+      expect(normalizeEvent({ ...inbound(1, 5), chatId })).toBeNull();
+    }
+    expect(normalizeEvent({ ...inbound(1, 5), chatId: "-1000000000001" })).not.toBeNull();
   });
 });
 

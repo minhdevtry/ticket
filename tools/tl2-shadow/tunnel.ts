@@ -13,7 +13,7 @@
  */
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { loadLocalEnv, dataDir } from "./config.ts";
+import { dataDir, intEnv, loadLocalEnv } from "./config.ts";
 import { ensurePrivateDir } from "./queue.ts";
 
 export interface TunnelConfig {
@@ -31,11 +31,11 @@ export function tunnelConfig(env: Record<string, string | undefined> = process.e
   const dir = dataDir(env);
   return {
     host: env.TL2_COLAB_HOST || "colab2",
-    gatewayPort: Number(env.TL2_GATEWAY_PORT || 18796),
-    minimaxPort: Number(env.TL2_MINIMAX_PORT || 18999),
-    itsaplanPort: Number(env.TL2_ITSAPLAN_PORT || 18998),
+    gatewayPort: intEnv(env, "TL2_GATEWAY_PORT", 18796, 1, 65535),
+    minimaxPort: intEnv(env, "TL2_MINIMAX_PORT", 18999, 1, 65535),
+    itsaplanPort: intEnv(env, "TL2_ITSAPLAN_PORT", 18998, 1, 65535),
     remoteTokenPath: env.TL2_REMOTE_TOKEN_PATH || "$HOME/tl2/home/gateway.token",
-    intervalMs: Number(env.TL2_TUNNEL_INTERVAL_MS || 20_000),
+    intervalMs: intEnv(env, "TL2_TUNNEL_INTERVAL_MS", 20_000, 1000),
     tokenPath: env.TL2_GATEWAY_TOKEN_FILE || join(dir, "gateway.token"),
   };
 }

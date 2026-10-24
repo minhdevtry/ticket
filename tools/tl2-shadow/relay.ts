@@ -46,8 +46,9 @@ export function normalizeEvent(raw: unknown, now = Date.now()): ShadowEvent | nu
   const r = raw as Record<string, any>;
   if (r.v !== 1 || typeof r.eid !== "string" || !r.eid || r.eid.length > 200) return null;
   const ts = typeof r.ts === "number" && Number.isFinite(r.ts) ? r.ts : now;
+  const okChat = (v: unknown) => typeof v === "string" && /^[A-Za-z0-9_.:-]{1,64}$/.test(v);
   if (r.kind === "inbound") {
-    if (typeof r.chatId !== "string" || !r.chatId || typeof r.text !== "string") return null;
+    if (!okChat(r.chatId) || typeof r.text !== "string") return null;
     return {
       v: 1,
       kind: "inbound",
@@ -78,7 +79,7 @@ export function normalizeEvent(raw: unknown, now = Date.now()): ShadowEvent | nu
     };
   }
   if (r.kind === "outbound") {
-    if (typeof r.chatId !== "string" || !r.chatId || typeof r.text !== "string") return null;
+    if (!okChat(r.chatId) || typeof r.text !== "string") return null;
     return {
       v: 1,
       kind: "outbound",

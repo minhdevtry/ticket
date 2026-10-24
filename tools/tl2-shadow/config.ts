@@ -6,6 +6,7 @@
  * ngoài repo; file bên trong luôn 0600.
  */
 import { existsSync, readFileSync } from "node:fs";
+import { isIP } from "node:net";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -58,13 +59,17 @@ export function loadLocalEnv(env: Env = process.env): void {
   }
 }
 
-function int(env: Env, key: string, def: number, min = 1): number {
+/** Số nguyên từ env, dừng khởi động (không âm thầm thành NaN) nếu sai. */
+export function intEnv(env: Env, key: string, def: number, min = 1, max = Number.MAX_SAFE_INTEGER) {
   const raw = env[key];
   if (raw === undefined || raw === "") return def;
   const n = Number(raw);
-  if (!Number.isInteger(n) || n < min) throw new ConfigError(`${key} phải là số nguyên >= ${min}`);
+  if (!Number.isInteger(n) || n < min || n > max) {
+    throw new ConfigError(`${key} phải là số nguyên trong [${min}, ${max}]`);
+  }
   return n;
 }
+const int = intEnv;
 
 export interface RelayConfig {
   host: string;
@@ -92,23 +97,51 @@ export interface RelayConfig {
   tickMs: number;
 }
 
+const isLoopbackIp = (ip: string) => ip === "::1" || /^127\.\d+\.\d+\.\d+$/.test(ip);
+
+/**
+ * Cấu hình relay. Mặc định CHỈ nghe loopback. Muốn nhận từ server qua LAN phải đặt đủ:
+ *  - SHADOW_BIND=<một IP cụ thể của máy dev> (không nhận 0.0.0.0 hay ::)
+ *  - SHADOW_RELAY_TOKEN (>= 16 ký tự, khớp `token` của plugin)
+ *  - SHADOW_ALLOW_FROM=<IP server>
+ */
 export function relayConfig(env: Env = process.env): RelayConfig {
-  if (env.SHADOW_ALLOW_FROM === undefined) {
-    throw new ConfigError(
-      "Thiếu SHADOW_ALLOW_FROM: danh sách IP server được gửi sự kiện, cách nhau dấu phẩy " +
-        "(ví dụ 10.0.0.5; đặt rỗng để chỉ cho loopback). Đặt trong ~/.config/ticket/tl2-shadow.env.",
-    );
+  const host = env.SHADOW_BIND || "127.0.0.1";
+  if (!isIP(host)) throw new ConfigError("SHADOW_BIND phải là một địa chỉ IP");
+  if (host === "0.0.0.0" || host === "::") {
+    throw new ConfigError("SHADOW_BIND không được là 0.0.0.0 hay ::; đặt đúng IP LAN của máy dev");
+  }
+  const token = env.SHADOW_RELAY_TOKEN || null;
+  const allowFrom = (env.SHADOW_ALLOW_FROM ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (!isLoopbackIp(host)) {
+    if (!token || token.length < 16) {
+      throw new ConfigError(
+        "Relay nghe ngoài loopback nên bắt buộc SHADOW_RELAY_TOKEN (>= 16 ký tự, cùng giá trị với `token` của plugin)",
+      );
+    }
+    if (allowFrom.length === 0) {
+      throw new ConfigError("Relay nghe ngoài loopback nên bắt buộc SHADOW_ALLOW_FROM=<IP server>");
+    }
+  }
+  const gatewayUrl = (env.TL2_GATEWAY_URL || "http://127.0.0.1:18796").replace(/\/+$/, "");
+  try {
+    const u = new URL(gatewayUrl);
+    if (u.protocol !== "http:" || !isLoopbackIp(u.hostname.replace(/^\[|\]$/g, "")))
+      throw new Error();
+  } catch {
+    throw new ConfigError("TL2_GATEWAY_URL phải là http://<loopback>:<cổng> (đi qua tunnel)");
   }
   const dir = dataDir(env);
   return {
-    host: env.SHADOW_BIND || "0.0.0.0",
+    host,
     port: int(env, "SHADOW_PORT", 3106),
-    allowFrom: env.SHADOW_ALLOW_FROM.split(",")
-      .map((s) => s.trim())
-      .filter(Boolean),
-    token: env.SHADOW_RELAY_TOKEN || null,
+    allowFrom,
+    token,
     dir,
-    gatewayUrl: (env.TL2_GATEWAY_URL || "http://127.0.0.1:18796").replace(/\/+$/, ""),
+    gatewayUrl,
     gatewayTokenPath: env.TL2_GATEWAY_TOKEN_FILE || join(dir, "gateway.token"),
     model: env.TL2_MODEL || "openclaw/ticket-intake-agent-2",
     modelLabel: env.TL2_MODEL_LABEL || "MiniMax-M3.1-Flash",

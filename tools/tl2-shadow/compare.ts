@@ -46,9 +46,33 @@ export function summarize(pairs: Pair[]): string {
   );
 }
 
+/** Bỏ ký tự điều khiển (kể cả chuỗi ESC) để chữ do người dùng gõ không điều khiển được terminal. */
+export function stripControl(s: string): string {
+  let out = "";
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c === 27) {
+      // ESC: bỏ cả chuỗi CSI (ESC [ ... byte cuối) hoặc OSC (ESC ] ... BEL | ESC \), hoặc 1 ký tự sau ESC.
+      const kind = s[i + 1];
+      if (kind === "[") {
+        i += 2;
+        while (i < s.length && !(s.charCodeAt(i) >= 0x40 && s.charCodeAt(i) <= 0x7e)) i++;
+      } else if (kind === "]") {
+        i += 2;
+        while (i < s.length && s.charCodeAt(i) !== 7 && s.charCodeAt(i) !== 27) i++;
+        if (s.charCodeAt(i) === 27) i++; // ESC \
+      } else i++;
+      continue;
+    }
+    const keep = c === 10 || c === 9 || (c >= 32 && c < 127) || c > 159;
+    if (keep) out += s[i];
+  }
+  return out;
+}
+
 /** Cắt theo ký tự (code point), gộp khoảng trắng; dùng để dựng ô bảng. */
 export function wrap(text: string | null | undefined, width: number): string[] {
-  const words = String(text ?? "")
+  const words = stripControl(String(text ?? ""))
     .normalize("NFC")
     .replace(/\s+/g, " ")
     .trim()
@@ -138,16 +162,18 @@ export function renderTable(pairs: Pair[], termWidth = 120, maxRows = 6): string
 }
 
 const toolLine = (p: Pair) =>
-  p.tl1.tools.length ? p.tl1.tools.map((t) => `${t.tool}${t.ok ? "" : " (lỗi)"}`).join(", ") : "-";
+  p.tl1.tools.length
+    ? p.tl1.tools.map((t) => `${stripControl(t.tool)}${t.ok ? "" : " (lỗi)"}`).join(", ")
+    : "-";
 
 export function renderFull(pairs: Pair[]): string {
   return pairs
     .map((p) =>
       [
         `=== ${new Date(p.ts).toISOString()}  chat ${p.chatId}  TL2: ${p.tl2.latencyMs ?? "-"} ms, ${p.tl2.model ?? "-"}`,
-        `NGƯỜI DÙNG:\n${p.text}`,
-        `TIỂU LINH 1 (tool: ${toolLine(p)}):\n${p.tl1.reply ?? "(không có)"}`,
-        `TIỂU LINH 2:\n${tl2Cell(p)}`,
+        `NGƯỜI DÙNG:\n${stripControl(p.text)}`,
+        `TIỂU LINH 1 (tool: ${toolLine(p)}):\n${stripControl(p.tl1.reply ?? "(không có)")}`,
+        `TIỂU LINH 2:\n${stripControl(tl2Cell(p))}`,
       ].join("\n\n"),
     )
     .join("\n\n");
@@ -155,7 +181,7 @@ export function renderFull(pairs: Pair[]): string {
 
 export function renderMarkdown(pairs: Pair[]): string {
   const cell = (s: string | null) =>
-    String(s ?? "")
+    stripControl(String(s ?? ""))
       .replace(/\|/g, "\\|")
       .replace(/\n+/g, "<br>");
   const lines = [

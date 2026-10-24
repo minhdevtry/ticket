@@ -1,5 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { type RenderOptions, providerBaseUrl, renderConfig } from "./render-config.ts";
+import {
+  DENIED_TOOL_GROUPS,
+  type RenderOptions,
+  providerBaseUrl,
+  renderConfig,
+} from "./render-config.ts";
 
 const opts: RenderOptions = {
   home: "/data/home",
@@ -49,6 +54,16 @@ describe("renderConfig", () => {
     expect(cfg.mcp.servers.ticketintake.args[1]).toBe(
       "/data/release/apps/tieulinh/mcp/tieulinh/index.ts",
     );
+  });
+
+  it("M8: cấm tool shell/file/web/trình duyệt ở cả mức toàn cục và mức agent, không cấm MCP", () => {
+    for (const g of ["group:runtime", "group:fs", "group:web", "group:ui"]) {
+      expect(DENIED_TOOL_GROUPS).toContain(g);
+      expect(cfg.tools.deny).toContain(g);
+      expect(cfg.agents.entries["ticket-intake-agent-2"].tools.deny).toContain(g);
+    }
+    expect(DENIED_TOOL_GROUPS).not.toContain("group:plugins");
+    expect(DENIED_TOOL_GROUPS.some((g) => /ticketintake|mcp/.test(g))).toBe(false);
   });
 
   it("không chứa secret nào ngoài token gateway ngẫu nhiên", () => {

@@ -6,6 +6,21 @@
  * Không có token Telegram, không có chat ID cảnh báo, Onyx/Memgraph/tìm ticket tương tự đều tắt.
  */
 
+/**
+ * Tool dựng sẵn của OpenClaw bị cấm cho agent Tiểu Linh 2: chỉ còn tool của MCP `ticketintake`.
+ * (`deny` luôn thắng allow; xem docs OpenClaw "tool policy".) Tiểu Linh 2 không cần shell, file,
+ * web, trình duyệt, cron hay gửi tin: bị lừa qua prompt injection cũng không có gì để lạm dụng.
+ */
+export const DENIED_TOOL_GROUPS = [
+  "group:runtime",
+  "group:fs",
+  "group:web",
+  "group:ui",
+  "group:automation",
+  "group:nodes",
+  "group:messaging",
+];
+
 export type ApiStyle = "anthropic-messages" | "openai-completions";
 
 export interface RenderOptions {
@@ -83,6 +98,7 @@ export function renderConfig(o: RenderOptions): Record<string, unknown> {
           workspace: o.workspace,
           model: { primary: modelRef },
           thinkingDefault: "off",
+          tools: { deny: DENIED_TOOL_GROUPS },
         },
       },
     },
@@ -95,6 +111,7 @@ export function renderConfig(o: RenderOptions): Record<string, unknown> {
         },
       },
     },
+    tools: { deny: DENIED_TOOL_GROUPS },
     channels: {},
     plugins: { entries: {} },
   };

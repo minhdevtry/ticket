@@ -10,6 +10,16 @@ Restart=on-failure
 RestartSec=5
 UMask=0077
 NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.local/share/tl2-shadow %h/.ssh %h/.colab-profiles
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictSUIDSGID=yes
+LockPersonality=yes
 StandardOutput=append:%h/.local/share/tl2-shadow/logs/tunnel.log
 StandardError=inherit
 
