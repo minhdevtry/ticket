@@ -12,7 +12,7 @@
  * phải biết), `tryCall` nuốt lỗi cho việc phụ (đóng nút, trả lời callback —
  * hỏng cũng không được làm gãy luồng).
  */
-import { getLogger } from "../logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 
 const DEFAULT_TIMEOUT_MS = 15_000;
 

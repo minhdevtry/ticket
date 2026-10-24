@@ -1,7 +1,7 @@
 import neo4j from "neo4j-driver";
 import { type MemgraphClient, OWN_RESOLUTION_MATCH } from "./memgraph-client";
 import type { GraphQueryResult } from "./types";
-import { getLogger } from "../logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 
 /**
  * Bộ truy vấn khai thác Knowledge Graph — dùng cho chat bot / dashboard.

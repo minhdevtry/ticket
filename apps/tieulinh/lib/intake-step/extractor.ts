@@ -11,7 +11,7 @@ import {
   extractedFieldsSchema,
   type ExtractedFields,
 } from "./extractor-schema";
-import { getLogger } from "../logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 import {
   extractBlockInfo,
   isInvalidTitle,

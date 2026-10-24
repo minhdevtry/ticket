@@ -2,7 +2,7 @@ import type { Database } from "bun:sqlite";
 import type { ItsaplanClient } from "../lib/itsaplan/client";
 import { issueWebUrl, resolveProjectTeamRef } from "../lib/itsaplan/project";
 import type { Notifier } from "./notifier";
-import { getLogger } from "../lib/logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 import { normalizeProjectKey } from "./project-lock";
 
 /**

@@ -3,7 +3,7 @@
  * (hệ thống) → mục canonical. Không có ASK_LEARN_DB, hoặc mở kho lỗi → undefined
  * (checklist chạy như cũ). Lỗi khi tra cứu → [] (không chặn việc hỏi).
  */
-import { getLogger } from "../logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 import type { CanonItem } from "./items";
 import { learnedItems, learnedShares } from "./learned";
 import { openAskLearnStore, type AskLearnStore } from "./store";

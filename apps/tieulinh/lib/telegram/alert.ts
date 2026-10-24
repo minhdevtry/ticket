@@ -11,7 +11,7 @@
  * đường đi của MỖI lượt chat, nên không gom lại thì một lỗi dai dẳng sẽ thành
  * hàng trăm tin nhắn — spam tới mức bị bỏ qua thì cũng bằng không báo.
  */
-import { getLogger } from "../logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 import { TelegramTransport } from "./transport";
 
 /** Cùng một nội dung báo động chỉ gửi lại sau ngần này. */

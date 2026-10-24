@@ -5,7 +5,7 @@
  * thuộc thư viện ngoài — gọi HTTP trần.
  */
 import { existsSync } from "node:fs";
-import { getLogger } from "../lib/logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 
 export interface LlmConfig {
   baseUrl: string;

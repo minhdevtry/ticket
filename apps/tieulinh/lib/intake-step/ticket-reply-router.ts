@@ -12,7 +12,7 @@
  * TECH-Y" chuyển được nó sang Y).
  */
 import { complete as defaultComplete, extractJson, type LlmConfig } from "../../worker/llm";
-import { isBotComment } from "../formatting";
+import { isBotComment } from "@vuihoc/bot-core/core";
 import { isSystemActor } from "../kg/human-signals";
 
 /**

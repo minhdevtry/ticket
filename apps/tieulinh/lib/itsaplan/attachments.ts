@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ItsaplanClient } from "./client";
-import { getLogger } from "../logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 import { resolveMediaFilePath } from "../media";
 
 export interface UploadedAttachment {

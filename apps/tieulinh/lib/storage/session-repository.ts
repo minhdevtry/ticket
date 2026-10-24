@@ -1,6 +1,6 @@
 import type { Database } from "bun:sqlite";
 import { openLazyDb } from "./lazy-db";
-import { memoByPath } from "./memo";
+import { memoByPath } from "@vuihoc/bot-core/core";
 
 export interface DraftSession {
   chatId: string;

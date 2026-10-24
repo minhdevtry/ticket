@@ -1,12 +1,9 @@
 import type { TicketBindingRepository } from "../lib/storage/binding-repository";
 import type { Notifier } from "./notifier";
-import { getLogger } from "../lib/logger";
-import {
-  stripBotMentions,
-  stripCommentHtml,
-  isCommentRecentlyForwarded,
-  decodeHtmlEntities,
-} from "../lib/formatting";
+import { getLogger } from "@vuihoc/bot-core/core";
+import { stripBotMentions, stripCommentHtml } from "@vuihoc/bot-core/core";
+import { isCommentRecentlyForwarded } from "../lib/formatting.local";
+import { decodeHtmlEntities } from "../lib/html-entities";
 import { identifierInProject, normalizeProjectKey } from "./project-lock";
 
 export interface AgentRunnerOptions {

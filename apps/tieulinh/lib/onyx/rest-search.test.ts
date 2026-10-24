@@ -1,8 +1,8 @@
 import { describe, expect, it, mock, beforeEach, afterEach } from "bun:test";
 import { OnyxRestSearchClient } from "./rest-search";
-import { getLogger, setLogger } from "../logger";
+import { getLogger, setLogger } from "@vuihoc/bot-core/core";
 import type { ItsaplanClient, ItsaplanIssue } from "../itsaplan/client";
-import type { IntakeLogger } from "../logger";
+import type { IntakeLogger } from "@vuihoc/bot-core/core";
 
 describe("OnyxRestSearchClient", () => {
   // Bài học tech lead (audit 25/09): KG phải lọc ticket Canceled/Archived, Onyx

@@ -1,4 +1,4 @@
-import { getLogger } from "../logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 export interface OnyxTestConnectorConfig {
   connectorName: string;
   ccPairId: number;

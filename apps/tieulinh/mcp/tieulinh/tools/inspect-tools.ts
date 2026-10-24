@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { defineTool, type AnyMcpTool } from "../../shared/tool";
+import { defineTool, type AnyMcpTool } from "@vuihoc/bot-core/core";
 import type { IntakeDocumentRepository } from "../../../lib/intake-document/repository";
 
 export function inspectTools(repo: IntakeDocumentRepository): AnyMcpTool[] {

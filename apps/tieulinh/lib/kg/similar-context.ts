@@ -16,7 +16,7 @@
  */
 import { isSystemActor } from "./human-signals";
 import { parseIncidentMeta } from "./incident-meta";
-import { isBotComment, stripCommentHtml } from "../formatting";
+import { isBotComment, stripCommentHtml } from "@vuihoc/bot-core/core";
 
 // Boilerplate Onyx tự sinh (thông báo nạp/không nạp bài học kinh nghiệm) —
 // không mang dấu <!-- intake-bot --> nhưng vẫn không phải tín hiệu người.

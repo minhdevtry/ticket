@@ -1,4 +1,4 @@
-import { redactIncidentPII } from "./pii-redactor";
+import { redactIncidentPII } from "@vuihoc/bot-core/core";
 
 /**
  * Các luật cửa lọc thuần mã để quyết định tài liệu có đủ chuẩn đưa vào kho tri thức hay không.

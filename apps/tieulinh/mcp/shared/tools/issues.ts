@@ -11,18 +11,15 @@ import { resolveFriendlyStatusName } from "../../../lib/itsaplan/status";
 import { describeState } from "../../../lib/itsaplan/state-messages";
 import { isOwnTicket } from "../../../lib/itsaplan/ownership";
 import { getSharedBindingRepo } from "../../../lib/storage/binding-repository";
-import {
-  appendTicketUpdateDescription,
-  markBotComment,
-  stripCommentHtml,
-} from "../../../lib/formatting";
+import { appendTicketUpdateDescription } from "../../../lib/formatting.local";
+import { markBotComment, stripCommentHtml } from "@vuihoc/bot-core/core";
 import {
   clearPendingButtons,
   getLastActiveChatId,
   savePendingButtons,
 } from "../../../lib/telegram/buttons";
 import { alertAdmin } from "../../../lib/telegram/alert";
-import { defineTool, type AnyMcpTool } from "../tool";
+import { defineTool, type AnyMcpTool } from "@vuihoc/bot-core/core";
 
 export interface TrackerConfig {
   baseUrl: string;

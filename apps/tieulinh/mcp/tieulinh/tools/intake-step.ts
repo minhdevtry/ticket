@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { defineTool, type AnyMcpTool } from "../../shared/tool";
+import { defineTool, type AnyMcpTool } from "@vuihoc/bot-core/core";
 import { IntakeStepPipeline, type IntakePipelineOptions } from "../../../lib/intake-step/pipeline";
 import type { IntakeNextAction } from "../../../lib/intake-document/packet";
 

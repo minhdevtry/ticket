@@ -1,9 +1,9 @@
 import type { ItsaplanClient } from "../lib/itsaplan/client";
 import type { MemgraphClient } from "../lib/kg/memgraph-client";
 import { complete, extractJson, type LlmConfig } from "./llm";
-import { getLogger } from "../lib/logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 import type { TicketGraphNode, CauseTaxonEntry } from "../lib/kg/types";
-import { redactIncidentPII } from "../lib/onyx/pii-redactor";
+import { redactIncidentPII } from "@vuihoc/bot-core/core";
 import causeTaxonomyData from "../lib/kg/cause-taxonomy.json";
 import { normalizeSystemName } from "../lib/kg/system-taxonomy";
 import { createHash } from "node:crypto";
@@ -13,7 +13,7 @@ import { symptomsOfDescription } from "../lib/kg/similar-finder";
 import { isBotAuthoredComment, similarContextOf } from "../lib/kg/similar-context";
 import { parseIncidentMeta } from "../lib/kg/incident-meta";
 import type { ProjectColumnStates } from "../lib/itsaplan/ticket-state";
-import { stripCommentHtml } from "../lib/formatting";
+import { stripCommentHtml } from "@vuihoc/bot-core/core";
 
 export { parseIncidentMeta } from "../lib/kg/incident-meta";
 

@@ -9,7 +9,7 @@ import {
   type FieldCatalog,
 } from "../../../lib/gate/index";
 import { openLazyDb } from "../../../lib/storage/lazy-db";
-import { memoByPath } from "../../../lib/storage/memo";
+import { memoByPath } from "@vuihoc/bot-core/core";
 import { IdentityRepository } from "../../../lib/storage/identity-repository";
 import {
   savePendingButtons,
@@ -19,8 +19,8 @@ import {
   getLastActiveChatId,
   setLastActiveChatId,
 } from "../../../lib/telegram/buttons";
-import { getLogger } from "../../../lib/logger";
-import { defineTool, type AnyMcpTool } from "../tool";
+import { getLogger } from "@vuihoc/bot-core/core";
+import { defineTool, type AnyMcpTool } from "@vuihoc/bot-core/core";
 
 const identityRepo = memoByPath((dbPath) => new IdentityRepository(openLazyDb(dbPath)));
 

@@ -2,8 +2,9 @@ import type { ItsaplanClient } from "../lib/itsaplan/client";
 import type { TicketClosure } from "./ticket-closure";
 import { REPORTER_OK_CALLBACK } from "./notifier";
 import type { TicketBindingRepository } from "../lib/storage/binding-repository";
-import { getLogger } from "../lib/logger";
-import { markBotComment, escapeItsaplanMarkdown } from "../lib/formatting";
+import { getLogger } from "@vuihoc/bot-core/core";
+import { markBotComment } from "@vuihoc/bot-core/core";
+import { escapeItsaplanMarkdown } from "../lib/html-entities";
 import { classifyColumn } from "../lib/itsaplan/ticket-state";
 import {
   closedTicketRefusalMessage,

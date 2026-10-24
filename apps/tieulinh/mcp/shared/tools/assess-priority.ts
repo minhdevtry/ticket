@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { defineTool, type AnyMcpTool } from "../tool";
+import { defineTool, type AnyMcpTool } from "@vuihoc/bot-core/core";
 
 export interface UrgencyRuleFloor {
   when: Record<string, unknown>;

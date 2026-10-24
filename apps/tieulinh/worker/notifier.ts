@@ -7,9 +7,9 @@
  * framework, không thư viện.
  */
 import type { TicketBinding } from "../lib/storage/binding-repository";
-import { getLogger } from "../lib/logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 import { TelegramTransport } from "../lib/telegram/transport";
-import { stripBotMentions } from "../lib/formatting";
+import { stripBotMentions } from "@vuihoc/bot-core/core";
 import type { TicketState } from "../lib/itsaplan/ticket-state";
 
 /**

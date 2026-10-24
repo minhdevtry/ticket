@@ -15,7 +15,7 @@
  */
 import type { ItsaplanClient } from "../lib/itsaplan/client";
 import type { CorpusTicket } from "../lib/kg/similar-finder";
-import { getLogger } from "../lib/logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 import type { CuratorResult } from "./related-curator";
 
 export interface RelatedRecheckOptions {

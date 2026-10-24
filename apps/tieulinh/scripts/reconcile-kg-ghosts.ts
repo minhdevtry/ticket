@@ -37,7 +37,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { ItsaplanClient } from "../lib/itsaplan/client";
 import { MemgraphClient } from "../lib/kg/memgraph-client";
-import { getLogger } from "../lib/logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 import { classifyColumn } from "../lib/itsaplan/ticket-state";
 
 // Nạp .env từ apps/tieulinh/ vì Bun chỉ load từ CWD — chạy script trực tiếp từ

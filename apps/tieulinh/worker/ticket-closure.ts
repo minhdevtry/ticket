@@ -19,12 +19,13 @@ import type { ProjectColumnStates, TicketState } from "../lib/itsaplan/ticket-st
 import { resolveFriendlyStatusName } from "../lib/itsaplan/status";
 import { describeState } from "../lib/itsaplan/state-messages";
 import type { TicketBinding, TicketBindingRepository } from "../lib/storage/binding-repository";
-import { markBotComment, escapeItsaplanMarkdown } from "../lib/formatting";
+import { markBotComment } from "@vuihoc/bot-core/core";
+import { escapeItsaplanMarkdown } from "../lib/html-entities";
 import {
   closedTicketRefusalMessage,
   resolveSupplementMentionTarget,
 } from "../lib/itsaplan/supplement-notifier";
-import { getLogger } from "../lib/logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 import type { Notifier } from "./notifier";
 import {
   identifierInProject,

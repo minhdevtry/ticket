@@ -19,7 +19,8 @@ import {
   formatTicketDescription,
 } from "../../mcp/tieulinh/domain/ticket-formatter";
 import { VALID_SYSTEMS } from "../../mcp/tieulinh/domain/taxonomy";
-import { markBotComment, escapeItsaplanMarkdown } from "../formatting";
+import { markBotComment } from "@vuihoc/bot-core/core";
+import { escapeItsaplanMarkdown } from "../html-entities";
 import { fieldButtons, layoutButtons } from "../gate/buttons";
 import {
   clearPendingButtons,
@@ -60,8 +61,8 @@ import { mergeExtractedFields } from "./merger";
 import type { OnyxRestSearchClient } from "../onyx/rest-search";
 import type { LlmConfig } from "../../worker/llm";
 import type { SimilarTicketSource } from "../kg/similar-ticket-source";
-import { stripChannelEnvelope, isInternalCallbackToken } from "../channel-envelope";
-import { getLogger } from "../logger";
+import { stripChannelEnvelope, isInternalCallbackToken } from "@vuihoc/bot-core/core";
+import { getLogger } from "@vuihoc/bot-core/core";
 import { IDENTIFIER_FIELD_KEYS, identifiersConflict } from "../identifier-grounding";
 import {
   extractLabelledIdentifiers,
@@ -87,7 +88,7 @@ import {
   type TicketCommand,
   type TicketCommandInterpreter,
 } from "./ticket-reply-router";
-import { stripCommentHtml } from "../formatting";
+import { stripCommentHtml } from "@vuihoc/bot-core/core";
 import { isSystemActor } from "../kg/human-signals";
 
 /** Đang tạo ticket (status "confirmed") quá chừng này mà chưa xong thì coi như kẹt, cho xác nhận lại. */

@@ -1,12 +1,12 @@
 import { complete, extractJson } from "./llm";
 import type { ItsaplanClient } from "../lib/itsaplan/client";
 import type { OnyxConnectorManager } from "../lib/onyx/connector-manager";
-import { redactIncidentPII } from "../lib/onyx/pii-redactor";
+import { redactIncidentPII } from "@vuihoc/bot-core/core";
 import { evaluatePreLlmFilter, evaluatePostLlmFilter } from "../lib/onyx/filter";
 import { buildOnyxDocumentBody, parseVuihocMeta } from "../lib/onyx/document";
 import { issueWebUrl, resolveProjectTeamRef } from "../lib/itsaplan/project";
-import { getLogger } from "../lib/logger";
-import { markBotComment, stripCommentHtml } from "../lib/formatting";
+import { getLogger } from "@vuihoc/bot-core/core";
+import { markBotComment, stripCommentHtml } from "@vuihoc/bot-core/core";
 import type { OnyxServiceConfig } from "../lib/onyx/config";
 import { identifierInProject } from "./project-lock";
 

@@ -1,5 +1,5 @@
 import type { ItsaplanClient } from "./client";
-import { getLogger } from "../logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 
 /**
  * Sự kiện worker cần. `comment.updated` là sự kiện Itsaplan bắn khi GHIM hoặc

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { OnyxClient } from "../../../lib/onyx/client";
-import { defineTool, type AnyMcpTool } from "../tool";
+import { defineTool, type AnyMcpTool } from "@vuihoc/bot-core/core";
 
 export interface KnowledgeConfig {
   baseUrl: string;

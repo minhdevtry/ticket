@@ -18,7 +18,7 @@ import { ItsaplanClient } from "../lib/itsaplan/client";
 import { MemgraphClient } from "../lib/kg/memgraph-client";
 import { syncDoneTicketToKnowledgeGraph } from "../worker/kg-sync";
 import { classifyColumn } from "../lib/itsaplan/ticket-state";
-import { getLogger } from "../lib/logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 import { llmConfigFromEnv } from "../worker/llm";
 
 const args = process.argv.slice(2);

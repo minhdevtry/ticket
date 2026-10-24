@@ -1,7 +1,7 @@
 import http from "node:http";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { ItsaplanClient } from "../lib/itsaplan/client";
-import { getLogger } from "../lib/logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 import type { ReporterOkResult, ReporterReplyResult } from "./ticket-closure";
 
 export interface ItsaplanWebhookActor {

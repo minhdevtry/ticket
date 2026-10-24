@@ -19,7 +19,7 @@ import { humanKnowledgeOf, isSystemActor } from "../lib/kg/human-signals";
 import { planRelatedTickets, planSuggestedTickets, type RelatedPlan } from "../lib/kg/related-plan";
 import { symptomsOfDescription, type CorpusTicket } from "../lib/kg/similar-finder";
 import type { SimilarTicketSource } from "../lib/kg/similar-ticket-source";
-import { getLogger } from "../lib/logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 import { identifierInProject } from "./project-lock";
 import { resolveRelatedTicketsFieldId } from "./related-tickets-sync";
 

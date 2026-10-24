@@ -1,5 +1,5 @@
-import { getLogger } from "../logger";
-import { redactIncidentPII } from "./pii-redactor";
+import { getLogger } from "@vuihoc/bot-core/core";
+import { redactIncidentPII } from "@vuihoc/bot-core/core";
 
 export interface OnyxCandidateTicket {
   ma: string;

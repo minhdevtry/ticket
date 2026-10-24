@@ -13,7 +13,7 @@
  */
 import { MemgraphClient } from "../lib/kg/memgraph-client";
 import { OnyxConnectorManager } from "../lib/onyx/connector-manager";
-import { redactIncidentPII } from "../lib/onyx/pii-redactor";
+import { redactIncidentPII } from "@vuihoc/bot-core/core";
 import { ItsaplanClient } from "../lib/itsaplan/client";
 import { issueWebUrl, resolveProjectTeamRef } from "../lib/itsaplan/project";
 

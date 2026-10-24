@@ -1,13 +1,13 @@
 import { z } from "zod";
 import { openLazyDb } from "../../../lib/storage/lazy-db";
-import { getLogger } from "../../../lib/logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 import { IdentityRepository } from "../../../lib/storage/identity-repository";
 import {
   savePendingButtons,
   getDepartmentButtons,
   type DepartmentOption,
 } from "../../../lib/telegram/buttons";
-import { defineTool, type AnyMcpTool } from "../tool";
+import { defineTool, type AnyMcpTool } from "@vuihoc/bot-core/core";
 import { createRecord, evaluateGate } from "../../../lib/gate/index";
 import { validateValue } from "../../../lib/gate/validate";
 import {

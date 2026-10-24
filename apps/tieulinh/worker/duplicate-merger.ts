@@ -29,10 +29,10 @@ import {
   isBotComment,
   formatIctTimestamp,
   stripCommentHtml,
-} from "../lib/formatting";
+} from "@vuihoc/bot-core/core";
 import { complete, extractJson, isLlmConfigured, type LlmConfig } from "./llm";
 import { projectOfIdentifier } from "./project-lock";
-import { getLogger } from "../lib/logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 
 /** Mã ticket dạng "TECH-123" nhắc trong một câu — dùng để lọc thô trước khi gọi LLM. */
 const TICKET_MENTION = /\b([A-Za-z][A-Za-z0-9_]*-\d+)\b/g;

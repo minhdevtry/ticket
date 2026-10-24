@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { ItsaplanClient } from "../../../lib/itsaplan/client";
 import { findIssueByIdentifier } from "../../../lib/itsaplan/project";
-import { markBotComment, escapeItsaplanMarkdown } from "../../../lib/formatting";
-import { defineTool, type AnyMcpTool } from "../tool";
+import { markBotComment } from "@vuihoc/bot-core/core";
+import { escapeItsaplanMarkdown } from "../../../lib/html-entities";
+import { defineTool, type AnyMcpTool } from "@vuihoc/bot-core/core";
 import type { TrackerConfig } from "./issues";
 
 export interface EscalateVocabulary {

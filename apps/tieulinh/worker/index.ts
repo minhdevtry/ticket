@@ -18,7 +18,7 @@ import { ItsaplanClient } from "../lib/itsaplan/client";
 import { TicketBindingRepository } from "../lib/storage/binding-repository";
 import { applySchema } from "../lib/storage/schema";
 import { OnyxConnectorManager } from "../lib/onyx/connector-manager";
-import { getLogger } from "../lib/logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 import { ItsaplanWebhookServer } from "./webhook-server";
 import { NotificationDispatcher } from "./notification-dispatcher";
 import { TicketLifecycleService } from "./lifecycle";

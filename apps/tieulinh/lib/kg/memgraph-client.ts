@@ -1,6 +1,6 @@
 import neo4j, { type Driver } from "neo4j-driver";
 import type { TicketGraphNode, GraphQueryResult } from "./types";
-import { getLogger } from "../logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 import { buildCauseClusters } from "./cause-clusters";
 import type { CorpusTicket } from "./similar-finder";
 

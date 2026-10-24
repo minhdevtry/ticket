@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { stripChannelEnvelope, isInternalCallbackToken } from "../../../lib/channel-envelope";
+import { stripChannelEnvelope, isInternalCallbackToken } from "@vuihoc/bot-core/core";
 import { ItsaplanClient } from "../../../lib/itsaplan/client";
 import {
   issueWebUrl,
@@ -29,10 +29,10 @@ import {
   type IntakeDocumentRepository,
 } from "../../../lib/intake-document/repository";
 import { CLOSED_STATUSES, type IntakeDocument } from "../../../lib/intake-document/types";
-import { getLogger } from "../../../lib/logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 import { buildAdviceComment } from "../../tieulinh/domain/ticket-formatter";
-import { markBotComment } from "../../../lib/formatting";
-import { defineTool, type AnyMcpTool } from "../tool";
+import { markBotComment } from "@vuihoc/bot-core/core";
+import { defineTool, type AnyMcpTool } from "@vuihoc/bot-core/core";
 import type { TrackerConfig } from "./issues";
 
 import {
