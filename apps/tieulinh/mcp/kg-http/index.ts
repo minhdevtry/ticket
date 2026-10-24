@@ -16,9 +16,9 @@
  */
 import { createIntakeMcpServer, runOnHttp, queryKnowledgeGraph } from "../shared/index";
 import { getLogger } from "../../lib/logger";
-import { resolveKgHttpConfig } from "./config";
+import { type KgHttpConfig, resolveKgHttpConfig } from "./config";
 
-let config;
+let config: KgHttpConfig;
 try {
   config = resolveKgHttpConfig(process.env);
 } catch (err: any) {

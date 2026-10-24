@@ -98,7 +98,10 @@ export function systemReport(
     if (c.alreadyInReport) continue;
     const w = weight(c.createdAt, nowMs, o.halfLifeDays);
     let perItem = best.get(c.issueKey);
-    if (!perItem) best.set(c.issueKey, (perItem = new Map()));
+    if (!perItem) {
+      perItem = new Map();
+      best.set(c.issueKey, perItem);
+    }
     for (const item of c.items) {
       if (!isCanonItem(item) || item === "OTHER") continue;
       perItem.set(item, Math.max(perItem.get(item) ?? 0, w));

@@ -2110,8 +2110,6 @@ export class IntakeStepPipeline {
           `Dạ anh/chị gửi ảnh chụp màn hình hoặc nội dung cần bổ sung vào ${target.identifier}${title} giúp em nhé ạ.`,
           {
             buttons: [[{ text: CANCEL_ACTION_LABEL, callbackData: CANCEL_ACTION_LABEL }]],
-            agentInstruction:
-              "Nếu người dùng vừa gửi ảnh/video ở lượt ngay trước mà chưa được truyền vào intake_step, hãy gọi lại intake_step ngay với mediaPaths của ảnh/video đó. Ngược lại, gửi nguyên văn voiceText cho người dùng để họ gửi ảnh hoặc nội dung cần bổ sung.",
           },
         );
       }

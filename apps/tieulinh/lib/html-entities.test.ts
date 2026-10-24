@@ -179,15 +179,17 @@ describe("Tích hợp cả hai chiều (End-to-End Flow)", () => {
       issueId: 443,
       identifier: "TECH-691",
       chatId: "123456",
+      messageId: "1",
       channelType: "telegram",
     };
 
-    const mockRepo: TicketBindingRepository = {
+    // Test double: chỉ cài những method dispatcher thật sự gọi.
+    const mockRepo = {
       getBindingByIssueId: () => binding,
       saveBinding: () => {},
       saveMessageRoute: () => {},
       getMessageRoute: () => null,
-    };
+    } as unknown as TicketBindingRepository;
 
     const dispatcher = new NotificationDispatcher(mockRepo, {
       agentHandles: ["tieulinh"],
@@ -197,7 +199,9 @@ describe("Tích hợp cả hai chiều (End-to-End Flow)", () => {
 
     await dispatcher.handleWebhook({
       action: "create",
+      type: "Comment",
       event: "comment.created",
+      createdAt: "2026-01-01T00:00:00.000Z",
       data: {
         issueId: 443,
         identifier: "TECH-691",
@@ -225,6 +229,7 @@ describe("Tích hợp cả hai chiều (End-to-End Flow)", () => {
           "Học sinh báo: UID < 900016 và UID >= 900016 gặp crash log <NullPointerException> khi submit & nộp bài",
         product: "Tự học",
         system: "LMS",
+        priority: "medium",
         priorityReason: "Gấp < 1h",
       },
     });

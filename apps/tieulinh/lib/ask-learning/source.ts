@@ -109,9 +109,7 @@ export interface ItsaplanReadSource {
       archivedAt?: string | null;
     }>
   >;
-  getIssue?(
-    issueId: number,
-  ): Promise<{
+  getIssue?(issueId: number): Promise<{
     id: number;
     description?: string;
     createdAt?: string;

@@ -354,10 +354,9 @@ describe("validate_fields parity tests (pre & post refactor safety net)", () => 
     test("mọi VALID_SYSTEMS đều hợp lệ qua validateOne('system', v)", () => {
       for (const v of VALID_SYSTEMS) {
         const r = validateOne(validationRules as ValidationRules, "system", v);
-        expect({ value: v, ...r }).toEqual({
+        expect(r).toEqual({
           value: v,
           field: "system",
-          value: v,
           valid: true,
           normalized: v,
         });

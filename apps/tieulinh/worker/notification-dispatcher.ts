@@ -176,8 +176,7 @@ export class NotificationDispatcher {
 
     // 1. Extract markdown image links: ![alt](url)
     const mdRegex = /!\[.*?\]\((.*?)\)/g;
-    let match: RegExpExecArray | null;
-    while ((match = mdRegex.exec(commentBody)) !== null) {
+    for (const match of commentBody.matchAll(mdRegex)) {
       if (match[1]) urls.push(match[1].trim());
     }
 
@@ -200,8 +199,7 @@ export class NotificationDispatcher {
   extractCommentVideos(commentBody: string): string[] {
     const urls: string[] = [];
     const videoRegex = /<video\b[^>]*\bsrc="([^"]*)"[^>]*>/gi;
-    let match: RegExpExecArray | null;
-    while ((match = videoRegex.exec(commentBody)) !== null) {
+    for (const match of commentBody.matchAll(videoRegex)) {
       if (match[1]) urls.push(match[1].trim());
     }
     return this.normalizeUrls(urls);

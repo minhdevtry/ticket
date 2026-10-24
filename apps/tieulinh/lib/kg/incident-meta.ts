@@ -37,8 +37,7 @@ function parseIncidentMetaFromMarkdown(description: string): Record<string, stri
   if (!blockMatch) return meta;
 
   const lineRe = /^-\s*([^:\n]+):\s*(.+)$/gm;
-  let m: RegExpExecArray | null;
-  while ((m = lineRe.exec(blockMatch[1]))) {
+  for (const m of blockMatch[1].matchAll(lineRe)) {
     const label = m[1].trim();
     let value = m[2].trim();
     for (const [re, field] of METADATA_LABEL_MAP) {

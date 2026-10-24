@@ -1128,7 +1128,12 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
       const r = reviewer({ missing: [] });
       let known: Record<string, string> = {};
       pipeline = build({
-        techReviewer: { review: async (input: any) => ((known = input.known), r.review(input)) },
+        techReviewer: {
+          review: async (input: any) => {
+            known = input.known;
+            return r.review(input);
+          },
+        },
       });
       await pipeline.run({
         chatId: CHAT,

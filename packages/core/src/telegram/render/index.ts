@@ -219,8 +219,7 @@ export function renderLabeledValue(
 function matchAll(src: string, re: RegExp): string[] {
   const out: string[] = [];
   re.lastIndex = 0;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(src)) !== null) {
+  for (const m of src.matchAll(re)) {
     const v = (m[1] ?? "").trim();
     if (v) out.push(v);
   }

@@ -127,7 +127,7 @@ export function getIssue(
       if (!issue) return { found: false, identifier: target };
 
       if (options.ownTicketsOnly) {
-        let repo;
+        let repo: ReturnType<typeof getSharedBindingRepo> | undefined;
         try {
           repo = dbPath ? getSharedBindingRepo(dbPath) : undefined;
         } catch {

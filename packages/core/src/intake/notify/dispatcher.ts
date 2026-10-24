@@ -288,8 +288,7 @@ export class NotificationDispatcher {
   extractCommentImages(commentBody: string): string[] {
     const urls: string[] = [];
     const re = /!\[.*?\]\((.*?)\)/g;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(commentBody)) !== null) if (m[1]) urls.push(m[1].trim());
+    for (const m of commentBody.matchAll(re)) if (m[1]) urls.push(m[1].trim());
     return urls;
   }
 

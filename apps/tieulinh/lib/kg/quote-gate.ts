@@ -16,8 +16,7 @@ export function extractQuotedErrors(...texts: Array<string | null | undefined>):
   const re = /["“]([^"”]{10,200})["”]/g;
   for (const t of texts) {
     if (!t) continue;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(t))) out.push(m[1].trim());
+    for (const m of t.matchAll(re)) out.push(m[1].trim());
   }
   return [...new Set(out)];
 }

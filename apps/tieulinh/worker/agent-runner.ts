@@ -166,8 +166,7 @@ export class AgentRunnerService {
     // Lọc ảnh markdown
     const mdRegex = /!\[.*?\]\((.*?)\)/g;
     const images: string[] = [];
-    let match: RegExpExecArray | null;
-    while ((match = mdRegex.exec(raw)) !== null) {
+    for (const match of raw.matchAll(mdRegex)) {
       if (match[1]) images.push(toAbsolute(match[1].trim()));
     }
     cleanText = cleanText.replace(/!\[.*?\]\(.*?\)/g, "").trim();
@@ -176,7 +175,7 @@ export class AgentRunnerService {
     // <video src="…" controls></video> tag (xem attachmentMarkdown ở web).
     const videoRegex = /<video\b[^>]*\bsrc="([^"]*)"[^>]*>/gi;
     const videos: string[] = [];
-    while ((match = videoRegex.exec(raw)) !== null) {
+    for (const match of raw.matchAll(videoRegex)) {
       if (match[1]) videos.push(toAbsolute(match[1].trim()));
     }
     cleanText = decodeHtmlEntities(stripCommentHtml(cleanText)).trim();

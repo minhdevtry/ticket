@@ -2,6 +2,7 @@ import { afterAll, describe, expect, test, mock } from "bun:test";
 import { DuplicateMerger, mentionedSiblingTickets } from "./duplicate-merger";
 import { isBotComment } from "../lib/formatting";
 import type { LlmConfig } from "./llm";
+import type { ItsaplanClient } from "../lib/itsaplan/client";
 
 /**
  * LLM giả: một máy chủ HTTP thật (như worker/llm.test.ts) — tránh giả lập

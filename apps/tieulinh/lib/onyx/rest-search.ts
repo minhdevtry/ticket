@@ -306,7 +306,8 @@ export class OnyxRestSearchClient {
     // và bỏ hẳn vé canceled. Vé Done mà tài liệu Onyx không trích được
     // rootCause/resolution chỉ còn cái mã — không hạ bậc bằng lọc cứng (eval gold
     // cho thấy lọc cứng làm rớt recall) mà xếp sau vé có tri thức thật.
-    const columnStates = (this.columnStates ??= new ProjectColumnStates(this.itsaplan));
+    this.columnStates ??= new ProjectColumnStates(this.itsaplan);
+    const columnStates = this.columnStates;
     const verifiedList: SimilarTicketItem[] = [];
 
     for (const cand of candidates) {
