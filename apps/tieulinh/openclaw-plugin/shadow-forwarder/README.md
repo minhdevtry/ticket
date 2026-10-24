@@ -21,14 +21,19 @@ Thêm vào `~/.openclaw/openclaw.json`, giữ nguyên các plugin cũ:
   "entries": {
     "shadow-forwarder": {
       "enabled": true,
-      "config": { "relayUrl": "http://10.0.0.5:3106/ingest" }
+      "config": {
+        "relayUrl": "http://10.0.0.2:3106/ingest",
+        "token": "cùng-giá-trị-với-SHADOW_RELAY_TOKEN-của-relay"
+      }
     }
   }
 }
 ```
 
-`10.0.0.5` là ví dụ: thay bằng IP LAN của máy dev chạy relay. Cấu hình tuỳ chọn: `token` (khớp `SHADOW_RELAY_TOKEN` của relay), `sessionPrefix`, `timeoutMs` (200-5000), `tools`, `spoolPath`.
+`10.0.0.2` là ví dụ: thay bằng IP LAN của máy dev chạy relay (phải là địa chỉ IP, không phải hostname). `token` bắt buộc khi relay không ở loopback. Tuỳ chọn: `sessionPrefix`, `timeoutMs` (200-5000), `tools`, `spoolPath`.
 
-Không cần `hooks.allowConversationAccess`. Gỡ: bỏ mục `shadow-forwarder` rồi reload gateway.
+Không cần `hooks.allowConversationAccess`. Manifest khai `activation.onCapabilities: ["hook"]`.
+
+Kiểm tra sau khi nạp: `openclaw plugins inspect shadow-forwarder --runtime --json` (phải thấy ba hook), rồi gửi MỘT tin thử và xem bên relay. Gỡ: bỏ mục `shadow-forwarder` rồi reload gateway. Chi tiết và mô hình an toàn: trang docs "Chạy bóng Tiểu Linh 2" (`docs/how-to/shadow-tl2.md`).
 
 Kiểm thử: `bun test apps/tieulinh/openclaw-plugin/shadow-forwarder`.
