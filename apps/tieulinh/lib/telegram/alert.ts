@@ -1,21 +1,13 @@
 /**
- * Đường báo động cho quản trị viên.
+ * Đường báo động cho quản trị viên của Tiểu Linh.
  *
- * Sinh ra từ sự cố 14/09/2026: `sendMessage` trả `400 BUTTON_DATA_INVALID`,
- * bot im hẳn với người dùng, và dấu vết duy nhất là một dòng trong
- * `journalctl` mà không ai đọc. Hỏng câm suốt ba ngày. Log là để điều tra
- * SAU khi biết có chuyện — nó không thay được việc phải báo cho ai đó.
- *
- * Cố tình "bắn rồi quên": báo động hỏng thì tuyệt đối không được làm gãy
- * luồng đang chạy. Và cố tình chống lặp: những chỗ gọi hàm này nằm trong
- * đường đi của MỖI lượt chat, nên không gom lại thì một lỗi dai dẳng sẽ thành
- * hàng trăm tin nhắn — spam tới mức bị bỏ qua thì cũng bằng không báo.
+ * Sinh ra từ sự cố 14/09/2026: `sendMessage` trả `400 BUTTON_DATA_INVALID`, bot im
+ * hẳn với người dùng, và dấu vết duy nhất là một dòng trong `journalctl` mà không
+ * ai đọc. Phần "bắn rồi quên" + chống lặp nằm ở `Alerter` của
+ * `@vuihoc/bot-core/telegram`; thư viện không đọc `process.env`, nên file này giữ
+ * mặt tiền theo biến môi trường (`alertAdmin(key, text)`, `configureAlerts`).
  */
-import { getLogger } from "@vuihoc/bot-core/core";
-import { TelegramTransport } from "./transport";
-
-/** Cùng một nội dung báo động chỉ gửi lại sau ngần này. */
-const DEDUPE_WINDOW_MS = 30 * 60 * 1000;
+import { Alerter, TelegramTransport } from "@vuihoc/bot-core/telegram";
 
 export interface AlertConfig {
   botToken?: string;
@@ -24,7 +16,7 @@ export interface AlertConfig {
 }
 
 let config: AlertConfig | null = null;
-const lastSentAt = new Map<string, number>();
+let alerter: Alerter | null = null;
 
 /** Cấu hình mặc định lấy từ biến môi trường, để mọi tiến trình dùng chung một lối. */
 function resolveConfig(): AlertConfig {
@@ -40,38 +32,33 @@ function resolveConfig(): AlertConfig {
   return config;
 }
 
+function getAlerter(): Alerter {
+  if (alerter) return alerter;
+  const { botToken, chatId } = resolveConfig();
+  alerter =
+    botToken && chatId
+      ? new Alerter({
+          // Không thử lại khi 429: giữ nguyên hành vi cũ, báo động hỏng thì bỏ.
+          transport: new TelegramTransport({ botToken, timeoutMs: 10_000, maxRetries: 0 }),
+          adminChatIds: [chatId],
+        })
+      : new Alerter();
+  return alerter;
+}
+
 /** Cho host tự khai, thay vì đọc môi trường. Gọi một lần lúc khởi động. */
 export function configureAlerts(next: AlertConfig | null): void {
   config = next;
-  lastSentAt.clear();
+  alerter = null; // dựng lại với cấu hình mới; đồng thời xoá bộ nhớ chống lặp
 }
 
 /**
  * Báo cho quản trị viên biết có chuyện. Không `await` — hỏng thì chịu, nhưng
  * luồng chính phải chạy tiếp.
  *
- * `key` là thứ dùng để chống lặp. Đặt theo LOẠI sự cố, đừng nhét giá trị thay
- * đổi từng lượt vào, không thì chống lặp thành vô nghĩa.
+ * `key` là thứ dùng để chống lặp (30 phút). Đặt theo LOẠI sự cố, đừng nhét giá
+ * trị thay đổi từng lượt vào, không thì chống lặp thành vô nghĩa.
  */
 export function alertAdmin(key: string, text: string): void {
-  const now = Date.now();
-  const previous = lastSentAt.get(key);
-  if (previous !== undefined && now - previous < DEDUPE_WINDOW_MS) return;
-  lastSentAt.set(key, now);
-
-  getLogger().error(`[alert] ${text}`);
-
-  const { botToken, chatId } = resolveConfig();
-  if (!botToken || !chatId) {
-    getLogger().warn(
-      "[alert] Chưa có TELEGRAM_BOT_TOKEN hoặc ALERT_CHAT_ID/ADMIN_IDS — báo động chỉ nằm trong log.",
-    );
-    return;
-  }
-
-  void new TelegramTransport({ botToken, timeoutMs: 10_000 })
-    .tryCall("sendMessage", { chat_id: chatId, text: `⚠️ ${text}` })
-    .catch(() => {
-      /* `tryCall` đã log; báo động hỏng thì không còn đường nào để báo nữa */
-    });
+  getAlerter().alert(key, text);
 }

@@ -10,7 +10,7 @@ import {
   closedTicketRefusalMessage,
   resolveSupplementMentionTarget,
 } from "../lib/itsaplan/supplement-notifier";
-import { TelegramTransport } from "../lib/telegram/transport";
+import { TelegramTransport } from "@vuihoc/bot-core/telegram";
 import { identifierInProject, projectOfIdentifier } from "@vuihoc/bot-core/itsaplan";
 import { isTieuLinhProject } from "./project-lock";
 
@@ -33,7 +33,7 @@ export class TelegramWebhookHandler {
 
   constructor(private readonly options: TelegramHandlerOptions) {
     this.transport = options.botToken
-      ? new TelegramTransport({ botToken: options.botToken, timeoutMs: 10_000 })
+      ? new TelegramTransport({ botToken: options.botToken, timeoutMs: 10_000, maxRetries: 0 })
       : undefined;
   }
 

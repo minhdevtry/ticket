@@ -10,6 +10,9 @@ import {
 import { join, resolve, relative, isAbsolute, basename, extname } from "node:path";
 import { homedir } from "node:os";
 import { createHash } from "node:crypto";
+import { sniffImageContentType } from "@vuihoc/bot-core/telegram";
+
+// Nhận diện định dạng ảnh theo magic bytes (`sniffImageContentType`) nằm ở thư viện.
 
 export interface LocalMediaFile {
   buffer: Buffer;
@@ -35,32 +38,6 @@ function isAllowedPath(fullPath: string): boolean {
   } catch {
     return false;
   }
-}
-
-/**
- * Sniff image format from header magic bytes
- */
-export function sniffImageContentType(buf: Buffer): string | null {
-  if (buf.length >= 8 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
-    return "image/png";
-  }
-  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
-    return "image/jpeg";
-  }
-  if (
-    buf.length >= 12 &&
-    buf.toString("ascii", 0, 4) === "RIFF" &&
-    buf.toString("ascii", 8, 12) === "WEBP"
-  ) {
-    return "image/webp";
-  }
-  if (
-    buf.length >= 6 &&
-    (buf.toString("ascii", 0, 6) === "GIF87a" || buf.toString("ascii", 0, 6) === "GIF89a")
-  ) {
-    return "image/gif";
-  }
-  return null;
 }
 
 /**

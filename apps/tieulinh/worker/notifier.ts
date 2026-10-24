@@ -8,7 +8,7 @@
  */
 import type { TicketBinding } from "../lib/storage/binding-repository";
 import { getLogger } from "@vuihoc/bot-core/core";
-import { TelegramTransport } from "../lib/telegram/transport";
+import { TelegramTransport } from "@vuihoc/bot-core/telegram";
 import { stripBotMentions } from "@vuihoc/bot-core/core";
 import type { TicketState } from "@vuihoc/bot-core/itsaplan";
 
@@ -70,7 +70,7 @@ export class TelegramNotifier implements Notifier {
   private readonly transport: TelegramTransport;
 
   constructor(private readonly options: TelegramNotifierOptions) {
-    this.transport = new TelegramTransport({ botToken: options.botToken });
+    this.transport = new TelegramTransport({ botToken: options.botToken, maxRetries: 0 });
   }
 
   /**

@@ -1,14 +1,14 @@
-import * as fs from "node:fs";
-import * as path from "node:path";
 import * as os from "node:os";
-import { getLogger } from "@vuihoc/bot-core/core";
+import * as path from "node:path";
+import type { InlineButton } from "@vuihoc/bot-core/intake";
+import {
+  type TelegramButton,
+  clearPendingButtons as clearPendingButtonsIn,
+  savePendingButtons as savePendingButtonsIn,
+} from "@vuihoc/bot-core/telegram";
 import { alertAdmin } from "./alert";
-import { MAX_CALLBACK_DATA_BYTES, type InlineButton } from "@vuihoc/bot-core/intake";
 
-export interface TelegramButton {
-  text: string;
-  callback_data: string;
-}
+export type { TelegramButton };
 
 /** Chuyển hàng nút channel-agnostic của `lib/gate/buttons.ts` sang định dạng dây Telegram. */
 export function toTelegramButtons(rows: InlineButton[][]): TelegramButton[][] {
@@ -18,38 +18,14 @@ export function toTelegramButtons(rows: InlineButton[][]): TelegramButton[][] {
 const BUTTONS_DIR = path.join(os.homedir(), ".vhbot", "iris-nut-bam");
 
 /**
- * Cửa cuối trước khi nút ra Telegram: loại nút nào Telegram sẽ từ chối.
- *
- * Telegram không bỏ riêng nút hỏng — nó trả `400 BUTTON_DATA_INVALID` và
- * **không gửi cả tin nhắn**. Người dùng thấy bot im, không thấy thiếu nút.
- * Nên ở đây mất một nút luôn tốt hơn mất cả câu trả lời.
- *
- * `assertCatalogIntegrity` đã chặn từ lúc dựng catalog, nhưng chỉ chặn được
- * nút sinh ra TỪ catalog. Chặn thêm ở đây để phủ mọi đường còn lại — nút xác
- * nhận, nút chọn nhánh, và bất kỳ đường nào thêm về sau.
+ * Luật cuối trước khi nút ra Telegram (loại nút `callback_data` quá 64 byte —
+ * Telegram từ chối CẢ tin nhắn nếu để lọt) nằm ở `savePendingButtons` của
+ * `@vuihoc/bot-core/telegram`. Thư viện báo qua callback; ở đây nối vào
+ * `alertAdmin` với hai khoá chống lặp riêng như trước: nút quá dài / ghi file hỏng.
  */
-function dropUnsendable(buttons: TelegramButton[][]): TelegramButton[][] {
-  const rejected: string[] = [];
-  const kept = buttons
-    .map((row) =>
-      row.filter((btn) => {
-        const bytes = Buffer.byteLength(btn.callback_data, "utf8");
-        if (bytes <= MAX_CALLBACK_DATA_BYTES) return true;
-        rejected.push(`${btn.callback_data} (${bytes} byte)`);
-        return false;
-      }),
-    )
-    .filter((row) => row.length > 0);
-
-  if (rejected.length > 0) {
-    alertAdmin(
-      "callback-data-qua-dai",
-      `Đã loại ${rejected.length} nút vì callback_data quá ${MAX_CALLBACK_DATA_BYTES} byte — ` +
-        `để nguyên thì Telegram từ chối CẢ tin nhắn và bot sẽ im lặng. ` +
-        `Khai nhãn ngắn trong \`_nhan_nut\`. Nút bị loại: ${rejected.join("; ")}`,
-    );
-  }
-  return kept;
+function alertButtonProblem(reason: string): void {
+  const key = reason.startsWith("Không ghi được") ? "ghi-file-nut-hong" : "callback-data-qua-dai";
+  alertAdmin(key, reason);
 }
 
 let lastActiveChatId: string | null = null;
@@ -84,47 +60,14 @@ export function savePendingButtons(
   telegramId?: string | number | null,
   buttons?: TelegramButton[][] | null,
 ): void {
-  if (!telegramId) return;
-  const tid = String(telegramId).replace(/[^0-9]/g, "");
-  if (!tid) return;
-
-  try {
-    fs.mkdirSync(BUTTONS_DIR, { recursive: true });
-    const filePath = path.join(BUTTONS_DIR, `${tid}.json`);
-    const sendable = buttons ? dropUnsendable(buttons) : null;
-    if (sendable && sendable.length > 0) {
-      fs.writeFileSync(filePath, JSON.stringify({ buttons: sendable, ts: Date.now() }), "utf-8");
-    } else {
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    }
-  } catch (err) {
-    // Không để lỗi ghi file tạm ảnh hưởng luồng chính — nhưng hỏng ở đây là
-    // NÚT BIẾN MẤT, mà nút biến mất thì người dùng chỉ thấy một câu hỏi cụt.
-    alertAdmin(
-      "ghi-file-nut-hong",
-      `Không ghi được file nút tạm cho ${tid}: ${err}. Người dùng sẽ thấy câu hỏi cụt, không có nút bấm.`,
-    );
-  }
+  savePendingButtonsIn(telegramId, buttons, { dir: BUTTONS_DIR, onDrop: alertButtonProblem });
 }
 
 /**
  * Xóa bộ nút bấm tạm thời (khi ticket đã tạo thành công hoặc luồng kết thúc)
  */
 export function clearPendingButtons(telegramId?: string | number | null): void {
-  if (!telegramId) return;
-  const tid = String(telegramId).replace(/[^0-9]/g, "");
-  if (!tid) return;
-
-  try {
-    const filePath = path.join(BUTTONS_DIR, `${tid}.json`);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
-  } catch (err) {
-    getLogger().warn(`Không xoá được file nút tạm cho ${tid}: ${err}`);
-  }
+  clearPendingButtonsIn(telegramId, { dir: BUTTONS_DIR });
 }
 
 /**
