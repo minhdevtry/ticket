@@ -7,7 +7,7 @@ let fake: FakeItsaplan;
 const mk = () =>
   createScopedTracker(
     new ItsaplanClient(fake.baseUrl, fake.agentKey, { retryOptions: { maxRetries: 0 } }),
-    "tech",
+    { team: "tech", project: "tech" },
   );
 
 beforeEach(() => {
@@ -19,9 +19,44 @@ afterEach(async () => {
 });
 
 describe("createScopedTracker", () => {
-  it("chuẩn hoá mã dự án và từ chối mã rỗng", () => {
-    expect(mk().projectKey).toBe("TECH");
-    expect(() => createScopedTracker(new ItsaplanClient(fake.baseUrl, "k"), "  ")).toThrow();
+  it("chuẩn hoá mã dự án, lộ ref đủ team.KEY, từ chối team/mã rỗng", () => {
+    const t = mk();
+    expect(t.projectKey).toBe("TECH");
+    expect(t.team).toBe("tech");
+    expect(t.ref).toBe("tech.TECH");
+    const client = new ItsaplanClient(fake.baseUrl, "k");
+    expect(() => createScopedTracker(client, { team: "tech", project: "  " })).toThrow();
+    expect(() => createScopedTracker(client, { team: " ", project: "TECH" })).toThrow();
+  });
+
+  it("MỌI lời gọi chỉ dự án dùng ref đủ team.KEY, không bao giờ khoá trần", async () => {
+    const issue = fake.addIssue({ title: "A" });
+    const t = mk();
+    await t.columns();
+    await t.listIssues();
+    await t.getIssue(issue.identifier);
+    await t.getIssue(issue.id);
+    const projectPaths = fake.requests.map((r) => r.path).filter((p) => p.startsWith("/projects/"));
+    expect(projectPaths.length).toBeGreaterThanOrEqual(3);
+    for (const p of projectPaths) expect(p).toMatch(/^\/projects\/tech\.TECH(\/|$)/);
+  });
+
+  it("fake từ chối khoá trần (mơ hồ giữa team) và team lạ; allowBareKeys cho phép khoá trần", async () => {
+    const client = new ItsaplanClient(fake.baseUrl, fake.agentKey, {
+      retryOptions: { maxRetries: 0 },
+    });
+    await expect(client.getProject("TECH")).rejects.toMatchObject({ status: 404 });
+    await expect(client.getProject("other.TECH")).rejects.toMatchObject({ status: 404 });
+    expect((await client.getProject("tech.TECH")).key).toBe("TECH");
+
+    const lenient = new FakeItsaplan({ allowBareKeys: true });
+    lenient.start();
+    try {
+      const c = new ItsaplanClient(lenient.baseUrl, lenient.agentKey);
+      expect((await c.getProject("TECH")).key).toBe("TECH");
+    } finally {
+      await lenient.stop();
+    }
   });
 
   it("getIssue theo id và theo mã; issue dự án khác trả null", async () => {

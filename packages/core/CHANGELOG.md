@@ -25,6 +25,9 @@ All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded
   - `bot` (subpath mới): `defineBot`, `createBot` (`start`/`stop`/`health`/`handleEvent`),
     `runBot`, `startHealthServer` (`/healthz`).
   - `testing` (subpath mới): `FakeItsaplan`, itsaplan giả trên HTTP thật cho test bot.
+  - `tracker: { team, project }` bắt buộc: `team` là slug, `project` là `KEY` in hoa; mọi lời gọi
+    itsaplan dùng ref đủ `<team>.<KEY>` (`ctx.tracker.ref`), `defineBot` kiểm định dạng; `FakeItsaplan`
+    từ chối khoá trần (`allowBareKeys` để bật lại).
   - ví dụ `examples/minimal-bot`; `bun test` của core chạy thêm ví dụ này.
   - chưa có (milestone 2): runtime lễ tân, lịch cron do bot giữ, `closeAfter`, ledger bền,
     đăng ký webhook theo `rules`.

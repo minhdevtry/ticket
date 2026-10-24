@@ -71,6 +71,13 @@ export interface FakeItsaplanOptions {
   /** Key của agent. Mặc định `agent-key-test`. */
   agentKey?: string;
   projectKey?: string;
+  /** Slug team chứa dự án. Mặc định `tech`; dự án nằm trong team này. */
+  teamSlug?: string;
+  /**
+   * Cho phép khoá trần (`/projects/TECH`). Mặc định false: giống nhiều team có khoá trùng,
+   * khoá trần là mơ hồ nên fake trả 404 và test bắt được bot quên dùng ref đủ `team.KEY`.
+   */
+  allowBareKeys?: boolean;
   /** Thời gian lease sau mỗi claim/heartbeat (ms). Mặc định 300 000 như server thật. */
   leaseMs?: number;
   /** Số lần thử tối đa trước khi server tự đánh failed. Mặc định 3. */
@@ -128,6 +135,11 @@ export function frameMentionPrompt(input: {
 export class FakeItsaplan {
   readonly agentKey: string;
   readonly projectKey: string;
+  readonly teamSlug: string;
+  /** Ref đủ `<team>.<KEY>` của dự án. */
+  get ref(): string {
+    return `${this.teamSlug}.${this.projectKey}`;
+  }
   readonly runs: FakeRun[] = [];
   readonly issues: FakeIssue[] = [];
   readonly comments: FakeComment[] = [];
@@ -137,6 +149,7 @@ export class FakeItsaplan {
   /** Số lần mỗi key `<METHOD> <path>` được gọi. */
   readonly hits = new Map<string, number>();
 
+  private readonly allowBareKeys: boolean;
   private readonly leaseMs: number;
   private readonly maxAttempts: number;
   private readonly invocationUrl: boolean;
@@ -150,6 +163,8 @@ export class FakeItsaplan {
   constructor(options: FakeItsaplanOptions = {}) {
     this.agentKey = options.agentKey ?? "agent-key-test";
     this.projectKey = options.projectKey ?? "TECH";
+    this.teamSlug = options.teamSlug ?? "tech";
+    this.allowBareKeys = options.allowBareKeys ?? false;
     this.leaseMs = options.leaseMs ?? 300_000;
     this.maxAttempts = options.maxAttempts ?? 3;
     this.invocationUrl = options.invocationUrl ?? false;
@@ -328,20 +343,25 @@ export class FakeItsaplan {
 
     // ── tracker tối thiểu ──
     if (is(/^GET \/projects\/([^/]+)$/)) {
-      if (m![1] !== this.projectKey) return this.json({ error: "Project not found" }, 404);
+      if (!this.resolves(m![1])) return this.json({ error: "Project not found" }, 404);
       return this.json({
         id: 1,
         key: this.projectKey,
+        teamSlug: this.teamSlug,
+        teamRef: this.teamSlug,
+        ref: this.ref,
         name: "Dự án thử",
         columns: this.columns,
         assignees: [],
       });
     }
     if (is(/^GET \/projects\/([^/]+)\/issues$/)) {
-      return this.json(this.issues.filter((i) => i.identifier.startsWith(`${m![1]}-`)));
+      if (!this.resolves(m![1])) return this.json({ error: "Project not found" }, 404);
+      return this.json(this.issues);
     }
     if (is(/^GET \/projects\/([^/]+)\/issues\/(\d+)$/)) {
-      const issue = this.issues.find((i) => i.identifier === `${m![1]}-${m![2]}`);
+      if (!this.resolves(m![1])) return this.json({ error: "Project not found" }, 404);
+      const issue = this.issues.find((i) => i.identifier === `${this.projectKey}-${m![2]}`);
       return issue ? this.json(issue) : this.json({ error: "Not found" }, 404);
     }
     if (is(/^GET \/issues\/(\d+)$/)) {
@@ -370,6 +390,13 @@ export class FakeItsaplan {
       );
     }
     return this.json({ error: `Fake: chưa hỗ trợ ${key}` }, 404);
+  }
+
+  /** Ref hoặc khoá trần này có chỉ vào dự án của fake không (theo luật của server thật). */
+  private resolves(ref: string): boolean {
+    const dot = ref.indexOf(".");
+    if (dot < 0) return this.allowBareKeys && ref === this.projectKey;
+    return ref.slice(0, dot) === this.teamSlug && ref.slice(dot + 1) === this.projectKey;
   }
 
   private claim(): Response {

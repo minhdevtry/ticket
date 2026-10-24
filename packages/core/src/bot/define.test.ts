@@ -14,7 +14,7 @@ describe("defineBot", () => {
     });
     const def = defineBot({
       id: "demo-bot",
-      tracker: { project: "TECH2" },
+      tracker: { team: "tech", project: "TECH2" },
       env,
       backoffice: {
         agent: "demo",
@@ -38,7 +38,7 @@ describe("defineBot", () => {
     try {
       defineBot({
         id: "Sai ID",
-        tracker: { project: "1x" },
+        tracker: { team: "Sai Team", project: "1x" },
         backoffice: { on: { mentionn: handler, delegation: "không phải hàm" } as any },
       });
     } catch (e) {
@@ -47,25 +47,41 @@ describe("defineBot", () => {
     expect(error).toBeInstanceOf(BotDefinitionError);
     const paths = (error as BotDefinitionError).issues.map((i) => i.path);
     expect(paths).toContain("id");
+    expect(paths).toContain("tracker.team");
     expect(paths).toContain("tracker.project");
     expect(paths).toContain("backoffice.on.mentionn");
     expect(paths).toContain("backoffice.on.delegation");
-    expect((error as Error).message).toContain("(4 lỗi)");
+    expect((error as Error).message).toContain("(5 lỗi)");
+  });
+
+  it("tracker bắt buộc team (slug) và mã dự án IN HOA", () => {
+    const base = { id: "tk", backoffice: { on: { mention: handler } } };
+    const paths = (tracker: unknown) =>
+      validateBotDefinition({ ...base, tracker } as any).map((i) => i.path);
+    expect(paths({ project: "TECH2" })).toEqual(["tracker.team"]); // thiếu team
+    expect(paths({ team: "tech" })).toEqual(["tracker.project"]);
+    expect(paths({ team: "Tech", project: "TECH2" })).toEqual(["tracker.team"]); // hoa
+    expect(paths({ team: "t", project: "TECH2" })).toEqual(["tracker.team"]); // quá ngắn
+    expect(paths({ team: "tech-", project: "TECH2" })).toEqual(["tracker.team"]);
+    expect(paths({ team: "tech", project: "tech2" })).toEqual(["tracker.project"]); // thường
+    expect(paths({ team: "tech", project: "TECH_2" })).toEqual(["tracker.project"]);
+    expect(paths({ team: "tech", project: "2TECH" })).toEqual(["tracker.project"]);
+    expect(paths({ team: "cm-support", project: "CM2" })).toEqual([]);
   });
 
   it("cần ít nhất một vai và ít nhất một handler/luật", () => {
-    expect(() => defineBot({ id: "no-role", tracker: { project: "TECH" } })).toThrow(
+    expect(() => defineBot({ id: "no-role", tracker: { team: "tech", project: "TECH" } })).toThrow(
       /ít nhất một vai/,
     );
     expect(() =>
-      defineBot({ id: "empty-back", tracker: { project: "TECH" }, backoffice: {} }),
+      defineBot({ id: "empty-back", tracker: { team: "tech", project: "TECH" }, backoffice: {} }),
     ).toThrow(/ít nhất một handler/);
   });
 
   it("schedule dạng bản đồ cron báo là milestone 2", () => {
     const issues = validateBotDefinition({
       id: "sched",
-      tracker: { project: "TECH" },
+      tracker: { team: "tech", project: "TECH" },
       backoffice: { on: { schedule: { "0 8 * * *": handler } as any } },
     });
     expect(issues[0]?.message).toContain("milestone 2");
@@ -75,7 +91,7 @@ describe("defineBot", () => {
     const rule = whenColumn("A").do(setPriority("low"));
     const issues = validateBotDefinition({
       id: "dup",
-      tracker: { project: "TECH" },
+      tracker: { team: "tech", project: "TECH" },
       backoffice: { rules: [rule, rule, {} as any] },
     });
     expect(issues.map((i) => i.path)).toEqual(["backoffice.rules[1]", "backoffice.rules[2]"]);
@@ -85,7 +101,7 @@ describe("defineBot", () => {
     expect(() =>
       defineBot({
         id: "recep",
-        tracker: { project: "TECH" },
+        tracker: { team: "tech", project: "TECH" },
         receptionist: { channels: [{ kind: "telegram" }] },
       }),
     ).not.toThrow();

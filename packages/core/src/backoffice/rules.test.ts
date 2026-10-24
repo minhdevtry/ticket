@@ -25,7 +25,7 @@ const engine = (rules: ConstructorParameters<typeof RuleEngine>[0]["rules"]) =>
     rules,
     tracker: createScopedTracker(
       new ItsaplanClient(fake.baseUrl, fake.agentKey, { retryOptions: { maxRetries: 0 } }),
-      "TECH",
+      { team: "tech", project: "TECH" },
     ),
     config: {},
     logger: silent,

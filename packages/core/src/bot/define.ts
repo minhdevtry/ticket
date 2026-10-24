@@ -13,11 +13,15 @@ import type { EnvSchema, EnvShape, InferEnv } from "../core/config";
 import type { CopyCatalog } from "../intake/ports";
 import type { BackofficeDefinition } from "../backoffice";
 
-/** Dự án itsaplan mà bot phụ trách. */
+/**
+ * Dự án itsaplan mà bot phụ trách. Mọi dự án nằm trong một team, và mã dự án (`KEY`) chỉ
+ * duy nhất TRONG team, nên bot luôn gọi itsaplan bằng ref đủ `<teamSlug>.<KEY>` (vd
+ * `tech.TECH2`); khoá trần dễ trùng giữa các team và server đoán theo dự án cũ nhất.
+ */
 export interface TrackerRef {
-  /** Slug/ref của team (thông tin, dùng để dựng link). Tuỳ chọn. */
-  team?: string;
-  /** Mã dự án, vd `TECH2`. Bot chỉ đọc/ghi issue của dự án này. */
+  /** Slug của team, vd `tech` (chữ thường, số, gạch ngang; bắt đầu bằng chữ). */
+  team: string;
+  /** Mã dự án trong team, vd `TECH2` (`^[A-Z][A-Z0-9]*$`). Bot chỉ đọc/ghi issue của dự án này. */
   project: string;
 }
 
@@ -77,7 +81,9 @@ export class BotDefinitionError extends Error {
 }
 
 const ID = /^[a-z][a-z0-9-]{1,39}$/;
-const PROJECT = /^[A-Za-z][A-Za-z0-9_]*$/;
+/** Slug team theo đúng luật của itsaplan. */
+const TEAM_SLUG = /^[a-z][a-z0-9-]{0,38}[a-z0-9]$/;
+const PROJECT_KEY = /^[A-Z][A-Z0-9]*$/;
 const TRIGGER_KEYS = new Set([
   "mention",
   "delegation",
@@ -97,12 +103,14 @@ export function validateBotDefinition(def: BotDefinition<any>): BotDefinitionIss
   if (typeof def?.id !== "string" || !ID.test(def.id)) {
     bad("id", 'bắt buộc, chữ thường/số/gạch ngang, bắt đầu bằng chữ, 2–40 ký tự (vd "tieulinh")');
   }
-  if (
-    !def?.tracker ||
-    typeof def.tracker.project !== "string" ||
-    !PROJECT.test(def.tracker.project)
-  ) {
-    bad("tracker.project", 'bắt buộc, mã dự án itsaplan (vd "TECH2")');
+  if (typeof def?.tracker?.team !== "string" || !TEAM_SLUG.test(def.tracker.team)) {
+    bad(
+      "tracker.team",
+      'bắt buộc, slug team itsaplan: chữ thường/số/gạch ngang, bắt đầu bằng chữ, 2–40 ký tự (vd "tech")',
+    );
+  }
+  if (typeof def?.tracker?.project !== "string" || !PROJECT_KEY.test(def.tracker.project)) {
+    bad("tracker.project", 'bắt buộc, mã dự án IN HOA/số, bắt đầu bằng chữ (vd "TECH2")');
   }
   if (!def?.receptionist && !def?.backoffice) {
     bad("receptionist | backoffice", "cần ít nhất một vai");

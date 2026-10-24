@@ -185,7 +185,7 @@ export function createBot<E extends EnvShape = Record<never, never>>(
       options.itsaplanClient ??
       // Tắt retry: lệnh ghi (comment, tạo ticket) retry theo 5xx có thể ghi trùng.
       new ItsaplanClient(baseUrl, apiKey, { retryOptions: { maxRetries: 0 } });
-    tracker = createScopedTracker(client, def.tracker.project, { clock });
+    tracker = createScopedTracker(client, def.tracker, { clock });
     const handler = createRunDispatcher(back, {
       botId: def.id,
       projectKey: def.tracker.project,
@@ -303,7 +303,7 @@ export function createBot<E extends EnvShape = Record<never, never>>(
           // Fail-fast: key sai hoặc dự án không tồn tại thì dừng ở đây, không chờ poll đầu.
           await tracker.columns().catch((err: unknown) => {
             throw new Error(
-              `Không truy cập được dự án ${def.tracker.project} trên itsaplan: ${err instanceof Error ? err.message : String(err)}`,
+              `Không truy cập được dự án ${def.tracker.team}.${def.tracker.project} trên itsaplan: ${err instanceof Error ? err.message : String(err)}`,
             );
           });
         }

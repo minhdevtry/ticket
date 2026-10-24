@@ -21,7 +21,7 @@ import { z } from "zod";
 
 export default defineBot({
   id: "minimal-bot",
-  tracker: { project: "TECH" },
+  tracker: { team: "tech", project: "TECH" },
   env: defineEnv({ GREETING: z.string().default("Xin chào") }),
   backoffice: {
     agent: "minimal",
@@ -58,6 +58,8 @@ Biến môi trường tối thiểu cho hậu cần: `ITSAPLAN_BASE_URL`, `ITSAP
 Các lựa chọn khi handler xong: trả chuỗi hoặc không trả gì là thành công; `{ status: "failed", error }` là kết thúc thất bại (server **không** thử lại); `{ status: "retry" }` nhả lease để server giao lại sau vài phút (lỗi tạm thời). Trợ giúp: `skip(lý do)`, `fail(lỗi)`, `retryLater(lý do)`.
 
 ## Tracker khoá theo dự án
+
+Mọi dự án nằm trong một team, nên `tracker` luôn khai cả `team` (slug, vd `tech`) lẫn `project` (mã in hoa, vd `TECH2`). Bot gọi itsaplan bằng ref đủ `<team>.<KEY>` (`ctx.tracker.ref`, vd `tech.TECH2`) vì khoá trần dễ trùng giữa các team. `defineBot` ném lỗi nếu thiếu team hoặc sai định dạng.
 
 `ctx.tracker` chỉ đụng được issue của `tracker.project`. Đọc issue dự án khác trả `null`; ghi ném `OutOfProjectError`. Cần gì ngoài mặt tiền thì dùng `ctx.tracker.unscopedClient`, tự chịu trách nhiệm.
 

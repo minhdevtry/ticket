@@ -58,7 +58,7 @@ describe("createBot", () => {
   it("fail-fast: env thiếu → ConfigError gom lỗi, secret không lộ; khai báo sai → BotDefinitionError", () => {
     const def = defineBot({
       id: "demo",
-      tracker: { project: "TECH" },
+      tracker: { team: "tech", project: "TECH" },
       env: defineEnv({ OTHER: z.string() }),
       backoffice: { on: { mention: async () => "x" } },
     });
@@ -74,7 +74,7 @@ describe("createBot", () => {
     expect((err as Error).message).not.toContain("bí-mật-123");
 
     expect(() =>
-      createBot({ id: "X", tracker: { project: "T" } } as any, { env: {}, logger }),
+      createBot({ id: "X", tracker: { team: "tech", project: "T" } } as any, { env: {}, logger }),
     ).toThrow(BotDefinitionError);
   });
 
@@ -82,7 +82,7 @@ describe("createBot", () => {
     const bot = make(
       defineBot({
         id: "life",
-        tracker: { project: "TECH" },
+        tracker: { team: "tech", project: "TECH" },
         backoffice: { on: { mention: async () => "x" } },
       }),
       { env: envFor() },
@@ -105,12 +105,12 @@ describe("createBot", () => {
     const bot = make(
       defineBot({
         id: "pre",
-        tracker: { project: "NOPE" },
+        tracker: { team: "tech", project: "NOPE" },
         backoffice: { on: { mention: async () => "x" } },
       }),
       { env: envFor() },
     );
-    await expect(bot.start()).rejects.toThrow(/Không truy cập được dự án NOPE/);
+    await expect(bot.start()).rejects.toThrow(/Không truy cập được dự án tech\.NOPE/);
     expect(bot.state).toBe("failed");
     expect(bot.health().status).toBe("down");
   });
@@ -119,7 +119,7 @@ describe("createBot", () => {
     const bot = make(
       defineBot({
         id: "logs",
-        tracker: { project: "TECH" },
+        tracker: { team: "tech", project: "TECH" },
         backoffice: { on: { mention: async () => "x" } },
       }),
       { env: envFor() },
@@ -137,7 +137,7 @@ describe("createBot", () => {
     const bot = make(
       defineBot({
         id: "e2e",
-        tracker: { project: "TECH" },
+        tracker: { team: "tech", project: "TECH" },
         env: defineEnv({ GREETING: z.string().default("Xin chào") }),
         backoffice: {
           agent: "testbot",
@@ -159,6 +159,10 @@ describe("createBot", () => {
 
     expect(seen).toEqual({ text: "kiểm tra giúp", title: "Không đăng nhập được" });
     expect(fake.run(run.id).output).toBe("đã trả lời");
+    // bot luôn gọi dự án bằng ref đủ team.KEY (khoá trần là mơ hồ giữa các team)
+    const projectPaths = fake.requests.map((r) => r.path).filter((p) => p.startsWith("/projects/"));
+    expect(projectPaths.length).toBeGreaterThan(0);
+    expect(projectPaths.every((p) => /^\/projects\/tech\.TECH(\/|$)/.test(p))).toBe(true);
     const reply = fake.comments.find((c) => c.actorUserId === "agent-user")!;
     expect(reply.body).toContain("Xin chào! Mình đã nhận: kiểm tra giúp");
     expect(reply.replyToId).toBe(fake.comments[0]!.id); // trả lời đúng luồng
@@ -175,7 +179,7 @@ describe("createBot", () => {
       const bot = make(
         defineBot({
           id: "idem",
-          tracker: { project: "TECH" },
+          tracker: { team: "tech", project: "TECH" },
           backoffice: {
             on: {
               mention: async (ctx) => {
@@ -211,7 +215,7 @@ describe("createBot", () => {
     const bot = make(
       defineBot({
         id: "skip",
-        tracker: { project: "TECH" },
+        tracker: { team: "tech", project: "TECH" },
         backoffice: { on: { mention: async () => skip("x") } },
       }),
       { env: envFor() },
@@ -231,7 +235,7 @@ describe("createBot", () => {
     const bot = make(
       defineBot({
         id: "boom",
-        tracker: { project: "TECH" },
+        tracker: { team: "tech", project: "TECH" },
         backoffice: {
           on: {
             mention: async () => {
@@ -253,7 +257,7 @@ describe("createBot", () => {
     const bot = make(
       defineBot({
         id: "rules",
-        tracker: { project: "TECH" },
+        tracker: { team: "tech", project: "TECH" },
         backoffice: {
           rules: [whenColumn("Cần phân loại").do(comment("Đã nhận."), setPriority("high"))],
         },
@@ -311,7 +315,7 @@ describe("createBot", () => {
     const bot = make(
       defineBot({
         id: "deg",
-        tracker: { project: "TECH" },
+        tracker: { team: "tech", project: "TECH" },
         backoffice: { on: { mention: async () => "x" } },
       }),
       { env: envFor() },
@@ -325,7 +329,7 @@ describe("createBot", () => {
     const bad = make(
       defineBot({
         id: "bad",
-        tracker: { project: "TECH" },
+        tracker: { team: "tech", project: "TECH" },
         backoffice: { on: { mention: async () => "x" } },
       }),
       { env: envFor({ ITSAPLAN_AGENT_KEY: "sai" }), preflight: false },
@@ -348,7 +352,7 @@ describe("runBot", () => {
     const bot = make(
       defineBot({
         id: "sig",
-        tracker: { project: "TECH" },
+        tracker: { team: "tech", project: "TECH" },
         backoffice: { on: { mention: async () => "x" } },
       }),
       { env: envFor() },

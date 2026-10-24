@@ -15,7 +15,7 @@ export const env = defineEnv({
 
 export default defineBot({
   id: "minimal-bot",
-  tracker: { project: "TECH" },
+  tracker: { team: "tech", project: "TECH" },
   env,
   backoffice: {
     agent: "minimal",

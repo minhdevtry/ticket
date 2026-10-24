@@ -61,8 +61,8 @@ export default defineBot({
 | Trường | Kiểu | Ghi chú |
 |---|---|---|
 | `id` | `string` | `^[a-z][a-z0-9-]{1,39}$` |
-| `tracker.project` | `string` | mã dự án; bot chỉ đụng issue của dự án này |
-| `tracker.team` | `string?` | thông tin |
+| `tracker.team` | `string` | **bắt buộc**, slug team (`^[a-z][a-z0-9-]{0,38}[a-z0-9]$`), vd `tech` |
+| `tracker.project` | `string` | **bắt buộc**, mã dự án trong team (`^[A-Z][A-Z0-9]*$`), vd `TECH2`; bot chỉ đụng issue của dự án này |
 | `persona` | `CopyCatalog?` | dùng cho lễ tân |
 | `env` | `EnvSchema?` | `defineEnv({...})` |
 | `receptionist` | `ReceptionistDefinition?` | chỉ kiểm hình dạng ở M1 |
@@ -73,6 +73,10 @@ export default defineBot({
 
 Cần ít nhất một vai. `defineBot` kiểm tra và ném **một** `BotDefinitionError` liệt kê mọi chỗ sai (gõ nhầm `mentionn`, không phải hàm, tên luật trùng…). `defineBot` thuần: không đọc env, không mạng.
 
+### Dự án luôn có team: ref đủ `<team>.<KEY>`
+
+Mọi dự án nằm trong một team và mã `KEY` chỉ duy nhất trong team. Khoá trần (`TECH2`) vì vậy mơ hồ khi nhiều team trùng khoá; server cũ vẫn nhận khoá trần nhưng đoán theo dự án tạo sớm nhất. Bot kit không đoán: `tracker.team` bắt buộc, `defineBot` kiểm định dạng (slug team, `KEY` in hoa) và mọi lời gọi itsaplan (`/projects/tech.TECH2/...`) đi bằng ref đủ, lộ ra ở `ctx.tracker.ref`. Mã issue (`TECH2-42`) vẫn dùng khoá trần vì nó nằm trong team sẵn. `FakeItsaplan` từ chối khoá trần mặc định để test bắt được chỗ quên.
+
 ### Handler theo trigger
 
 Handler nhận `RunContext`:
@@ -80,7 +84,7 @@ Handler nhận `RunContext`:
 - `run`, `trigger`, `config` (có kiểu), `logger`, `signal` (huỷ khi mất lease/tắt cưỡng bức), `trace`, `clock`, `idempotencyKey`;
 - `comment`: comment đã phân tích (`text` đã gỡ HTML và `@bot`, `replyToId`, `threadContext`);
 - `issue()`: issue của run (lazy, nhớ kết quả, `null` nếu ngoài dự án);
-- `tracker`: client **khoá vào dự án** (`getIssue`, `comment`, `moveTo`, `assign`, `setPriority`, `search`...). Ghi lên issue ngoài dự án ném `OutOfProjectError`;
+- `tracker`: client **khoá vào dự án**, có `tracker.ref` (`tech.TECH2`) (`getIssue`, `comment`, `moveTo`, `assign`, `setPriority`, `search`...). Ghi lên issue ngoài dự án ném `OutOfProjectError`;
 - `reply(text)`: comment trả lời đúng luồng, gắn dấu bot, **chống trùng theo run**.
 
 Trả về: chuỗi (success + output), không gì (success), hoặc `{ status: "failed", error }` / `{ status: "retry" }`. Ném lỗi = `failed`.

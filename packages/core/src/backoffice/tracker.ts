@@ -21,9 +21,9 @@ import type { Clock } from "../intake/ports";
 export class OutOfProjectError extends Error {
   constructor(
     readonly ref: number | string,
-    readonly projectKey: string,
+    readonly projectRef: string,
   ) {
-    super(`Issue ${ref} không thuộc dự án ${projectKey}`);
+    super(`Issue ${ref} không thuộc dự án ${projectRef}`);
     this.name = "OutOfProjectError";
   }
 }
@@ -57,7 +57,12 @@ export type TrackerPriority = "urgent" | "high" | "medium" | "low";
 
 /** Mặt tiền tracker mà handler/rule dùng. */
 export interface ScopedTracker {
+  /** Mã dự án trong team, vd `TECH2` (khớp tiền tố mã issue `TECH2-42`). */
   readonly projectKey: string;
+  /** Slug team, vd `tech`. */
+  readonly team: string;
+  /** Ref đủ `<team>.<KEY>`, vd `tech.TECH2`: giá trị mọi lời gọi itsaplan dùng để chỉ dự án. */
+  readonly ref: string;
   /** `null` nếu không tìm thấy HOẶC không thuộc dự án. */
   getIssue(ref: number | string): Promise<ItsaplanIssue | null>;
   listIssues(options?: { limit?: number; page?: number }): Promise<ItsaplanIssue[]>;
@@ -83,11 +88,14 @@ export function idempotencyMarker(key: string): string {
 
 export function createScopedTracker(
   client: ItsaplanClient,
-  projectKeyInput: string,
+  tracker: { team: string; project: string },
   options: { clock?: Clock } = {},
 ): ScopedTracker {
-  const projectKey = normalizeProjectKey(projectKeyInput);
+  const projectKey = normalizeProjectKey(tracker.project);
+  const team = (tracker.team ?? "").trim();
   if (!projectKey) throw new Error("tracker.project không được rỗng");
+  if (!team) throw new Error("tracker.team không được rỗng (ref đủ là <team>.<KEY>)");
+  const ref = `${team}.${projectKey}`;
   const now = () => (options.clock ?? { now: Date.now }).now();
 
   const verified = new Set<number>();
@@ -102,18 +110,22 @@ export function createScopedTracker(
   let columnCache: { at: number; columns: ProjectColumn[] } | null = null;
   async function columns(force = false): Promise<ProjectColumn[]> {
     if (!force && columnCache && now() - columnCache.at < COLUMN_TTL_MS) return columnCache.columns;
-    const fresh = await client.listProjectColumns(projectKey as string);
+    const fresh = await client.listProjectColumns(ref);
     columnCache = { at: now(), columns: fresh };
     return fresh;
   }
 
-  async function getIssue(ref: number | string): Promise<ItsaplanIssue | null> {
-    if (typeof ref === "string") {
-      const issue = await findIssueByIdentifier(client, ref, projectKey as string);
+  async function getIssue(issueRef: number | string): Promise<ItsaplanIssue | null> {
+    if (typeof issueRef === "string") {
+      // `findIssueByIdentifier` gọi bằng khoá trần; ép nó đi bằng ref đủ của team.
+      const byRef = {
+        getIssueByNumber: (_key: string, seq: number) => client.getIssueByNumber(ref, seq),
+      };
+      const issue = await findIssueByIdentifier(byRef, issueRef, projectKey as string);
       if (issue) remember(issue.id);
       return issue;
     }
-    const issue = await client.getIssue(ref).catch(() => null);
+    const issue = await client.getIssue(issueRef).catch(() => null);
     if (!issue || !identifierInProject(issue.identifier, projectKey)) return null;
     remember(issue.id);
     return issue;
@@ -121,7 +133,7 @@ export function createScopedTracker(
 
   async function assertOwned(issueId: number): Promise<void> {
     if (verified.has(issueId)) return;
-    if (!(await getIssue(issueId))) throw new OutOfProjectError(issueId, projectKey as string);
+    if (!(await getIssue(issueId))) throw new OutOfProjectError(issueId, ref);
   }
 
   async function resolveColumnId(column: string | number): Promise<number> {
@@ -135,15 +147,17 @@ export function createScopedTracker(
 
   return {
     projectKey,
+    team,
+    ref,
     unscopedClient: client,
     getIssue,
 
     async listIssues(opts = {}) {
-      return client.listProjectIssues(projectKey, opts);
+      return client.listProjectIssues(ref, opts);
     },
 
     async search(query) {
-      return client.searchIssues(query, projectKey);
+      return client.searchIssues(query, ref);
     },
 
     async comments(issueId) {
