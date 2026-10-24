@@ -15,7 +15,7 @@ const THREAD_MARKER = "oldest first:";
 export interface MentionComment {
   /** Nguyên văn comment, chưa lọc. */
   raw: string;
-  /** Đã gỡ thẻ HTML của editor và các @mention của chính bot. */
+  /** Đã gỡ thẻ HTML của editor và các `@mention` của chính bot. */
   text: string;
   /** Id comment cần trả lời vào luồng của nó (nếu khung nêu). */
   replyToId: number | null;

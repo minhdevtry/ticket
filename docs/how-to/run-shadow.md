@@ -29,7 +29,7 @@ Tiểu Linh 2 chạy bóng trên Colab: nhận bản sao mỗi tin mà Tiểu Li
 ## Đang viết: shadow dùng chung cho mọi bot
 
 ::: warning Đang viết
-Chế độ shadow dùng chung cho bot dựng trên thư viện (nhận cùng sự kiện nhưng không gửi tin, không ghi ticket, chỉ log việc nó sẽ làm) chưa tồn tại. Nó gắn với `defineBot` và vai hậu cần, hai thứ còn **đang thiết kế**, nên trang này chưa mô tả cách bật. Phần chạy bóng Tiểu Linh 2 ở trên là giải pháp riêng cho một bot, không phải chế độ chung đó.
+Chế độ shadow dùng chung cho bot dựng trên thư viện (nhận cùng sự kiện nhưng không gửi tin, không ghi ticket, chỉ log việc nó sẽ làm) chưa tồn tại. Nó thuộc milestone 2 của [bot kit](/explanation/bot-kit) (`defineBot` đã có, nhưng `createBot` chưa có chế độ shadow), nên trang này chưa mô tả cách bật. Phần chạy bóng Tiểu Linh 2 ở trên là giải pháp riêng cho một bot, không phải chế độ chung đó.
 :::
 
 Trong khi chờ, có hai cách an toàn gần với shadow đã có sẵn trong code:

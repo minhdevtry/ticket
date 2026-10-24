@@ -1,6 +1,6 @@
 # Bot kit: một khai báo, hai vai
 
-Trang này giải thích cách nghĩ về bot kit và cách dùng nó. Thiết kế đầy đủ và các câu hỏi mở: [RFC 0001](../rfc/0001-bot-kit.md). Giao thức hàng đợi bên dưới: [agent-runs](../reference/agent-runs.md).
+Trang này giải thích cách nghĩ về bot kit và cách dùng nó. Thiết kế đầy đủ và các câu hỏi mở: [RFC 0001](/rfc/0001-bot-kit). Giao thức hàng đợi bên dưới: [agent-runs](/reference/agent-runs).
 
 ## Ý tưởng
 
@@ -13,7 +13,7 @@ Bot kit gom cả hai vào một khai báo và một vòng đời, để người
 
 ## Bắt đầu nhanh
 
-```ts
+```ts check
 // bot.ts
 import { defineEnv } from "@vuihoc/bot-core/core";
 import { defineBot } from "@vuihoc/bot-core/bot";
@@ -35,10 +35,12 @@ export default defineBot({
 });
 ```
 
-```ts
+```ts check
 // main.ts
-import { createBot, runBot } from "@vuihoc/bot-core/bot";
-import bot from "./bot";
+import { type BotDefinition, createBot, runBot } from "@vuihoc/bot-core/bot";
+
+// Trong bot thật: `import bot from "./bot";`
+declare const bot: BotDefinition;
 
 await runBot(createBot(bot, { env: process.env, envFile: ".env" }));
 ```
@@ -59,7 +61,22 @@ Các lựa chọn khi handler xong: trả chuỗi hoặc không trả gì là th
 
 ## Tracker khoá theo dự án
 
-Mọi dự án nằm trong một team, nên `tracker` luôn khai cả `team` (slug, vd `tech`) lẫn `project` (mã in hoa, vd `TECH2`). Bot gọi itsaplan bằng ref đủ `<team>.<KEY>` (`ctx.tracker.ref`, vd `tech.TECH2`) vì khoá trần dễ trùng giữa các team. `defineBot` ném lỗi nếu thiếu team hoặc sai định dạng.
+Mọi dự án nằm trong một team, nên `tracker` luôn khai cả `team` (slug, vd `tech`) lẫn `project` (mã in hoa, vd `TECH2`). Bot gọi itsaplan bằng ref đủ `<team>.<KEY>` (`ctx.tracker.ref`, vd `tech.TECH2`) vì khoá trần dễ trùng giữa các team. `defineBot` ném lỗi nếu thiếu team hoặc sai định dạng, và gom mọi chỗ sai vào một lần:
+
+```ts run
+import { strict as assert } from "node:assert";
+import { BotDefinitionError, defineBot } from "@vuihoc/bot-core/bot";
+
+try {
+  // @ts-expect-error cố ý thiếu `team` để xem lỗi
+  defineBot({ id: "demo", tracker: { project: "tech2" }, backoffice: { on: { mention: () => "ok" } } });
+  assert.fail("lẽ ra phải ném BotDefinitionError");
+} catch (err) {
+  assert.ok(err instanceof BotDefinitionError);
+  const paths = err.issues.map((i) => i.path);
+  assert.deepEqual(paths, ["tracker.team", "tracker.project"]);
+}
+```
 
 `ctx.tracker` chỉ đụng được issue của `tracker.project`. Đọc issue dự án khác trả `null`; ghi ném `OutOfProjectError`. Cần gì ngoài mặt tiền thì dùng `ctx.tracker.unscopedClient`, tự chịu trách nhiệm.
 
@@ -67,11 +84,19 @@ Mọi dự án nằm trong một team, nên `tracker` luôn khai cả `team` (sl
 
 Cho phản ứng tất định với thay đổi trên ticket mà không cần LLM:
 
-```ts
-rules: [
+```ts check
+import {
+  comment,
+  setPriority,
+  whenColumn,
+  whenCommentCreated,
+} from "@vuihoc/bot-core/backoffice";
+
+// Đưa mảng này vào `defineBot({ backoffice: { rules } })`.
+export const rules = [
   whenColumn("Cần phân loại").do(comment("Đã nhận, đang phân loại."), setPriority("medium")),
   whenCommentCreated((c) => c.text.includes("gấp")).do(setPriority("high")),
-]
+];
 ```
 
 Luật chạy trên webhook. Hoặc đặt `BOT_WEBHOOK_PORT` để bot tự nghe, hoặc nếu host đã có webhook server thì gọi `bot.handleEvent(envelope)`. Hiện luật chưa có hẹn giờ (`closeAfter`); xem lộ trình trong RFC.
@@ -79,6 +104,27 @@ Luật chạy trên webhook. Hoặc đặt `BOT_WEBHOOK_PORT` để bot tự ngh
 ## Cấu hình
 
 `defineEnv` khai báo schema zod; `loadConfig` kiểm tra một lần và ném `ConfigError` liệt kê **mọi** biến sai. Giá trị secret không bao giờ xuất hiện trong lỗi hay log: dùng `secret(z.string().optional())` (bọc schema cuối cùng) hoặc đặt tên biến có `KEY`/`SECRET`/`TOKEN`/`PASSWORD`. Chuỗi rỗng coi như chưa đặt.
+
+```ts run
+import { strict as assert } from "node:assert";
+import { ConfigError, defineEnv, loadConfig, secret } from "@vuihoc/bot-core/core";
+import { z } from "zod";
+
+const schema = defineEnv({
+  PORT: z.coerce.number().int().default(8080),
+  API_TOKEN: secret(z.string().min(20)),
+  MODE: z.enum(["live", "dry"]),
+});
+
+try {
+  loadConfig(schema, { env: { API_TOKEN: "ngan", MODE: "sai" } });
+  assert.fail("lẽ ra phải ném ConfigError");
+} catch (err) {
+  assert.ok(err instanceof ConfigError);
+  assert.deepEqual(err.issues.map((i) => i.name).sort(), ["API_TOKEN", "MODE"]);
+  assert.ok(!err.message.includes("ngan"), "giá trị secret không được lộ trong lỗi");
+}
+```
 
 ## Sức khoẻ và dừng êm
 

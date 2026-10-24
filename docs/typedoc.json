@@ -9,7 +9,10 @@
     "../packages/core/src/openclaw/index.ts",
     "../packages/core/src/telegram/index.ts",
     "../packages/core/src/worker/index.ts",
-    "../packages/core/src/eval/index.ts"
+    "../packages/core/src/eval/index.ts",
+    "../packages/core/src/bot/index.ts",
+    "../packages/core/src/backoffice/index.ts",
+    "../packages/core/src/testing/index.ts"
   ],
   "entryPointStrategy": "resolve",
   "tsconfig": "../packages/core/tsconfig.json",

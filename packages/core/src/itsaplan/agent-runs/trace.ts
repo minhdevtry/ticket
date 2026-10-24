@@ -8,7 +8,8 @@ import type { IntakeLogger } from "../../core/logger";
 import type { AgentRunsClient } from "./client";
 import { AGENT_RUN_LIMITS, type AgUiEvent, type ClaimedAgentRun } from "./types";
 
-type TraceClient = Pick<AgentRunsClient, "appendEvents">;
+/** Phần của `AgentRunsClient` mà `RunTrace` cần (để test truyền bản giả). */
+export type TraceClient = Pick<AgentRunsClient, "appendEvents">;
 
 /** Trace của một lần thử. Mọi lời gọi được tuần tự hoá, `offset` tự theo dõi. */
 export class RunTrace {

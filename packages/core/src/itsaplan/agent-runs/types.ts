@@ -6,7 +6,7 @@
 
 /**
  * Điều gì đã tạo ra run. Server hiện phát bảy loại:
- *  - `mention`: có comment @agent (hoặc trả lời comment của agent);
+ *  - `mention`: có comment `@agent` (hoặc trả lời comment của agent);
  *  - `delegation`: issue được giao (delegate) cho agent;
  *  - `field`: agent được đặt vào một custom field kiểu "member";
  *  - `schedule`: lịch cron chạy theo giờ UTC;

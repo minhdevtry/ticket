@@ -128,8 +128,11 @@ Hệ quả cho người viết handler: handler phải **chạy lại được**
 
 ## Dùng trực tiếp
 
-```ts
+```ts check
 import { AgentRunsClient, AgentRunWorker } from "@vuihoc/bot-core/itsaplan";
+
+declare const baseUrl: string;
+declare const apiKey: string;
 
 const worker = new AgentRunWorker({
   client: new AgentRunsClient({ baseUrl, apiKey }),
@@ -141,10 +144,10 @@ const worker = new AgentRunWorker({
 });
 worker.start();
 // ... khi tắt:
-await worker.stop();
+export const shutdown = () => worker.stop();
 ```
 
-Cách thường dùng là qua `defineBot`/`createBot` (xem [bot kit](../explanation/bot-kit.md)). Test với `FakeItsaplan` của `@vuihoc/bot-core/testing`, nói đúng giao thức trên qua HTTP thật.
+Cách thường dùng là qua `defineBot`/`createBot` (xem [bot kit](/explanation/bot-kit)). Test với `FakeItsaplan` của `@vuihoc/bot-core/testing`, nói đúng giao thức trên qua HTTP thật.
 
 ## So với runner ad-hoc cũ của Tiểu Linh
 

@@ -260,7 +260,7 @@ export class FakeItsaplan {
     return run;
   }
 
-  /** Người dùng comment @agent trên issue: lưu comment và xếp run `mention`. */
+  /** Người dùng comment `@agent` trên issue: lưu comment và xếp run `mention`. */
   mention(issueId: number, text: string): FakeRun {
     const issue = this.issues.find((i) => i.id === issueId);
     if (!issue) throw new Error(`Không có issue ${issueId}`);

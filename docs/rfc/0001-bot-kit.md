@@ -13,7 +13,7 @@ Một bot thực chất có **hai vai**:
 - **Lễ tân** (receptionist): hội thoại tiếp nhận qua chat → xác nhận → tạo ticket.
 - **Hậu cần** (back office): làm việc trên ticket đã có: trả lời mention, xử lý ticket được giao, phản ứng khi ticket đổi cột, chạy theo lịch, đóng vòng đời ticket.
 
-Itsaplan có sẵn cơ chế giao việc cho agent ngoài (hàng đợi `agent-runs`, xem [tham chiếu](../reference/agent-runs.md)). Hậu cần nên dựa trên đó thay vì tự dựng cơ chế riêng.
+Itsaplan có sẵn cơ chế giao việc cho agent ngoài (hàng đợi `agent-runs`, xem [tham chiếu](/reference/agent-runs)). Hậu cần nên dựa trên đó thay vì tự dựng cơ chế riêng.
 
 ## Mục tiêu
 
@@ -27,7 +27,7 @@ Không phải mục tiêu: thay engine hội thoại; thay OpenClaw; viết lạ
 
 ## Khai báo
 
-```ts
+```ts no-check
 export default defineBot({
   id: "tieulinh",                         // chữ thường, số, gạch ngang; dùng trong log/health/khoá
   tracker: { team: "tech", project: "TECH2" },

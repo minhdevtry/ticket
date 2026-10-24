@@ -75,7 +75,8 @@ export class MemoryRunLedger implements RunLedger {
   }
 }
 
-type WorkerClient = Pick<AgentRunsClient, "claim" | "heartbeat" | "report" | "appendEvents">;
+/** Phần của `AgentRunsClient` mà worker cần (để test truyền bản giả). */
+export type WorkerClient = Pick<AgentRunsClient, "claim" | "heartbeat" | "report" | "appendEvents">;
 
 export interface AgentRunWorkerOptions {
   client: WorkerClient;

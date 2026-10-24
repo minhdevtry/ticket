@@ -61,6 +61,7 @@ export default defineConfig({
             { text: "Tổng quan", link: "/reference/" },
             { text: "Subpath và entry point", link: "/reference/entry-points" },
             { text: "Cấu hình và biến môi trường", link: "/reference/config-env" },
+            { text: "Giao thức agent-runs", link: "/reference/agent-runs" },
             { text: "Sự kiện webhook itsaplan", link: "/reference/webhook-events" },
             { text: "Danh sách CopyKey", link: "/reference/copy-keys" },
             { text: "API (TypeDoc)", link: "/reference/api/" },
@@ -73,9 +74,19 @@ export default defineConfig({
           items: [
             { text: "Tổng quan", link: "/explanation/" },
             { text: "Kiến trúc: lễ tân và hậu cần", link: "/explanation/architecture" },
+            { text: "Bot kit: defineBot và createBot", link: "/explanation/bot-kit" },
             { text: "Năm lớp của một bot", link: "/explanation/layers" },
             { text: "Bảo mật repo công khai", link: "/explanation/public-repo-security" },
             { text: "Chỉ mục ADR", link: "/explanation/adr-index" },
+          ],
+        },
+      ],
+      "/rfc/": [
+        {
+          text: "RFC",
+          items: [
+            { text: "Tổng quan", link: "/rfc/" },
+            { text: "0001 Bot kit", link: "/rfc/0001-bot-kit" },
           ],
         },
       ],

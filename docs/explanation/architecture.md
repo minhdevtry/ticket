@@ -28,27 +28,29 @@ Trong code, vai này là các tầng `intake`, `worker`, `telegram`, `itsaplan`,
 
 ## Hậu cần (back office)
 
-::: warning Đang thiết kế
-Phần này mô tả hướng đi đã chốt ở mức khái niệm. Chưa có API, nên trang này cố ý không có chữ ký hàm hay cấu hình mẫu: đoán trước một API chưa tồn tại là tạo ra docs sai.
-:::
-
 Vai xử lý ticket **sau khi nó đã tồn tại**. Hậu cần dùng *agent ngoài* gốc của itsaplan (itsaplan-native external agents): agent là một thực thể đăng ký trong itsaplan, itsaplan quyết định lúc nào có việc cho nó, agent nhận việc, làm, rồi báo kết quả. Bot không phải dựng một hệ thống điều phối riêng.
+
+Phần này đã có cài đặt trong bot kit (milestone 1): [Bot kit: defineBot và createBot](/explanation/bot-kit) giải thích cách dùng, [giao thức agent-runs](/reference/agent-runs) mô tả hàng đợi bên dưới, còn [RFC 0001](/rfc/0001-bot-kit) ghi các lựa chọn thiết kế và phần để lại cho milestone 2.
 
 ### Trigger
 
-Một việc cho agent được kích hoạt bởi một trong năm loại trigger:
+Một việc cho agent (một *run*) được kích hoạt bởi một trong bảy loại trigger:
 
 | Trigger | Ý nghĩa |
 |---|---|
 | `mention` | Ai đó nhắc (tag) agent trong comment |
 | `delegation` | Ticket được giao cho agent |
 | `field` | Một trường của ticket đổi giá trị |
-| `schedule` | Theo lịch |
+| `schedule` | Theo lịch cron tạo trên itsaplan |
 | `manual` | Người bấm chạy tay |
+| `status` | Ticket vào một cột mà lịch theo dõi trạng thái đang canh |
+| `event` | Một sự kiện khác của itsaplan |
+
+Trong bot kit, mỗi loại là một handler trong `backoffice.on`; loại chưa có handler riêng rơi vào `fallback`.
 
 ### Rule: sự kiện → điều kiện → hành động
 
-Hành vi hậu cần được khai báo bằng rule theo mẫu **sự kiện → điều kiện → hành động**: khi có sự kiện này, nếu điều kiện đúng, thì làm hành động kia. Giống nguyên tắc ở lễ tân, điều gì cần tất định (điều kiện, chuyển trạng thái) nằm ở rule và code, model chỉ lo phần cần phán đoán.
+Ngoài run, hành vi hậu cần còn khai báo được bằng rule theo mẫu **sự kiện → điều kiện → hành động**: khi có sự kiện webhook này, nếu điều kiện đúng, thì làm hành động kia (`comment`, `moveTo`, `assign`, `setPriority`). Giống nguyên tắc ở lễ tân, điều gì cần tất định (điều kiện, chuyển trạng thái) nằm ở rule và code, model chỉ lo phần cần phán đoán.
 
 ### Vòng đời ticket
 
@@ -56,15 +58,11 @@ Rule và agent vận hành trên vòng đời ticket của itsaplan. Các trạn
 
 ### Hiện đã có gì
 
-Chưa có khung hậu cần chung, nhưng đã có một mầm: worker của Tiểu Linh chạy `AgentRunnerService`, định kỳ xin việc từ itsaplan (`POST /agent-runs/claim`), nhận một "run" kèm loại trigger (hiện dùng cho `mention`: comment tag bot được chuyển về người báo), xử lý, rồi báo kết quả (`/agent-runs/<id>/result`). Hậu cần chung sẽ khái quát hoá cơ chế này thành trigger và rule.
+Bot kit gom vòng đời của một worker hậu cần: xin việc (`POST /agent-runs/claim`), giữ lease bằng heartbeat, ghi vết, báo kết quả (`/agent-runs/<id>/result`), thử lại khi lỗi tạm thời, dừng êm, health. Tracker của bot bị khoá vào đúng một dự án nên một handler lỗi không ghi nhầm sang dự án khác. Worker của Tiểu Linh (`AgentRunnerService`) là bản viết tay có trước, chưa chuyển sang bot kit. Chưa có: lịch cron do bot giữ, hẹn giờ bền (`closeAfter`), đăng ký webhook tự động từ rule.
 
 ## `defineBot`: một khai báo cho cả hai vai
 
-::: warning Đang thiết kế
-`defineBot({...})` đang được xây song song. Chưa có chữ ký ổn định.
-:::
-
-Mục tiêu: một bot khai báo vai lễ tân (kênh, catalog, bộ chuỗi) và vai hậu cần (trigger, rule) ở một chỗ, thay vì ghép tay từng port như hôm nay. Khi API chốt, trang [Dựng bot đầu tiên](/guide/first-bot) sẽ được viết. Cho tới lúc đó, bot ghép từ các phần của thư viện, xem [Cách làm](/how-to/).
+`defineBot({...})` là chỗ một bot khai báo định danh, dự án (`tracker: { team, project }`), cấu hình env, và các vai: hậu cần (`backoffice`) chạy được từ milestone 1, lễ tân (`receptionist`) mới được kiểm tra hình dạng và sẽ chạy ở milestone 2. Thay vì ghép tay từng port như các bot cũ, người viết chỉ viết phần nghiệp vụ. Hướng dẫn từng bước ở [Dựng bot đầu tiên](/guide/first-bot).
 
 ## Nguyên tắc xuyên suốt
 

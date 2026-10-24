@@ -3,7 +3,7 @@
 `@vuihoc/bot-core` (thư mục `packages/core`) là thư viện TypeScript chạy bằng Bun, dùng chung cho các bot ticket của VuiHoc. Mỗi bot đứng ở hai đầu của một ticket trên [itsaplan](https://github.com/croffasia/itsaplan):
 
 - **Lễ tân**: nhận tin từ kênh chat, hỏi bổ sung theo catalog, xin người báo xác nhận, rồi tạo ticket. Sau đó báo ngược mọi thay đổi của ticket về đúng chat.
-- **Hậu cần**: xử lý ticket sau khi nó đã tồn tại, bằng agent ngoài chạy theo trigger và rule. Phần này **đang thiết kế**.
+- **Hậu cần**: xử lý ticket sau khi nó đã tồn tại, bằng agent ngoài chạy theo trigger và rule. Bot kit (`defineBot`/`createBot`) đã chạy được phần này, xem [Bot kit](/explanation/bot-kit).
 
 Xem [Kiến trúc: lễ tân và hậu cần](/explanation/architecture) để hiểu vì sao tách hai vai.
 
@@ -13,11 +13,12 @@ Xem [Kiến trúc: lễ tân và hậu cần](/explanation/architecture) để h
 |---|---|
 | Lễ tân: gate tiếp nhận, engine hội thoại, tạo ticket, báo ngược (`intake`, `worker`, `telegram`, `itsaplan`) | Có trong thư viện, dùng được |
 | Định danh người dùng, bộ công cụ plugin OpenClaw, khung eval | Có trong thư viện |
-| `defineBot({...})`: một khai báo cho cả bot | **Đang thiết kế**, chưa có chữ ký ổn định |
-| Hậu cần: trigger, rule, vòng đời ticket do agent ngoài điều khiển | **Đang thiết kế** |
+| `defineBot({...})` và `createBot`: một khai báo cho cả bot, vòng đời, health, đọc env (`bot`) | Có (milestone 1), 0.x nên chữ ký còn có thể đổi |
+| Hậu cần: handler theo trigger, luật, tracker khoá theo dự án (`backoffice`), itsaplan giả để test (`testing`) | Có (milestone 1) |
+| Vai lễ tân trong `createBot`, lịch cron do bot giữ, hẹn giờ bền, host OpenClaw | Chưa có (milestone 2 và 3), xem [RFC 0001](/rfc/0001-bot-kit) |
 | Tiểu Linh (`apps/tieulinh`) dùng bot-core | Có, qua `workspace:*`. Còn vài adapter mỏng và phần chưa thay (pipeline hội thoại, dispatcher), xem [Chuyển Tiểu Linh sang bot-core](/how-to/migrate-tieulinh) |
 
-Vì `defineBot` chưa có, hôm nay một bot được ghép từ các phần (port) của thư viện. Các trang [Cách làm](/how-to/) mô tả cách ghép đó.
+Vai hậu cần dựng nhanh bằng `defineBot`. Vai lễ tân hôm nay vẫn ghép từ các phần (port) của thư viện, các trang [Cách làm](/how-to/) mô tả cách ghép đó.
 
 ## Cài đặt
 
@@ -53,6 +54,7 @@ export const itsaplan = new ItsaplanClient("http://10.0.0.5:3100", "itsaplan_xxx
 
 ## Đọc tiếp
 
-- [Dựng bot đầu tiên](/guide/first-bot) (đang viết)
+- [Dựng bot đầu tiên](/guide/first-bot)
+- [Bot kit: defineBot và createBot](/explanation/bot-kit)
 - [Cách làm](/how-to/): các việc cụ thể làm được ngay hôm nay
 - [Tra cứu API](/reference/api/)
