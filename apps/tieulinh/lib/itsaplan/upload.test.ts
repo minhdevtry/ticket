@@ -2,8 +2,11 @@ import { describe, expect, test, afterEach } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { uploadAttachments } from "./upload";
-import { spliceAttachmentsIntoDescription } from "@vuihoc/bot-core/itsaplan";
+import {
+  formatAttachmentMarkdown,
+  spliceAttachmentsIntoDescription,
+  uploadAttachments,
+} from "./upload";
 import type { ItsaplanClient } from "@vuihoc/bot-core/itsaplan";
 
 function fakeClient(
@@ -131,5 +134,32 @@ describe("spliceAttachmentsIntoDescription", () => {
     ]);
     expect(out).toContain('<video src="https://x/clip.mp4" controls></video>');
     expect(out).toContain("![screen.png](https://x/screen.png)");
+  });
+});
+
+describe("adapter Tiểu Linh: không trần kích thước, không escape markdown (như cũ)", () => {
+  test("uploadAttachments tải cả file lớn hơn 20 MB (thư viện mặc định bỏ qua)", async () => {
+    const p = path.join(
+      os.tmpdir(),
+      `tl-big-${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`,
+    );
+    fs.writeFileSync(p, "");
+    fs.truncateSync(p, 20 * 1024 * 1024 + 1);
+    try {
+      const client = fakeClient((filename) => ({ id: "v", url: `/f/${filename}`, filename }));
+      const result = await uploadAttachments(client, 1, "https://tracker.test", [p]);
+      expect(result).toHaveLength(1);
+    } finally {
+      fs.unlinkSync(p);
+    }
+  });
+
+  test("formatAttachmentMarkdown / splice chèn tên file và URL nguyên văn", () => {
+    const att = { id: "1", url: "/u/a b&c.png", filename: "anh_1.png", contentType: "image/png" };
+    expect(formatAttachmentMarkdown(att)).toBe("![anh_1.png](/u/a b&c.png)");
+    expect(spliceAttachmentsIntoDescription("mô tả", [att])).toContain(
+      "![anh_1.png](/u/a b&c.png)",
+    );
+    expect([att].map(formatAttachmentMarkdown)[0]).toBe("![anh_1.png](/u/a b&c.png)");
   });
 });

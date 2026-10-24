@@ -31,4 +31,13 @@ describe("tool-error adapter (nối hook báo admin của Tiểu Linh)", () => {
     expect(String(calls[0].text)).toContain("create_issue");
     expect(String(calls[0].text)).toContain(failure.ma_loi);
   });
+
+  test("mã lỗi luôn là mã ngắn theo thời điểm, KHÔNG dùng err.code tự khai (như cũ)", async () => {
+    const err = Object.assign(new Error("reset"), { code: "ECONNRESET" });
+    const a = describeToolFailure("create_issue", err, 1_757_000_000_000);
+    const b = describeToolFailure("create_issue", err, 1_757_000_000_001);
+    expect(a.ma_loi).toMatch(/^[0-9A-Z]{6}$/);
+    expect(a.ma_loi).not.toBe("ECONNRESET");
+    expect(a.ma_loi).not.toBe(b.ma_loi);
+  });
 });

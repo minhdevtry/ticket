@@ -1,4 +1,8 @@
-import { formatIctTimestamp } from "@vuihoc/bot-core/core";
+import {
+  KNOWN_BOT_HANDLES,
+  formatIctTimestamp,
+  stripBotMentions as stripBotMentionsWith,
+} from "@vuihoc/bot-core/core";
 import { escapeItsaplanMarkdown } from "./html-entities";
 
 /**
@@ -182,4 +186,22 @@ export function isCommentRecentlyForwarded(issueId: number, text: string, ttlMs 
     }
   }
   return false;
+}
+
+/**
+ * Handle bot của Tiểu Linh = `KNOWN_BOT_HANDLES` của thư viện trừ `cmsupport` (handle
+ * của bot CM, Tiểu Linh chưa từng lọc).
+ */
+export const TIEULINH_BOT_HANDLES = KNOWN_BOT_HANDLES.filter((h) => h !== "cmsupport");
+
+/**
+ * `stripBotMentions` đúng như bản cũ: chỉ lọc theo danh sách handle, KHÔNG xoá mọi
+ * `@<tên>_bot` (luật mới của thư viện có thể nuốt mention người thật cuối dòng
+ * dạng `@xxx_bot`).
+ */
+export function stripBotMentions(text?: string | null, extraHandles: string[] = []): string {
+  return stripBotMentionsWith(text, extraHandles, {
+    knownHandles: TIEULINH_BOT_HANDLES,
+    stripBotSuffixHandles: false,
+  });
 }

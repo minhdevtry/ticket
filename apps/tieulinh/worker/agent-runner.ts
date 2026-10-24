@@ -1,7 +1,8 @@
 import type { TicketBindingRepository } from "../lib/storage/binding-repository";
 import type { Notifier } from "./notifier";
 import { getLogger } from "@vuihoc/bot-core/core";
-import { stripBotMentions, stripCommentHtml } from "@vuihoc/bot-core/core";
+import { stripCommentHtml } from "@vuihoc/bot-core/core";
+import { stripBotMentions } from "../lib/formatting.local";
 import { isCommentRecentlyForwarded } from "../lib/formatting.local";
 import { decodeHtmlEntities } from "../lib/html-entities";
 import { identifierInProject, normalizeProjectKey } from "@vuihoc/bot-core/itsaplan";

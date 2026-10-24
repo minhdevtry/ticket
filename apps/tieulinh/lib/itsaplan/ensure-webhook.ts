@@ -15,11 +15,17 @@ export const TIEULINH_WEBHOOK_EVENTS = [
   "issue.assigned",
 ] as const;
 
-/** `ensureItsaplanWebhook` của thư viện với bộ sự kiện của Tiểu Linh. */
+/** `ensureItsaplanWebhook` của thư viện với bộ sự kiện và cách xử lý webhook cũ của Tiểu Linh. */
 export function ensureTieuLinhWebhook(
   client: ItsaplanClient,
   projectKey: string,
   webhookUrl: string,
 ) {
-  return ensureItsaplanWebhook(client, projectKey, webhookUrl, { events: TIEULINH_WEBHOOK_EVENTS });
+  return ensureItsaplanWebhook(client, projectKey, webhookUrl, {
+    events: TIEULINH_WEBHOOK_EVENTS,
+    // Hành vi cũ: chỉ khớp URL chính xác; webhook khớp mà đang tắt thì xoá rồi tạo
+    // mới; không tự trỏ lại webhook cùng host lệch cổng.
+    reactivateDisabled: false,
+    repointSameHost: false,
+  });
 }

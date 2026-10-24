@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createItsaplanClient } from "../../../lib/itsaplan/client-factory";
-import { stripChannelEnvelope, isInternalCallbackToken } from "@vuihoc/bot-core/core";
+import { isInternalCallbackToken } from "@vuihoc/bot-core/core";
+import { stripChannelEnvelope } from "../../../lib/channel-envelope";
 import type { ItsaplanClient } from "@vuihoc/bot-core/itsaplan";
 import {
   issueWebUrl,
@@ -10,10 +11,8 @@ import {
   resolveProject,
 } from "@vuihoc/bot-core/itsaplan";
 import { uploadAttachments } from "../../../lib/itsaplan/upload";
-import {
-  spliceAttachmentsIntoDescription,
-  type UploadedAttachment,
-} from "@vuihoc/bot-core/itsaplan";
+import { type UploadedAttachment } from "@vuihoc/bot-core/itsaplan";
+import { spliceAttachmentsIntoDescription } from "../../../lib/itsaplan/upload";
 import { findRecentInboundMedia } from "../../../lib/media";
 import {
   getSharedBindingRepo,

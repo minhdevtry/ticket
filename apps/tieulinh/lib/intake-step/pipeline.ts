@@ -13,7 +13,7 @@ import {
   resolveLabelsForIssue,
   resolveProjectTeamRef,
 } from "@vuihoc/bot-core/itsaplan";
-import { formatAttachmentMarkdown } from "@vuihoc/bot-core/itsaplan";
+import { formatAttachmentMarkdown } from "../itsaplan/upload";
 import { uploadAttachments } from "../itsaplan/upload";
 import {
   buildAdviceComment,
@@ -62,7 +62,8 @@ import { mergeExtractedFields } from "./merger";
 import type { OnyxRestSearchClient } from "../onyx/rest-search";
 import type { LlmConfig } from "../../worker/llm";
 import type { SimilarTicketSource } from "../kg/similar-ticket-source";
-import { stripChannelEnvelope, isInternalCallbackToken } from "@vuihoc/bot-core/core";
+import { isInternalCallbackToken } from "@vuihoc/bot-core/core";
+import { stripChannelEnvelope } from "../channel-envelope";
 import { getLogger } from "@vuihoc/bot-core/core";
 import { IDENTIFIER_FIELD_KEYS, identifiersConflict } from "../identifier-grounding";
 import {

@@ -8,7 +8,8 @@ import type { TicketLifecycleService } from "./lifecycle";
 
 import type { ItsaplanClient } from "@vuihoc/bot-core/itsaplan";
 import { syncRelatedTickets } from "./related-tickets-sync";
-import { isBotComment, stripBotMentions, stripCommentHtml } from "@vuihoc/bot-core/core";
+import { isBotComment, stripCommentHtml } from "@vuihoc/bot-core/core";
+import { stripBotMentions } from "../lib/formatting.local";
 import { isCommentRecentlyForwarded } from "../lib/formatting.local";
 import { decodeHtmlEntities } from "../lib/html-entities";
 import {

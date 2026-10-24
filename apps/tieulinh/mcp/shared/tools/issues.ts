@@ -5,7 +5,7 @@ import { uploadAttachments } from "../../../lib/itsaplan/upload";
 import {
   spliceAttachmentsIntoDescription,
   formatAttachmentMarkdown,
-} from "@vuihoc/bot-core/itsaplan";
+} from "../../../lib/itsaplan/upload";
 import { findRecentInboundMedia } from "../../../lib/media";
 import { resolveFriendlyStatusName } from "@vuihoc/bot-core/itsaplan";
 import { describeState } from "../../../lib/itsaplan/state-messages";
