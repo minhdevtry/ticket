@@ -1,0 +1,121 @@
+/**
+ * SQLite-backed `ChannelBindingStore` (ticket 08) over the library-owned
+ * `ticket_bindings` table (draft/schema.ts).
+ *
+ * NGUỒN: intake `lib/storage/binding-repository.ts` — `saveBinding`,
+ * `getLatestBinding`, `normalizeUsername`, narrowed to the write path's needs.
+ */
+import type { Database } from "bun:sqlite";
+import type { ChannelBindingStore } from "../ports";
+import { chatIdVariants } from "../draft/repository";
+
+/** Usernames arrive as `@name` or `name`; store one form so lookups don't miss. */
+export function normalizeUsername(username?: string | null): string | null {
+  const trimmed = (username ?? "").trim().replace(/^@+/, "");
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+/**
+ * User id của kênh về một dạng chuẩn: bỏ tiền tố "telegram:" (binding/chat đôi
+ * khi mang tiền tố), cắt khoảng trắng. Rỗng → null để không ghi "" làm khóa.
+ * Chỉ chuẩn hóa chuỗi, KHÔNG ép kiểu số: id Telegram vừa với số nhưng id kênh
+ * khác có thể là chuỗi.
+ */
+export function normalizeUserId(userId?: string | null): string | null {
+  const trimmed = (userId ?? "").trim().replace(/^telegram:/i, "");
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+export class SqliteChannelBindingStore implements ChannelBindingStore {
+  constructor(private readonly db: Database) {}
+
+  saveBinding(binding: {
+    issueId: number;
+    chatId: string;
+    identifier: string;
+    title?: string;
+    reporterUserId?: string;
+    reporterUsername?: string;
+  }): void {
+    this.db
+      .prepare(
+        `INSERT INTO ticket_bindings (issue_id, chat_id, identifier, title, reporter_username, reporter_user_id, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+         ON CONFLICT(issue_id) DO UPDATE SET
+           chat_id = excluded.chat_id,
+           identifier = excluded.identifier,
+           title = COALESCE(excluded.title, ticket_bindings.title),
+           reporter_username = COALESCE(excluded.reporter_username, ticket_bindings.reporter_username),
+           reporter_user_id = COALESCE(excluded.reporter_user_id, ticket_bindings.reporter_user_id),
+           updated_at = CURRENT_TIMESTAMP`,
+      )
+      .run(
+        binding.issueId,
+        binding.chatId,
+        binding.identifier,
+        binding.title ?? null,
+        normalizeUsername(binding.reporterUsername),
+        normalizeUserId(binding.reporterUserId),
+      );
+  }
+
+  getLatestBinding(chatId: string, identifierPrefix?: string): { issueId: number; identifier: string; title?: string } | null {
+    const keys = chatIdVariants(chatId);
+    const prefix = identifierPrefix ? `${identifierPrefix.trim().toUpperCase()}-` : "";
+    const byProject = prefix ? "AND substr(UPPER(identifier), 1, ?) = ?" : "";
+    const args: Array<string | number> = [...keys];
+    if (prefix) args.push(prefix.length, prefix);
+    const row = this.db
+      .prepare(
+        `SELECT issue_id, identifier, title FROM ticket_bindings
+         WHERE chat_id IN (${keys.map(() => "?").join(", ")}) ${byProject}
+         ORDER BY updated_at DESC, issue_id DESC
+         LIMIT 1`,
+      )
+      .get(...args) as { issue_id: number; identifier: string; title: string | null } | null;
+    return row ? { issueId: row.issue_id, identifier: row.identifier, title: row.title ?? undefined } : null;
+  }
+
+  /**
+   * Ticket mới nhất của một NGƯỜI BÁO theo user id (khóa định danh bền, độc lập
+   * chat). Trả null khi id rỗng hoặc chưa có binding nào mang id đó — binding cũ
+   * (trước khi lib lưu id) có `reporter_user_id` NULL nên không khớp, đúng ý:
+   * chỉ tra được theo id khi id đã được ghi.
+   */
+  getLatestBindingByUserId(
+    reporterUserId: string,
+    identifierPrefix?: string,
+  ): { issueId: number; identifier: string; title?: string } | null {
+    const id = normalizeUserId(reporterUserId);
+    if (!id) return null;
+    const prefix = identifierPrefix ? `${identifierPrefix.trim().toUpperCase()}-` : "";
+    const byProject = prefix ? "AND substr(UPPER(identifier), 1, ?) = ?" : "";
+    const args: Array<string | number> = [id];
+    if (prefix) args.push(prefix.length, prefix);
+    const row = this.db
+      .prepare(
+        `SELECT issue_id, identifier, title FROM ticket_bindings
+         WHERE reporter_user_id = ? ${byProject}
+         ORDER BY updated_at DESC, issue_id DESC
+         LIMIT 1`,
+      )
+      .get(...args) as { issue_id: number; identifier: string; title: string | null } | null;
+    return row ? { issueId: row.issue_id, identifier: row.identifier, title: row.title ?? undefined } : null;
+  }
+
+  /**
+   * Đổi tài khoản (A1): chuyển mọi binding gắn `oldUserId` sang `newUserId`.
+   * Chỉ chạy khi cả hai id hợp lệ và khác nhau. Trả số dòng đã chuyển. Giữ
+   * nguyên chat_id (tin mới sẽ cập nhật chat), chỉ đổi khóa định danh người.
+   */
+  rebindReporterUserId(oldUserId: string, newUserId: string): number {
+    const from = normalizeUserId(oldUserId);
+    const to = normalizeUserId(newUserId);
+    if (!from || !to || from === to) return 0;
+    return this.db
+      .prepare(
+        `UPDATE ticket_bindings SET reporter_user_id = ?, updated_at = CURRENT_TIMESTAMP WHERE reporter_user_id = ?`,
+      )
+      .run(to, from).changes;
+  }
+}

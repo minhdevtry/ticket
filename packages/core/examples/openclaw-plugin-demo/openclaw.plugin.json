@@ -1,0 +1,11 @@
+{
+  "id": "openclaw-plugin-demo",
+  "name": "Demo — bot-core openclaw kit",
+  "description": "Plugin mẫu chứng minh @vuihoc/bot-core/openclaw tải được từ gateway (.mjs).",
+  "version": "0.0.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

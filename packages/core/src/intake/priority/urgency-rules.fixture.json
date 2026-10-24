@@ -1,0 +1,33 @@
+{
+  "_comment": "Test fixture copied from intake-agents mcp/tieulinh/domain/urgency-rules.json (minimum data to exercise the pure engine). This is Tiểu Linh rule DATA used as a fixture, NOT shipped in src runtime.",
+  "levels": ["Low", "Medium", "High", "Urgent"],
+  "floors": [
+    {
+      "when": { "blocksPayment": true },
+      "minLevel": "Urgent",
+      "reason": "Dòng tiền đang bị chặn ngay lúc này."
+    },
+    {
+      "when": { "blocksLearning": true, "scope": "single_user" },
+      "minLevel": "High",
+      "reason": "Học sinh đơn lẻ gặp gián đoạn học tập — ưu tiên trong ngày (High), không phải Urgent."
+    },
+    {
+      "when": { "scope": "entire_system" },
+      "minLevel": "Urgent",
+      "reason": "Cả hệ thống thì không còn là việc của một người."
+    }
+  ],
+  "ceilings": [
+    {
+      "when": { "singleDeviceOnly": true, "hasWorkaround": true },
+      "maxLevel": "Low",
+      "reason": "Máy khác chạy được và có cách đi vòng thì đây là chuyện của một thiết bị."
+    },
+    {
+      "when": { "scope": "single_user", "hasWorkaround": true },
+      "maxLevel": "High",
+      "reason": "19/30 ticket người dùng chọn Urgent rơi vào đây, chấm lại chỉ đáng High."
+    }
+  ]
+}

@@ -1,0 +1,148 @@
+/**
+ * SQLite-backed notify stores: `message_routes` (reply routing) and a
+ * by-issue-id read over the library's `ticket_bindings` table.
+ *
+ * NGUỒN: intake `lib/storage/binding-repository.ts` — `saveMessageRoute` /
+ * `getMessageRoute` (fd48c6e: chat-scoped lookup; an empty-chat row is used
+ * only as a fallback when the asking chat holds that issue's binding) and
+ * `getBindingByIssueId`.
+ *
+ * The write path's `ChannelBindingStore` (create/binding-store.ts) keys by chat
+ * and holds no `channelType`; notify keys by issue id and needs `channelType`
+ * to pick a `ChannelPort`, so the `ticket_bindings` table gains a nullable
+ * `channel_type` column (default "telegram" when a row predates it).
+ */
+import type { Database } from "bun:sqlite";
+import { chatIdVariants } from "../draft/repository";
+import type {
+  MessageRoute,
+  MessageRouteKind,
+  MessageRouteStore,
+  NotifyBinding,
+  NotifyBindingReader,
+} from "../ports";
+
+export const NOTIFY_SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS message_routes (
+     message_id TEXT NOT NULL,
+     channel_type TEXT NOT NULL,
+     chat_id TEXT NOT NULL DEFAULT '',
+     issue_id INTEGER NOT NULL,
+     identifier TEXT NOT NULL,
+     kind TEXT NOT NULL DEFAULT '',
+     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+     PRIMARY KEY (message_id, channel_type, chat_id)
+   )`,
+  `CREATE INDEX IF NOT EXISTS idx_routes_issue ON message_routes (issue_id)`,
+];
+
+/** Apply the notify schema (shape matches core's `ApplySchema`). */
+export function notifyApplySchema(db: Database, opts: { wal: boolean } = { wal: false }): void {
+  if (opts.wal) {
+    db.run("PRAGMA journal_mode = WAL;");
+    db.run("PRAGMA synchronous = NORMAL;");
+  }
+  for (const stmt of NOTIFY_SCHEMA) db.run(stmt);
+  // ticket_bindings may already exist (draft/schema.ts); add missing columns the
+  // notify reader selects, so a bot that applied only the notify schema (not the
+  // full intake schema) still reads cleanly on an older table.
+  const cols = db.query(`PRAGMA table_info(ticket_bindings)`).all() as Array<{ name: string }>;
+  if (cols.length > 0 && !cols.some((c) => c.name === "channel_type")) {
+    db.run(`ALTER TABLE ticket_bindings ADD COLUMN channel_type TEXT NOT NULL DEFAULT 'telegram'`);
+  }
+  if (cols.length > 0 && !cols.some((c) => c.name === "reporter_user_id")) {
+    db.run(`ALTER TABLE ticket_bindings ADD COLUMN reporter_user_id TEXT`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_bindings_user ON ticket_bindings (reporter_user_id, updated_at DESC)`);
+  }
+}
+
+export class SqliteMessageRouteStore implements MessageRouteStore {
+  constructor(private readonly db: Database) {}
+
+  saveMessageRoute(route: {
+    messageId: string;
+    channelType: string;
+    chatId: string;
+    issueId: number;
+    identifier: string;
+    kind: MessageRouteKind;
+  }): void {
+    this.db
+      .prepare(
+        `INSERT OR REPLACE INTO message_routes (message_id, channel_type, chat_id, issue_id, identifier, kind)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      .run(route.messageId, route.channelType, route.chatId ?? "", route.issueId, route.identifier, route.kind ?? "");
+  }
+
+  /**
+   * Tra route theo (message_id, kênh, chat). Dòng không rõ chat (chat_id = '')
+   * chỉ làm dự phòng khi ticket đó có binding nằm đúng chat đang hỏi — nếu
+   * không, `null`: thà không nhận reply còn hơn ghi vào ticket chat khác. (fd48c6e)
+   */
+  getMessageRoute(messageId: string, channelType: string, chatId: string): MessageRoute | null {
+    const chat = chatId ?? "";
+    const exact = this.db
+      .prepare(
+        `SELECT message_id, channel_type, chat_id, issue_id, identifier
+         FROM message_routes WHERE message_id = ? AND channel_type = ? AND chat_id = ?`,
+      )
+      .get(messageId, channelType, chat) as any;
+    let row = exact;
+    if (!row && chat) {
+      row = this.db
+        .prepare(
+          `SELECT r.message_id, r.channel_type, r.chat_id, r.issue_id, r.identifier
+           FROM message_routes r
+           JOIN ticket_bindings b ON b.issue_id = r.issue_id
+           WHERE r.message_id = ? AND r.channel_type = ? AND r.chat_id = '' AND b.chat_id = ?`,
+        )
+        .get(messageId, channelType, chat) as any;
+    }
+    if (!row) return null;
+    return {
+      messageId: row.message_id,
+      channelType: row.channel_type,
+      chatId: row.chat_id,
+      issueId: row.issue_id,
+      identifier: row.identifier,
+    };
+  }
+}
+
+export class SqliteNotifyBindingReader implements NotifyBindingReader {
+  constructor(private readonly db: Database) {}
+
+  getBindingByIssueId(issueId: number): NotifyBinding | null {
+    const row = this.db
+      .prepare(
+        `SELECT issue_id, chat_id, identifier, title, reporter_username, reporter_user_id,
+                COALESCE(channel_type, 'telegram') AS channel_type
+         FROM ticket_bindings WHERE issue_id = ?`,
+      )
+      .get(issueId) as
+      | {
+          issue_id: number;
+          chat_id: string;
+          identifier: string;
+          title: string | null;
+          reporter_username: string | null;
+          reporter_user_id: string | null;
+          channel_type: string;
+        }
+      | null;
+    if (!row) return null;
+    return {
+      issueId: row.issue_id,
+      chatId: row.chat_id,
+      identifier: row.identifier,
+      channelType: row.channel_type,
+      title: row.title ?? undefined,
+      reporterUsername: row.reporter_username ?? undefined,
+      reporterUserId: row.reporter_user_id ?? undefined,
+    };
+  }
+}
+
+/** Re-exported for callers wiring chat-id variants into route lookups. */
+export { chatIdVariants };

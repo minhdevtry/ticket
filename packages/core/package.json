@@ -1,0 +1,29 @@
+{
+  "name": "@vuihoc/bot-core",
+  "version": "0.9.0-dev",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./core": "./src/core/index.ts",
+    "./itsaplan": "./src/itsaplan/index.ts",
+    "./intake": "./src/intake/index.ts",
+    "./identity": "./src/identity/index.ts",
+    "./openclaw": "./src/openclaw/index.ts",
+    "./telegram": "./src/telegram/index.ts",
+    "./worker": "./src/worker/index.ts",
+    "./eval": "./src/eval/index.ts",
+    "./prose/*": "./prose/*"
+  },
+  "scripts": {
+    "test": "bun test src",
+    "check": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "typescript": "^7.0.2"
+  }
+}
