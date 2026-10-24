@@ -14,7 +14,8 @@ const fakeLlmServer = Bun.serve({
   hostname: "127.0.0.1",
   async fetch(req) {
     const body = (await req.json()) as { model: string };
-    if (body.model === "vo-lien-lac") return new Response('{"error":"ECONNREFUSED"}', { status: 503 });
+    if (body.model === "vo-lien-lac")
+      return new Response('{"error":"ECONNREFUSED"}', { status: 503 });
     const content =
       body.model === "tuyen-bo-trung"
         ? JSON.stringify({ duplicate: true, evidence: "Báo trùng TECH-943 => Hủy TECH-944" })
@@ -77,18 +78,24 @@ function fakeIssues(over: { xColumnId?: number; xLinks?: any[]; yTimeline?: any[
       return issues[issueId];
     }),
     listProjectColumns: mock(async () => columns),
-    getIssueTimeline: mock(async (issueId: number) => (issueId === 943 ? (over.yTimeline ?? []) : [])),
+    getIssueTimeline: mock(async (issueId: number) =>
+      issueId === 943 ? (over.yTimeline ?? []) : [],
+    ),
   };
   return { itsaplan, writes };
 }
 
 describe("mentionedSiblingTickets", () => {
   test("lấy mã cùng dự án, bỏ chính mình", () => {
-    expect(mentionedSiblingTickets("Báo trùng TECH-943 => Hủy TECH-944", "TECH-944")).toEqual(["TECH-943"]);
+    expect(mentionedSiblingTickets("Báo trùng TECH-943 => Hủy TECH-944", "TECH-944")).toEqual([
+      "TECH-943",
+    ]);
   });
 
   test("bỏ mã dự án khác", () => {
-    expect(mentionedSiblingTickets("liên quan PO-12 và TECH-501", "TECH-944")).toEqual(["TECH-501"]);
+    expect(mentionedSiblingTickets("liên quan PO-12 và TECH-501", "TECH-944")).toEqual([
+      "TECH-501",
+    ]);
   });
 
   test("không có mã nào thì rỗng", () => {
@@ -99,7 +106,11 @@ describe("mentionedSiblingTickets", () => {
 describe("DuplicateMerger.handleComment", () => {
   test("ca trùng thật (944→943): gộp mô tả + ảnh sang Y, nối link, huỷ X kèm comment", async () => {
     const { itsaplan, writes } = fakeIssues();
-    const merger = new DuplicateMerger({ itsaplan: itsaplan as any, llm: LLM_DUPLICATE, projectKey: "TECH" });
+    const merger = new DuplicateMerger({
+      itsaplan: itsaplan as any,
+      llm: LLM_DUPLICATE,
+      projectKey: "TECH",
+    });
 
     const outcome = await merger.handleComment({
       issueId: 944,
@@ -126,7 +137,11 @@ describe("DuplicateMerger.handleComment", () => {
 
   test("ca chỉ tham khảo: LLM trả false, không làm gì", async () => {
     const { itsaplan, writes } = fakeIssues();
-    const merger = new DuplicateMerger({ itsaplan: itsaplan as any, llm: LLM_NOT_DUPLICATE, projectKey: "TECH" });
+    const merger = new DuplicateMerger({
+      itsaplan: itsaplan as any,
+      llm: LLM_NOT_DUPLICATE,
+      projectKey: "TECH",
+    });
 
     const outcome = await merger.handleComment({
       issueId: 944,
@@ -140,7 +155,11 @@ describe("DuplicateMerger.handleComment", () => {
 
   test("không nhắc ticket nào thì bỏ qua, không gọi LLM", async () => {
     const { itsaplan, writes } = fakeIssues();
-    const merger = new DuplicateMerger({ itsaplan: itsaplan as any, llm: LLM_ERROR, projectKey: "TECH" });
+    const merger = new DuplicateMerger({
+      itsaplan: itsaplan as any,
+      llm: LLM_ERROR,
+      projectKey: "TECH",
+    });
 
     const outcome = await merger.handleComment({
       issueId: 944,
@@ -153,9 +172,14 @@ describe("DuplicateMerger.handleComment", () => {
   });
 
   test("ca idempotent: webhook gửi lại, Y đã có comment gộp từ trước thì bỏ qua", async () => {
-    const marker = "🔀 Gộp từ TECH-944 (@a, 2026-09-28 10:00):\n\n(không có mô tả)\n\n<!-- intake-bot -->";
+    const marker =
+      "🔀 Gộp từ TECH-944 (@a, 2026-09-28 10:00):\n\n(không có mô tả)\n\n<!-- intake-bot -->";
     const { itsaplan, writes } = fakeIssues({ yTimeline: [{ kind: "comment", body: marker }] });
-    const merger = new DuplicateMerger({ itsaplan: itsaplan as any, llm: LLM_DUPLICATE, projectKey: "TECH" });
+    const merger = new DuplicateMerger({
+      itsaplan: itsaplan as any,
+      llm: LLM_DUPLICATE,
+      projectKey: "TECH",
+    });
 
     const outcome = await merger.handleComment({
       issueId: 944,
@@ -169,7 +193,11 @@ describe("DuplicateMerger.handleComment", () => {
 
   test("ca X đã canceled từ trước: vẫn gộp/nối link nhưng không chuyển cột hay ghi info lần nữa", async () => {
     const { itsaplan, writes } = fakeIssues({ xColumnId: 5 });
-    const merger = new DuplicateMerger({ itsaplan: itsaplan as any, llm: LLM_DUPLICATE, projectKey: "TECH" });
+    const merger = new DuplicateMerger({
+      itsaplan: itsaplan as any,
+      llm: LLM_DUPLICATE,
+      projectKey: "TECH",
+    });
 
     const outcome = await merger.handleComment({
       issueId: 944,
@@ -185,7 +213,11 @@ describe("DuplicateMerger.handleComment", () => {
 
   test("ca LLM lỗi: chỉ log, không gộp, không ghi gì", async () => {
     const { itsaplan, writes } = fakeIssues();
-    const merger = new DuplicateMerger({ itsaplan: itsaplan as any, llm: LLM_ERROR, projectKey: "TECH" });
+    const merger = new DuplicateMerger({
+      itsaplan: itsaplan as any,
+      llm: LLM_ERROR,
+      projectKey: "TECH",
+    });
 
     const outcome = await merger.handleComment({
       issueId: 944,
@@ -199,7 +231,11 @@ describe("DuplicateMerger.handleComment", () => {
 
   test("bỏ qua bình luận của system actor (Tiểu Linh/bot)", async () => {
     const { itsaplan, writes } = fakeIssues();
-    const merger = new DuplicateMerger({ itsaplan: itsaplan as any, llm: LLM_DUPLICATE, projectKey: "TECH" });
+    const merger = new DuplicateMerger({
+      itsaplan: itsaplan as any,
+      llm: LLM_DUPLICATE,
+      projectKey: "TECH",
+    });
 
     const outcome = await merger.handleComment({
       issueId: 944,
@@ -213,7 +249,11 @@ describe("DuplicateMerger.handleComment", () => {
 
   test("thiếu cấu hình LLM thì bỏ qua, không gọi mạng", async () => {
     const { itsaplan, writes } = fakeIssues();
-    const merger = new DuplicateMerger({ itsaplan: itsaplan as any, llm: LLM_UNCONFIGURED, projectKey: "TECH" });
+    const merger = new DuplicateMerger({
+      itsaplan: itsaplan as any,
+      llm: LLM_UNCONFIGURED,
+      projectKey: "TECH",
+    });
 
     const outcome = await merger.handleComment({
       issueId: 944,

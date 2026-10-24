@@ -54,11 +54,7 @@ import {
   type IntakeRecord,
   type InlineButton,
 } from "../gate";
-import {
-  evaluatePriorityRules,
-  resolveRequestedPriority,
-  type UrgencyRules,
-} from "../priority";
+import { evaluatePriorityRules, resolveRequestedPriority, type UrgencyRules } from "../priority";
 import { findIdentifierConflict } from "./identifiers";
 import { mentionedIdentifiers, foldButton } from "./text";
 import type { StepInput, StepOutput, ChannelMessage } from "./types";
@@ -135,7 +131,11 @@ export class IntakeEngine {
     }
 
     // 3. Expired draft → close and start fresh.
-    if (draft && !CLOSED_STATUSES.has(draft.status) && isExpiredDraft(draft, deps.clock.now(), deps.draftTtlMs ?? INTAKE_DRAFT_TTL_MS)) {
+    if (
+      draft &&
+      !CLOSED_STATUSES.has(draft.status) &&
+      isExpiredDraft(draft, deps.clock.now(), deps.draftTtlMs ?? INTAKE_DRAFT_TTL_MS)
+    ) {
       draft = this.closeAndReopen(draft, nowIso);
       // continue collecting on the fresh draft below
     }
@@ -173,7 +173,8 @@ export class IntakeEngine {
     const extracted = await deps.extractor.extract({
       text,
       attachments: mediaPaths.length,
-      draftTitle: existing && !CLOSED_STATUSES.has(existing.status) ? existing.ticket.title : undefined,
+      draftTitle:
+        existing && !CLOSED_STATUSES.has(existing.status) ? existing.ticket.title : undefined,
     });
 
     // A plain confirm with no live draft summary is chitchat here; the write
@@ -234,7 +235,12 @@ export class IntakeEngine {
         known: record.values,
       });
       if (review.missing.length > 0 && review.question) {
-        draft.record = draft.record ?? { variant: deps.variant, values: {}, questionCount: {}, explicitlyMissing: [] };
+        draft.record = draft.record ?? {
+          variant: deps.variant,
+          values: {},
+          questionCount: {},
+          explicitlyMissing: [],
+        };
         draft.record.explicitlyMissing.push("__tech"); // ask once, any answer proceeds
         deps.drafts.saveRevision(draft);
         return { outcome: "asked", messages: [{ text: review.question }] };
@@ -270,20 +276,32 @@ export class IntakeEngine {
       case "created": {
         if (deps.postCreate) {
           await safe(() =>
-            deps.postCreate!.afterCreate({ issue: result.issue, description: draft.ticket.rawText, chatId: draft.chatId }),
+            deps.postCreate!.afterCreate({
+              issue: result.issue,
+              description: draft.ticket.rawText,
+              chatId: draft.chatId,
+            }),
           );
         }
         return {
           outcome: "created",
           messages: [{ text: result.message }],
-          issue: { id: result.issue.id, identifier: result.issue.identifier, url: result.issue.url },
+          issue: {
+            id: result.issue.id,
+            identifier: result.issue.identifier,
+            url: result.issue.url,
+          },
         };
       }
       case "already_created":
         return {
           outcome: "already_created",
           messages: [{ text: result.message }],
-          issue: { id: result.issue.id, identifier: result.issue.identifier, url: result.issue.url },
+          issue: {
+            id: result.issue.id,
+            identifier: result.issue.identifier,
+            url: result.issue.url,
+          },
         };
       case "too_soon":
         return { outcome: "too_soon", messages: [{ text: result.message }] };
@@ -310,9 +328,12 @@ export class IntakeEngine {
     const existingIds = this.draftIdentifiers(open);
     const conflict = findIdentifierConflict(existingIds, incoming);
 
-    const draftHasContent = open.ticket.rawText.trim().length > 0 || open.ticket.title.trim().length > 0;
+    const draftHasContent =
+      open.ticket.rawText.trim().length > 0 || open.ticket.title.trim().length > 0;
     const isFullNewReport =
-      extracted.userIntent === "report_issue" && (extracted.symptoms?.length ?? 0) > 0 && draftHasContent;
+      extracted.userIntent === "report_issue" &&
+      (extracted.symptoms?.length ?? 0) > 0 &&
+      draftHasContent;
 
     if (!conflict && !isFullNewReport) return null;
 
@@ -341,7 +362,11 @@ export class IntakeEngine {
     };
   }
 
-  private async resolvePark(draft: IntakeDraft, text: string, _mediaPaths: string[]): Promise<StepOutput | null> {
+  private async resolvePark(
+    draft: IntakeDraft,
+    text: string,
+    _mediaPaths: string[],
+  ): Promise<StepOutput | null> {
     const { deps } = this;
     const folded = foldButton(text);
     const newLabel = foldButton(deps.copy.text("button.new_incident"));
@@ -357,7 +382,13 @@ export class IntakeEngine {
       // Clear the park marker on the old draft so it isn't re-triggered.
       deps.drafts.saveRevision({ ...draft, parkedPayload: undefined, updatedAt: nowIso });
       deps.drafts.saveRevision(fresh);
-      return this.collect(fresh, { chatId: draft.chatId }, payload.text, payload.mediaPaths, nowIso);
+      return this.collect(
+        fresh,
+        { chatId: draft.chatId },
+        payload.text,
+        payload.mediaPaths,
+        nowIso,
+      );
     }
 
     if (folded === appendLabel && payload) {
@@ -365,7 +396,13 @@ export class IntakeEngine {
       const nowIso = new Date(deps.clock.now()).toISOString();
       const cleared: IntakeDraft = { ...draft, parkedPayload: undefined, updatedAt: nowIso };
       deps.drafts.saveRevision(cleared);
-      return this.collect(cleared, { chatId: draft.chatId }, payload.text, payload.mediaPaths, nowIso);
+      return this.collect(
+        cleared,
+        { chatId: draft.chatId },
+        payload.text,
+        payload.mediaPaths,
+        nowIso,
+      );
     }
 
     return null; // not a park answer
@@ -392,7 +429,9 @@ export class IntakeEngine {
     });
     if (command.action === "new" || command.action === "unclear") return null;
 
-    const target = candidates.find((c) => c.identifier.toUpperCase() === targetId(command).toUpperCase());
+    const target = candidates.find(
+      (c) => c.identifier.toUpperCase() === targetId(command).toUpperCase(),
+    );
     if (!target) return null;
 
     // Lookup is read-only; ownership gates only WRITES (ADR-0008 §6).
@@ -402,7 +441,10 @@ export class IntakeEngine {
 
     const own = this.isOwn(target, draft);
     if (!own) {
-      return { outcome: "not_owner", messages: [{ text: deps.copy.text("lookup.not_owner", { identifier: target.identifier }) }] };
+      return {
+        outcome: "not_owner",
+        messages: [{ text: deps.copy.text("lookup.not_owner", { identifier: target.identifier }) }],
+      };
     }
 
     // A write to an existing ticket NEVER happens here — show a preview + button (ADR-0008).
@@ -498,7 +540,10 @@ export class IntakeEngine {
     if (folded === foldButton(pending.confirmLabel)) {
       deps.drafts.saveRevision({ ...draft, pendingTicketAction: undefined, updatedAt: nowIso });
       if (!deps.actions) {
-        return { outcome: "action_canceled", messages: [{ text: deps.copy.text("action.canceled") }] };
+        return {
+          outcome: "action_canceled",
+          messages: [{ text: deps.copy.text("action.canceled") }],
+        };
       }
       const result = await deps.actions.execute({
         kind: pending.kind === "suggest" ? "append" : pending.kind,
@@ -508,17 +553,31 @@ export class IntakeEngine {
         from: pending.from,
       });
       const doneKey =
-        pending.kind === "edit" ? "action.done_edit" : pending.kind === "move" ? "action.done_move" : "action.done_append";
+        pending.kind === "edit"
+          ? "action.done_edit"
+          : pending.kind === "move"
+            ? "action.done_move"
+            : "action.done_append";
       return {
         outcome: "action_done",
-        messages: [{ text: deps.copy.text(doneKey, { identifier: pending.identifier, from: pending.from ?? "" }) }],
+        messages: [
+          {
+            text: deps.copy.text(doneKey, {
+              identifier: pending.identifier,
+              from: pending.from ?? "",
+            }),
+          },
+        ],
       };
     }
 
     const cancelLabel = foldButton(deps.copy.text("button.cancel_action"));
     if (folded === cancelLabel) {
       deps.drafts.saveRevision({ ...draft, pendingTicketAction: undefined, updatedAt: nowIso });
-      return { outcome: "action_canceled", messages: [{ text: deps.copy.text("action.canceled") }] };
+      return {
+        outcome: "action_canceled",
+        messages: [{ text: deps.copy.text("action.canceled") }],
+      };
     }
 
     // Anything else: the reporter did not confirm — do NOT write. Keep pending.
@@ -549,9 +608,16 @@ export class IntakeEngine {
     const verdict = evaluatePriorityRules(deps.urgencyRules, "Medium", evidence);
     const requested =
       extracted.requestedPriority && extracted.requestedPriorityReason
-        ? { level: titleCase(extracted.requestedPriority), reason: extracted.requestedPriorityReason }
+        ? {
+            level: titleCase(extracted.requestedPriority),
+            reason: extracted.requestedPriorityReason,
+          }
         : undefined;
-    const resolved = resolveRequestedPriority(deps.urgencyRules.levels, verdict.allowedLevel, requested);
+    const resolved = resolveRequestedPriority(
+      deps.urgencyRules.levels,
+      verdict.allowedLevel,
+      requested,
+    );
     draft.evidence = evidence;
     return toPriority(resolved.level);
   }
@@ -569,21 +635,33 @@ export class IntakeEngine {
     const ticket = { ...base.ticket };
 
     // Title: fill if empty, or refresh when new content arrives (not locked).
-    if (extracted.title && (extracted.titleExplicit || !ticket.title || (extracted.symptoms?.length ?? 0) > 0)) {
+    if (
+      extracted.title &&
+      (extracted.titleExplicit || !ticket.title || (extracted.symptoms?.length ?? 0) > 0)
+    ) {
       ticket.title = cap(extracted.title.trim(), 120);
     }
 
     // rawText = reporter VERBATIM, appended across turns, capped (ADR-0010, §2).
     const message = text.trim();
-    const carriesText = (extracted.symptoms?.length ?? 0) > 0 || hasIdentifier(extracted) || extracted.userIntent === "provide_info";
+    const carriesText =
+      (extracted.symptoms?.length ?? 0) > 0 ||
+      hasIdentifier(extracted) ||
+      extracted.userIntent === "provide_info";
     if (carriesText && message) {
-      ticket.rawText = ticket.rawText && !ticket.rawText.includes(message)
-        ? cap(`${ticket.rawText}\n${message}`, MAX_DESCRIPTION_CHARS)
-        : ticket.rawText || cap(message, MAX_DESCRIPTION_CHARS);
+      ticket.rawText =
+        ticket.rawText && !ticket.rawText.includes(message)
+          ? cap(`${ticket.rawText}\n${message}`, MAX_DESCRIPTION_CHARS)
+          : ticket.rawText || cap(message, MAX_DESCRIPTION_CHARS);
     }
 
     // Identifiers: fill blanks only — a created/collected id is never overwritten.
-    const record = base.record ?? { variant: deps.variant, values: {}, questionCount: {}, explicitlyMissing: [] };
+    const record = base.record ?? {
+      variant: deps.variant,
+      values: {},
+      questionCount: {},
+      explicitlyMissing: [],
+    };
     const values = { ...record.values, ...(extracted.values ?? {}) };
     for (const key of IDENTIFIER_KEYS) {
       const incoming = extracted.identifiers?.[key];
@@ -618,7 +696,9 @@ export class IntakeEngine {
   }
 
   private genDocId(): string {
-    return this.deps.genDocId ? this.deps.genDocId() : `doc-${this.deps.clock.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    return this.deps.genDocId
+      ? this.deps.genDocId()
+      : `doc-${this.deps.clock.now()}-${Math.random().toString(36).slice(2, 8)}`;
   }
 
   private toRecord(draft: IntakeDraft): IntakeRecord {
@@ -629,17 +709,28 @@ export class IntakeEngine {
     return record;
   }
 
-  private writeRecordBack(draft: IntakeDraft, record: IntakeRecord, effective: Record<string, string>): void {
+  private writeRecordBack(
+    draft: IntakeDraft,
+    record: IntakeRecord,
+    effective: Record<string, string>,
+  ): void {
     draft.record = {
       variant: record.variant,
       values: { ...record.values, ...effective },
       questionCount: { ...record.questionCount, ...(draft.record?.questionCount ?? {}) },
-      explicitlyMissing: [...new Set([...(draft.record?.explicitlyMissing ?? []), ...record.explicitlyMissing])],
+      explicitlyMissing: [
+        ...new Set([...(draft.record?.explicitlyMissing ?? []), ...record.explicitlyMissing]),
+      ],
     };
   }
 
   private bumpAsked(draft: IntakeDraft, fields: string[]): void {
-    const rec = draft.record ?? { variant: this.deps.variant, values: {}, questionCount: {}, explicitlyMissing: [] };
+    const rec = draft.record ?? {
+      variant: this.deps.variant,
+      values: {},
+      questionCount: {},
+      explicitlyMissing: [],
+    };
     for (const f of fields) rec.questionCount[f] = (rec.questionCount[f] ?? 0) + 1;
     draft.record = rec;
   }
@@ -664,7 +755,8 @@ export class IntakeEngine {
     // The just-created ticket in this chat (a move_created candidate).
     if (draft?.status === "created" && draft.issueId && draft.issueIdentifier) {
       const createdAt = Date.parse(draft.issueCreatedAt ?? draft.updatedAt);
-      const fresh = !Number.isNaN(createdAt) && deps.clock.now() - createdAt <= JUST_CREATED_WINDOW_MS;
+      const fresh =
+        !Number.isNaN(createdAt) && deps.clock.now() - createdAt <= JUST_CREATED_WINDOW_MS;
       out.set(draft.issueIdentifier.toUpperCase(), {
         identifier: draft.issueIdentifier,
         issueId: draft.issueId,
@@ -726,7 +818,12 @@ function toPriority(level: string): Priority {
 }
 
 function targetId(command: TicketCommand): string {
-  if (command.action === "append" || command.action === "edit" || command.action === "lookup" || command.action === "move_created") {
+  if (
+    command.action === "append" ||
+    command.action === "edit" ||
+    command.action === "lookup" ||
+    command.action === "move_created"
+  ) {
     return command.identifier;
   }
   return "";
@@ -738,7 +835,12 @@ function command_chatId(_command: TicketCommand, draft: IntakeDraft | null): str
 
 async function safeReview(
   reviewer: TechReviewerPort,
-  input: { title?: string; description: string; attachments: number; known: Record<string, string> },
+  input: {
+    title?: string;
+    description: string;
+    attachments: number;
+    known: Record<string, string>;
+  },
 ): Promise<{ missing: string[]; question?: string }> {
   try {
     return await reviewer.review(input);

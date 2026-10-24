@@ -35,10 +35,13 @@ describe("OnyxRestSearchClient", () => {
     const mockItsaplan: Partial<ItsaplanClient> = {
       getIssueByNumber: async (pk: string, seq: number) => {
         if (pk !== "TECH") throw new Error("404");
-        if (seq === 700) return { id: 700, identifier: "TECH-700", title: "v", stateType: "completed" } as any;
+        if (seq === 700)
+          return { id: 700, identifier: "TECH-700", title: "v", stateType: "completed" } as any;
         // 701 + 702: stateType canceled — KHÔNG còn tri thức đáng gợi ý.
-        if (seq === 701) return { id: 701, identifier: "TECH-701", title: "v", stateType: "canceled" } as any;
-        if (seq === 702) return { id: 702, identifier: "TECH-702", title: "v", stateType: "canceled" } as any;
+        if (seq === 701)
+          return { id: 701, identifier: "TECH-701", title: "v", stateType: "canceled" } as any;
+        if (seq === 702)
+          return { id: 702, identifier: "TECH-702", title: "v", stateType: "canceled" } as any;
         throw new Error("404");
       },
     };
@@ -80,10 +83,20 @@ describe("OnyxRestSearchClient", () => {
     const mockItsaplan: Partial<ItsaplanClient> = {
       getIssueByNumber: async (_pk: string, seq: number) => {
         if (seq === 700) {
-          return { id: 700, identifier: "TECH-700", title: "v", stateType: "completed" } as unknown as ItsaplanIssue;
+          return {
+            id: 700,
+            identifier: "TECH-700",
+            title: "v",
+            stateType: "completed",
+          } as unknown as ItsaplanIssue;
         }
         if (seq === 703) {
-          return { id: 703, identifier: "PO-88", title: "v", stateType: "completed" } as unknown as ItsaplanIssue;
+          return {
+            id: 703,
+            identifier: "PO-88",
+            title: "v",
+            stateType: "completed",
+          } as unknown as ItsaplanIssue;
         }
         throw new Error("404");
       },
@@ -168,7 +181,9 @@ describe("OnyxRestSearchClient", () => {
       getIssueByNumber: async (pk: string, seq: number) =>
         pk === "TECH" && seq === 200
           ? ({ id: 200, identifier: "TECH-200", title: "Bài tập", stateType: "completed" } as any)
-          : (() => { throw new Error("404"); })(),
+          : (() => {
+              throw new Error("404");
+            })(),
     };
 
     const client = new OnyxRestSearchClient(
@@ -217,7 +232,11 @@ describe("OnyxRestSearchClient", () => {
     const mockItsaplan: Partial<ItsaplanClient> = {
       getIssueByNumber: async (projectKey: string, seq: number) => {
         if (projectKey === "TECH" && seq === 101) {
-          return { id: 101, identifier: "TECH-101", title: "Lỗi cổng thanh toán VNPAY" } as ItsaplanIssue;
+          return {
+            id: 101,
+            identifier: "TECH-101",
+            title: "Lỗi cổng thanh toán VNPAY",
+          } as ItsaplanIssue;
         }
         throw new Error("HTTP 404: Not Found");
       },
@@ -249,8 +268,14 @@ describe("OnyxRestSearchClient", () => {
         return new Response(
           JSON.stringify({
             results: [
-              { title: "TECH-201: Vé đã huỷ", content: "MÃ TICKET: TECH-201\nTRIỆU CHỨNG SỰ CỐ:\nLỗi A" },
-              { title: "TECH-202: Vé Done thiếu tri thức", content: "MÃ TICKET: TECH-202\nTRIỆU CHỨNG SỰ CỐ:\nLỗi B" },
+              {
+                title: "TECH-201: Vé đã huỷ",
+                content: "MÃ TICKET: TECH-201\nTRIỆU CHỨNG SỰ CỐ:\nLỗi A",
+              },
+              {
+                title: "TECH-202: Vé Done thiếu tri thức",
+                content: "MÃ TICKET: TECH-202\nTRIỆU CHỨNG SỰ CỐ:\nLỗi B",
+              },
               {
                 title: "TECH-203: Vé Done có tri thức",
                 content:
@@ -266,7 +291,12 @@ describe("OnyxRestSearchClient", () => {
 
     const mockItsaplan: Partial<ItsaplanClient> = {
       getIssueByNumber: async (projectKey: string, seq: number) =>
-        ({ id: seq, identifier: `TECH-${seq}`, title: `Sự cố ${seq}`, columnId: seq === 201 ? 9 : 3 }) as ItsaplanIssue,
+        ({
+          id: seq,
+          identifier: `TECH-${seq}`,
+          title: `Sự cố ${seq}`,
+          columnId: seq === 201 ? 9 : 3,
+        }) as ItsaplanIssue,
       listProjectColumns: async () =>
         [
           { id: 3, name: "Done", stateType: "completed" },
@@ -400,7 +430,12 @@ describe("OnyxRestSearchClient", () => {
 
       const mockItsaplan: Partial<ItsaplanClient> = {
         getIssueByNumber: async (projectKey: string, seq: number) =>
-          ({ id: seq, identifier: `TECH-${seq}`, title: `Sự cố ${seq}`, columnId: 3 }) as ItsaplanIssue,
+          ({
+            id: seq,
+            identifier: `TECH-${seq}`,
+            title: `Sự cố ${seq}`,
+            columnId: 3,
+          }) as ItsaplanIssue,
         listProjectColumns: async () => [{ id: 3, name: "Done", stateType: "completed" }] as any,
       };
 
@@ -453,7 +488,12 @@ describe("OnyxRestSearchClient", () => {
 
       const mockItsaplan: Partial<ItsaplanClient> = {
         getIssueByNumber: async (projectKey: string, seq: number) =>
-          ({ id: seq, identifier: `TECH-${seq}`, title: `Sự cố ${seq}`, columnId: 3 }) as ItsaplanIssue,
+          ({
+            id: seq,
+            identifier: `TECH-${seq}`,
+            title: `Sự cố ${seq}`,
+            columnId: 3,
+          }) as ItsaplanIssue,
         listProjectColumns: async () => [{ id: 3, name: "Done", stateType: "completed" }] as any,
       };
 

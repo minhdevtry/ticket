@@ -20,7 +20,12 @@ import { isBotComment, stripCommentHtml } from "../formatting";
 
 // Boilerplate Onyx tự sinh (thông báo nạp/không nạp bài học kinh nghiệm) —
 // không mang dấu <!-- intake-bot --> nhưng vẫn không phải tín hiệu người.
-const ONYX_BOILERPLATE_MARKERS = ["[Onyx Second Brain]", "Onyx Ingestion", "Không lưu vào kho tri thức", "Đã nạp bài học kinh nghiệm"];
+const ONYX_BOILERPLATE_MARKERS = [
+  "[Onyx Second Brain]",
+  "Onyx Ingestion",
+  "Không lưu vào kho tri thức",
+  "Đã nạp bài học kinh nghiệm",
+];
 
 /**
  * Comment do BOT ghi — không phải tín hiệu người thật. Kết hợp 3 cách nhận
@@ -30,7 +35,11 @@ const ONYX_BOILERPLATE_MARKERS = ["[Onyx Second Brain]", "Onyx Ingestion", "Khô
  * bot đổi nội dung "giả" (fingerprint đổi dù không có tín hiệu người mới),
  * làm ticketContentFingerprint nạp lại lãng phí.
  */
-export function isBotAuthoredComment(item: { actorName?: unknown; actor?: unknown; body?: unknown }): boolean {
+export function isBotAuthoredComment(item: {
+  actorName?: unknown;
+  actor?: unknown;
+  body?: unknown;
+}): boolean {
   const body = String(item.body ?? "");
   return (
     isBotComment(body) ||
@@ -94,13 +103,19 @@ export function cleanIncidentDescription(description: string | null | undefined)
  */
 export function similarContextOf(
   issue: { description?: string | null },
-  timeline: Array<{ kind?: string; actorName?: unknown; body?: unknown; pinned?: boolean }> | null | undefined,
+  timeline:
+    | Array<{ kind?: string; actorName?: unknown; body?: unknown; pinned?: boolean }>
+    | null
+    | undefined,
 ): SimilarContext {
   const meta = parseIncidentMeta(issue.description ?? "");
   const comments = (timeline ?? [])
     .filter(
       (tl): tl is { kind?: string; actorName?: unknown; body: string; pinned?: boolean } =>
-        tl?.kind === "comment" && typeof tl.body === "string" && tl.body.trim().length > 0 && !isBotAuthoredComment(tl),
+        tl?.kind === "comment" &&
+        typeof tl.body === "string" &&
+        tl.body.trim().length > 0 &&
+        !isBotAuthoredComment(tl),
     )
     .slice()
     .sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)));

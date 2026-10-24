@@ -67,16 +67,23 @@ export function checkIdentity(config: IdentityConfig): AnyMcpTool {
       "TUYỆT ĐỐI không tự ý ghi vào đó.",
     inputSchema: {
       telegramUserId: z.string().describe("Id người dùng trên kênh chat, do host cung cấp"),
-      chatId: z.string().optional().describe("Chat ID Telegram của cuộc hội thoại, nếu khác telegramUserId"),
+      chatId: z
+        .string()
+        .optional()
+        .describe("Chat ID Telegram của cuộc hội thoại, nếu khác telegramUserId"),
     },
     handler: ({ telegramUserId, chatId }) => {
       const targetChatId = chatId ?? telegramUserId;
       setLastActiveChatId(targetChatId);
       const approval = service(config).checkUserApproval(telegramUserId);
 
-      let latestTicket:
-        | { identifier: string; title?: string; issueId: number; updatedAt?: string; needsConfirmation: true }
-        | null = null;
+      let latestTicket: {
+        identifier: string;
+        title?: string;
+        issueId: number;
+        updatedAt?: string;
+        needsConfirmation: true;
+      } | null = null;
       try {
         const repo = getSharedBindingRepo(config.dbPath);
         const binding = repo.getLatestBinding(
@@ -132,7 +139,10 @@ export function registerIdentity(config: IdentityConfig): AnyMcpTool {
       nameCode: z.string().describe('Name code người dùng khai, dạng "CS_user_a"'),
       fullName: z.string().optional().describe("Tên hiển thị"),
       username: z.string().optional().describe("Username trên kênh chat"),
-      pendingReport: z.string().optional().describe("Nội dung họ đang định báo, giữ lại để xử lý sau khi duyệt"),
+      pendingReport: z
+        .string()
+        .optional()
+        .describe("Nội dung họ đang định báo, giữ lại để xử lý sau khi duyệt"),
     },
     handler: (input) => service(config).registerIdentity(input),
   });
@@ -149,7 +159,11 @@ export function approveUser(config: IdentityConfig): AnyMcpTool {
     },
     handler: ({ telegramUserId, approvedBy }) => {
       if (!service(config).isAdmin(approvedBy)) {
-        return { success: false, message: "Chỉ Quản trị viên mới thao tác được ạ.", reason: "not_admin" };
+        return {
+          success: false,
+          message: "Chỉ Quản trị viên mới thao tác được ạ.",
+          reason: "not_admin",
+        };
       }
       return service(config).approveUser(telegramUserId, approvedBy);
     },
@@ -167,7 +181,11 @@ export function rejectUser(config: IdentityConfig): AnyMcpTool {
     },
     handler: ({ telegramUserId, rejectedBy }) => {
       if (!service(config).isAdmin(rejectedBy)) {
-        return { success: false, message: "Chỉ Quản trị viên mới thao tác được ạ.", reason: "not_admin" };
+        return {
+          success: false,
+          message: "Chỉ Quản trị viên mới thao tác được ạ.",
+          reason: "not_admin",
+        };
       }
       return service(config).rejectUser(telegramUserId);
     },

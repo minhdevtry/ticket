@@ -11,7 +11,9 @@ import {
 import type { ItsaplanClient } from "./client";
 
 // Ported from intake `lib/itsaplan/attachments.test.ts` + CM `tests/itsaplan-project.test.ts`.
-function fakeClient(uploadImpl: (filename: string) => { id: string; url: string; filename: string }) {
+function fakeClient(
+  uploadImpl: (filename: string) => { id: string; url: string; filename: string },
+) {
   return {
     uploadAttachment: async (_issueId: number, filename: string) => uploadImpl(filename),
   } as unknown as ItsaplanClient;
@@ -27,7 +29,10 @@ describe("uploadAttachments", () => {
     }
   });
   function writeTmp(name: string): string {
-    const p = path.join(os.tmpdir(), `attach-test-${Date.now()}-${Math.random().toString(36).slice(2)}-${name}`);
+    const p = path.join(
+      os.tmpdir(),
+      `attach-test-${Date.now()}-${Math.random().toString(36).slice(2)}-${name}`,
+    );
     fs.writeFileSync(p, "fake-bytes");
     tmp.push(p);
     return p;
@@ -35,7 +40,9 @@ describe("uploadAttachments", () => {
 
   test("bỏ qua đường dẫn không tồn tại, không ném", async () => {
     const client = fakeClient(() => ({ id: "1", url: "/files/1", filename: "a.png" }));
-    expect(await uploadAttachments(client, 1, "https://tracker.test", ["/khong-ton-tai.png"])).toEqual([]);
+    expect(
+      await uploadAttachments(client, 1, "https://tracker.test", ["/khong-ton-tai.png"]),
+    ).toEqual([]);
   });
 
   test("ghép baseUrl với url tương đối", async () => {
@@ -54,8 +61,14 @@ describe("uploadAttachments", () => {
 
   test("giữ nguyên url tuyệt đối", async () => {
     const file = writeTmp("a.png");
-    const client = fakeClient((filename) => ({ id: "1", url: "https://cdn.test/files/1", filename }));
-    expect((await uploadAttachments(client, 1, "https://tracker.test", [file]))[0].url).toBe("https://cdn.test/files/1");
+    const client = fakeClient((filename) => ({
+      id: "1",
+      url: "https://cdn.test/files/1",
+      filename,
+    }));
+    expect((await uploadAttachments(client, 1, "https://tracker.test", [file]))[0].url).toBe(
+      "https://cdn.test/files/1",
+    );
   });
 
   test("một file lỗi không chặn các file còn lại", async () => {
@@ -66,7 +79,10 @@ describe("uploadAttachments", () => {
         throw new Error("boom");
       },
     } as unknown as ItsaplanClient;
-    const result = await uploadAttachments(client, 1, "https://tracker.test", [good, "/khong-ton-tai.png"]);
+    const result = await uploadAttachments(client, 1, "https://tracker.test", [
+      good,
+      "/khong-ton-tai.png",
+    ]);
     expect(result).toHaveLength(1);
   });
 
@@ -78,7 +94,13 @@ describe("uploadAttachments", () => {
       isAllowed: (abs) => abs === file,
     };
     // ref hợp lệ → upload
-    const ok = await uploadAttachments(client, 1, "https://tracker.test", ["media://inbound/inbound.jpg"], media);
+    const ok = await uploadAttachments(
+      client,
+      1,
+      "https://tracker.test",
+      ["media://inbound/inbound.jpg"],
+      media,
+    );
     expect(ok).toHaveLength(1);
     // path ngoài allow-list → bị từ chối
     const denied = writeTmp("secret.png");
@@ -89,15 +111,19 @@ describe("uploadAttachments", () => {
 
 describe("formatAttachmentMarkdown", () => {
   test("ảnh / video / tệp khác", () => {
-    expect(formatAttachmentMarkdown({ id: "1", filename: "photo.png", url: "https://x/photo.png" })).toBe(
-      "![photo.png](https://x/photo.png)",
-    );
-    expect(formatAttachmentMarkdown({ id: "2", filename: "clip.mp4", url: "https://x/clip.mp4" })).toBe(
-      '<video src="https://x/clip.mp4" controls></video>',
-    );
+    expect(
+      formatAttachmentMarkdown({ id: "1", filename: "photo.png", url: "https://x/photo.png" }),
+    ).toBe("![photo.png](https://x/photo.png)");
+    expect(
+      formatAttachmentMarkdown({ id: "2", filename: "clip.mp4", url: "https://x/clip.mp4" }),
+    ).toBe('<video src="https://x/clip.mp4" controls></video>');
   });
   test("escape ký tự markdown trong tên tệp (CM)", () => {
-    const out = formatAttachmentMarkdown({ id: "3", filename: "a[b]_c.png", url: "https://x/a.png" });
+    const out = formatAttachmentMarkdown({
+      id: "3",
+      filename: "a[b]_c.png",
+      url: "https://x/a.png",
+    });
     expect(out).toContain("\\[b\\]");
   });
 });
@@ -115,7 +141,9 @@ describe("spliceAttachmentsIntoDescription", () => {
   });
   test("gộp vào mục ảnh có sẵn thay vì tạo mục thứ hai", () => {
     const desc = "### 📸 Ảnh đính kèm\n\n![cu.png](https://x/cu.png)\n\n---\n*Nguồn*";
-    const out = spliceAttachmentsIntoDescription(desc, [{ id: "2", url: "https://x/moi.png", filename: "moi.png" }]);
+    const out = spliceAttachmentsIntoDescription(desc, [
+      { id: "2", url: "https://x/moi.png", filename: "moi.png" },
+    ]);
     expect(out.match(/### 📸 Ảnh đính kèm/g)).toHaveLength(1);
     expect(out).toContain("moi.png");
   });

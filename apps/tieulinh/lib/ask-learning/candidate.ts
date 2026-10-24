@@ -12,7 +12,9 @@ const TIEULINH_RE = /ti[eể]u\s*linh|tieulinh|@\s*intake|bot-ticket-intake|vuih
 const REPORTER_MENTION_RE = /@\s*(?:SA|CS|SC|TE)_/;
 
 export function stripHtml(html: string): string {
-  return decodeHtmlEntities(html.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+  return decodeHtmlEntities(html.replace(/<[^>]+>/g, " "))
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function isCandidateComment(

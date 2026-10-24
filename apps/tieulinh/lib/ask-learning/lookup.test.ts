@@ -30,11 +30,23 @@ describe("createAskLearnedLookup", () => {
 
     // 2 ticket cho CRM với STEPS
     for (let i = 0; i < 2; i++) {
-      store.upsertTicket({ issueKey: `CRM-${i}`, system: "CRM_Vuihoc", createdAt: now, lastScannedAt: now });
+      store.upsertTicket({
+        issueKey: `CRM-${i}`,
+        system: "CRM_Vuihoc",
+        createdAt: now,
+        lastScannedAt: now,
+      });
       store.upsertComment({
-        commentId: `c-${i}`, issueKey: `CRM-${i}`, system: "CRM_Vuihoc", createdAt: now,
-        needsInfo: true, kind: "ask", items: ["STEPS"], alreadyInReport: false,
-        model: "m", classifiedAt: now,
+        commentId: `c-${i}`,
+        issueKey: `CRM-${i}`,
+        system: "CRM_Vuihoc",
+        createdAt: now,
+        needsInfo: true,
+        kind: "ask",
+        items: ["STEPS"],
+        alreadyInReport: false,
+        model: "m",
+        classifiedAt: now,
       });
     }
 

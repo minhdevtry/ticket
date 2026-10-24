@@ -11,7 +11,10 @@ export function inspectTools(repo: IntakeDocumentRepository): AnyMcpTool[] {
     inputSchema: {
       chatId: z.string().optional().describe("ID phòng chat Telegram"),
       docId: z.string().optional().describe("Mã định danh tờ khai nếu có"),
-      includeHistory: z.boolean().default(false).describe("Lấy toàn bộ lịch sử revision (mặc định false)"),
+      includeHistory: z
+        .boolean()
+        .default(false)
+        .describe("Lấy toàn bộ lịch sử revision (mặc định false)"),
     },
     handler: ({ chatId, docId, includeHistory }) => {
       let doc = null;

@@ -20,7 +20,17 @@ function extractorReturning(json: Record<string, unknown>, seen?: { user?: strin
 
 describe("Nhận diện xác nhận / huỷ (không LLM)", () => {
   it("chỉ coi là xác nhận khi CẢ tin nhắn là câu đồng ý ngắn", () => {
-    for (const ok of ["ok", "OK em", "đúng rồi", "Chuẩn rồi em tạo đi", "Chuẩn rồi tạo giúp em", "xác nhận", "y", "Đồng ý nhé", "tạo đi"]) {
+    for (const ok of [
+      "ok",
+      "OK em",
+      "đúng rồi",
+      "Chuẩn rồi em tạo đi",
+      "Chuẩn rồi tạo giúp em",
+      "xác nhận",
+      "y",
+      "Đồng ý nhé",
+      "tạo đi",
+    ]) {
       expect(isShortConfirmation(ok)).toBe(true);
     }
     for (const no of [
@@ -35,17 +45,32 @@ describe("Nhận diện xác nhận / huỷ (không LLM)", () => {
   });
 
   it("chỉ huỷ khi có cụm huỷ tường minh — 'không vào được lớp' KHÔNG phải huỷ", () => {
-    for (const c of ["hủy", "huỷ đi em", "thôi hủy nhé", "cancel", "không cần tạo nữa", "thôi không cần đâu", "bỏ qua"]) {
+    for (const c of [
+      "hủy",
+      "huỷ đi em",
+      "thôi hủy nhé",
+      "cancel",
+      "không cần tạo nữa",
+      "thôi không cần đâu",
+      "bỏ qua",
+    ]) {
       expect(isExplicitCancel(c)).toBe(true);
     }
-    for (const n of ["không vào được lớp học", "Hủy đơn hàng bị lỗi 500", "thôi rồi app lại sập", "không có âm thanh"]) {
+    for (const n of [
+      "không vào được lớp học",
+      "Hủy đơn hàng bị lỗi 500",
+      "thôi rồi app lại sập",
+      "không có âm thanh",
+    ]) {
       expect(isExplicitCancel(n)).toBe(false);
     }
   });
 
   it("heuristic: tin nhắn báo lỗi bắt đầu bằng 'Yêu cầu' / 'không' vẫn là report_issue", async () => {
     const ex = new FieldExtractor();
-    expect((await ex.extract("Yêu cầu hỗ trợ: học sinh không vào được lớp")).userIntent).toBe("report_issue");
+    expect((await ex.extract("Yêu cầu hỗ trợ: học sinh không vào được lớp")).userIntent).toBe(
+      "report_issue",
+    );
     expect((await ex.extract("không vào được lớp trên app Duo")).userIntent).toBe("report_issue");
     expect((await ex.extract("Chuẩn rồi em tạo đi")).userIntent).toBe("confirm");
     expect((await ex.extract("hủy giúp em")).userIntent).toBe("cancel");
@@ -70,8 +95,13 @@ describe("Nhận diện xác nhận / huỷ (không LLM)", () => {
   });
 
   it("nhận diện 'không biết' là câu từ chối trả lời, không nhầm với triệu chứng", () => {
-    for (const d of ["không biết", "Em không rõ ạ", "ko biết", "chưa có ạ", "không có"]) expect(isDeclineAnswer(d)).toBe(true);
-    for (const n of ["không vào được lớp", "không có âm thanh trong phòng học", "không biết sao app bị treo khi mở bài"]) {
+    for (const d of ["không biết", "Em không rõ ạ", "ko biết", "chưa có ạ", "không có"])
+      expect(isDeclineAnswer(d)).toBe(true);
+    for (const n of [
+      "không vào được lớp",
+      "không có âm thanh trong phòng học",
+      "không biết sao app bị treo khi mở bài",
+    ]) {
       expect(isDeclineAnswer(n)).toBe(false);
     }
   });
@@ -79,7 +109,11 @@ describe("Nhận diện xác nhận / huỷ (không LLM)", () => {
 
 describe("FieldExtractor với LLM (giả lập)", () => {
   it("SĐT nằm trong customerId được chuyển sang studentAccount", async () => {
-    const ex = extractorReturning({ userIntent: "report_issue", customerId: "0900 000 005", symptoms: ["không đăng nhập được"] });
+    const ex = extractorReturning({
+      userIntent: "report_issue",
+      customerId: "0900 000 005",
+      symptoms: ["không đăng nhập được"],
+    });
     const res = await ex.extract("KH 0900 000 005 không đăng nhập được");
     expect(res.customerId).toBeUndefined();
     expect(res.studentAccount).toBe("0900 000 005");
@@ -146,7 +180,12 @@ describe("Sửa tiêu đề / bỏ triệu chứng", () => {
     currentTurn: 1,
     fields: {
       title: { value: "Lỗi app", source: "user_message", turn: 1, updatedAt: "" },
-      symptoms: { value: ["Không vào được phòng", "Mất âm thanh"], source: "user_message", turn: 1, updatedAt: "" },
+      symptoms: {
+        value: ["Không vào được phòng", "Mất âm thanh"],
+        source: "user_message",
+        turn: 1,
+        updatedAt: "",
+      },
     },
     evidence: {},
     askedCount: {},
@@ -178,25 +217,57 @@ describe("Sửa tiêu đề / bỏ triệu chứng", () => {
   });
 
   it("tiêu đề suy ra ở lượt sau KHÔNG đè tiêu đề cũ khi người dùng không yêu cầu", () => {
-    const merged = mergeExtractedFields(baseDoc(), { userIntent: "provide_info", title: "Khác", symptoms: [] }, 2, "x");
+    const merged = mergeExtractedFields(
+      baseDoc(),
+      { userIntent: "provide_info", title: "Khác", symptoms: [] },
+      2,
+      "x",
+    );
     expect(merged.fields.title?.value).toBe("Lỗi app");
   });
 
   it("lượt sau có mô tả mới thì tiêu đề được tóm tắt lại (lời mở đầu không thành tiêu đề mãi)", () => {
-    const doc = { ...baseDoc(), fields: { ...baseDoc().fields, title: { value: "hỗ trợ em với ạ", source: "user_message" as const, turn: 1, updatedAt: "" } } };
-    const merged = mergeExtractedFields(doc, { userIntent: "provide_info", title: "Không lên được đơn cho SĐT 0900000007", symptoms: ["em không lên được đơn"] }, 2, "x");
+    const doc = {
+      ...baseDoc(),
+      fields: {
+        ...baseDoc().fields,
+        title: {
+          value: "hỗ trợ em với ạ",
+          source: "user_message" as const,
+          turn: 1,
+          updatedAt: "",
+        },
+      },
+    };
+    const merged = mergeExtractedFields(
+      doc,
+      {
+        userIntent: "provide_info",
+        title: "Không lên được đơn cho SĐT 0900000007",
+        symptoms: ["em không lên được đơn"],
+      },
+      2,
+      "x",
+    );
     expect(merged.fields.title?.value).toBe("Không lên được đơn cho SĐT 0900000007");
   });
 
   it("tiêu đề người dùng tự đặt thì LLM tóm tắt lại không đè được", async () => {
     const ex = await new FieldExtractor().extract("sửa tiêu đề thành Lỗi đăng nhập CRM");
     const locked = mergeExtractedFields(baseDoc(), ex, 2, "sửa tiêu đề thành Lỗi đăng nhập CRM");
-    const next = mergeExtractedFields(locked, { userIntent: "provide_info", title: "Tiêu đề LLM", symptoms: ["mất âm thanh"] }, 3, "x");
+    const next = mergeExtractedFields(
+      locked,
+      { userIntent: "provide_info", title: "Tiêu đề LLM", symptoms: ["mất âm thanh"] },
+      3,
+      "x",
+    );
     expect(next.fields.title?.value).toBe("Lỗi đăng nhập CRM");
   });
 
   it("không có LLM: tiêu đề lấy dòng tả lỗi, không lấy dòng tên học sinh", async () => {
-    const ex = await new FieldExtractor().extract("**Vũ Thị Bảo G**\nCode: 90000004\nHs chuyển phí sang Toán nhưng môn Hóa không cho chuyển");
+    const ex = await new FieldExtractor().extract(
+      "**Vũ Thị Bảo G**\nCode: 90000004\nHs chuyển phí sang Toán nhưng môn Hóa không cho chuyển",
+    );
     expect(ex.title).toBe("Hs chuyển phí sang Toán nhưng môn Hóa không cho chuyển");
   });
 
@@ -220,7 +291,12 @@ describe("Sửa tiêu đề / bỏ triệu chứng", () => {
   });
 
   it("triệu chứng quá dài bị cắt", () => {
-    const merged = mergeExtractedFields(baseDoc(), { userIntent: "provide_info", symptoms: ["y".repeat(MAX_SYMPTOM_CHARS * 3)] }, 2, "y");
+    const merged = mergeExtractedFields(
+      baseDoc(),
+      { userIntent: "provide_info", symptoms: ["y".repeat(MAX_SYMPTOM_CHARS * 3)] },
+      2,
+      "y",
+    );
     const last = merged.fields.symptoms!.value.at(-1)!;
     expect(last.length).toBeLessThanOrEqual(MAX_SYMPTOM_CHARS + 3);
   });

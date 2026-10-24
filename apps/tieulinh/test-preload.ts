@@ -15,11 +15,13 @@
  *
  * Test LLM thật (RUN_LIVE_LLM=1) giữ biến OPENAI_* để chạy được.
  */
-const OUTBOUND = /^(TELEGRAM_|ADMIN_IDS$|ALERT_CHAT_ID$|TICKET_ADMIN|ITSAPLAN_|ONYX_|WEBHOOK_URL$|KG_MCP_API_KEY$)/;
+const OUTBOUND =
+  /^(TELEGRAM_|ADMIN_IDS$|ALERT_CHAT_ID$|TICKET_ADMIN|ITSAPLAN_|ONYX_|WEBHOOK_URL$|KG_MCP_API_KEY$)/;
 const LLM = /^OPENAI_/;
 
 for (const key of Object.keys(process.env)) {
-  if (OUTBOUND.test(key) || (LLM.test(key) && process.env.RUN_LIVE_LLM !== "1")) delete process.env[key];
+  if (OUTBOUND.test(key) || (LLM.test(key) && process.env.RUN_LIVE_LLM !== "1"))
+    delete process.env[key];
 }
 
 delete process.env.MEMGRAPH_URI;

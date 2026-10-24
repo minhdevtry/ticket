@@ -90,7 +90,10 @@ export function layReplyToId(noiDung, ctx = {}, event = {}) {
 // logic ở đây; đổi bên kia thì nhớ đổi theo.
 const TEN_HEADER =
   "(conversation info|sender|conversation context|replied message|reply context|forwarded message|chat history|message context)";
-const HEADER_DONG = new RegExp(`^\\s*(?:\\[[^\\]]*\\]\\s*)?${TEN_HEADER}\\b[^\\n]*\\(untrusted[^)]*\\)\\s*:?\\s*$`, "i");
+const HEADER_DONG = new RegExp(
+  `^\\s*(?:\\[[^\\]]*\\]\\s*)?${TEN_HEADER}\\b[^\\n]*\\(untrusted[^)]*\\)\\s*:?\\s*$`,
+  "i",
+);
 const PHONG_BI_MOT_DONG = new RegExp(`${TEN_HEADER}\\b[^\\n]*\\(untrusted[^)]*\\)[^\\n]*$`, "i");
 const DONG_CALLBACK = /^\s*callback_data\s*:\s*[^\n]*$/i;
 const KHOA_PHONG_BI = /"(chat_id|sender_id|message_id|inbound_event_kind|username)"\s*:/i;
@@ -101,7 +104,12 @@ const HEADER_CUT = /^\s*(conversation context|chat history[^:\n]*)\s*:\s*$/i;
 /** Bỏ "Conversation info / Sender / Conversation context ... (untrusted metadata)" khỏi thân tin. */
 export function boPhongBiKenh(text) {
   const src = String(text ?? "");
-  if (!/\(untrusted/i.test(src) && !KHOA_PHONG_BI.test(src) && !DONG_SENDER.test(src) && !/^\s*>?\s*#(\d+|session:)/m.test(src)) {
+  if (
+    !/\(untrusted/i.test(src) &&
+    !KHOA_PHONG_BI.test(src) &&
+    !DONG_SENDER.test(src) &&
+    !/^\s*>?\s*#(\d+|session:)/m.test(src)
+  ) {
     return src;
   }
   const lines = src.split("\n").map((line) => line.replace(/^\s*>\s?/, ""));
@@ -143,7 +151,12 @@ export function boPhongBiKenh(text) {
         continue;
       }
     }
-    if (DONG_SENDER.test(line) || DONG_CALLBACK.test(line) || DONG_LICH_SU.test(line) || HEADER_CUT.test(line)) {
+    if (
+      DONG_SENDER.test(line) ||
+      DONG_CALLBACK.test(line) ||
+      DONG_LICH_SU.test(line) ||
+      HEADER_CUT.test(line)
+    ) {
       i++;
       continue;
     }
@@ -157,7 +170,10 @@ export function boPhongBiKenh(text) {
     out.push(line);
     i++;
   }
-  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  return out
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 export function docBangWorker(env = process.env) {
@@ -168,7 +184,10 @@ export function docBangWorker(env = process.env) {
     const i = cap.indexOf("=");
     if (i <= 0) continue;
     const agent = cap.slice(0, i).trim();
-    const url = cap.slice(i + 1).trim().replace(/\/+$/, "");
+    const url = cap
+      .slice(i + 1)
+      .trim()
+      .replace(/\/+$/, "");
     if (agent && url) bang[agent] = url;
   }
   return bang;
@@ -293,7 +312,11 @@ async function xuLyPhanHoi(replyToId, event, ctx, { fetch: goi, workers, daThay 
  * Lõi xử lý, tách khỏi `register` để test được với fetch giả. Trả `undefined`
  * khi không phải việc của plugin (để tin đi tiếp vào agent như thường).
  */
-export async function xuLyXacNhan(event, ctx, { fetch: goi = fetch, workers = docBangWorker(), daThay }) {
+export async function xuLyXacNhan(
+  event,
+  ctx,
+  { fetch: goi = fetch, workers = docBangWorker(), daThay },
+) {
   const noiDung = event?.cleanedBody;
   const issueId = docXacNhan(noiDung);
   if (issueId !== null) {
@@ -314,7 +337,12 @@ export async function xuLyXacNhan(event, ctx, { fetch: goi = fetch, workers = do
  * phiên của nó, plugin chỉ cần worker biết ý người báo. Worker hỏng thì chỉ
  * log, không chặn tin.
  */
-async function baoEpSuCoMoi(event, ctx, agentId, { fetch: goi = fetch, workers = docBangWorker() } = {}) {
+async function baoEpSuCoMoi(
+  event,
+  ctx,
+  agentId,
+  { fetch: goi = fetch, workers = docBangWorker() } = {},
+) {
   const worker = workers[agentId] ?? workers[ctx?.agentId ?? ""];
   if (!worker) {
     ghi(`bỏ qua force-new: agent=${agentId || ctx?.agentId} chưa có worker`);
@@ -353,9 +381,17 @@ export async function xuLyTruocDispatch(event, ctx, deps) {
     return; // tin đi tiếp vào OpenClaw/agent như thường — plugin KHÔNG xử lý tin này
   }
 
-  const replyToId = Number(String(event?.replyToId ?? ctx?.replyToId ?? "").match(/\d+/)?.[0] ?? NaN);
+  const replyToId = Number(
+    String(event?.replyToId ?? ctx?.replyToId ?? "").match(/\d+/)?.[0] ?? NaN,
+  );
   if (!Number.isFinite(replyToId)) return;
-  const ctxGia = { agentId, senderId: event?.senderId ?? ctx?.senderId, sessionKey, conversationId: ctx?.conversationId, trigger: "user" };
+  const ctxGia = {
+    agentId,
+    senderId: event?.senderId ?? ctx?.senderId,
+    sessionKey,
+    conversationId: ctx?.conversationId,
+    trigger: "user",
+  };
   if (docXacNhan(event?.body) !== null) return; // cú bấm "Đã ổn" để before_agent_reply lo
   const ket = await xuLyPhanHoi(replyToId, { cleanedBody: event?.body, sessionKey }, ctxGia, deps);
   if (ket?.handled) return { handled: true, text: ket.reply?.text };
@@ -365,7 +401,7 @@ export default {
   id: "xac-nhan-xong",
   name: "Phản hồi đã ổn",
   description:
-    "Bắt cú bấm \"👍 Đã ổn\" và phản hồi tự do (reply) vào tin thông báo trước khi vào agent, gọi worker ghi ý kiến người báo (không đóng ticket).",
+    'Bắt cú bấm "👍 Đã ổn" và phản hồi tự do (reply) vào tin thông báo trước khi vào agent, gọi worker ghi ý kiến người báo (không đóng ticket).',
   register(api) {
     const workers = docBangWorker();
     const daThay = new Map();

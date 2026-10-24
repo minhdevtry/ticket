@@ -96,10 +96,16 @@ if (rebuild) {
     const backup = `data/kg-${projectKey}-backup-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
     fs.writeFileSync(backup, JSON.stringify(res.records.map((r: any) => r.toObject())));
     console.log(`Đã sao lưu ${res.records.length} ticket → ${backup}`);
-    await session.run(`MATCH (t:Ticket) WHERE t.identifier STARTS WITH $prefix DETACH DELETE t`, { prefix });
+    await session.run(`MATCH (t:Ticket) WHERE t.identifier STARTS WITH $prefix DETACH DELETE t`, {
+      prefix,
+    });
     // Memgraph 2.14 chưa có pattern trong WHERE — đếm bằng OPTIONAL MATCH.
-    await session.run(`MATCH (rc:RootCause) OPTIONAL MATCH (x)-[:CAUSED_BY]->(rc) WITH rc, count(x) AS n WHERE n = 0 DETACH DELETE rc`);
-    await session.run(`MATCH (r:Resolution) OPTIONAL MATCH (x)-[:RESOLVED_BY]->(r) WITH r, count(x) AS n WHERE n = 0 DETACH DELETE r`);
+    await session.run(
+      `MATCH (rc:RootCause) OPTIONAL MATCH (x)-[:CAUSED_BY]->(rc) WITH rc, count(x) AS n WHERE n = 0 DETACH DELETE rc`,
+    );
+    await session.run(
+      `MATCH (r:Resolution) OPTIONAL MATCH (x)-[:RESOLVED_BY]->(r) WITH r, count(x) AS n WHERE n = 0 DETACH DELETE r`,
+    );
     console.log(`Đã xoá ticket ${prefix}* khỏi KG, nạp lại từ đầu.`);
   } finally {
     await session.close();

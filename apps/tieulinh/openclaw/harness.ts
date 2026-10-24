@@ -37,9 +37,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
         console.log(`  ${emoji ? "✅ " : ""}[PASS] ${description}`);
         passed++;
       } else {
-        console.error(
-          `  ${emoji ? "❌ " : ""}[FAIL] ${description}${extra ? ` (${extra})` : ""}`,
-        );
+        console.error(`  ${emoji ? "❌ " : ""}[FAIL] ${description}${extra ? ` (${extra})` : ""}`);
         failed++;
       }
     },
@@ -58,10 +56,7 @@ export function createHarness(options: HarnessOptions = {}): Harness {
  * Trả về `false` khi file không tồn tại, để nơi gọi tự quyết có dùng nguồn dự
  * phòng hay không. Mặc định KHÔNG ghi đè biến đã có sẵn trong môi trường.
  */
-export function loadEnvFile(
-  filePath: string,
-  options: { override?: boolean } = {},
-): boolean {
+export function loadEnvFile(filePath: string, options: { override?: boolean } = {}): boolean {
   if (!fs.existsSync(filePath)) return false;
   const override = options.override ?? false;
 

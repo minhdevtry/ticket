@@ -1,14 +1,26 @@
 import { z } from "zod";
 import { ItsaplanClient } from "../../../lib/itsaplan/client";
 import { findIssueByIdentifier, resolveProject } from "../../../lib/itsaplan/project";
-import { uploadAttachments, spliceAttachmentsIntoDescription, formatAttachmentMarkdown } from "../../../lib/itsaplan/attachments";
+import {
+  uploadAttachments,
+  spliceAttachmentsIntoDescription,
+  formatAttachmentMarkdown,
+} from "../../../lib/itsaplan/attachments";
 import { findRecentInboundMedia } from "../../../lib/media";
 import { resolveFriendlyStatusName } from "../../../lib/itsaplan/status";
 import { describeState } from "../../../lib/itsaplan/state-messages";
 import { isOwnTicket } from "../../../lib/itsaplan/ownership";
 import { getSharedBindingRepo } from "../../../lib/storage/binding-repository";
-import { appendTicketUpdateDescription, markBotComment, stripCommentHtml } from "../../../lib/formatting";
-import { clearPendingButtons, getLastActiveChatId, savePendingButtons } from "../../../lib/telegram/buttons";
+import {
+  appendTicketUpdateDescription,
+  markBotComment,
+  stripCommentHtml,
+} from "../../../lib/formatting";
+import {
+  clearPendingButtons,
+  getLastActiveChatId,
+  savePendingButtons,
+} from "../../../lib/telegram/buttons";
 import { alertAdmin } from "../../../lib/telegram/alert";
 import { defineTool, type AnyMcpTool } from "../tool";
 
@@ -70,8 +82,16 @@ export function getIssue(
       `(ví dụ "${sampleId}") hoặc tra ${vocabulary.noun} gần nhất nếu người dùng không nhớ mã. ` +
       "Dùng khi người dùng hỏi tiến độ hoặc nhắc tới một mã.",
     inputSchema: {
-      identifier: z.string().optional().describe(`Mã hiển thị, ví dụ "${sampleId}". Nếu để trống sẽ tự lấy ${vocabulary.noun} gần nhất qua chatId.`),
-      chatId: z.string().optional().describe("Chat ID Telegram của người dùng để tra ticket gần nhất nếu thiếu mã"),
+      identifier: z
+        .string()
+        .optional()
+        .describe(
+          `Mã hiển thị, ví dụ "${sampleId}". Nếu để trống sẽ tự lấy ${vocabulary.noun} gần nhất qua chatId.`,
+        ),
+      chatId: z
+        .string()
+        .optional()
+        .describe("Chat ID Telegram của người dùng để tra ticket gần nhất nếu thiếu mã"),
     },
     handler: async ({ identifier, chatId }) => {
       const targetChatId = chatId ?? getLastActiveChatId();
@@ -82,7 +102,11 @@ export function getIssue(
       let target = identifier?.trim().toUpperCase();
       if (!target && chatId && dbPath) {
         try {
-          const binding = getSharedBindingRepo(dbPath).getLatestBinding(chatId, undefined, config.projectKey);
+          const binding = getSharedBindingRepo(dbPath).getLatestBinding(
+            chatId,
+            undefined,
+            config.projectKey,
+          );
           if (binding?.identifier) {
             target = binding.identifier.trim().toUpperCase();
           }
@@ -110,7 +134,8 @@ export function getIssue(
           repo = undefined;
         }
         let description: string | undefined = issue.description;
-        if (!description) description = (await client.getIssue(issue.id).catch(() => null))?.description;
+        if (!description)
+          description = (await client.getIssue(issue.id).catch(() => null))?.description;
         if (!isOwnTicket(repo, issue.identifier || target, description, chatId)) {
           // Không kể gì về yêu cầu người khác, kể cả tiêu đề (PO 01/10).
           return {
@@ -130,7 +155,9 @@ export function getIssue(
         const column = project.columns.find((c) => c.id === issue.columnId);
         if (column) {
           stateCategory = column.stateType || (column as any).category || "unstarted";
-          statusName = describeState(config.projectKey, column.name) ?? resolveFriendlyStatusName(column.name, stateCategory);
+          statusName =
+            describeState(config.projectKey, column.name) ??
+            resolveFriendlyStatusName(column.name, stateCategory);
         }
       } catch {
         // Fallback giữ nguyên mặc định
@@ -225,7 +252,10 @@ export function updateIssue(
 
   /** Ghi thật vào Itsaplan (mô tả + comment). */
   async function write(issue: any, target: string, p: UpdatePayload) {
-    const uploadedAttachments = p.mediaPaths.length > 0 ? await uploadAttachments(client, issue.id, config.baseUrl, p.mediaPaths) : [];
+    const uploadedAttachments =
+      p.mediaPaths.length > 0
+        ? await uploadAttachments(client, issue.id, config.baseUrl, p.mediaPaths)
+        : [];
 
     // Lấy description mới nhất và bổ sung log
     let desc = issue.description || "";
@@ -249,20 +279,30 @@ export function updateIssue(
     // TECH-548: sale hỏi lại mã KH, Tiểu Linh không để lại vết nào).
     let descriptionSaved = true;
     try {
-      await client.updateIssue(issue.id, { description: updatedDesc, ...(p.priority ? { priority: p.priority } : {}) });
+      await client.updateIssue(issue.id, {
+        description: updatedDesc,
+        ...(p.priority ? { priority: p.priority } : {}),
+      });
     } catch (err: any) {
       descriptionSaved = false;
-      alertAdmin("update-issue-mo-ta-hong", `update_issue: ghi mô tả hỏng cho ${issue.identifier || target}: ${err?.message ?? err}`);
+      alertAdmin(
+        "update-issue-mo-ta-hong",
+        `update_issue: ghi mô tả hỏng cho ${issue.identifier || target}: ${err?.message ?? err}`,
+      );
     }
 
     let commentBody = p.note;
-    if (uploadedAttachments.length > 0) commentBody += "\n\n" + uploadedAttachments.map(formatAttachmentMarkdown).join("\n\n");
+    if (uploadedAttachments.length > 0)
+      commentBody += "\n\n" + uploadedAttachments.map(formatAttachmentMarkdown).join("\n\n");
     let commentSaved = true;
     try {
       await client.addComment(issue.id, markBotComment(commentBody));
     } catch (err: any) {
       commentSaved = false;
-      alertAdmin("update-issue-comment-hong", `update_issue: ghi comment hỏng cho ${issue.identifier || target}: ${err?.message ?? err}`);
+      alertAdmin(
+        "update-issue-comment-hong",
+        `update_issue: ghi comment hỏng cho ${issue.identifier || target}: ${err?.message ?? err}`,
+      );
     }
 
     if (!descriptionSaved && !commentSaved) {
@@ -294,20 +334,40 @@ export function updateIssue(
         : ""),
     inputSchema: {
       // Bắt buộc mã khi ghi thẳng; khi cần xác nhận thì bước "bấm nút" không truyền lại mã/nội dung (lấy từ bản đã xem).
-      identifier: (options.requireConfirmation ? z.string().optional() : z.string()).describe(`Mã hiển thị, ví dụ "${sampleId}". Chưa chắc chắn thì phải hỏi lại người dùng trước, không được để trống rồi đoán.`),
-      note: (options.requireConfirmation ? z.string().optional() : z.string()).describe("Nội dung người dùng bổ sung / đính chính, nguyên văn"),
-      studentAccount: z.string().optional().describe("Tài khoản học sinh hoặc SĐT phụ huynh mới bổ sung"),
+      identifier: (options.requireConfirmation ? z.string().optional() : z.string()).describe(
+        `Mã hiển thị, ví dụ "${sampleId}". Chưa chắc chắn thì phải hỏi lại người dùng trước, không được để trống rồi đoán.`,
+      ),
+      note: (options.requireConfirmation ? z.string().optional() : z.string()).describe(
+        "Nội dung người dùng bổ sung / đính chính, nguyên văn",
+      ),
+      studentAccount: z
+        .string()
+        .optional()
+        .describe("Tài khoản học sinh hoặc SĐT phụ huynh mới bổ sung"),
       device: z.string().optional().describe("Thiết bị sử dụng bổ sung"),
       appVersion: z.string().optional().describe("Phiên bản app bổ sung"),
       roomId: z.string().optional().describe("Mã phòng học / lớp bổ sung"),
-      mediaPaths: z.array(z.string()).optional().describe("Danh sách đường dẫn file ảnh bổ sung cần đính kèm"),
-      priority: z.enum(["low", "medium", "high", "urgent"]).optional().describe("Mức ưu tiên mới, chỉ đặt khi người dùng yêu cầu rõ"),
-      chatId: z.string().optional().describe("Chat ID Telegram của người dùng (bắt buộc khi cần xác nhận)"),
-      userConfirmed: z.boolean().optional().describe("true khi người dùng đã bấm nút xác nhận bản xem trước"),
+      mediaPaths: z
+        .array(z.string())
+        .optional()
+        .describe("Danh sách đường dẫn file ảnh bổ sung cần đính kèm"),
+      priority: z
+        .enum(["low", "medium", "high", "urgent"])
+        .optional()
+        .describe("Mức ưu tiên mới, chỉ đặt khi người dùng yêu cầu rõ"),
+      chatId: z
+        .string()
+        .optional()
+        .describe("Chat ID Telegram của người dùng (bắt buộc khi cần xác nhận)"),
+      userConfirmed: z
+        .boolean()
+        .optional()
+        .describe("true khi người dùng đã bấm nút xác nhận bản xem trước"),
       cancel: z.boolean().optional().describe("true khi người dùng bấm Huỷ bản xem trước"),
     },
     handler: async (input) => {
-      const { identifier, note, studentAccount, device, appVersion, roomId, mediaPaths, priority } = input;
+      const { identifier, note, studentAccount, device, appVersion, roomId, mediaPaths, priority } =
+        input;
       const chatId = input.chatId ?? getLastActiveChatId() ?? undefined;
       const confirming = options.requireConfirmation === true;
 
@@ -317,7 +377,11 @@ export function updateIssue(
           repo()?.clearPendingUpdate(chatId);
           clearPendingButtons(chatId);
         }
-        return { updated: false, cancelled: true, message: "Dạ vâng, em không ghi gì thêm vào yêu cầu ạ." };
+        return {
+          updated: false,
+          cancelled: true,
+          message: "Dạ vâng, em không ghi gì thêm vào yêu cầu ạ.",
+        };
       }
 
       if (confirming && input.userConfirmed) {
@@ -326,7 +390,8 @@ export function updateIssue(
           return {
             updated: false,
             reason: "no_pending",
-            message: "Dạ em chưa có nội dung nào đang chờ xác nhận ạ. Anh/chị gửi lại phần cần bổ sung giúp em nhé.",
+            message:
+              "Dạ em chưa có nội dung nào đang chờ xác nhận ạ. Anh/chị gửi lại phần cần bổ sung giúp em nhé.",
           };
         }
         const issue = await findIssueByIdentifier(client, pending.identifier, config.projectKey);
@@ -338,7 +403,11 @@ export function updateIssue(
 
       // ── Soạn bản bổ sung ────────────────────────────────────────────────
       if (!identifier?.trim() || !note?.trim()) {
-        return { updated: false, reason: "missing_input", message: `Dạ anh/chị cho em xin mã ${vocabulary.noun} (ví dụ ${sampleId}) và nội dung cần bổ sung nhé ạ.` };
+        return {
+          updated: false,
+          reason: "missing_input",
+          message: `Dạ anh/chị cho em xin mã ${vocabulary.noun} (ví dụ ${sampleId}) và nội dung cần bổ sung nhé ạ.`,
+        };
       }
       const target = identifier.trim().toUpperCase();
       const issue = await findIssueByIdentifier(client, target, config.projectKey);
@@ -346,7 +415,8 @@ export function updateIssue(
 
       if (options.ownTicketsOnly) {
         let description: string | undefined = issue.description;
-        if (!description) description = (await client.getIssue(issue.id).catch(() => null))?.description;
+        if (!description)
+          description = (await client.getIssue(issue.id).catch(() => null))?.description;
         if (!isOwnTicket(repo(), issue.identifier || target, description, chatId)) {
           return {
             updated: false,
@@ -361,21 +431,41 @@ export function updateIssue(
       let mediaList: string[] = Array.isArray(mediaPaths) ? mediaPaths : [];
       if (mediaList.length === 0) {
         const textToCheck = `${note || ""}`.toLowerCase();
-        if (["ảnh", "video", "chụp màn hình", "screenshot", "hình ảnh", "đính kèm"].some((w) => textToCheck.includes(w))) {
+        if (
+          ["ảnh", "video", "chụp màn hình", "screenshot", "hình ảnh", "đính kèm"].some((w) =>
+            textToCheck.includes(w),
+          )
+        ) {
           const recent = findRecentInboundMedia(10, 3);
           if (recent.length > 0) mediaList = recent;
         }
       }
-      const payload: UpdatePayload = { note, studentAccount, device, appVersion, roomId, mediaPaths: mediaList, priority };
+      const payload: UpdatePayload = {
+        note,
+        studentAccount,
+        device,
+        appVersion,
+        roomId,
+        mediaPaths: mediaList,
+        priority,
+      };
 
       if (confirming) {
         if (!chatId || !repo()) {
-          return { updated: false, reason: "missing_chat", message: "Dạ em chưa xác định được cuộc trò chuyện để xin xác nhận, anh/chị nhắn lại giúp em nhé ạ." };
+          return {
+            updated: false,
+            reason: "missing_chat",
+            message:
+              "Dạ em chưa xác định được cuộc trò chuyện để xin xác nhận, anh/chị nhắn lại giúp em nhé ạ.",
+          };
         }
         const id = issue.identifier || target;
         repo()!.savePendingUpdate(chatId, id, payload);
         const label = `✅ Bổ sung vào ${id}`;
-        savePendingButtons(chatId, [[{ text: label, callback_data: label }], [{ text: "Huỷ", callback_data: "Huỷ" }]]);
+        savePendingButtons(chatId, [
+          [{ text: label, callback_data: label }],
+          [{ text: "Huỷ", callback_data: "Huỷ" }],
+        ]);
         const quoted = `\n\n> ${(note.length > 500 ? `${note.slice(0, 500)}…` : note).replace(/\n/g, "\n> ")}`;
         const files = mediaList.length > 0 ? `\n(kèm ${mediaList.length} ảnh/tệp)` : "";
         return {

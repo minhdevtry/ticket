@@ -20,10 +20,10 @@ describe("ItsaplanClient", () => {
         );
       }
       if (url.endsWith("/issues/100/comments")) {
-        return new Response(
-          JSON.stringify({ id: 50, issueId: 100, body: "Updated note" }),
-          { status: 201, headers: { "content-type": "application/json" } },
-        );
+        return new Response(JSON.stringify({ id: 50, issueId: 100, body: "Updated note" }), {
+          status: 201,
+          headers: { "content-type": "application/json" },
+        });
       }
       if (url.endsWith("/projects/TECH/issues")) {
         return new Response(

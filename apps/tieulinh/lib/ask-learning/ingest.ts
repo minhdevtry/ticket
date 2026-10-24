@@ -59,13 +59,20 @@ export async function ingest(opts: IngestOptions): Promise<IngestSummary> {
     // Lưu nhãn thô; chuẩn hoá sang hệ thống intake lúc truy vấn (learned.ts intakeSystemsOf).
     const system = t.systemRaw.trim();
     if (!dryRun) {
-      store.upsertTicket({ issueKey: t.issueKey, system, createdAt: Date.parse(t.createdAt) || 0, lastScannedAt: now() });
+      store.upsertTicket({
+        issueKey: t.issueKey,
+        system,
+        createdAt: Date.parse(t.createdAt) || 0,
+        lastScannedAt: now(),
+      });
       store.updateCommentsSystem(t.issueKey, system);
     }
     // Thứ tự thời gian (ổn định theo vị trí) để lấy 2 bình luận trước đó làm ngữ cảnh.
     const ordered = t.comments
       .map((c, i) => ({ c, i }))
-      .sort((a, b) => (a.c.createdAt < b.c.createdAt ? -1 : a.c.createdAt > b.c.createdAt ? 1 : a.i - b.i))
+      .sort((a, b) =>
+        a.c.createdAt < b.c.createdAt ? -1 : a.c.createdAt > b.c.createdAt ? 1 : a.i - b.i,
+      )
       .map((x) => x.c);
     const report = buildReport(t.title, t.description);
     ordered.forEach((c, pos) => {
@@ -81,7 +88,9 @@ export async function ingest(opts: IngestOptions): Promise<IngestSummary> {
         commentId: c.commentId,
         createdAt: c.createdAt,
         report,
-        prev: ordered.slice(Math.max(0, pos - 2), pos).map((p) => ({ actor: p.actor, createdAt: p.createdAt, text: p.body })),
+        prev: ordered
+          .slice(Math.max(0, pos - 2), pos)
+          .map((p) => ({ actor: p.actor, createdAt: p.createdAt, text: p.body })),
         comment: { actor: c.actor, createdAt: c.createdAt, text: c.body },
       });
     });
@@ -125,11 +134,15 @@ export async function ingest(opts: IngestOptions): Promise<IngestSummary> {
     } catch (err) {
       // Không ghi gì: lần ingest sau sẽ thử lại bình luận này.
       summary.errors++;
-      log(`[ask-learn] lỗi ${job.issueKey}: ${(err instanceof Error ? err.message : String(err)).slice(0, 160)}`);
+      log(
+        `[ask-learn] lỗi ${job.issueKey}: ${(err instanceof Error ? err.message : String(err)).slice(0, 160)}`,
+      );
     }
     done++;
     if (done % PROGRESS_EVERY === 0 || done === jobs.length) {
-      log(`[ask-learn] phân loại ${done}/${jobs.length} (cần bổ sung: ${summary.needsInfo}, lỗi: ${summary.errors})`);
+      log(
+        `[ask-learn] phân loại ${done}/${jobs.length} (cần bổ sung: ${summary.needsInfo}, lỗi: ${summary.errors})`,
+      );
     }
   };
 

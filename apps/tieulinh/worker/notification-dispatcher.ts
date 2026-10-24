@@ -8,7 +8,13 @@ import type { TicketLifecycleService } from "./lifecycle";
 
 import type { ItsaplanClient } from "../lib/itsaplan/client";
 import { syncRelatedTickets } from "./related-tickets-sync";
-import { isBotComment, stripBotMentions, stripCommentHtml, isCommentRecentlyForwarded, decodeHtmlEntities } from "../lib/formatting";
+import {
+  isBotComment,
+  stripBotMentions,
+  stripCommentHtml,
+  isCommentRecentlyForwarded,
+  decodeHtmlEntities,
+} from "../lib/formatting";
 import { identifierInProject, normalizeProjectKey, projectOfIdentifier } from "./project-lock";
 import type { DuplicateMerger } from "./duplicate-merger";
 
@@ -98,7 +104,10 @@ export class NotificationDispatcher {
     this.closure = options.closure;
     this.lifecycle = options.lifecycle;
     this.itsaplanBaseUrl = (options.itsaplanBaseUrl || "").replace(/\/+$/, "");
-    this.itsaplanWebUrl = (options.itsaplanWebUrl || options.itsaplanBaseUrl || "").replace(/\/+$/, "");
+    this.itsaplanWebUrl = (options.itsaplanWebUrl || options.itsaplanBaseUrl || "").replace(
+      /\/+$/,
+      "",
+    );
     this.itsaplanClient = options.itsaplanClient;
     this.onTicketKnowledgeMaybeChanged = options.onTicketKnowledgeMaybeChanged;
     this.duplicateMerger = options.duplicateMerger;
@@ -149,8 +158,12 @@ export class NotificationDispatcher {
    * Identifier của issue trong sự kiện: payload → binding → hỏi Itsaplan.
    * Trả `null` khi không biết — nơi gọi phải bỏ qua, không đoán.
    */
-  private async resolveIdentifier(issueId: number, payloadIdentifier?: unknown): Promise<string | null> {
-    if (typeof payloadIdentifier === "string" && projectOfIdentifier(payloadIdentifier)) return payloadIdentifier;
+  private async resolveIdentifier(
+    issueId: number,
+    payloadIdentifier?: unknown,
+  ): Promise<string | null> {
+    if (typeof payloadIdentifier === "string" && projectOfIdentifier(payloadIdentifier))
+      return payloadIdentifier;
     const fromBinding = this.bindingRepo.getBindingByIssueId(issueId)?.identifier;
     if (fromBinding && projectOfIdentifier(fromBinding)) return fromBinding;
     if (!this.itsaplanClient) return null;
@@ -219,7 +232,9 @@ export class NotificationDispatcher {
         const identifier = await this.resolveIdentifier(issueId, data.identifier);
         const projectKey = projectOfIdentifier(identifier);
         if (!identifier || !projectKey) {
-          getLogger().info(`[NotificationDispatcher] issue.created #${issueId} không rõ dự án, bỏ qua theo dõi SLA.`);
+          getLogger().info(
+            `[NotificationDispatcher] issue.created #${issueId} không rõ dự án, bỏ qua theo dõi SLA.`,
+          );
           return;
         }
         if (!this.ownsProject(identifier)) return;
@@ -308,7 +323,11 @@ export class NotificationDispatcher {
 
       // Comment chỉ có ảnh/video, phần chữ rỗng sau khi bóc — vẫn đẩy, nhưng
       // đừng gửi một tin nhắn trắng.
-      if (!cleanText && !this.extractCommentImages(bodyText, data.attachments).length && !this.extractCommentVideos(bodyText).length) {
+      if (
+        !cleanText &&
+        !this.extractCommentImages(bodyText, data.attachments).length &&
+        !this.extractCommentVideos(bodyText).length
+      ) {
         return;
       }
 
@@ -378,7 +397,10 @@ export class NotificationDispatcher {
       // Khi có cập nhật issue (đặc biệt là trường Related Tickets), đồng bộ liên kết sang Links native
       if (this.itsaplanClient) {
         syncRelatedTickets(this.itsaplanClient, issueId).catch((err) => {
-          getLogger().warn(`[NotificationDispatcher] syncRelatedTickets failed for #${issueId}:`, err);
+          getLogger().warn(
+            `[NotificationDispatcher] syncRelatedTickets failed for #${issueId}:`,
+            err,
+          );
         });
       }
 

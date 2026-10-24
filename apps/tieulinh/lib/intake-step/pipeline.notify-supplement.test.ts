@@ -13,7 +13,12 @@ import { TicketBindingRepository } from "../storage/binding-repository";
 import { DraftSessionRepository } from "../storage/session-repository";
 import { FieldExtractor } from "./extractor";
 import { IntakeStepPipeline, type IntakePipelineOptions } from "./pipeline";
-import type { ItsaplanClient, ItsaplanIssue, ProjectAssignee, ProjectColumn } from "../itsaplan/client";
+import type {
+  ItsaplanClient,
+  ItsaplanIssue,
+  ProjectAssignee,
+  ProjectColumn,
+} from "../itsaplan/client";
 import type { IntakeDocument } from "../intake-document/types";
 import type { ValidationRules, FieldRequirementsTable, UrgencyRules } from "../../mcp/shared/index";
 import validationRules from "../../mcp/tieulinh/domain/validation-rules.json";
@@ -93,7 +98,13 @@ describe("W29-NOTIFY: Supplement notification & closed-ticket handling", () => {
       },
     };
 
-    return { client: client as ItsaplanClient, calls, setIssue: (patch: Partial<ItsaplanIssue>) => { issue = { ...issue, ...patch }; } };
+    return {
+      client: client as ItsaplanClient,
+      calls,
+      setIssue: (patch: Partial<ItsaplanIssue>) => {
+        issue = { ...issue, ...patch };
+      },
+    };
   }
 
   function setupPipeline(client: ItsaplanClient, overrides: Partial<IntakePipelineOptions> = {}) {
@@ -196,7 +207,12 @@ describe("W29-NOTIFY: Supplement notification & closed-ticket handling", () => {
   describe("2. no assignee → mention last technician commenter or none", () => {
     it("khi ticket không có assignee nhưng timeline có trao đổi của KTV (TechUser_B) → mention @techuser_b", async () => {
       const timeline = [
-        { kind: "comment", actorUserId: "u-chung", actorName: "TechUser_B", body: "Kỹ thuật đã nhận và đang tra log" },
+        {
+          kind: "comment",
+          actorUserId: "u-chung",
+          actorName: "TechUser_B",
+          body: "Kỹ thuật đã nhận và đang tra log",
+        },
         { kind: "comment", actorName: "Tiểu Linh", body: "Thông báo tự động <!-- intake-bot -->" },
       ];
 

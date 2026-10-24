@@ -30,7 +30,10 @@ export function searchKnowledge(config: KnowledgeConfig): AnyMcpTool {
     inputSchema: {
       title: z.string().describe("Tiêu đề sự cố đang tiếp nhận"),
       description: z.string().describe("Mô tả sự cố đang tiếp nhận"),
-      excludeIdentifier: z.string().optional().describe("Mã ticket hiện tại, để khỏi tự khớp chính nó"),
+      excludeIdentifier: z
+        .string()
+        .optional()
+        .describe("Mã ticket hiện tại, để khỏi tự khớp chính nó"),
       system: z.string().optional().describe("Tên hệ thống để tự động lọc ứng viên cùng hệ thống"),
     },
     handler: async ({ title, description, excludeIdentifier, system }) => {

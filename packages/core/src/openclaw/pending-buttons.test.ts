@@ -36,7 +36,12 @@ describe("dropUnsendableButtons — luật phòng thủ của Tiểu Linh", () =
     const long = "x".repeat(MAX_CALLBACK_DATA_BYTES + 1);
     const dropped: string[] = [];
     const kept = dropUnsendableButtons(
-      [[{ text: "a", callback_data: "ngan" }, { text: "b", callback_data: long }]],
+      [
+        [
+          { text: "a", callback_data: "ngan" },
+          { text: "b", callback_data: long },
+        ],
+      ],
       (msg) => dropped.push(msg),
     );
     expect(kept).toEqual([[{ text: "a", callback_data: "ngan" }]]);

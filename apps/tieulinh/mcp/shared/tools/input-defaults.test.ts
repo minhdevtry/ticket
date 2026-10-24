@@ -14,9 +14,7 @@ import type { IssueDomain } from "./create-issue";
  *
  * Mặc định phải đặt trong `build`, không đặt trong schema.
  */
-const DOMAINS: Array<[string, IssueDomain<any>]> = [
-  ["tieulinh", ticketDomain],
-];
+const DOMAINS: Array<[string, IssueDomain<any>]> = [["tieulinh", ticketDomain]];
 
 describe("inputShape của domain không được khai `.default()`", () => {
   for (const [name, domain] of DOMAINS) {

@@ -16,13 +16,7 @@
  * (`src/itsaplan/attachments.ts`): `createInboundMediaResolver(...)` returns a
  * `{ resolve, isAllowed }` the attachments uploader can take directly.
  */
-import {
-  existsSync,
-  readdirSync,
-  readFileSync,
-  realpathSync,
-  statSync,
-} from "node:fs";
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { basename, isAbsolute, join, relative, resolve } from "node:path";
 
 /** Max media file size read from disk. CM `MAX_ATTACHMENT_BYTES` floor; 20 MB. */

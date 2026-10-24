@@ -56,9 +56,13 @@ describe("buildOnyxDocumentBody", () => {
     // Khuôn phải khớp đúng các regex mà searchViaMcp dùng để cắt lại từng mục.
     expect(body).toMatch(/TECH-\d+\s*·\s*([^·\n]+)/);
     expect(body).toMatch(/·\s*([^·\n]+)\s*·\s*đóng\s*\d{4}/);
-    expect(body).toMatch(/TRIỆU CHỨNG\s*\n([\s\S]*?)(?=\n[A-ZÀ-Ỹ\s]+:|\n---|\nPHẠM VI|\nNGUYÊN NHÂN|$)/);
+    expect(body).toMatch(
+      /TRIỆU CHỨNG\s*\n([\s\S]*?)(?=\n[A-ZÀ-Ỹ\s]+:|\n---|\nPHẠM VI|\nNGUYÊN NHÂN|$)/,
+    );
     expect(body).toMatch(/NGUYÊN NHÂN\s*\n([\s\S]*?)(?=\n[A-ZÀ-Ỹ\s]+:|\n---|\nCÁCH KHẮC PHỤC|$)/);
-    expect(body).toMatch(/CÁCH KHẮC PHỤC\s*\n([\s\S]*?)(?=\n[A-ZÀ-Ỹ\s]+:|\n---|\nCÁCH PHÒNG TRÁNH|$)/);
+    expect(body).toMatch(
+      /CÁCH KHẮC PHỤC\s*\n([\s\S]*?)(?=\n[A-ZÀ-Ỹ\s]+:|\n---|\nCÁCH PHÒNG TRÁNH|$)/,
+    );
   });
 
   test("bỏ hẳn mục rỗng hoặc 'không rõ', không in dòng rỗng cho loãng vector", () => {

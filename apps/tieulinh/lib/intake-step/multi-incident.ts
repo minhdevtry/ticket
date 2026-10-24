@@ -46,12 +46,65 @@ export interface LabelledIdentifiers {
 }
 
 const VIETNAMESE_FAMILY_NAMES: Record<string, true> = {
-  nguyen: true, "nguyễn": true, tran: true, "trần": true, le: true, "lê": true, pham: true, "phạm": true, hoang: true, "hoàng": true,
-  huynh: true, "huỳnh": true, phan: true, vu: true, "vũ": true, vo: true, "võ": true, dang: true, "đặng": true, bui: true, "bùi": true,
-  do: true, "đỗ": true, ho: true, "hồ": true, ngo: true, "ngô": true, duong: true, "dương": true, ly: true, "lý": true,
-  dao: true, "đào": true, dinh: true, "đinh": true, doan: true, "đoàn": true, mai: true, trinh: true, "trịnh": true, ha: true, "hà": true,
-  luong: true, "lương": true, thai: true, "thái": true, cao: true, chau: true, "châu": true, lam: true, "lâm": true,
-  "đàm": true, "trương": true, "tạ": true, "phùng": true, "vương": true, "tống": true, "triệu": true, "quách": true,
+  nguyen: true,
+  nguyễn: true,
+  tran: true,
+  trần: true,
+  le: true,
+  lê: true,
+  pham: true,
+  phạm: true,
+  hoang: true,
+  hoàng: true,
+  huynh: true,
+  huỳnh: true,
+  phan: true,
+  vu: true,
+  vũ: true,
+  vo: true,
+  võ: true,
+  dang: true,
+  đặng: true,
+  bui: true,
+  bùi: true,
+  do: true,
+  đỗ: true,
+  ho: true,
+  hồ: true,
+  ngo: true,
+  ngô: true,
+  duong: true,
+  dương: true,
+  ly: true,
+  lý: true,
+  dao: true,
+  đào: true,
+  dinh: true,
+  đinh: true,
+  doan: true,
+  đoàn: true,
+  mai: true,
+  trinh: true,
+  trịnh: true,
+  ha: true,
+  hà: true,
+  luong: true,
+  lương: true,
+  thai: true,
+  thái: true,
+  cao: true,
+  chau: true,
+  châu: true,
+  lam: true,
+  lâm: true,
+  đàm: true,
+  trương: true,
+  tạ: true,
+  phùng: true,
+  vương: true,
+  tống: true,
+  triệu: true,
+  quách: true,
 };
 
 /** Các từ chỉ lỗi/sự cố/vấn đề kỹ thuật (mở rộng thêm các trường hợp số buổi, hiển thị, sai lệch). */
@@ -71,7 +124,12 @@ const UPPERCASE_START = /^\p{Lu}/u;
 const BARE_PRIORITY_RE =
   /^(?:mức\s*độ\s*(?:cao|trung\s*bình|thấp)|cao|trung\s*bình|thấp|gấp|khẩn\s*cấp|urgent|high|medium|low)$/iu;
 
-const normalizeLabel = (s: string) => s.toLowerCase().replace(/[*#\\]/g, "").replace(/[_\s]+/g, "").trim();
+const normalizeLabel = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[*#\\]/g, "")
+    .replace(/[_\s]+/g, "")
+    .trim();
 /** Nhãn danh mục (phòng ban + hệ thống) — bảng tra tĩnh theo nhãn chuẩn hoá. */
 const TAXONOMY_LABELS: Record<string, true> = Object.fromEntries(
   [...VALID_REPORTING_DEPTS, ...VALID_SYSTEMS].map((v) => [normalizeLabel(v), true]),
@@ -107,7 +165,10 @@ export function isBareAnswerLabel(text: string | null | undefined): boolean {
  */
 export function isPersonNameOnly(text: string): boolean {
   if (!text || typeof text !== "string") return false;
-  const cleaned = text.replace(/[*_#\\]/g, "").replace(/\s+/g, " ").trim();
+  const cleaned = text
+    .replace(/[*_#\\]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!cleaned) return false;
   // Có từ chỉ lỗi kỹ thuật, chữ số, hoặc dấu gán nhãn → không phải chỉ là tên người
   if (EXPANDED_PROBLEM_WORDS.test(cleaned) || /[\d:=]/.test(cleaned)) return false;
@@ -120,11 +181,21 @@ export function isPersonNameOnly(text: string): boolean {
 /** Tên này có thật sự xuất hiện như MỘT DÒNG tên riêng trong báo cáo không (dòng trước "Code:")? */
 export function appearsAsNameLine(reportText: string, title: string): boolean {
   if (!reportText) return false;
-  const target = title.replace(/[*_#\\]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+  const target = title
+    .replace(/[*_#\\]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
   if (!target) return false;
   return reportText
     .split("\n")
-    .map((l) => l.replace(/[*_#\\]/g, "").replace(/\s+/g, " ").trim().toLowerCase())
+    .map((l) =>
+      l
+        .replace(/[*_#\\]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase(),
+    )
     .some((l) => l === target);
 }
 
@@ -137,12 +208,19 @@ export function appearsAsNameLine(reportText: string, title: string): boolean {
  */
 export function isInvalidTitle(title: string | null | undefined, reportText?: string): boolean {
   if (!title || typeof title !== "string") return true;
-  const trimmed = title.replace(/[*_#\\]/g, "").replace(/\s+/g, " ").trim();
+  const trimmed = title
+    .replace(/[*_#\\]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (trimmed.length < 4) return true;
   // Toàn là chữ số
   if (/^\d+$/.test(trimmed)) return true;
   // Chỉ là dòng khai báo mã: "Code: 9100003", "Mã học sinh: 90106"
-  if (/^(?:code|mã\s*(?:kh|khách\s*hàng|học\s*sinh|hs|lớp|đơn|crm)|cid|uid|sid|sđt|phone)\s*[:=]?\s*[\w-]+$/iu.test(trimmed)) {
+  if (
+    /^(?:code|mã\s*(?:kh|khách\s*hàng|học\s*sinh|hs|lớp|đơn|crm)|cid|uid|sid|sđt|phone)\s*[:=]?\s*[\w-]+$/iu.test(
+      trimmed,
+    )
+  ) {
     return true;
   }
   // Chỉ là câu trả lời TRẦN cho câu hỏi của bot: mức ưu tiên ("MỨC ĐỘ CAO") hoặc một nhãn
@@ -165,7 +243,10 @@ const POLITE_PHRASES_CLEANUP =
 /** Bỏ nhãn định danh, mã đơn/phiếu (DH…, TNX…), chuỗi số, dấu câu — còn lại là chữ "văn xuôi". */
 function residualProse(text: string): string {
   return text
-    .replace(/(?:code|mã\s*(?:kh|khách\s*hàng|học\s*sinh|hs|crm)|cid|uid|sid|sđt|tk|mk|phone)\s*[:=]?/giu, " ")
+    .replace(
+      /(?:code|mã\s*(?:kh|khách\s*hàng|học\s*sinh|hs|crm)|cid|uid|sid|sđt|tk|mk|phone)\s*[:=]?/giu,
+      " ",
+    )
     .replace(/[A-Z]{2,5}[-_]?\d{3,}/g, " ")
     .replace(/\d+/g, " ")
     .replace(/[^\p{L}]+/gu, " ")
@@ -188,7 +269,10 @@ export function deriveFallbackTitle(
 ): string {
   const sources = [
     ...(symptoms ?? []),
-    ...text.split("\n").map((l) => l.trim()).filter(Boolean),
+    ...text
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean),
   ];
 
   const candidates: string[] = [];
@@ -200,7 +284,10 @@ export function deriveFallbackTitle(
       .trim();
     // Bỏ tiền tố định danh nếu dòng bắt đầu bằng "Mã học sinh: ... lỗi ..."
     const strippedId = rawClean
-      .replace(/^(?:(?:code|mã\s*(?:kh|khách\s*hàng|học\s*sinh|hs|crm)|cid|uid|sid|sđt|tk|mk)\s*[:=]?\s*[A-Za-z]{0,4}\d+\s*)+/iu, "")
+      .replace(
+        /^(?:(?:code|mã\s*(?:kh|khách\s*hàng|học\s*sinh|hs|crm)|cid|uid|sid|sđt|tk|mk)\s*[:=]?\s*[A-Za-z]{0,4}\d+\s*)+/iu,
+        "",
+      )
       .trim();
 
     if (!strippedId) continue;
@@ -218,7 +305,11 @@ export function deriveFallbackTitle(
     candidates.find((c) => c.length >= 12) ??
     candidates[0];
   if (best) {
-    const cleaned = best.replace(POLITE_PHRASES_CLEANUP, "").replace(/[\s,.-]+$/, "").trim() || best;
+    const cleaned =
+      best
+        .replace(POLITE_PHRASES_CLEANUP, "")
+        .replace(/[\s,.-]+$/, "")
+        .trim() || best;
     if (cleaned.length >= 8) {
       return cleaned.length <= 80 ? cleaned : cleaned.slice(0, 77) + "...";
     }
@@ -244,15 +335,18 @@ export function deriveFallbackTitle(
  * khoảng trắng — nhờ vậy `?cid=670` trong link LMS không tính (ký tự trước `cid`
  * là `?`), còn "Code 9100004" / "Code: 9100002" thì tính.
  */
-const CUSTOMER_CODE_RE = /(?:^|[^\p{L}\p{N}_?&=/.-])(?:code|mã\s*(?:kh|khách\s*hàng|crm)|cid)(?:\s*[:=]\s*|\s+)([A-Za-z]{0,4}\d{4,12})/iu;
+const CUSTOMER_CODE_RE =
+  /(?:^|[^\p{L}\p{N}_?&=/.-])(?:code|mã\s*(?:kh|khách\s*hàng|crm)|cid)(?:\s*[:=]\s*|\s+)([A-Za-z]{0,4}\d{4,12})/iu;
 /** Nhãn định danh học sinh. `TK:`/`MK:` (tài khoản đăng nhập) KHÔNG nằm trong đây. */
-const STUDENT_CODE_RE = /(?:^|[^\p{L}\p{N}_?&=/.-])(?:mã\s*(?:học\s*sinh|hs)|uid|sid)(?:\s*[:=]\s*|\s+)([A-Za-z]{0,4}\d{3,12})/iu;
+const STUDENT_CODE_RE =
+  /(?:^|[^\p{L}\p{N}_?&=/.-])(?:mã\s*(?:học\s*sinh|hs)|uid|sid)(?:\s*[:=]\s*|\s+)([A-Za-z]{0,4}\d{3,12})/iu;
 /** Mã CRM 7-10 chữ số nằm TRỌN một dòng, không bắt đầu bằng 0 (loại SĐT). */
 const STANDALONE_CRM_LINE_RE = /^(\d{7,10})$/;
 /** SĐT di động Việt Nam đứng RIÊNG (không dính chữ/số hai bên → loại ruột mã TNX…, DH…). */
 const MOBILE_PHONE_RE = /(?<![\p{L}\p{N}])(?:\+?84|0)[35789]\d{8}(?![\p{L}\p{N}])/u;
 /** SĐT CÓ NHÃN ("SĐT phụ huynh 0900000004") — bằng chứng rõ ràng mới đủ để ngắt lời người báo. */
-const LABELLED_PHONE_RE = /(?:sđt|số\s*điện\s*thoại|điện\s*thoại|phone)\s*(?:[:=]\s*|\s+)[^\d\n]{0,20}?((?:\+?84|0)[35789]\d{8})/iu;
+const LABELLED_PHONE_RE =
+  /(?:sđt|số\s*điện\s*thoại|điện\s*thoại|phone)\s*(?:[:=]\s*|\s+)[^\d\n]{0,20}?((?:\+?84|0)[35789]\d{8})/iu;
 /** Dòng đăng nhập (TK/MK/tài khoản) — SĐT trong đó là tài khoản demo, không phải định danh người báo. */
 const LOGIN_FRAGMENT_RE = /\b(?:tk|mk|tài\s*khoản|mật\s*khẩu)\s*[:=]?\s*[^\s,;()]{1,25}/giu;
 
@@ -332,7 +426,10 @@ export function extractBlockInfo(block: string): {
   studentAccount?: string;
   reportingDept?: string;
 } {
-  const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
+  const lines = block
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
   const identifiers = extractLabelledIdentifiers(block);
   let studentName: string | undefined;
   let reportingDept: string | undefined;
@@ -350,7 +447,13 @@ export function extractBlockInfo(block: string): {
     const nameMatch = raw.match(/^\*\*([^*]+)\*\*$/);
     if (nameMatch && !studentName && isPersonNameOnly(nameMatch[1])) {
       studentName = nameMatch[1].trim();
-    } else if (i === 0 && !studentName && !/[:=]/.test(l) && !/^\d+$/.test(l) && isPersonNameOnly(l)) {
+    } else if (
+      i === 0 &&
+      !studentName &&
+      !/[:=]/.test(l) &&
+      !/^\d+$/.test(l) &&
+      isPersonNameOnly(l)
+    ) {
       studentName = l;
     }
   }
@@ -382,7 +485,10 @@ export function splitMultiIncidentReport(text: string): IncidentBlock[] | null {
   if (!EXPANDED_PROBLEM_WORDS.test(text)) return null;
 
   // Tách theo 2 dấu xuống dòng trở lên
-  let rawBlocks = text.split(/\n\s*\n+/).map((b) => b.trim()).filter(Boolean);
+  let rawBlocks = text
+    .split(/\n\s*\n+/)
+    .map((b) => b.trim())
+    .filter(Boolean);
 
   // Nếu không có 2 dòng trống, thử tách theo mẫu mở đầu khối mới (số thứ tự 1./2., **Tên**, Code:, mã CRM trần)
   if (rawBlocks.length < 2) {
@@ -412,7 +518,11 @@ export function splitMultiIncidentReport(text: string): IncidentBlock[] | null {
     } else if (!info.customerId && !/[A-Z]{2,5}[-_]?\d{4,}/.test(block)) {
       continue;
     }
-    const title = deriveFallbackTitle(block, undefined, info.studentName ? [info.studentName] : undefined);
+    const title = deriveFallbackTitle(
+      block,
+      undefined,
+      info.studentName ? [info.studentName] : undefined,
+    );
     validBlocks.push({
       text: block,
       studentName: info.studentName,

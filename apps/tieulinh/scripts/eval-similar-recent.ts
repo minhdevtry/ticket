@@ -38,14 +38,27 @@ const OUT_DIR = DATA_DIR;
 
 // ─── 1) Corpus TOÀN BỘ 500 ticket TECH (Aug20->Sep29), y hệt eval-similar-bench.ts ───
 interface DumpTicket {
-  issue: { identifier: string; title: string; description?: string; createdAt?: string; statusSince?: string; updatedAt?: string };
+  issue: {
+    identifier: string;
+    title: string;
+    description?: string;
+    createdAt?: string;
+    statusSince?: string;
+    updatedAt?: string;
+  };
   timeline: any[];
 }
-const dump = JSON.parse(readFileSync(`${DATA_DIR}/history/TECH.json`, "utf8")) as { issues: DumpTicket[] };
+const dump = JSON.parse(readFileSync(`${DATA_DIR}/history/TECH.json`, "utf8")) as {
+  issues: DumpTicket[];
+};
 const validIds = new Set(dump.issues.map((t) => t.issue.identifier.toUpperCase()));
 
 const humanByTicket = new Map<string, ReturnType<typeof humanKnowledgeOf>>();
-for (const t of dump.issues) humanByTicket.set(t.issue.identifier.toUpperCase(), humanKnowledgeOf(t.timeline, t.issue.identifier));
+for (const t of dump.issues)
+  humanByTicket.set(
+    t.issue.identifier.toUpperCase(),
+    humanKnowledgeOf(t.timeline, t.issue.identifier),
+  );
 
 const negatives2Way = new Map<string, Set<string>>();
 for (const id of validIds) negatives2Way.set(id, new Set());
@@ -84,9 +97,15 @@ const corpus: CorpusTicket[] = dump.issues.map((t) => {
     negatives: negs.length ? negs : undefined,
   };
 });
-console.log(`Kho: ${corpus.length} ticket, ${new Set(corpus.map((c) => c.causeCluster)).size} cụm.`);
-const descById = new Map(dump.issues.map((t) => [t.issue.identifier.toUpperCase(), t.issue.description]));
-const titleById = new Map(dump.issues.map((t) => [t.issue.identifier.toUpperCase(), t.issue.title]));
+console.log(
+  `Kho: ${corpus.length} ticket, ${new Set(corpus.map((c) => c.causeCluster)).size} cụm.`,
+);
+const descById = new Map(
+  dump.issues.map((t) => [t.issue.identifier.toUpperCase(), t.issue.description]),
+);
+const titleById = new Map(
+  dump.issues.map((t) => [t.issue.identifier.toUpperCase(), t.issue.title]),
+);
 
 // ─── 2) Onyx /api/search thô (CHỈ ĐỌC), lọc lại theo kho — y hệt eval-similar-bench.ts ───
 function need(name: string): string {
@@ -106,7 +125,9 @@ interface OnyxHit {
   resolution?: string;
 }
 const ONYX_CACHE_PATH = `${DATA_DIR}/similar-recent-onyx-cache.json`;
-const onyxCache: Record<string, OnyxHit[]> = existsSync(ONYX_CACHE_PATH) ? JSON.parse(readFileSync(ONYX_CACHE_PATH, "utf8")) : {};
+const onyxCache: Record<string, OnyxHit[]> = existsSync(ONYX_CACHE_PATH)
+  ? JSON.parse(readFileSync(ONYX_CACHE_PATH, "utf8"))
+  : {};
 function saveOnyxCache() {
   writeFileSync(ONYX_CACHE_PATH, JSON.stringify(onyxCache, null, 1));
 }
@@ -120,13 +141,17 @@ async function rawOnyxSearch(query: string): Promise<OnyxHit[]> {
     headers: { Authorization: `Bearer ${ONYX_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({ query }),
   });
-  if (!res.ok) throw new Error(`Onyx /api/search lỗi HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok)
+    throw new Error(`Onyx /api/search lỗi HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const data = (await res.json()) as { results?: Array<{ title?: string; content?: string }> };
   const byId = new Map<string, OnyxHit>();
   for (const r of data.results ?? []) {
     const id = r.title?.match(/TECH-\d+/)?.[0];
     if (!id || byId.has(id)) continue;
-    byId.set(id, { identifier: id, ...extractRootCauseAndResolution(`${r.title ?? ""}\n${r.content ?? ""}`) });
+    byId.set(id, {
+      identifier: id,
+      ...extractRootCauseAndResolution(`${r.title ?? ""}\n${r.content ?? ""}`),
+    });
   }
   const hits = [...byId.values()];
   onyxCache[key] = hits;
@@ -136,13 +161,21 @@ async function rawOnyxSearch(query: string): Promise<OnyxHit[]> {
 const onyx = {
   searchSimilar: async (query: string) => {
     const hits = await rawOnyxSearch(query);
-    return hits.map((h) => ({ identifier: h.identifier.toUpperCase(), title: h.identifier, rootCause: h.rootCause, resolution: h.resolution, verifiedOnTracker: true }));
+    return hits.map((h) => ({
+      identifier: h.identifier.toUpperCase(),
+      title: h.identifier,
+      rootCause: h.rootCause,
+      resolution: h.resolution,
+      verifiedOnTracker: true,
+    }));
   },
 };
 
 // ─── 3) LLM proxy cục bộ CHỈ để cache — gọi ĐÚNG complete()/verifyCandidate() thật ───
 const LLM_CACHE_PATH = `${DATA_DIR}/similar-recent-llm-cache-${judgeMode}.json`;
-const llmCache: Record<string, string> = existsSync(LLM_CACHE_PATH) ? JSON.parse(readFileSync(LLM_CACHE_PATH, "utf8")) : {};
+const llmCache: Record<string, string> = existsSync(LLM_CACHE_PATH)
+  ? JSON.parse(readFileSync(LLM_CACHE_PATH, "utf8"))
+  : {};
 function saveLlmCache() {
   writeFileSync(LLM_CACHE_PATH, JSON.stringify(llmCache, null, 1));
 }
@@ -153,7 +186,8 @@ const llmProxy = Bun.serve({
   async fetch(req) {
     const bodyText = await req.text();
     const key = createHash("sha256").update(bodyText).digest("hex");
-    if (key in llmCache) return new Response(llmCache[key], { headers: { "Content-Type": "application/json" } });
+    if (key in llmCache)
+      return new Response(llmCache[key], { headers: { "Content-Type": "application/json" } });
     llmCalls++;
     let lastErr: unknown;
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -161,7 +195,10 @@ const llmProxy = Bun.serve({
       try {
         const upstream = await fetch(`${OPENAI_BASE_URL.replace(/\/+$/, "")}/chat/completions`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", ...(OPENAI_API_KEY ? { Authorization: `Bearer ${OPENAI_API_KEY}` } : {}) },
+          headers: {
+            "Content-Type": "application/json",
+            ...(OPENAI_API_KEY ? { Authorization: `Bearer ${OPENAI_API_KEY}` } : {}),
+          },
           body: bodyText,
         });
         const text = await upstream.text();
@@ -201,17 +238,34 @@ interface GoldRow {
   positives: string[];
   cause?: string;
 }
-const gold = JSON.parse(readFileSync(`${OUT_DIR}/similar-recent-gold.json`, "utf8")) as { withPositives: GoldRow[]; pinnedNoPositives: GoldRow[] };
+const gold = JSON.parse(readFileSync(`${OUT_DIR}/similar-recent-gold.json`, "utf8")) as {
+  withPositives: GoldRow[];
+  pinnedNoPositives: GoldRow[];
+};
 // chỉ giữ mã TECH-*, trong kho, khác chính nó
-const cleanPositives = (r: GoldRow) => r.positives.map((x) => x.toUpperCase()).filter((x) => /^TECH-\d+$/.test(x) && x !== r.id && validIds.has(x));
-const withPositives = gold.withPositives.map((r) => ({ ...r, positives: cleanPositives(r) })).filter((r) => r.positives.length > 0);
+const cleanPositives = (r: GoldRow) =>
+  r.positives
+    .map((x) => x.toUpperCase())
+    .filter((x) => /^TECH-\d+$/.test(x) && x !== r.id && validIds.has(x));
+const withPositives = gold.withPositives
+  .map((r) => ({ ...r, positives: cleanPositives(r) }))
+  .filter((r) => r.positives.length > 0);
 const pinnedNoPositives = gold.pinnedNoPositives;
 
 const TICKET_CONCURRENCY = Number(process.env.EVAL_TICKET_CONCURRENCY ?? 6);
 
 async function main() {
-  const allRows = [...withPositives.map((r) => ({ ...r, isEmpty: false })), ...pinnedNoPositives.map((r) => ({ ...r, isEmpty: true }))];
-  const results: Array<{ id: string; gold: string[]; accepted: string[]; possible: string[]; question?: string }> = new Array(allRows.length);
+  const allRows = [
+    ...withPositives.map((r) => ({ ...r, isEmpty: false })),
+    ...pinnedNoPositives.map((r) => ({ ...r, isEmpty: true })),
+  ];
+  const results: Array<{
+    id: string;
+    gold: string[];
+    accepted: string[];
+    possible: string[];
+    question?: string;
+  }> = new Array(allRows.length);
   const t0 = Date.now();
   let done = 0;
   let idx = 0;
@@ -227,7 +281,9 @@ async function main() {
       let question: string | undefined;
       try {
         const match = await src.find(text, { excludeIds: [r.id] });
-        accepted = (match?.members ?? []).map((m) => m.identifier.toUpperCase()).filter((x) => x !== r.id);
+        accepted = (match?.members ?? [])
+          .map((m) => m.identifier.toUpperCase())
+          .filter((x) => x !== r.id);
         possible = (match?.possible ?? []).flatMap((p) => p.sampleIds.map((s) => s.toUpperCase()));
         question = match?.question;
       } catch (err: any) {
@@ -240,9 +296,14 @@ async function main() {
       );
     }
   }
-  await Promise.all(Array.from({ length: Math.max(1, Math.min(TICKET_CONCURRENCY, allRows.length)) }, worker));
+  await Promise.all(
+    Array.from({ length: Math.max(1, Math.min(TICKET_CONCURRENCY, allRows.length)) }, worker),
+  );
 
-  writeFileSync(`${OUT_DIR}/similar-recent-results-${judgeMode}.json`, JSON.stringify(results, null, 1));
+  writeFileSync(
+    `${OUT_DIR}/similar-recent-results-${judgeMode}.json`,
+    JSON.stringify(results, null, 1),
+  );
   console.log(`\nĐã ghi ${OUT_DIR}/similar-recent-results-${judgeMode}.json`);
   console.log(`Lời gọi Onyx thật: ${onyxCalls}. Lời gọi LLM thật: ${llmCalls}.`);
   llmProxy.stop(true);

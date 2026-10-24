@@ -213,8 +213,7 @@ export class IdentityService {
 
     const prefix = this.extractPrefix(normalizedCode);
     const prefixApproved = prefix ? this.identityRepo.isPrefixApproved(prefix) : false;
-    const shouldAutoApprove =
-      !this.requireApproval || this.isAdmin(tid) || prefixApproved;
+    const shouldAutoApprove = !this.requireApproval || this.isAdmin(tid) || prefixApproved;
 
     this.identityRepo.saveUserIdentity({
       telegramUserId: tid,
@@ -267,9 +266,11 @@ export class IdentityService {
     };
   }
 
-  rejectUser(
-    telegramUserId: string,
-  ): { success: boolean; identity?: UserIdentity; message: string } {
+  rejectUser(telegramUserId: string): {
+    success: boolean;
+    identity?: UserIdentity;
+    message: string;
+  } {
     const tid = String(telegramUserId).trim();
     const identity = this.identityRepo.getUserIdentity(tid);
     if (!identity) {

@@ -81,7 +81,16 @@ export {
 
 // ── storage: lazy db + memo ──────────────────────────────────────────────────
 export { memoByKey, memoByPath } from "./memo";
-export { type ApplySchema, type LazyDbOptions, type BindingDbReport, makeOpenLazyDb, openLazyDb, isDegradedDb, resolveDbPath, inspectBindingDb } from "./lazy-db";
+export {
+  type ApplySchema,
+  type LazyDbOptions,
+  type BindingDbReport,
+  makeOpenLazyDb,
+  openLazyDb,
+  isDegradedDb,
+  resolveDbPath,
+  inspectBindingDb,
+} from "./lazy-db";
 
 // ── test preload helper ──────────────────────────────────────────────────────
 export { type ScrubEnvOptions, scrubOutboundEnv } from "./test-preload-helper";

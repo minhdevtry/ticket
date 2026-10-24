@@ -133,7 +133,14 @@ export class TicketBindingRepository {
       INSERT OR REPLACE INTO message_routes (message_id, channel_type, chat_id, issue_id, identifier, kind)
       VALUES (?, ?, ?, ?, ?, ?)
     `);
-    stmt.run(String(messageId), channelType, chatId == null ? "" : String(chatId), issueId, identifier, kind);
+    stmt.run(
+      String(messageId),
+      channelType,
+      chatId == null ? "" : String(chatId),
+      issueId,
+      identifier,
+      kind,
+    );
   }
 
   /**
@@ -217,25 +224,45 @@ export class TicketBindingRepository {
   /** Lưu bản bổ sung chờ xác nhận của chat (ghi đè bản cũ). */
   savePendingUpdate(chatId: string | number, identifier: string, payload: unknown): void {
     this.db
-      .prepare(`INSERT OR REPLACE INTO pending_ticket_updates (chat_id, identifier, payload, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)`)
-      .run(String(chatId).replace(/^telegram:/i, ""), identifier.toUpperCase(), JSON.stringify(payload));
+      .prepare(
+        `INSERT OR REPLACE INTO pending_ticket_updates (chat_id, identifier, payload, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)`,
+      )
+      .run(
+        String(chatId).replace(/^telegram:/i, ""),
+        identifier.toUpperCase(),
+        JSON.stringify(payload),
+      );
   }
 
-  getPendingUpdate<T = any>(chatId: string | number): { identifier: string; payload: T; createdAt: string } | null {
+  getPendingUpdate<T = any>(
+    chatId: string | number,
+  ): { identifier: string; payload: T; createdAt: string } | null {
     const row = this.db
-      .prepare(`SELECT identifier, payload, created_at FROM pending_ticket_updates WHERE chat_id = ?`)
+      .prepare(
+        `SELECT identifier, payload, created_at FROM pending_ticket_updates WHERE chat_id = ?`,
+      )
       .get(String(chatId).replace(/^telegram:/i, "")) as any;
-    return row ? { identifier: row.identifier, payload: JSON.parse(row.payload) as T, createdAt: row.created_at } : null;
+    return row
+      ? {
+          identifier: row.identifier,
+          payload: JSON.parse(row.payload) as T,
+          createdAt: row.created_at,
+        }
+      : null;
   }
 
   clearPendingUpdate(chatId: string | number): void {
-    this.db.prepare(`DELETE FROM pending_ticket_updates WHERE chat_id = ?`).run(String(chatId).replace(/^telegram:/i, ""));
+    this.db
+      .prepare(`DELETE FROM pending_ticket_updates WHERE chat_id = ?`)
+      .run(String(chatId).replace(/^telegram:/i, ""));
   }
 
   /** Đặt cờ ngắn hạn cho chat (ghi đè mốc thời gian nếu đã có). */
   setChatFlag(chatId: string | number, flag: string): void {
     this.db
-      .prepare(`INSERT OR REPLACE INTO chat_flags (chat_id, flag, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)`)
+      .prepare(
+        `INSERT OR REPLACE INTO chat_flags (chat_id, flag, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)`,
+      )
       .run(String(chatId), flag);
   }
 
@@ -249,9 +276,13 @@ export class TicketBindingRepository {
     const marks = ids.map(() => "?").join(",");
     const since = new Date(sinceMs).toISOString().replace("T", " ").slice(0, 19);
     const row = this.db
-      .prepare(`SELECT 1 AS hit FROM chat_flags WHERE flag = ? AND chat_id IN (${marks}) AND created_at >= ? LIMIT 1`)
+      .prepare(
+        `SELECT 1 AS hit FROM chat_flags WHERE flag = ? AND chat_id IN (${marks}) AND created_at >= ? LIMIT 1`,
+      )
       .get(flag, ...ids, since) as any;
-    this.db.prepare(`DELETE FROM chat_flags WHERE flag = ? AND chat_id IN (${marks})`).run(flag, ...ids);
+    this.db
+      .prepare(`DELETE FROM chat_flags WHERE flag = ? AND chat_id IN (${marks})`)
+      .run(flag, ...ids);
     return Boolean(row?.hit);
   }
 
@@ -306,7 +337,11 @@ export class TicketBindingRepository {
    * `projectKey` giới hạn theo tiền tố mã (`PO-…`): IRIS và Tiểu Linh dùng chung DB
    * và chung chat_id, không lọc thì bot này lấy nhầm ticket của bot kia.
    */
-  getLatestBinding(chatId?: string, reporterUsername?: string, projectKey?: string): TicketBinding | null {
+  getLatestBinding(
+    chatId?: string,
+    reporterUsername?: string,
+    projectKey?: string,
+  ): TicketBinding | null {
     let row: any;
     const prefix = projectKey ? `${projectKey.trim().toUpperCase()}-` : "";
     const byProject = prefix ? "AND substr(UPPER(identifier), 1, ?) = ?" : "";

@@ -11,7 +11,7 @@
  * This file imports from `../../src/intake` the same way a published consumer
  * imports from `@vuihoc/bot-core/intake`.
  */
-import { Database } from "bun:sqlite";
+import type { Database } from "bun:sqlite";
 import { makeOpenLazyDb } from "../../src/core/lazy-db";
 import {
   IntakeEngine,
@@ -32,7 +32,7 @@ import {
 } from "../../src/intake";
 import { createCatalog, type FieldCatalog } from "../../src/intake/gate";
 import type { UrgencyRules } from "../../src/intake/priority";
-import { ItsaplanClient } from "../../src/itsaplan";
+import type { ItsaplanClient } from "../../src/itsaplan";
 import { tieuLinhCopy } from "./copy";
 
 /**
@@ -50,8 +50,20 @@ export const tieuLinhCatalog: FieldCatalog = createCatalog({
         truong_mo_dau: "van_de",
         recap: ["van_de", "bo_phan"],
         truong: {
-          van_de: { bat_buoc: true, kieu: "text", duoc_hoi: true, nhan: "Vấn đề", hoi: "Anh/chị mô tả giúp em sự cố đang gặp với ạ." },
-          bo_phan: { bat_buoc: false, kieu: "text", duoc_hoi: true, nhan: "Bộ phận", hoi: "Anh/chị thuộc bộ phận nào ạ?" },
+          van_de: {
+            bat_buoc: true,
+            kieu: "text",
+            duoc_hoi: true,
+            nhan: "Vấn đề",
+            hoi: "Anh/chị mô tả giúp em sự cố đang gặp với ạ.",
+          },
+          bo_phan: {
+            bat_buoc: false,
+            kieu: "text",
+            duoc_hoi: true,
+            nhan: "Bộ phận",
+            hoi: "Anh/chị thuộc bộ phận nào ạ?",
+          },
         },
       },
     },
@@ -65,7 +77,13 @@ export const tieuLinhUrgency: UrgencyRules = {
     { when: { blocksPayment: true }, minLevel: "Urgent", reason: "Dòng tiền đang bị chặn." },
     { when: { scope: "entire_system" }, minLevel: "Urgent", reason: "Cả hệ thống." },
   ],
-  ceilings: [{ when: { singleDeviceOnly: true, hasWorkaround: true }, maxLevel: "Low", reason: "Một thiết bị, có cách đi vòng." }],
+  ceilings: [
+    {
+      when: { singleDeviceOnly: true, hasWorkaround: true },
+      maxLevel: "Low",
+      reason: "Một thiết bị, có cách đi vòng.",
+    },
+  ],
 };
 
 export interface TieuLinhWiring {
@@ -89,7 +107,12 @@ export function makeTieuLinhEngine(w: TieuLinhWiring): IntakeEngine {
   const bindings = new SqliteChannelBindingStore(db);
 
   const deps: IntakeEngineDeps = {
-    tracker: itsaplanTrackerPort({ client: w.client, projectKey: w.projectKey, baseUrl: w.baseUrl, webUrl: w.webUrl }),
+    tracker: itsaplanTrackerPort({
+      client: w.client,
+      projectKey: w.projectKey,
+      baseUrl: w.baseUrl,
+      webUrl: w.webUrl,
+    }),
     drafts,
     bindings,
     copy: makeCopyCatalog(tieuLinhCopy),

@@ -89,7 +89,10 @@ describe("splitDiagnosis", () => {
 
 describe("buildAdviceComment", () => {
   test("gộp nguyên nhân đã biết + gợi ý runbook thành một comment của bot", () => {
-    const body = buildAdviceComment("Triệu chứng khớp nhóm lịch sử", "- Kiểm tra dữ liệu BTVN buổi học");
+    const body = buildAdviceComment(
+      "Triệu chứng khớp nhóm lịch sử",
+      "- Kiểm tra dữ liệu BTVN buổi học",
+    );
     expect(body).toContain("Gợi ý chuyên môn");
     expect(body).toContain("Triệu chứng khớp nhóm lịch sử");
     expect(body).toContain("- Kiểm tra dữ liệu BTVN buổi học");
@@ -103,7 +106,9 @@ describe("buildAdviceComment", () => {
   test("trả null khi rỗng hoặc chỉ là câu 'không tìm thấy' — không tạo comment rác", () => {
     expect(buildAdviceComment(undefined, undefined)).toBeNull();
     expect(buildAdviceComment("", "")).toBeNull();
-    expect(buildAdviceComment(null, "- Chưa xác định được đây là lỗi đã biết trong tài liệu")).toBeNull();
+    expect(
+      buildAdviceComment(null, "- Chưa xác định được đây là lỗi đã biết trong tài liệu"),
+    ).toBeNull();
     expect(buildAdviceComment(null, "- Không trả về tài liệu nào")).toBeNull();
   });
 });
@@ -197,7 +202,12 @@ describe("formatTicketDescription — chặn định danh model tự bịa (TECH
 
   test("model/extractor bịa SĐT không ai cho thì không ghi lên ticket — dùng lại SĐT thật moi từ lời kể", () => {
     const description = formatTicketDescription({
-      incident: { ...incident, roomCode: undefined, rawText: reporterRawText, studentAccount: "0900000004" },
+      incident: {
+        ...incident,
+        roomCode: undefined,
+        rawText: reporterRawText,
+        studentAccount: "0900000004",
+      },
     });
 
     expect(description).not.toContain("0900000004");
@@ -207,7 +217,12 @@ describe("formatTicketDescription — chặn định danh model tự bịa (TECH
   test("không moi lại được số nào thật thì để trống, không để lại số bịa", () => {
     const description = formatTicketDescription({
       // Lời kể không chứa số điện thoại hợp lệ nào để moi lại.
-      incident: { ...incident, roomCode: undefined, rawText: "Đơn hàng bị lỗi, cần kiểm tra gấp", studentAccount: "0900000004" },
+      incident: {
+        ...incident,
+        roomCode: undefined,
+        rawText: "Đơn hàng bị lỗi, cần kiểm tra gấp",
+        studentAccount: "0900000004",
+      },
     });
 
     expect(description).not.toContain("0900000004");
@@ -216,7 +231,13 @@ describe("formatTicketDescription — chặn định danh model tự bịa (TECH
 
   test("mã khách hàng model bịa cũng bị bỏ (không phải SĐT nên không moi lại được)", () => {
     const description = formatTicketDescription({
-      incident: { ...incident, roomCode: undefined, rawText: reporterRawText, studentAccount: undefined, customerId: "KH-99999" },
+      incident: {
+        ...incident,
+        roomCode: undefined,
+        rawText: reporterRawText,
+        studentAccount: undefined,
+        customerId: "KH-99999",
+      },
     });
 
     expect(description).not.toContain("KH-99999");
@@ -225,7 +246,12 @@ describe("formatTicketDescription — chặn định danh model tự bịa (TECH
 
   test("SĐT người báo thật sự cho vẫn giữ nguyên — không chặn nhầm giá trị grounded", () => {
     const description = formatTicketDescription({
-      incident: { ...incident, roomCode: undefined, rawText: reporterRawText, studentAccount: "0900000003" },
+      incident: {
+        ...incident,
+        roomCode: undefined,
+        rawText: reporterRawText,
+        studentAccount: "0900000003",
+      },
     });
 
     expect(description).toContain("- Tài khoản HS / SĐT: 0900000003");
@@ -233,18 +259,33 @@ describe("formatTicketDescription — chặn định danh model tự bịa (TECH
 
   test("so khớp bất kể người báo gõ SĐT có khoảng trắng hoặc dấu chấm", () => {
     const withSpaces = formatTicketDescription({
-      incident: { ...incident, roomCode: undefined, rawText: "SĐT liên hệ 0900 000 003", studentAccount: "0900000003" },
+      incident: {
+        ...incident,
+        roomCode: undefined,
+        rawText: "SĐT liên hệ 0900 000 003",
+        studentAccount: "0900000003",
+      },
     });
     expect(withSpaces).toContain("- Tài khoản HS / SĐT: 0900000003");
 
     const withDots = formatTicketDescription({
-      incident: { ...incident, roomCode: undefined, rawText: "SĐT liên hệ 0900.000.003", studentAccount: "0900000003" },
+      incident: {
+        ...incident,
+        roomCode: undefined,
+        rawText: "SĐT liên hệ 0900.000.003",
+        studentAccount: "0900000003",
+      },
     });
     expect(withDots).toContain("- Tài khoản HS / SĐT: 0900000003");
 
     // Và ngược lại: model điền lại SĐT có khoảng trắng/dấu chấm nhưng người báo gõ liền — vẫn khớp.
     const modelWithDots = formatTicketDescription({
-      incident: { ...incident, roomCode: undefined, rawText: reporterRawText, studentAccount: "0900.000.003" },
+      incident: {
+        ...incident,
+        roomCode: undefined,
+        rawText: reporterRawText,
+        studentAccount: "0900.000.003",
+      },
     });
     expect(modelWithDots).toContain("- Tài khoản HS / SĐT: 0900.000.003");
   });
@@ -253,7 +294,12 @@ describe("formatTicketDescription — chặn định danh model tự bịa (TECH
     const message = formatConfirmationMessage({
       issueIdentifier: "TECH-928",
       issueUrl: "https://itsaplan.local/TECH-928",
-      incident: { ...incident, roomCode: undefined, rawText: reporterRawText, studentAccount: "0900000004" },
+      incident: {
+        ...incident,
+        roomCode: undefined,
+        rawText: reporterRawText,
+        studentAccount: "0900000004",
+      },
     });
 
     expect(message).not.toContain("0900000004");
@@ -351,9 +397,10 @@ describe("appendTicketUpdateDescription", () => {
 
   test("cleans up false customerId when note clarifies it is phone number", () => {
     const existing =
-      "## Thông tin sự cố\n\n- Mã khách hàng: 0900000020\n- Tài khoản HS / SĐT: 0900000020\n- Sản phẩm: Tutor\n\n<!-- vuihoc-meta: {\"customerId\":\"0900000020\",\"studentAccount\":\"0900000020\"} -->";
+      '## Thông tin sự cố\n\n- Mã khách hàng: 0900000020\n- Tài khoản HS / SĐT: 0900000020\n- Sản phẩm: Tutor\n\n<!-- vuihoc-meta: {"customerId":"0900000020","studentAccount":"0900000020"} -->';
     const description = appendTicketUpdateDescription(existing, {
-      additionalNotes: "Đính chính: 0900000020 là số điện thoại phụ huynh, không phải mã khách hàng",
+      additionalNotes:
+        "Đính chính: 0900000020 là số điện thoại phụ huynh, không phải mã khách hàng",
       studentAccount: "0900000020",
       timestamp: "2026-09-16 20:31",
     });

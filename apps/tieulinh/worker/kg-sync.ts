@@ -1,5 +1,5 @@
 import type { ItsaplanClient } from "../lib/itsaplan/client";
-import { MemgraphClient } from "../lib/kg/memgraph-client";
+import type { MemgraphClient } from "../lib/kg/memgraph-client";
 import { complete, extractJson, type LlmConfig } from "./llm";
 import { getLogger } from "../lib/logger";
 import type { TicketGraphNode, CauseTaxonEntry } from "../lib/kg/types";
@@ -133,9 +133,15 @@ export function extractRootCauseAndResolutionFromText(raw: string): KnowledgeSyn
   // Làm sạch markdown boilerplate: bỏ **đậm**, chữ ký đầu dòng, và cắt phần
   // "Cách khắc phục:..." lẫn vào chuỗi root cause (thuộc resolution chứ không RC).
   const stripMarkdown = (s: string) =>
-    s.replace(/\*\*/g, "").replace(/^[*\-•#]+\s*/gm, "").replace(/\s+/g, " ").trim();
+    s
+      .replace(/\*\*/g, "")
+      .replace(/^[*\-•#]+\s*/gm, "")
+      .replace(/\s+/g, " ")
+      .trim();
   const cutTrailingResolution = (s: string) => {
-    const cut = s.replace(/\s*(?:cách\s*khắc\s*phục|giải\s*pháp|hướng\s*dẫn)\s*[:\-–].*$/i, "").trim();
+    const cut = s
+      .replace(/\s*(?:cách\s*khắc\s*phục|giải\s*pháp|hướng\s*dẫn)\s*[:\-–].*$/i, "")
+      .trim();
     // Chỉ nhận kết quả cắt nếu không làm chuỗi rỗng (tránh cắt cả từ khoá đầu dòng)
     return cut.length >= Math.min(5, s.length) ? cut : s.trim();
   };
@@ -174,7 +180,9 @@ export async function synthesizeTicketKnowledge(
   // LLM lỗi/rỗng/sai schema — regex thô sẽ tạo ra tri thức giả (đã gây ra
   // 126+140 ticket fallback rác trong Knowledge Graph trước đây). Thà để
   // ticket này fail rõ ràng (và được backfill retry ở lần chạy sau) còn hơn.
-  const taxonomyList = CAUSE_TAXONOMY.map((t) => `- ${t.id}: ${t.label} — ${t.definition}`).join("\n");
+  const taxonomyList = CAUSE_TAXONOMY.map((t) => `- ${t.id}: ${t.label} — ${t.definition}`).join(
+    "\n",
+  );
   const systemPrompt = `Bạn là chuyên gia RCA. Đọc mô tả và nhật ký, trích xuất nguyên nhân cốt lõi và giải pháp cụ thể,
 đồng thời PHÂN LOẠI nguyên nhân vào ĐÚNG MỘT nhóm canonical dưới đây (chọn theo CƠ CHẾ lỗi kỹ thuật, không phải theo
 hệ thống/sản phẩm bề mặt). Nếu không khớp nhóm nào, dùng "OTHER_NEW_PATTERN".
@@ -204,10 +212,14 @@ Trả về ĐÚNG cấu trúc JSON (không kèm markdown):
   // huỷ cả kết quả rootCause/resolution đã trích xuất đúng — quy về
   // OTHER_NEW_PATTERN, một nhóm hợp lệ có ý nghĩa rõ ràng ("không khớp nhóm
   // nào"), không phải một giá trị bịa ra.
-  const rawTaxon = String(parsed.cause_taxon || "").trim().toUpperCase();
+  const rawTaxon = String(parsed.cause_taxon || "")
+    .trim()
+    .toUpperCase();
   const causeTaxon = CAUSE_TAXONOMY_IDS.has(rawTaxon) ? rawTaxon : OTHER_NEW_PATTERN;
   if (rawTaxon && rawTaxon !== causeTaxon) {
-    getLogger().warn(`[KgSync] cause_taxon lạ "${rawTaxon}" không có trong taxonomy, quy về ${OTHER_NEW_PATTERN}`);
+    getLogger().warn(
+      `[KgSync] cause_taxon lạ "${rawTaxon}" không có trong taxonomy, quy về ${OTHER_NEW_PATTERN}`,
+    );
   }
 
   return {
@@ -238,7 +250,9 @@ export async function classifySymptomTaxon(
   const text = `${title || ""} ${symptoms || ""}`.trim();
   if (text.length < 5) return undefined;
 
-  const taxonomyList = CAUSE_TAXONOMY.map((t) => `- ${t.id}: ${t.label} — ${t.definition}`).join("\n");
+  const taxonomyList = CAUSE_TAXONOMY.map((t) => `- ${t.id}: ${t.label} — ${t.definition}`).join(
+    "\n",
+  );
   const systemPrompt = `Bạn phân loại triệu chứng sự cố kỹ thuật MỚI (chưa rõ nguyên nhân) vào ĐÚNG MỘT nhóm
 canonical dưới đây — theo cơ chế lỗi có khả năng xảy ra nhất, không phải hệ thống/sản phẩm bề mặt. Đây chỉ
 là dự đoán sơ bộ để tìm sự cố tương tự, không phải kết luận cuối cùng. Nếu không đủ thông tin để đoán, dùng
@@ -252,18 +266,28 @@ Trả về ĐÚNG JSON (không kèm text khác): {"cause_taxon": "ID_NHOM"}`;
 
   try {
     const withTimeout = new Promise<string>((_, reject) => {
-      setTimeout(() => reject(new Error(`classifySymptomTaxon timeout sau ${timeoutMs}ms`)), timeoutMs);
+      setTimeout(
+        () => reject(new Error(`classifySymptomTaxon timeout sau ${timeoutMs}ms`)),
+        timeoutMs,
+      );
     });
-    const llmText = await Promise.race([complete(llmConfig, systemPrompt, userPrompt), withTimeout]);
+    const llmText = await Promise.race([
+      complete(llmConfig, systemPrompt, userPrompt),
+      withTimeout,
+    ]);
     const parsed = extractJson<{ cause_taxon?: string }>(llmText);
-    const raw = String(parsed?.cause_taxon || "").trim().toUpperCase();
+    const raw = String(parsed?.cause_taxon || "")
+      .trim()
+      .toUpperCase();
     // OTHER_NEW_PATTERN/INSUFFICIENT_INFO nghĩa là "không đoán được" — không
     // dùng làm điểm đối sánh, vì gom các sự cố "chưa rõ nguyên nhân" lại với
     // nhau không có ý nghĩa tương tự thật sự (khác với lúc lưu vào Graph ở
     // Done-sync, nơi đây là dữ kiện lịch sử đáng ghi nhận).
     return raw && !NON_MATCHABLE_TAXONS.has(raw) && CAUSE_TAXONOMY_IDS.has(raw) ? raw : undefined;
   } catch (err: any) {
-    getLogger().warn(`[KgSync] classifySymptomTaxon thất bại (best-effort, bỏ qua): ${err.message}`);
+    getLogger().warn(
+      `[KgSync] classifySymptomTaxon thất bại (best-effort, bỏ qua): ${err.message}`,
+    );
     return undefined;
   }
 }
@@ -306,14 +330,21 @@ const DEFAULT_DEDUPE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
  * LLM/graph — comment của bot (xác nhận đóng, thông báo nạp) không làm đổi
  * dấu, nên ticket Done được gọi 2–3 lần liên tiếp chỉ bị bóc một lần.
  */
-export function ticketContentFingerprint(issue: any, comments: string[], human?: unknown, similarContext?: unknown): string {
+export function ticketContentFingerprint(
+  issue: any,
+  comments: string[],
+  human?: unknown,
+  similarContext?: unknown,
+): string {
   const payload = JSON.stringify({
     human: human ?? null,
     title: issue.title ?? "",
     description: issue.description ?? "",
     priority: issue.priority ?? null,
     fields: (issue.fields ?? []).map((f: any) => [f.fieldId, f.value ?? null]),
-    links: (issue.links ?? []).map((l: any) => String(l.issue?.identifier ?? "").toUpperCase()).sort(),
+    links: (issue.links ?? [])
+      .map((l: any) => String(l.issue?.identifier ?? "").toUpperCase())
+      .sort(),
     comments,
     // description/humanNotes (lib/kg/similar-context.ts) là hàm THUẦN của
     // issue.description + timeline — về lý thuyết đã nằm trong payload trên
@@ -328,7 +359,10 @@ export function ticketContentFingerprint(issue: any, comments: string[], human?:
 
 // Tên nhãn theo dự án — để nhận ticket IT Support (id nhãn khác nhau giữa các dự án).
 const labelNameCache = new Map<string, { at: number; names: Map<number, string> }>();
-async function labelNames(client: ItsaplanClient, projectKey: string): Promise<Map<number, string>> {
+async function labelNames(
+  client: ItsaplanClient,
+  projectKey: string,
+): Promise<Map<number, string>> {
   const hit = labelNameCache.get(projectKey);
   if (hit && Date.now() - hit.at < 10 * 60 * 1000) return hit.names;
   const project = await client.getProject(projectKey);
@@ -350,7 +384,9 @@ export async function syncDoneTicketToKnowledgeGraph(
       return { success: false, error: `Issue #${issueId} không tồn tại` };
     }
     if (!identifierInProject(issue.identifier, options.projectKey)) {
-      getLogger().info(`[KgSync] Bỏ qua ${issue.identifier}: không thuộc dự án ${options.projectKey}.`);
+      getLogger().info(
+        `[KgSync] Bỏ qua ${issue.identifier}: không thuộc dự án ${options.projectKey}.`,
+      );
       return { success: true, skipped: true, reason: `không thuộc dự án ${options.projectKey}` };
     }
 
@@ -379,7 +415,9 @@ export async function syncDoneTicketToKnowledgeGraph(
     const previous = options.ledger?.get(issue.identifier);
     const windowMs = options.dedupeWindowMs ?? DEFAULT_DEDUPE_WINDOW_MS;
     if (previous && previous.fingerprint === fingerprint && now() - previous.syncedAt < windowMs) {
-      getLogger().info(`[KgSync] Bỏ qua ${issue.identifier}: đã nạp đúng nội dung này, không gọi LLM lại.`);
+      getLogger().info(
+        `[KgSync] Bỏ qua ${issue.identifier}: đã nạp đúng nội dung này, không gọi LLM lại.`,
+      );
       return { success: true, skipped: true, reason: "đã nạp, nội dung không đổi" };
     }
 
@@ -398,13 +436,22 @@ export async function syncDoneTicketToKnowledgeGraph(
       rootCause = redactIncidentPII(human.cause).trim();
       let llmResolution: string | undefined;
       try {
-        const k = await synthesizeTicketKnowledge(issue.title, cleanDescription, comments, llmConfig);
+        const k = await synthesizeTicketKnowledge(
+          issue.title,
+          cleanDescription,
+          comments,
+          llmConfig,
+        );
         causeTaxon = k.causeTaxon;
         llmResolution = k.resolution;
       } catch (err: any) {
-        getLogger().warn(`[KgSync] ${issue.identifier}: có comment ghim, bỏ qua lỗi LLM phân loại nhóm nguyên nhân: ${err.message}`);
+        getLogger().warn(
+          `[KgSync] ${issue.identifier}: có comment ghim, bỏ qua lỗi LLM phân loại nhóm nguyên nhân: ${err.message}`,
+        );
       }
-      resolution = human.fix ? redactIncidentPII(human.fix).trim() : (llmResolution ?? UNKNOWN_RESOLUTION);
+      resolution = human.fix
+        ? redactIncidentPII(human.fix).trim()
+        : (llmResolution ?? UNKNOWN_RESOLUTION);
     } else {
       ({ rootCause, resolution, causeTaxon } = await synthesizeTicketKnowledge(
         issue.title,
@@ -471,7 +518,9 @@ export async function syncDoneTicketToKnowledgeGraph(
     const ticketStatus: string = await (async () => {
       if (!options.columnStates || typeof issue.columnId !== "number") return "Done";
       if (!options.projectKey) return "Done";
-      const hit = await options.columnStates.stateOf(options.projectKey, issue.columnId).catch(() => null);
+      const hit = await options.columnStates
+        .stateOf(options.projectKey, issue.columnId)
+        .catch(() => null);
       if (!hit) return "Done";
       const cap = hit.state.charAt(0).toUpperCase() + hit.state.slice(1);
       return cap;
@@ -508,7 +557,8 @@ export async function syncDoneTicketToKnowledgeGraph(
       description: similarContext.description || undefined,
       humanNotes: similarContext.humanNotes || undefined,
       itSupport: await (async () => {
-        if (!issue.labelIds?.length || !selfProject || typeof client.getProject !== "function") return false;
+        if (!issue.labelIds?.length || !selfProject || typeof client.getProject !== "function")
+          return false;
         const names = await labelNames(client, selfProject).catch(() => new Map<number, string>());
         return issue.labelIds.some((id) => /it\s*support/i.test(names.get(id) ?? ""));
       })(),
@@ -518,13 +568,17 @@ export async function syncDoneTicketToKnowledgeGraph(
     // Cụm nguyên nhân là thuộc tính toàn KG — một link người gắn có thể gộp hai cụm.
     if (options.recomputeClusters !== false) {
       await memgraph.recomputeCauseClusters().catch((err: any) => {
-        getLogger().warn(`[KgSync] Tính lại cụm nguyên nhân lỗi (lần nạp sau sẽ tính lại): ${err?.message ?? err}`);
+        getLogger().warn(
+          `[KgSync] Tính lại cụm nguyên nhân lỗi (lần nạp sau sẽ tính lại): ${err?.message ?? err}`,
+        );
       });
     }
     // Chỉ ghi sổ sau khi Memgraph nhận — lỗi ở đâu thì lần sau còn thử lại.
     options.ledger?.record(issue.identifier, fingerprint, now());
 
-    getLogger().info(`[KgSync] Đã nạp thành công ticket ${issue.identifier} vào Memgraph Knowledge Graph.`);
+    getLogger().info(
+      `[KgSync] Đã nạp thành công ticket ${issue.identifier} vào Memgraph Knowledge Graph.`,
+    );
     return { success: true, node };
   } catch (err: any) {
     getLogger().error(`[KgSync] Lỗi syncDoneTicketToKnowledgeGraph: ${err.message}`);

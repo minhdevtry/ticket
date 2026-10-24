@@ -22,8 +22,10 @@ export class OnyxConnectorManager {
   constructor(baseUrl: string, apiKey: string, options?: OnyxConnectorManagerOptions) {
     this.baseUrl = baseUrl.replace(/\/+$/, "");
     this.apiKey = apiKey;
-    this.connectorName = options?.connectorName || process.env.ONYX_CONNECTOR_NAME || "FileConnector-IntakeTest-Done";
-    this.documentSetName = options?.documentSetName || process.env.ONYX_DOCUMENT_SET || "intake-test-done";
+    this.connectorName =
+      options?.connectorName || process.env.ONYX_CONNECTOR_NAME || "FileConnector-IntakeTest-Done";
+    this.documentSetName =
+      options?.documentSetName || process.env.ONYX_DOCUMENT_SET || "intake-test-done";
     // ONYX_CC_PAIR_ID trong .env chỉ được ngầm hiểu là cc-pair của document set
     // MẶC ĐỊNH ("intake-test-done") — nếu caller truyền connectorName/documentSetName
     // riêng (ví dụ tạo 1 connector khác hoàn toàn), TUYỆT ĐỐI không được kế thừa
@@ -116,7 +118,9 @@ export class OnyxConnectorManager {
     const ccPairId = typeof connBody === "number" ? connBody : connBody.data || connBody.id;
 
     if (!ccPairId) {
-      throw new Error(`Failed to retrieve CC-Pair ID from Onyx response: ${JSON.stringify(connBody)}`);
+      throw new Error(
+        `Failed to retrieve CC-Pair ID from Onyx response: ${JSON.stringify(connBody)}`,
+      );
     }
 
     // 3. Create Document Set
@@ -150,9 +154,12 @@ export class OnyxConnectorManager {
         const groups = (await groupRes.json()) as any[];
         const group8 = groups.find((g: any) => g.id === 8);
         if (group8) {
-          const existingCc = group8.cc_pairs?.map((c: any) => (typeof c === "object" ? c.id : c)) || [];
-          const existingDs = group8.document_sets?.map((d: any) => (typeof d === "object" ? d.id : d)) || [];
-          const existingUsers = group8.users?.map((u: any) => (typeof u === "object" ? u.id : u)) || [];
+          const existingCc =
+            group8.cc_pairs?.map((c: any) => (typeof c === "object" ? c.id : c)) || [];
+          const existingDs =
+            group8.document_sets?.map((d: any) => (typeof d === "object" ? d.id : d)) || [];
+          const existingUsers =
+            group8.users?.map((u: any) => (typeof u === "object" ? u.id : u)) || [];
 
           await fetch(`${this.baseUrl}/api/manage/admin/user-group/8`, {
             method: "PATCH",
@@ -173,7 +180,9 @@ export class OnyxConnectorManager {
     // 5. Update Persona 6 (Telegram TicketAgent Assistant) and Persona 8 (TEST KG Assistant)
     for (const personaId of [6, 8]) {
       try {
-        const pRes = await fetch(`${this.baseUrl}/api/persona/${personaId}`, { headers: this.headers });
+        const pRes = await fetch(`${this.baseUrl}/api/persona/${personaId}`, {
+          headers: this.headers,
+        });
         if (pRes.ok) {
           const persona = (await pRes.json()) as any;
           const existingDocsets = persona.document_sets?.map((d: any) => d.id) || [];
@@ -197,7 +206,10 @@ export class OnyxConnectorManager {
           });
         }
       } catch (e: any) {
-        getLogger().warn(`[OnyxConnectorManager] Warning updating Persona ${personaId}:`, e.message);
+        getLogger().warn(
+          `[OnyxConnectorManager] Warning updating Persona ${personaId}:`,
+          e.message,
+        );
       }
     }
 

@@ -34,7 +34,11 @@ export function tryResolveFriendlyStatusName(
   stateType?: string,
 ): string | null {
   const byName = (columnName || "").toLowerCase().trim();
-  if (byName.includes("resolved") || byName.includes("xử lý xong") || byName.includes("giải quyết")) {
+  if (
+    byName.includes("resolved") ||
+    byName.includes("xử lý xong") ||
+    byName.includes("giải quyết")
+  ) {
     return "Đã xử lý (chờ duyệt)";
   }
   if (byName.includes("done") || byName.includes("hoàn tất") || byName.includes("hoàn thành")) {
@@ -43,7 +47,11 @@ export function tryResolveFriendlyStatusName(
   if (byName.includes("progress") || byName.includes("đang xử lý")) {
     return "Đang xử lý";
   }
-  if (byName.includes("backlog") || byName.includes("mới tiếp nhận") || byName.includes("tiếp nhận")) {
+  if (
+    byName.includes("backlog") ||
+    byName.includes("mới tiếp nhận") ||
+    byName.includes("tiếp nhận")
+  ) {
     return "Mới tiếp nhận";
   }
   if (byName.includes("todo") || byName.includes("chờ xử lý") || byName.includes("chờ")) {

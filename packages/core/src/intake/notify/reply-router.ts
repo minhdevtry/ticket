@@ -53,7 +53,10 @@ export interface ReplyRouterOptions {
   channelType?: string;
 }
 
-const rawChat = (chatId: string | number) => String(chatId).replace(/^telegram:/i, "").trim();
+const rawChat = (chatId: string | number) =>
+  String(chatId)
+    .replace(/^telegram:/i, "")
+    .trim();
 
 export class ReplyRouter {
   private readonly projectKey: string | null;
@@ -86,7 +89,11 @@ export class ReplyRouter {
     const bare = rawChat(request.chatId);
     const route =
       this.o.routes.getMessageRoute(String(request.messageId), this.channelType, bare) ??
-      this.o.routes.getMessageRoute(String(request.messageId), this.channelType, `telegram:${bare}`);
+      this.o.routes.getMessageRoute(
+        String(request.messageId),
+        this.channelType,
+        `telegram:${bare}`,
+      );
     if (!route || !this.owns(route.identifier)) {
       return { handled: false };
     }

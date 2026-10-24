@@ -4,10 +4,7 @@
  * Bố cục mô tả và câu xác nhận giữ nguyên như bản đang chạy thật.
  */
 import { z } from "zod";
-import {
-  formatConfirmationMessage,
-  formatTicketDescription,
-} from "./domain/ticket-formatter";
+import { formatConfirmationMessage, formatTicketDescription } from "./domain/ticket-formatter";
 import type { IncidentDetails } from "./domain/types";
 import { getLogger } from "../../lib/logger";
 import { reporterShape, type IssueDomain } from "../shared/index";
@@ -42,7 +39,12 @@ export function getRecommendedSoftFields(
   const missing: string[] = [];
   const cat = (category || "").toLowerCase();
 
-  if (cat.includes("liveclass") || cat.includes("tutor") || cat.includes("gia sư") || cat.includes("classin")) {
+  if (
+    cat.includes("liveclass") ||
+    cat.includes("tutor") ||
+    cat.includes("gia sư") ||
+    cat.includes("classin")
+  ) {
     if (hasSpecificSubject && !current.studentAccount && !current.customerId && !current.roomCode) {
       missing.push("mã phòng học hoặc số điện thoại phụ huynh hoặc tài khoản học sinh");
     }
@@ -50,7 +52,12 @@ export function getRecommendedSoftFields(
     if (hasSpecificSubject && !current.studentAccount && !current.customerId) {
       missing.push("mã khách hàng hoặc số điện thoại phụ huynh");
     }
-  } else if (cat.includes("app") || cat.includes("duo") || cat.includes("pas") || cat.includes("tự học")) {
+  } else if (
+    cat.includes("app") ||
+    cat.includes("duo") ||
+    cat.includes("pas") ||
+    cat.includes("tự học")
+  ) {
     if (!current.device) {
       missing.push("loại thiết bị (Điện thoại/Máy tính bảng/PC/Laptop)");
     }
@@ -58,7 +65,12 @@ export function getRecommendedSoftFields(
     if (hasSpecificSubject && !current.studentAccount && !current.customerId) {
       missing.push("tài khoản người dùng gặp lỗi");
     }
-  } else if (hasSpecificSubject && !current.studentAccount && !current.customerId && !current.roomCode) {
+  } else if (
+    hasSpecificSubject &&
+    !current.studentAccount &&
+    !current.customerId &&
+    !current.roomCode
+  ) {
     missing.push("số điện thoại phụ huynh hoặc tài khoản học sinh");
   }
 
@@ -78,7 +90,7 @@ const inputShape = {
     .string()
     .optional()
     .describe(
-      "NGUYÊN VĂN lời người báo — đây chính là mục \"### Mô tả\" trên ticket. " +
+      'NGUYÊN VĂN lời người báo — đây chính là mục "### Mô tả" trên ticket. ' +
         "Chép lại y nguyên MỌI lượt tròi chuyện của sự cố này (từ lượt đầu tiên), " +
         "mỗi lượt một dòng, giữ nguyên thứ tự và cả chữ viết tắt. KHÔNG viết lại, KHÔNG tóm tắt, " +
         'KHÔNG thêm nhận định của bạn ("Cần đối chiếu…", "Có thể do…", "Hệ thống xác định…"). ' +
@@ -96,34 +108,63 @@ const inputShape = {
   product: z
     .string()
     .optional()
-    .describe("Sản phẩm chuẩn (Tự học, Duo, Pas, Tutor, Exam, VNESchool, K12 Viettel, Smart Media, Khác)"),
+    .describe(
+      "Sản phẩm chuẩn (Tự học, Duo, Pas, Tutor, Exam, VNESchool, K12 Viettel, Smart Media, Khác)",
+    ),
   system: z
     .string()
     .optional()
-    .describe("Hệ thống chuẩn (Vuihoc (App/Web_Vuihoc + ERP_DUO), CRM_Vuihoc, LMS_Vuihoc, TUTOR_Vuihoc (ERP/APP/WEB_Gia sư), Thi thử ĐGNL, ClassIn, CARE_Vuihoc, Bitu Chat, OMS_Vuihoc, Bizfly_Vuihoc, K12 Viettel, VNESCHOOL, Khác (liên quan bên IT))"),
+    .describe(
+      "Hệ thống chuẩn (Vuihoc (App/Web_Vuihoc + ERP_DUO), CRM_Vuihoc, LMS_Vuihoc, TUTOR_Vuihoc (ERP/APP/WEB_Gia sư), Thi thử ĐGNL, ClassIn, CARE_Vuihoc, Bitu Chat, OMS_Vuihoc, Bizfly_Vuihoc, K12 Viettel, VNESCHOOL, Khác (liên quan bên IT))",
+    ),
   errorCategory: z
     .string()
     .optional()
-    .describe("Phân loại lỗi chuẩn (Lỗi hệ thống, Lỗi kỹ thuật, Lỗi dữ liệu, Lỗi bên thứ 3, Lỗi chưa xác định, Hỗ trợ, Khác, Lỗi cấu hình máy, Cải tiến sản phẩm, ND bị nhầm hoặc hiểu sai, Lỗi nhập liệu)"),
-  category: z.string().optional().describe("Phân loại hệ thống (tương thích ngược: LiveClass, CRM, LMS, Duo...)"),
+    .describe(
+      "Phân loại lỗi chuẩn (Lỗi hệ thống, Lỗi kỹ thuật, Lỗi dữ liệu, Lỗi bên thứ 3, Lỗi chưa xác định, Hỗ trợ, Khác, Lỗi cấu hình máy, Cải tiến sản phẩm, ND bị nhầm hoặc hiểu sai, Lỗi nhập liệu)",
+    ),
+  category: z
+    .string()
+    .optional()
+    .describe("Phân loại hệ thống (tương thích ngược: LiveClass, CRM, LMS, Duo...)"),
   // KHÔNG dùng `.default()`: zod chèn giá trị mặc định vào `input` kể cả khi
   // model không gửi, và ở lượt xác nhận cái mặc định đó đè lên bản nháp
   // (xem `mergeOverDraft` trong create-issue.ts). Mặc định đặt ở `build`.
-  priority: z.enum(["low", "medium", "high", "urgent"]).optional().describe("Độ ưu tiên (mặc định medium)"),
+  priority: z
+    .enum(["low", "medium", "high", "urgent"])
+    .optional()
+    .describe("Độ ưu tiên (mặc định medium)"),
   roomId: z.string().optional().describe("Mã phòng học, ví dụ ROOM-5511"),
   studentId: z.string().optional().describe("Mã học sinh hoặc SĐT phụ huynh"),
   customerId: z.string().optional().describe("Mã khách hàng hoặc SĐT phụ huynh"),
-  device: z.string().optional().describe("Thiết bị sử dụng (Điện thoại, Máy tính bảng, PC, Laptop, iPad...)"),
-  deviceOs: z.string().optional().describe("Hệ điều hành (iOS, Android, iPadOS, Windows, macOS...)"),
+  device: z
+    .string()
+    .optional()
+    .describe("Thiết bị sử dụng (Điện thoại, Máy tính bảng, PC, Laptop, iPad...)"),
+  deviceOs: z
+    .string()
+    .optional()
+    .describe("Hệ điều hành (iOS, Android, iPadOS, Windows, macOS...)"),
   appVersion: z.string().optional().describe("Phiên bản app"),
-  reportingDept: z.string().optional().describe("Bộ phận của người báo (Vận hành, Vận đơn, CSKH, CSHV, Chuyên môn, Sale, Quản lý lớp)"),
+  reportingDept: z
+    .string()
+    .optional()
+    .describe(
+      "Bộ phận của người báo (Vận hành, Vận đơn, CSKH, CSHV, Chuyên môn, Sale, Quản lý lớp)",
+    ),
   symptoms: z.array(z.string()).optional().describe("Triệu chứng quan sát được"),
-  mediaPaths: z.array(z.string()).optional().describe("Danh sách đường dẫn ảnh chụp màn hình cần đính kèm ticket"),
-  diagnosis: z.string().optional().describe(
-    "Chẩn đoán nguyên nhân sơ bộ và gợi ý xử lý từ kiến thức kỹ thuật và runbook Onyx. " +
-      "CHỈ nội dung kỹ thuật — TUYỆT ĐỐI KHÔNG nhét SĐT/mã khách hàng/mã học sinh vào đây, " +
-      "dùng đúng `customerId`/`studentId` cho các thông tin đó.",
-  ),
+  mediaPaths: z
+    .array(z.string())
+    .optional()
+    .describe("Danh sách đường dẫn ảnh chụp màn hình cần đính kèm ticket"),
+  diagnosis: z
+    .string()
+    .optional()
+    .describe(
+      "Chẩn đoán nguyên nhân sơ bộ và gợi ý xử lý từ kiến thức kỹ thuật và runbook Onyx. " +
+        "CHỈ nội dung kỹ thuật — TUYỆT ĐỐI KHÔNG nhét SĐT/mã khách hàng/mã học sinh vào đây, " +
+        "dùng đúng `customerId`/`studentId` cho các thông tin đó.",
+    ),
 };
 
 const VIETNAMESE_PHONE = /^(?:\+84|0)[35789]\d{8}$/;
@@ -148,7 +189,10 @@ export const ticketDomain: IssueDomain<typeof inputShape> = {
     // nó ra (TECH-1084), các từ khoá "trùng tài khoản", "crm", "lên đơn" nằm ở
     // tin nguyên văn chứ không còn ở `description` mà model viết tóm. Bỏ nó thì
     // ticket rơi về "Khác" và mất nhãn phân loại lỗi.
-    const heuristicText = [input.title, input.rawText, input.description].filter(Boolean).join(" ").toLowerCase();
+    const heuristicText = [input.title, input.rawText, input.description]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
 
     // Nếu customerId là định dạng SĐT Việt Nam, chuyển hẳn sang studentId (SĐT), tuyệt đối không để làm Mã khách hàng
     if (customerId && isPhoneNumber(customerId)) {
@@ -173,17 +217,21 @@ export const ticketDomain: IssueDomain<typeof inputShape> = {
       const catLower = input.category.toLowerCase();
       if (catLower.includes("crm")) system = "CRM_Vuihoc";
       else if (catLower.includes("lms")) system = "LMS_Vuihoc";
-      else if (catLower.includes("liveclass") || catLower.includes("tutor")) system = "TUTOR_Vuihoc (ERP/APP/WEB_Gia sư)";
+      else if (catLower.includes("liveclass") || catLower.includes("tutor"))
+        system = "TUTOR_Vuihoc (ERP/APP/WEB_Gia sư)";
       else if (catLower.includes("duo")) system = "Vuihoc (App/Web_Vuihoc + ERP_DUO)";
       else system = input.category;
     }
 
     if (!system) {
       const text = heuristicText;
-      if (text.includes("crm") || text.includes("lên đơn") || text.includes("hóa đơn")) system = "CRM_Vuihoc";
+      if (text.includes("crm") || text.includes("lên đơn") || text.includes("hóa đơn"))
+        system = "CRM_Vuihoc";
       else if (text.includes("lms")) system = "LMS_Vuihoc";
-      else if (text.includes("liveclass") || text.includes("phòng học") || text.includes("gia sư")) system = "TUTOR_Vuihoc (ERP/APP/WEB_Gia sư)";
-      else if (text.includes("duo") || text.includes("app")) system = "Vuihoc (App/Web_Vuihoc + ERP_DUO)";
+      else if (text.includes("liveclass") || text.includes("phòng học") || text.includes("gia sư"))
+        system = "TUTOR_Vuihoc (ERP/APP/WEB_Gia sư)";
+      else if (text.includes("duo") || text.includes("app"))
+        system = "Vuihoc (App/Web_Vuihoc + ERP_DUO)";
       else system = "Khác (liên quan bên IT)";
     }
 
@@ -196,11 +244,32 @@ export const ticketDomain: IssueDomain<typeof inputShape> = {
 
     if (!errorCategory) {
       const text = heuristicText;
-      if (text.includes("trùng") || text.includes("dữ liệu") || text.includes("data") || text.includes("lên đơn") || text.includes("tài khoản học")) {
+      if (
+        text.includes("trùng") ||
+        text.includes("dữ liệu") ||
+        text.includes("data") ||
+        text.includes("lên đơn") ||
+        text.includes("tài khoản học")
+      ) {
         errorCategory = "Lỗi dữ liệu";
-      } else if (text.includes("502") || text.includes("500") || text.includes("504") || text.includes("sập") || text.includes("server") || text.includes("quá tải") || text.includes("hệ thống")) {
+      } else if (
+        text.includes("502") ||
+        text.includes("500") ||
+        text.includes("504") ||
+        text.includes("sập") ||
+        text.includes("server") ||
+        text.includes("quá tải") ||
+        text.includes("hệ thống")
+      ) {
         errorCategory = "Lỗi hệ thống";
-      } else if (text.includes("loa") || text.includes("mic") || text.includes("âm thanh") || text.includes("camera") || text.includes("hình ảnh") || text.includes("kỹ thuật")) {
+      } else if (
+        text.includes("loa") ||
+        text.includes("mic") ||
+        text.includes("âm thanh") ||
+        text.includes("camera") ||
+        text.includes("hình ảnh") ||
+        text.includes("kỹ thuật")
+      ) {
         errorCategory = "Lỗi kỹ thuật";
       } else {
         errorCategory = "Khác";
@@ -219,9 +288,15 @@ export const ticketDomain: IssueDomain<typeof inputShape> = {
         diagnosis = diagnosis
           // Nhãn liền số trước — đo được để trần trong câu (không xuống dòng
           // riêng) thì nhánh dưới đây (neo đầu/cuối dòng) bỏ sót, để lại "…: ."
-          .replace(/(?:Số điện thoại(?: liên hệ)?|SĐT|Điện thoại)\s*[:：]\s*(?:0\d{9,10}|\d{9,11})\.?/gi, "")
+          .replace(
+            /(?:Số điện thoại(?: liên hệ)?|SĐT|Điện thoại)\s*[:：]\s*(?:0\d{9,10}|\d{9,11})\.?/gi,
+            "",
+          )
           .replace(PHONE_OR_ACCOUNT, "")
-          .replace(/(?:^|\n)[-*•]?\s*(?:Số điện thoại(?: liên hệ)?|SĐT|Điện thoại)\s*[:：]?\s*[.,]?\s*(?=\n|$)/gi, "")
+          .replace(
+            /(?:^|\n)[-*•]?\s*(?:Số điện thoại(?: liên hệ)?|SĐT|Điện thoại)\s*[:：]?\s*[.,]?\s*(?=\n|$)/gi,
+            "",
+          )
           .replace(/[ \t]{2,}/g, " ")
           .replace(/\s+([.,])/g, "$1")
           .replace(/\.\s*\.+/g, ".")
@@ -275,9 +350,10 @@ export const ticketDomain: IssueDomain<typeof inputShape> = {
       input.hasSpecificSubject,
     );
 
-    const displayName = input.reporterNameCode && input.reporterName
-      ? `${input.reporterName} (${input.reporterNameCode})`
-      : (input.reporterName || input.reporterNameCode);
+    const displayName =
+      input.reporterNameCode && input.reporterName
+        ? `${input.reporterName} (${input.reporterNameCode})`
+        : input.reporterName || input.reporterNameCode;
 
     return {
       title: incident.title,
@@ -288,7 +364,6 @@ export const ticketDomain: IssueDomain<typeof inputShape> = {
           username: input.reporterUsername,
           telegramId: input.telegramUserId || input.reporterChatId,
         },
-
       }),
       priority: incident.priority,
       errorCategory,
@@ -306,4 +381,3 @@ export const ticketDomain: IssueDomain<typeof inputShape> = {
     };
   },
 };
-

@@ -1,4 +1,12 @@
-import { readFileSync, writeFileSync, mkdirSync, statSync, realpathSync, existsSync, readdirSync } from "node:fs";
+import {
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  statSync,
+  realpathSync,
+  existsSync,
+  readdirSync,
+} from "node:fs";
 import { join, resolve, relative, isAbsolute, basename, extname } from "node:path";
 import { homedir } from "node:os";
 import { createHash } from "node:crypto";
@@ -152,7 +160,12 @@ export function findRecentInboundMedia(maxAgeMinutes: number = 10, limit: number
             const subFull = join(full, sub);
             const subSt = statSync(subFull);
             if (subSt.isFile() && subSt.size > 0 && now - subSt.mtimeMs < maxAgeMs) {
-              candidates.push({ full: subFull, mtime: subSt.mtimeMs, isFile: true, size: subSt.size });
+              candidates.push({
+                full: subFull,
+                mtime: subSt.mtimeMs,
+                isFile: true,
+                size: subSt.size,
+              });
             }
           }
         }
@@ -204,18 +217,27 @@ export async function resolveMediaFilePath(ref: string): Promise<string | null> 
   // 2. URI schemes: media://inbound/... or inbound/... or bare filename (with optional input- prefix)
   if (s.startsWith("media://inbound/")) {
     const rel = s.replace(/^media:\/\/inbound\//, "");
-    for (const cand of [join(inboundDir, rel), join(inboundDir, basename(rel).replace(/^input-/, ""))]) {
+    for (const cand of [
+      join(inboundDir, rel),
+      join(inboundDir, basename(rel).replace(/^input-/, "")),
+    ]) {
       if (existsSync(cand) && statSync(cand).isFile()) return cand;
     }
   }
   if (s.startsWith("inbound/")) {
     const rel = s.replace(/^inbound\//, "");
-    for (const cand of [join(inboundDir, rel), join(inboundDir, basename(rel).replace(/^input-/, ""))]) {
+    for (const cand of [
+      join(inboundDir, rel),
+      join(inboundDir, basename(rel).replace(/^input-/, "")),
+    ]) {
       if (existsSync(cand) && statSync(cand).isFile()) return cand;
     }
   }
   if (!isAbsolute(s)) {
-    for (const cand of [join(inboundDir, s), join(inboundDir, basename(s).replace(/^input-/, ""))]) {
+    for (const cand of [
+      join(inboundDir, s),
+      join(inboundDir, basename(s).replace(/^input-/, "")),
+    ]) {
       if (existsSync(cand) && statSync(cand).isFile()) return cand;
     }
   }
@@ -277,4 +299,3 @@ export async function resolveMediaFilePath(ref: string): Promise<string | null> 
 
   return null;
 }
-

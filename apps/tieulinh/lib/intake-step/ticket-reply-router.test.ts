@@ -13,7 +13,14 @@ import {
   type ReplyCandidate,
 } from "./ticket-reply-router";
 const llm = { baseUrl: "", apiKey: "", model: "m" };
-const cand = { identifier: "TECH-795", issueId: 1, title: "Khoá gia hạn sai hạn", techQuestion: "đơn hàng nào sai?", ownTicket: true, mentioned: false };
+const cand = {
+  identifier: "TECH-795",
+  issueId: 1,
+  title: "Khoá gia hạn sai hạn",
+  techQuestion: "đơn hàng nào sai?",
+  ownTicket: true,
+  mentioned: false,
+};
 const DESC = `## Thông tin sự cố
 
 - Người báo: A - telegram:1
@@ -32,14 +39,20 @@ const DESC = `## Thông tin sự cố
 describe("mentionedIdentifiers", () => {
   it("nhận các cách viết mã ticket", () => {
     expect(mentionedIdentifiers("TECH-795 cập nhật", "TECH")).toEqual(["TECH-795"]);
-    expect(mentionedIdentifiers("Ticket tech 722 đã ổn, tech722 nữa", "TECH")).toEqual(["TECH-722"]);
+    expect(mentionedIdentifiers("Ticket tech 722 đã ổn, tech722 nữa", "TECH")).toEqual([
+      "TECH-722",
+    ]);
     expect(mentionedIdentifiers("mã đơn DH900002", "TECH")).toEqual([]);
   });
 });
 
 describe("LlmTicketCommandInterpreter", () => {
   const run = (raw: string, candidates: any[] = [cand]) =>
-    new LlmTicketCommandInterpreter(llm, async () => raw).interpret({ message: "Đơn hàng gia hạn ạ", attachments: 0, candidates });
+    new LlmTicketCommandInterpreter(llm, async () => raw).interpret({
+      message: "Đơn hàng gia hạn ạ",
+      attachments: 0,
+      candidates,
+    });
 
   it("append / edit / lookup chỉ nhận mã trong ứng viên; câu kỹ thuật hỏi vào prompt", async () => {
     let user = "";
@@ -47,34 +60,54 @@ describe("LlmTicketCommandInterpreter", () => {
       user = u;
       return '{"action":"append","ticket":"tech-795","content":"Đơn hàng gia hạn ạ"}';
     });
-    expect(await c.interpret({ message: "Đơn hàng gia hạn ạ", attachments: 0, candidates: [cand] })).toEqual({
+    expect(
+      await c.interpret({ message: "Đơn hàng gia hạn ạ", attachments: 0, candidates: [cand] }),
+    ).toEqual({
       action: "append",
       identifier: "TECH-795",
       content: "Đơn hàng gia hạn ạ",
     });
     expect(user).toContain("đơn hàng nào sai?");
-    expect(await run('{"action":"edit","ticket":"TECH-795","instruction":"SĐT thành 0393"}')).toEqual({ action: "edit", identifier: "TECH-795", instruction: "SĐT thành 0393" });
-    expect(await run('{"action":"lookup","ticket":"TECH-795"}')).toEqual({ action: "lookup", identifier: "TECH-795" });
+    expect(
+      await run('{"action":"edit","ticket":"TECH-795","instruction":"SĐT thành 0393"}'),
+    ).toEqual({ action: "edit", identifier: "TECH-795", instruction: "SĐT thành 0393" });
+    expect(await run('{"action":"lookup","ticket":"TECH-795"}')).toEqual({
+      action: "lookup",
+      identifier: "TECH-795",
+    });
     expect(await run('{"action":"append","ticket":"TECH-1"}')).toEqual({ action: "unclear" });
     expect(await run('{"action":"new"}')).toEqual({ action: "new" });
     expect(await run("???")).toEqual({ action: "unclear" });
   });
 
   it("move_created cần ticket vừa tạo làm nguồn", async () => {
-    const created = { identifier: "TECH-975", issueId: 2, ownTicket: true, mentioned: false, justCreated: true };
-    expect(await run('{"action":"move_created","ticket":"TECH-795","from":"TECH-975"}', [cand, created])).toEqual({
+    const created = {
+      identifier: "TECH-975",
+      issueId: 2,
+      ownTicket: true,
+      mentioned: false,
+      justCreated: true,
+    };
+    expect(
+      await run('{"action":"move_created","ticket":"TECH-795","from":"TECH-975"}', [cand, created]),
+    ).toEqual({
       action: "move_created",
       from: "TECH-975",
       identifier: "TECH-795",
     });
-    expect(await run('{"action":"move_created","ticket":"TECH-795","from":"TECH-975"}', [cand])).toEqual({ action: "unclear" });
+    expect(
+      await run('{"action":"move_created","ticket":"TECH-795","from":"TECH-975"}', [cand]),
+    ).toEqual({ action: "unclear" });
   });
 });
 
 describe("sửa ticket", () => {
   it("planEdit lọc thao tác hợp lệ", async () => {
-    const ops = await planEdit(llm, { title: "t", description: DESC, instruction: "x" }, async () =>
-      '{"ops":[{"type":"field","label":"Tài khoản HS / SĐT","value":"0900000015"},{"type":"bogus"},{"type":"title","value":" "}]}',
+    const ops = await planEdit(
+      llm,
+      { title: "t", description: DESC, instruction: "x" },
+      async () =>
+        '{"ops":[{"type":"field","label":"Tài khoản HS / SĐT","value":"0900000015"},{"type":"bogus"},{"type":"title","value":" "}]}',
     );
     expect(ops).toEqual([{ type: "field", label: "Tài khoản HS / SĐT", value: "0900000015" }]);
   });
@@ -92,7 +125,12 @@ describe("sửa ticket", () => {
     expect(r.description).toContain("- Bộ phận: CSKH\n- Mã khách hàng: 90000006\n\n### Mô tả");
     expect(r.description).toContain("> Khoá gia hạn DH900002 sai hạn");
     expect(r.rejected).toHaveLength(1);
-    expect(r.changes.map((c) => c.what)).toEqual(["Tài khoản HS / SĐT", "Mã khách hàng", "Mô tả", "Tiêu đề"]);
+    expect(r.changes.map((c) => c.what)).toEqual([
+      "Tài khoản HS / SĐT",
+      "Mã khách hàng",
+      "Mô tả",
+      "Tiêu đề",
+    ]);
   });
 
   it("descriptionBody lấy phần Mô tả và ảnh", () => {
@@ -208,17 +246,49 @@ describe("nhận diện hủy / đóng ticket (ADR-0006 cập nhật 2026-10-10;
   });
 
   it("LlmTicketCommandInterpreter định tuyến tất định sang cancel_or_close kể cả khi LLM trả edit / unclear", async () => {
-    const cand951: ReplyCandidate = { identifier: "TECH-951", issueId: 824, ownTicket: true, mentioned: true };
-    const cand999: ReplyCandidate = { identifier: "TECH-999", issueId: 872, ownTicket: true, mentioned: true };
-    const cand1126: ReplyCandidate = { identifier: "TECH-1126", issueId: 1009, ownTicket: true, mentioned: true };
-    const cand1162: ReplyCandidate = { identifier: "TECH-1162", issueId: 1048, ownTicket: true, mentioned: false, recentlyRelayed: true };
-    const cand509: ReplyCandidate = { identifier: "TECH-509", issueId: 509, ownTicket: true, mentioned: true };
+    const cand951: ReplyCandidate = {
+      identifier: "TECH-951",
+      issueId: 824,
+      ownTicket: true,
+      mentioned: true,
+    };
+    const cand999: ReplyCandidate = {
+      identifier: "TECH-999",
+      issueId: 872,
+      ownTicket: true,
+      mentioned: true,
+    };
+    const cand1126: ReplyCandidate = {
+      identifier: "TECH-1126",
+      issueId: 1009,
+      ownTicket: true,
+      mentioned: true,
+    };
+    const cand1162: ReplyCandidate = {
+      identifier: "TECH-1162",
+      issueId: 1048,
+      ownTicket: true,
+      mentioned: false,
+      recentlyRelayed: true,
+    };
+    const cand509: ReplyCandidate = {
+      identifier: "TECH-509",
+      issueId: 509,
+      ownTicket: true,
+      mentioned: true,
+    };
 
     const misclassifiedEdit = new LlmTicketCommandInterpreter(
       llm,
       async () => '{"action":"edit","ticket":"TECH-951","instruction":"Hủy TECH-951"}',
     );
-    expect(await misclassifiedEdit.interpret({ message: "Hủy TECH-951", attachments: 0, candidates: [cand951] })).toEqual({
+    expect(
+      await misclassifiedEdit.interpret({
+        message: "Hủy TECH-951",
+        attachments: 0,
+        candidates: [cand951],
+      }),
+    ).toEqual({
       action: "cancel_or_close",
       identifier: "TECH-951",
       content: "Hủy TECH-951",
@@ -237,7 +307,10 @@ describe("nhận diện hủy / đóng ticket (ADR-0006 cập nhật 2026-10-10;
       intent: "cancel",
     });
 
-    const misclassifiedUnclear = new LlmTicketCommandInterpreter(llm, async () => '{"action":"unclear"}');
+    const misclassifiedUnclear = new LlmTicketCommandInterpreter(
+      llm,
+      async () => '{"action":"unclear"}',
+    );
     expect(
       await misclassifiedUnclear.interpret({
         message: "Đóng ticket TECH-999",
@@ -291,7 +364,8 @@ describe("nhận diện hủy / đóng ticket (ADR-0006 cập nhật 2026-10-10;
     // Câu sửa mô tả thật vẫn là edit; câu mơ hồ vẫn là unclear.
     const editInterp = new LlmTicketCommandInterpreter(
       llm,
-      async () => '{"action":"edit","ticket":"TECH-795","instruction":"sửa mô tả thành học sinh không mở được bài"}',
+      async () =>
+        '{"action":"edit","ticket":"TECH-795","instruction":"sửa mô tả thành học sinh không mở được bài"}',
     );
     expect(
       await editInterp.interpret({
@@ -325,7 +399,8 @@ describe("nhận diện hủy / đóng ticket (ADR-0006 cập nhật 2026-10-10;
     ).toEqual({ action: "unclear" });
     const appendInterp = new LlmTicketCommandInterpreter(
       llm,
-      async () => '{"action":"append","ticket":"TECH-951","content":"khi bấm đóng cửa sổ thì bị đóng băng"}',
+      async () =>
+        '{"action":"append","ticket":"TECH-951","content":"khi bấm đóng cửa sổ thì bị đóng băng"}',
     );
     expect(
       await appendInterp.interpret({
@@ -343,12 +418,32 @@ describe("nhận diện hủy / đóng ticket (ADR-0006 cập nhật 2026-10-10;
   it("countSpecialistTimelineComments chỉ đếm bình luận của chuyên viên TECH, loại bỏ bot và người báo", () => {
     expect(MIN_SPECIALIST_COMMENTS_FOR_DONE).toBe(3);
     const timeline = [
-      { kind: "comment", actorUserId: "u-techlead-a", actorName: "TechLead_A", body: "@tieulinh Bạn gửi thêm danh sách lớp nhé" },
-      { kind: "comment", actorUserId: "u-bot", actorName: "Tiểu Linh", body: "**SA_User*** bổ sung:\ndanh sách lớp\n\n<!-- intake-bot -->" },
-      { kind: "comment", actorUserId: "u-bot2", actorName: "VUIHOC Tiểu Linh", body: "Thông báo tự động" },
+      {
+        kind: "comment",
+        actorUserId: "u-techlead-a",
+        actorName: "TechLead_A",
+        body: "@tieulinh Bạn gửi thêm danh sách lớp nhé",
+      },
+      {
+        kind: "comment",
+        actorUserId: "u-bot",
+        actorName: "Tiểu Linh",
+        body: "**SA_User*** bổ sung:\ndanh sách lớp\n\n<!-- intake-bot -->",
+      },
+      {
+        kind: "comment",
+        actorUserId: "u-bot2",
+        actorName: "VUIHOC Tiểu Linh",
+        body: "Thông báo tự động",
+      },
       { kind: "comment", actorUserId: "u-admin", actorName: "admin", body: "script cập nhật" },
       { kind: "comment", actorUserId: "u-rep", actorName: "SA_User***", body: "Em gửi thêm" },
-      { kind: "comment", actorUserId: "u-techlead-a", actorName: "TechLead_A", body: "@techuser_i Kiểm tra lại DB" },
+      {
+        kind: "comment",
+        actorUserId: "u-techlead-a",
+        actorName: "TechLead_A",
+        body: "@techuser_i Kiểm tra lại DB",
+      },
       { kind: "comment", actorUserId: "u-loc", actorName: "TechUser_I", body: "Đã đồng bộ xong" },
       { kind: "activity", actorName: "TechLead_A", body: "status changed" },
     ];
@@ -359,14 +454,24 @@ describe("nhận diện hủy / đóng ticket (ADR-0006 cập nhật 2026-10-10;
           { userId: "u-techlead-a", name: "TechLead_A", username: "techlead_a", kind: "member" },
           { userId: "u-loc", name: "TechUser_I", username: "techuser_i", kind: "member" },
           { userId: "u-bot", name: "Tiểu Linh", username: "tieulinh", kind: "agent" },
-          { userId: "u-bot2", name: "VUIHOC Tiểu Linh", username: "bot-ticket-intake", kind: "member" },
+          {
+            userId: "u-bot2",
+            name: "VUIHOC Tiểu Linh",
+            username: "bot-ticket-intake",
+            kind: "member",
+          },
         ],
       }),
     ).toBe(3);
   });
 
   it("bóc vỏ câu lệnh bổ sung / đính kèm trần (TECH-1218: 'update vào tick TECH-1218') để không ghi câu lệnh thành comment", async () => {
-    const cand1218: ReplyCandidate = { identifier: "TECH-1218", issueId: 1107, ownTicket: true, mentioned: true };
+    const cand1218: ReplyCandidate = {
+      identifier: "TECH-1218",
+      issueId: 1107,
+      ownTicket: true,
+      mentioned: true,
+    };
     for (const bareCmd of [
       "update vào tick TECH-1218",
       "update TECH-1218",
@@ -376,9 +481,14 @@ describe("nhận diện hủy / đóng ticket (ADR-0006 cập nhật 2026-10-10;
       "TECH-1218 bổ sung ạ",
       "ảnh bổ sung cho ticket TECH-1218",
     ]) {
-      expect(stripSupplementCommandWrapper(bareCmd)).toEqual({ isSupplementCommand: true, content: "" });
+      expect(stripSupplementCommandWrapper(bareCmd)).toEqual({
+        isSupplementCommand: true,
+        content: "",
+      });
     }
-    expect(stripSupplementCommandWrapper("update vào tick TECH-1218: học sinh bị chặn Vuihoc.vn")).toEqual({
+    expect(
+      stripSupplementCommandWrapper("update vào tick TECH-1218: học sinh bị chặn Vuihoc.vn"),
+    ).toEqual({
       isSupplementCommand: true,
       content: "học sinh bị chặn Vuihoc.vn",
     });

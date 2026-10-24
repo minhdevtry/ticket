@@ -26,7 +26,9 @@ try {
   process.exit(1);
 }
 if (!config.apiKey) {
-  getLogger().warn("[kg-http] Đang chạy KHÔNG xác thực (KG_MCP_ALLOW_NO_AUTH=1) — chỉ dùng cho dev cục bộ.");
+  getLogger().warn(
+    "[kg-http] Đang chạy KHÔNG xác thực (KG_MCP_ALLOW_NO_AUTH=1) — chỉ dùng cho dev cục bộ.",
+  );
 }
 
 // Tạo tool 1 LẦN DUY NHẤT (không phải trong makeServer) — bên trong nó tự giữ

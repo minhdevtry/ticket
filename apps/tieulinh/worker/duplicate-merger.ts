@@ -24,7 +24,12 @@ import type { TicketBindingRepository } from "../lib/storage/binding-repository"
 import { findIssueByIdentifier } from "../lib/itsaplan/project";
 import { isSystemActor } from "../lib/kg/human-signals";
 import { symptomsOfDescription } from "../lib/kg/similar-finder";
-import { markBotComment, isBotComment, formatIctTimestamp, stripCommentHtml } from "../lib/formatting";
+import {
+  markBotComment,
+  isBotComment,
+  formatIctTimestamp,
+  stripCommentHtml,
+} from "../lib/formatting";
 import { complete, extractJson, isLlmConfigured, type LlmConfig } from "./llm";
 import { projectOfIdentifier } from "./project-lock";
 import { getLogger } from "../lib/logger";
@@ -99,7 +104,13 @@ export type DuplicateMergeOutcome =
 export interface DuplicateMergerOptions {
   itsaplan: Pick<
     ItsaplanClient,
-    "getIssue" | "getIssueByNumber" | "addComment" | "linkIssues" | "updateIssue" | "listProjectColumns" | "getIssueTimeline"
+    | "getIssue"
+    | "getIssueByNumber"
+    | "addComment"
+    | "linkIssues"
+    | "updateIssue"
+    | "listProjectColumns"
+    | "getIssueTimeline"
   >;
   llm: LlmConfig;
   /** Dự án worker đang khoá — chỉ dùng để tra cột canceled; ứng viên đã được lọc theo dự án của X. */
@@ -120,7 +131,12 @@ async function alreadyMergedInto(
 ): Promise<boolean> {
   const marker = `Gộp từ ${xIdentifier}`;
   const timeline = await itsaplan.getIssueTimeline(yIssueId).catch(() => []);
-  return timeline.some((item: any) => item?.kind === "comment" && isBotComment(item.body) && String(item.body ?? "").includes(marker));
+  return timeline.some(
+    (item: any) =>
+      item?.kind === "comment" &&
+      isBotComment(item.body) &&
+      String(item.body ?? "").includes(marker),
+  );
 }
 
 export class DuplicateMerger {
@@ -146,12 +162,19 @@ export class DuplicateMerger {
       if (candidates.length === 0) return { merged: false, reason: "no_mention" };
 
       if (!isLlmConfigured(this.options.llm)) {
-        getLogger().info(`[DuplicateMerger] ${xIdentifier} nhắc ${candidates.join(", ")} nhưng LLM chưa cấu hình, bỏ qua.`);
+        getLogger().info(
+          `[DuplicateMerger] ${xIdentifier} nhắc ${candidates.join(", ")} nhưng LLM chưa cấu hình, bỏ qua.`,
+        );
         return { merged: false, reason: "llm_unconfigured" };
       }
 
       for (const yIdentifier of candidates) {
-        const judgement = await judgeDuplicateClaim(this.options.llm, xIdentifier, yIdentifier, commentBody);
+        const judgement = await judgeDuplicateClaim(
+          this.options.llm,
+          xIdentifier,
+          yIdentifier,
+          commentBody,
+        );
         if (!judgement?.duplicate) continue;
 
         getLogger().info(
@@ -161,7 +184,9 @@ export class DuplicateMerger {
       }
       return { merged: false, reason: "not_duplicate" };
     } catch (err: any) {
-      getLogger().error(`[DuplicateMerger] Lỗi xử lý bình luận trên ${xIdentifier}: ${err.message}`);
+      getLogger().error(
+        `[DuplicateMerger] Lỗi xử lý bình luận trên ${xIdentifier}: ${err.message}`,
+      );
       return { merged: false, reason: "error" };
     }
   }
@@ -176,7 +201,9 @@ export class DuplicateMerger {
     const project = projectOfIdentifier(xIdentifier) ?? this.options.projectKey;
     const ySeq = Number(yIdentifier.split("-").pop());
     if (!project || !Number.isFinite(ySeq)) {
-      getLogger().warn(`[DuplicateMerger] Không đọc được dự án/số hiệu của ${yIdentifier}, bỏ qua.`);
+      getLogger().warn(
+        `[DuplicateMerger] Không đọc được dự án/số hiệu của ${yIdentifier}, bỏ qua.`,
+      );
       return { merged: false, reason: "error" };
     }
 
@@ -185,12 +212,16 @@ export class DuplicateMerger {
       findIssueByIdentifier(itsaplan, yIdentifier, project),
     ]);
     if (!yIssue) {
-      getLogger().warn(`[DuplicateMerger] Không tìm thấy ${yIdentifier} trong dự án ${project} (hoặc đã chuyển dự án), bỏ qua.`);
+      getLogger().warn(
+        `[DuplicateMerger] Không tìm thấy ${yIdentifier} trong dự án ${project} (hoặc đã chuyển dự án), bỏ qua.`,
+      );
       return { merged: false, reason: "error" };
     }
 
     if (await alreadyMergedInto(itsaplan, yIssue.id, xIdentifier)) {
-      getLogger().info(`[DuplicateMerger] ${xIdentifier} đã gộp vào ${yIdentifier} từ trước, bỏ qua (idempotent).`);
+      getLogger().info(
+        `[DuplicateMerger] ${xIdentifier} đã gộp vào ${yIdentifier} từ trước, bỏ qua (idempotent).`,
+      );
       return { merged: false, reason: "already_merged" };
     }
 
@@ -199,13 +230,22 @@ export class DuplicateMerger {
     const created = xIssue.createdAt ? formatIctTimestamp(new Date(xIssue.createdAt)) : "";
     const who = reporterLabelOf(this.options.bindings, xIssueId);
     const header = `🔀 Gộp từ ${xIdentifier} (${who}${created ? `, ${created}` : ""}):`;
-    const body = [header, "", description || "(không có mô tả)", ...(images.length ? ["", ...images] : [])].join("\n");
+    const body = [
+      header,
+      "",
+      description || "(không có mô tả)",
+      ...(images.length ? ["", ...images] : []),
+    ].join("\n");
     await itsaplan.addComment(yIssue.id, markBotComment(body));
 
-    const alreadyLinked = (xIssue.links ?? []).some((l) => l.kind === "duplicates" && l.issue?.identifier === yIdentifier);
+    const alreadyLinked = (xIssue.links ?? []).some(
+      (l) => l.kind === "duplicates" && l.issue?.identifier === yIdentifier,
+    );
     if (!alreadyLinked) {
       await itsaplan.linkIssues(xIssueId, yIssue.id, "duplicates").catch((err: any) => {
-        getLogger().warn(`[DuplicateMerger] Nối link ${xIdentifier}→${yIdentifier} lỗi: ${err.message}`);
+        getLogger().warn(
+          `[DuplicateMerger] Nối link ${xIdentifier}→${yIdentifier} lỗi: ${err.message}`,
+        );
       });
     }
 
@@ -218,10 +258,14 @@ export class DuplicateMerger {
       await itsaplan.updateIssue(xIssueId, { columnId: canceledColumn.id });
       await itsaplan.addComment(
         xIssueId,
-        markBotComment(`ℹ️ Đã gộp vào ${yIdentifier} theo xác nhận của ${actorName?.trim() || "kỹ thuật"}.`),
+        markBotComment(
+          `ℹ️ Đã gộp vào ${yIdentifier} theo xác nhận của ${actorName?.trim() || "kỹ thuật"}.`,
+        ),
       );
     } else if (!alreadyCanceled) {
-      getLogger().warn(`[DuplicateMerger] Dự án ${project} không có cột canceled, không tự chuyển ${xIdentifier}.`);
+      getLogger().warn(
+        `[DuplicateMerger] Dự án ${project} không có cột canceled, không tự chuyển ${xIdentifier}.`,
+      );
     }
 
     return { merged: true, target: yIdentifier };

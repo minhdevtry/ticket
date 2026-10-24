@@ -11,8 +11,7 @@ const seeded: WorkspaceFiles = {
   // bootstrap đã xóa (undefined)
   identity:
     "# OP\nEm là OP, bot tiếp nhận yêu cầu vận hành của VUIHOC qua @vhops_bot, phụ trách project OP. Xưng em, gọi anh/chị.",
-  soul:
-    "# SOUL\nGiọng: lễ phép, đi thẳng việc. Cấm nói chuyện khởi tạo/nội bộ với người ngoài. Luôn tạo ticket đúng quy trình.",
+  soul: "# SOUL\nGiọng: lễ phép, đi thẳng việc. Cấm nói chuyện khởi tạo/nội bộ với người ngoài. Luôn tạo ticket đúng quy trình.",
   agents:
     "# AGENTS\nQuy trình tiếp nhận: nhận mô tả sự cố, gate, tóm tắt, xác nhận, gọi opintake__intake_step để tạo ticket OP.",
 };
@@ -32,7 +31,9 @@ describe("auditBootstrapReadiness", () => {
 
   it("IDENTITY rỗng/template → block", () => {
     const f = { ...seeded, identity: "# IDENTITY\n(điền tên bạn thích vào đây)" };
-    expect(auditBootstrapReadiness(f).some((x) => x.code === "identity-empty" && x.severity === "block")).toBe(true);
+    expect(
+      auditBootstrapReadiness(f).some((x) => x.code === "identity-empty" && x.severity === "block"),
+    ).toBe(true);
     expect(isBootstrapSafe(f)).toBe(false);
   });
 
@@ -50,8 +51,15 @@ describe("auditBootstrapReadiness", () => {
   });
 
   it("AGENTS.md kiểu 'this folder is home / first run' → block", () => {
-    const f = { ...seeded, agents: "This folder is your home.\nFirst run: see BOOTSTRAP.md to set yourself up." };
-    expect(auditBootstrapReadiness(f).some((x) => x.code === "agents-template" && x.severity === "block")).toBe(true);
+    const f = {
+      ...seeded,
+      agents: "This folder is your home.\nFirst run: see BOOTSTRAP.md to set yourself up.",
+    };
+    expect(
+      auditBootstrapReadiness(f).some(
+        (x) => x.code === "agents-template" && x.severity === "block",
+      ),
+    ).toBe(true);
     expect(isBootstrapSafe(f)).toBe(false);
   });
 

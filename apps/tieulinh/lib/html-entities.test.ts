@@ -50,18 +50,21 @@ describe("decodeHtmlEntities (Chiều 1: Itsaplan → Telegram / Plain text)", (
   });
 
   test("giải mã &quot; và &#39; (dấu ngoặc kép và nháy đơn)", () => {
-    expect(decodeHtmlEntities('&quot;Lỗi hệ thống&quot;')).toBe('"Lỗi hệ thống"');
+    expect(decodeHtmlEntities("&quot;Lỗi hệ thống&quot;")).toBe('"Lỗi hệ thống"');
     expect(decodeHtmlEntities("&#39;Không tìm thấy phòng&#39;")).toBe("'Không tìm thấy phòng'");
     expect(decodeHtmlEntities("&apos;user_token&apos;")).toBe("'user_token'");
   });
 
   test("xử lý văn bản có sẵn thẻ <b> hoặc thẻ HTML", () => {
     expect(decodeHtmlEntities("Thẻ &lt;b&gt;in đậm&lt;/b&gt;")).toBe("Thẻ <b>in đậm</b>");
-    expect(decodeHtmlEntities("Văn bản có <b>thẻ html thật</b>")).toBe("Văn bản có <b>thẻ html thật</b>");
+    expect(decodeHtmlEntities("Văn bản có <b>thẻ html thật</b>")).toBe(
+      "Văn bản có <b>thẻ html thật</b>",
+    );
   });
 
   test("bảo toàn tiếng Việt có dấu trọn vẹn", () => {
-    const viText = "Kỹ thuật viên phản hồi: Đã kiểm tra tài khoản, học sinh cần đổi mật khẩu &amp; đăng nhập lại.";
+    const viText =
+      "Kỹ thuật viên phản hồi: Đã kiểm tra tài khoản, học sinh cần đổi mật khẩu &amp; đăng nhập lại.";
     expect(decodeHtmlEntities(viText)).toBe(
       "Kỹ thuật viên phản hồi: Đã kiểm tra tài khoản, học sinh cần đổi mật khẩu & đăng nhập lại.",
     );
@@ -69,7 +72,9 @@ describe("decodeHtmlEntities (Chiều 1: Itsaplan → Telegram / Plain text)", (
 
   test("giải mã code / log chứa <...>", () => {
     const log = "Gặp exception: &lt;NullPointerException&gt; tại luồng &lt;WorkerThread-1&gt;";
-    expect(decodeHtmlEntities(log)).toBe("Gặp exception: <NullPointerException> tại luồng <WorkerThread-1>");
+    expect(decodeHtmlEntities(log)).toBe(
+      "Gặp exception: <NullPointerException> tại luồng <WorkerThread-1>",
+    );
   });
 
   test("hỗ trợ entity số thập phân và thập lục phân", () => {
@@ -97,12 +102,16 @@ describe("escapeItsaplanMarkdown (Chiều 2: Telegram/bot → Itsaplan Markdown)
 
   test("mã hóa code / log chứa <...> để không bị DOMPurify nhận nhầm là thẻ HTML và xoá", () => {
     const raw = "Gặp lỗi: <NullPointerException> và <Token_Expired>";
-    expect(escapeItsaplanMarkdown(raw)).toBe("Gặp lỗi: &lt;NullPointerException&gt; và &lt;Token_Expired&gt;");
+    expect(escapeItsaplanMarkdown(raw)).toBe(
+      "Gặp lỗi: &lt;NullPointerException&gt; và &lt;Token_Expired&gt;",
+    );
   });
 
   test("mã hóa văn bản có sẵn thẻ <b> thành text an toàn, không bị parse thành HTML tag", () => {
     expect(escapeItsaplanMarkdown("Thẻ <b>in đậm</b>")).toBe("Thẻ &lt;b&gt;in đậm&lt;/b&gt;");
-    expect(escapeItsaplanMarkdown("<script>alert(1)</script>")).toBe("&lt;script&gt;alert(1)&lt;/script&gt;");
+    expect(escapeItsaplanMarkdown("<script>alert(1)</script>")).toBe(
+      "&lt;script&gt;alert(1)&lt;/script&gt;",
+    );
   });
 
   test("giữ nguyên ký tự & và KHÔNG biến thành &amp; để tránh double escape", () => {
@@ -114,7 +123,8 @@ describe("escapeItsaplanMarkdown (Chiều 2: Telegram/bot → Itsaplan Markdown)
   });
 
   test("bảo toàn nội dung bên trong code block (```...```) và inline code (`...`)", () => {
-    const mixed = "Ngoài code <tag>, trong inline `code <tag>` và trong block:\n```\n<NullPointerException>\n```\nsau block > 10";
+    const mixed =
+      "Ngoài code <tag>, trong inline `code <tag>` và trong block:\n```\n<NullPointerException>\n```\nsau block > 10";
     const escaped = escapeItsaplanMarkdown(mixed);
 
     expect(escaped).toContain("Ngoài code &lt;tag&gt;");
@@ -125,7 +135,9 @@ describe("escapeItsaplanMarkdown (Chiều 2: Telegram/bot → Itsaplan Markdown)
 
   test("bảo toàn tiếng Việt có dấu trọn vẹn", () => {
     const viText = "Học sinh Nguyễn Văn A báo lỗi: Điểm trung bình < 5 cần hỗ trợ";
-    expect(escapeItsaplanMarkdown(viText)).toBe("Học sinh Nguyễn Văn A báo lỗi: Điểm trung bình &lt; 5 cần hỗ trợ");
+    expect(escapeItsaplanMarkdown(viText)).toBe(
+      "Học sinh Nguyễn Văn A báo lỗi: Điểm trung bình &lt; 5 cần hỗ trợ",
+    );
   });
 
   test("xử lý an toàn chuỗi rỗng, null, undefined", () => {
@@ -138,11 +150,15 @@ describe("escapeItsaplanMarkdown (Chiều 2: Telegram/bot → Itsaplan Markdown)
 describe("escapeTelegramHtml & escapeHtml", () => {
   test("escapeTelegramHtml mã hóa đúng 3 ký tự &, <, >", () => {
     expect(escapeTelegramHtml("UID < 100 & UID > 50")).toBe("UID &lt; 100 &amp; UID &gt; 50");
-    expect(escapeTelegramHtml('Tin nhắn chứa "ngoặc kép" và \'đơn\'')).toBe('Tin nhắn chứa "ngoặc kép" và \'đơn\'');
+    expect(escapeTelegramHtml("Tin nhắn chứa \"ngoặc kép\" và 'đơn'")).toBe(
+      "Tin nhắn chứa \"ngoặc kép\" và 'đơn'",
+    );
   });
 
   test("escapeHtml mã hóa đầy đủ &, <, >, \", '", () => {
-    expect(escapeHtml('UID < 100 & "test" \'val\' > 10')).toBe("UID &lt; 100 &amp; &quot;test&quot; &#39;val&#39; &gt; 10");
+    expect(escapeHtml("UID < 100 & \"test\" 'val' > 10")).toBe(
+      "UID &lt; 100 &amp; &quot;test&quot; &#39;val&#39; &gt; 10",
+    );
   });
 });
 
@@ -205,14 +221,17 @@ describe("Tích hợp cả hai chiều (End-to-End Flow)", () => {
     const description = formatTicketDescription({
       incident: {
         title: "Lỗi đăng nhập học sinh",
-        rawText: "Học sinh báo: UID < 900016 và UID >= 900016 gặp crash log <NullPointerException> khi submit & nộp bài",
+        rawText:
+          "Học sinh báo: UID < 900016 và UID >= 900016 gặp crash log <NullPointerException> khi submit & nộp bài",
         product: "Tự học",
         system: "LMS",
         priorityReason: "Gấp < 1h",
       },
     });
 
-    expect(description).toContain("> Học sinh báo: UID &lt; 900016 và UID &gt;= 900016 gặp crash log &lt;NullPointerException&gt; khi submit & nộp bài");
+    expect(description).toContain(
+      "> Học sinh báo: UID &lt; 900016 và UID &gt;= 900016 gặp crash log &lt;NullPointerException&gt; khi submit & nộp bài",
+    );
     expect(description).toContain("- Lý do ưu tiên (người báo): Gấp &lt; 1h");
     expect(description).not.toContain("<NullPointerException>");
   });

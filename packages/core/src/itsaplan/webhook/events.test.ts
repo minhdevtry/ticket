@@ -83,7 +83,13 @@ describe("webhookDedupeKey (event+issue+comment+timestamp)", () => {
 
   test("no webhookTimestamp → null (cannot dedupe)", () => {
     expect(
-      webhookDedupeKey({ action: "create", type: "Issue", event: "issue.created", data: { id: 1 }, createdAt: "" }),
+      webhookDedupeKey({
+        action: "create",
+        type: "Issue",
+        event: "issue.created",
+        data: { id: 1 },
+        createdAt: "",
+      }),
     ).toBeNull();
   });
 });

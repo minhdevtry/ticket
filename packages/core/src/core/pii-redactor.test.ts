@@ -12,7 +12,9 @@ describe("redactIncidentPII", () => {
   });
 
   it("bóc Bearer/sk-/itp_ token", () => {
-    const out = redactIncidentPII("key sk-ABCDEFGHIJKLMNOPQRSTUV, itp_ABCDEFGHIJKLMNOPQRST, Bearer abcdef0123456789abcd");
+    const out = redactIncidentPII(
+      "key sk-ABCDEFGHIJKLMNOPQRSTUV, itp_ABCDEFGHIJKLMNOPQRST, Bearer abcdef0123456789abcd",
+    );
     expect(out).toContain("[REDACTED_TOKEN]");
     expect(out).not.toContain("sk-ABCDEFGHIJKLMNOPQRSTUV");
     expect(out).not.toContain("itp_ABCDEFGHIJKLMNOPQRST");

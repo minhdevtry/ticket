@@ -31,7 +31,12 @@ describe("assess_priority", () => {
   });
 
   test("sàn thắng trần: chặn giao dịch thì có cách làm tạm cũng vẫn Urgent", () => {
-    const r = assess({ ...noEvidence, proposedLevel: "Low", blocksPayment: true, hasWorkaround: true });
+    const r = assess({
+      ...noEvidence,
+      proposedLevel: "Low",
+      blocksPayment: true,
+      hasWorkaround: true,
+    });
     expect(r.allowedLevel).toBe("Urgent");
     expect(r.floorOverrodeCeiling).toBe(true);
   });
@@ -55,7 +60,12 @@ describe("assess_priority", () => {
   });
 
   test("học sinh đơn lẻ gián đoạn học tập thì sàn là High, không ép lên Urgent", () => {
-    const r = assess({ ...noEvidence, proposedLevel: "High", scope: "single_user", blocksLearning: true });
+    const r = assess({
+      ...noEvidence,
+      proposedLevel: "High",
+      scope: "single_user",
+      blocksLearning: true,
+    });
     expect(r.allowedLevel).toBe("High");
     expect(r.direction).toBe("kept");
   });

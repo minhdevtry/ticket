@@ -69,7 +69,10 @@ describe("loadEnvFile (Bot-Sales)", () => {
   });
 
   test("nạp biến vào targetEnv mà không ghi đè biến đã có", () => {
-    writeFileSync(tmpFile, "CRM_BASE_URL=https://devcrm.example.com/crmapi\nCRM_USERNAME=from_file\nCRM_NEW=123");
+    writeFileSync(
+      tmpFile,
+      "CRM_BASE_URL=https://devcrm.example.com/crmapi\nCRM_USERNAME=from_file\nCRM_NEW=123",
+    );
     const mockEnv: Record<string, string | undefined> = { CRM_USERNAME: "already_present" };
 
     const res = loadEnvFile(tmpFile, mockEnv);
@@ -137,8 +140,13 @@ describe("loadEnvDefaults — process env luôn thắng file .env (CM)", () => {
   });
 
   it("coi giá trị rỗng là 'đã có' — khoá thật trong .env không lọt vào", () => {
-    const envFile = writeEnvFile("CM_ITSAPLAN_API_KEY=itp_real_secret\nCM_TELEGRAM_BOT_TOKEN=123:real\n");
-    const env: Record<string, string | undefined> = { CM_ITSAPLAN_API_KEY: "", CM_TELEGRAM_BOT_TOKEN: "" };
+    const envFile = writeEnvFile(
+      "CM_ITSAPLAN_API_KEY=itp_real_secret\nCM_TELEGRAM_BOT_TOKEN=123:real\n",
+    );
+    const env: Record<string, string | undefined> = {
+      CM_ITSAPLAN_API_KEY: "",
+      CM_TELEGRAM_BOT_TOKEN: "",
+    };
 
     loadEnvDefaults(envFile, env, { prefix: "CM_" });
 

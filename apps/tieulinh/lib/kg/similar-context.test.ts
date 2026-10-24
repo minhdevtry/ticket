@@ -1,5 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { cleanIncidentDescription, isBotAuthoredComment, similarContextOf } from "./similar-context";
+import {
+  cleanIncidentDescription,
+  isBotAuthoredComment,
+  similarContextOf,
+} from "./similar-context";
 
 const DESCRIPTION = `## Thông tin sự cố
 
@@ -38,14 +42,21 @@ describe("cleanIncidentDescription", () => {
 
 describe("isBotAuthoredComment", () => {
   it("dấu <!-- intake-bot --> tính là bot dù actorName không khớp isSystemActor", () => {
-    expect(isBotAuthoredComment({ actorName: "Iris", body: "Đã đóng <!-- intake-bot -->" })).toBe(true);
+    expect(isBotAuthoredComment({ actorName: "Iris", body: "Đã đóng <!-- intake-bot -->" })).toBe(
+      true,
+    );
   });
   it("actorName hệ thống (Tiểu Linh/onyx/admin/bot) tính là bot", () => {
     expect(isBotAuthoredComment({ actorName: "Tiểu Linh", body: "Đã xử lý" })).toBe(true);
     expect(isBotAuthoredComment({ actorName: "onyx", body: "..." })).toBe(true);
   });
   it("boilerplate Onyx ingest tính là bot dù actor lạ", () => {
-    expect(isBotAuthoredComment({ actorName: "SomeSvc", body: "[Onyx Second Brain] Đã nạp bài học kinh nghiệm" })).toBe(true);
+    expect(
+      isBotAuthoredComment({
+        actorName: "SomeSvc",
+        body: "[Onyx Second Brain] Đã nạp bài học kinh nghiệm",
+      }),
+    ).toBe(true);
   });
   it("người thật, không dấu bot -> không phải bot", () => {
     expect(isBotAuthoredComment({ actorName: "TechLead_A", body: "Đã xử lý xong" })).toBe(false);
@@ -63,9 +74,19 @@ describe("similarContextOf", () => {
 
   it("humanNotes: chỉ comment người thật, comment ghim xếp trước", () => {
     const timeline = [
-      { kind: "comment", actorName: "TechUser_B", body: "Đã kiểm tra, chưa rõ nguyên nhân.", pinned: false },
+      {
+        kind: "comment",
+        actorName: "TechUser_B",
+        body: "Đã kiểm tra, chưa rõ nguyên nhân.",
+        pinned: false,
+      },
       { kind: "comment", actorName: "Tiểu Linh", body: "Đã đóng ticket.", pinned: false },
-      { kind: "comment", actorName: "TechLead_A", body: "**Nguyên nhân:** Trùng tài khoản.", pinned: true },
+      {
+        kind: "comment",
+        actorName: "TechLead_A",
+        body: "**Nguyên nhân:** Trùng tài khoản.",
+        pinned: true,
+      },
       { kind: "activity", actorName: "TechUser_B", action: "status" },
     ];
     const ctx = similarContextOf(issue, timeline);

@@ -67,10 +67,18 @@ export function resolveOnyxSyncGate(env: Record<string, string | undefined>): Kg
   if (!env.ONYX_BASE_URL) return { ...base, enabled: false, reason: "chưa cấu hình ONYX_BASE_URL" };
   if (!projectKey) return { ...base, enabled: false, reason: "chưa cấu hình ITSAPLAN_PROJECT_KEY" };
   if (ONYX_FORBIDDEN_PROJECTS.has(projectKey)) {
-    return { ...base, enabled: false, reason: `dự án ${projectKey} không bao giờ nạp Onyx (ADR-0002)` };
+    return {
+      ...base,
+      enabled: false,
+      reason: `dự án ${projectKey} không bao giờ nạp Onyx (ADR-0002)`,
+    };
   }
   if (!projects.includes(projectKey)) {
-    return { ...base, enabled: false, reason: `dự án ${projectKey} không nằm trong ONYX_SYNC_PROJECTS=${projects.join(",")}` };
+    return {
+      ...base,
+      enabled: false,
+      reason: `dự án ${projectKey} không nằm trong ONYX_SYNC_PROJECTS=${projects.join(",")}`,
+    };
   }
   return { ...base, enabled: true, reason: `dự án ${projectKey} nằm trong ONYX_SYNC_PROJECTS` };
 }
@@ -127,12 +135,16 @@ export class KgSyncRunner {
   /** Handler cho onIssueDone. Không bao giờ ném — lỗi đi vào hàng đợi. */
   handle(issueId: number, identifier: string): Promise<void> {
     if (!identifierInProject(identifier, this.projectKey)) {
-      getLogger().info(`[KgSyncRunner:${this.label}] Bỏ qua ${identifier}: không thuộc dự án ${this.projectKey}.`);
+      getLogger().info(
+        `[KgSyncRunner:${this.label}] Bỏ qua ${identifier}: không thuộc dự án ${this.projectKey}.`,
+      );
       return Promise.resolve();
     }
     const running = this.inFlight.get(issueId);
     if (running) {
-      getLogger().info(`[KgSyncRunner:${this.label}] ${identifier} đang được nạp, lượt trùng chờ chung kết quả.`);
+      getLogger().info(
+        `[KgSyncRunner:${this.label}] ${identifier} đang được nạp, lượt trùng chờ chung kết quả.`,
+      );
       return running;
     }
     const task = this.attempt(issueId, identifier).finally(() => this.inFlight.delete(issueId));

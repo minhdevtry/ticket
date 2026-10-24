@@ -228,4 +228,3 @@ function migrateMessageRoutes(db: Database): void {
     db.run(`ALTER TABLE message_routes_new RENAME TO message_routes`);
   }).immediate();
 }
-

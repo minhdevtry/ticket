@@ -7,7 +7,11 @@ import { IntakeDocumentRepository } from "../intake-document/repository";
 import { TicketBindingRepository } from "../storage/binding-repository";
 import { DraftSessionRepository } from "../storage/session-repository";
 import { FieldExtractor } from "./extractor";
-import { IntakeStepPipeline, type IntakePipelineOptions, type PendingButtonsSink } from "./pipeline";
+import {
+  IntakeStepPipeline,
+  type IntakePipelineOptions,
+  type PendingButtonsSink,
+} from "./pipeline";
 import type { ItsaplanClient, ItsaplanIssue } from "../itsaplan/client";
 import type { InlineButton } from "../gate/types";
 import type { IntakeDocument } from "../intake-document/types";
@@ -45,7 +49,12 @@ function fakeItsaplan() {
         throw new Error("Itsaplan API error: 502 upstream timeout (secret-internal-host:8080)");
       }
       seq++;
-      return { id: seq, identifier: `TECHTEST-${seq}`, title: payload.title, sequenceNumber: seq } as ItsaplanIssue;
+      return {
+        id: seq,
+        identifier: `TECHTEST-${seq}`,
+        title: payload.title,
+        sequenceNumber: seq,
+      } as ItsaplanIssue;
     },
     updateIssue: async (issueId: number, patch: any) => {
       calls.updateIssue.push({ issueId, patch });
@@ -56,7 +65,12 @@ function fakeItsaplan() {
       return { id: 1, body: content };
     },
     getIssueByNumber: async (_projectKey: string, n: number) =>
-      ({ id: 5000 + n, identifier: `TECHTEST-${n}`, title: `Ticket ${n}`, description: n === 888 ? "Người báo: X - telegram:99999" : "" }) as any,
+      ({
+        id: 5000 + n,
+        identifier: `TECHTEST-${n}`,
+        title: `Ticket ${n}`,
+        description: n === 888 ? "Người báo: X - telegram:99999" : "",
+      }) as any,
     getIssue: async (id: number) => {
       calls.getIssue.push(id);
       return {
@@ -64,7 +78,8 @@ function fakeItsaplan() {
         identifier: `TECHTEST-${id - 5000}`,
         title: `Ticket ${id - 5000}`,
         columnId: id === 5796 ? 9 : 1,
-        description: "## Thông tin sự cố\n\n- Tài khoản HS / SĐT: 0900000006\n- Bộ phận: CSKH\n\n### Mô tả\n\n> Nội dung ticket vừa tạo nhầm\n\n---\n",
+        description:
+          "## Thông tin sự cố\n\n- Tài khoản HS / SĐT: 0900000006\n- Bộ phận: CSKH\n\n### Mô tả\n\n> Nội dung ticket vừa tạo nhầm\n\n---\n",
       } as any;
     },
     linkIssues: async (a: number, b: number, kind?: string) => {
@@ -72,7 +87,11 @@ function fakeItsaplan() {
       return { id: 1, kind } as any;
     },
     getIssueTimeline: async () => [
-      { kind: "comment", actorName: "TechUser_B", body: "không có thông tin cụ thể là do đơn hàng nào sai à?" },
+      {
+        kind: "comment",
+        actorName: "TechUser_B",
+        body: "không có thông tin cụ thể là do đơn hàng nào sai à?",
+      },
       { kind: "comment", actorName: "Tiểu Linh", body: "bot" },
     ],
     uploadAttachment: async (_issueId: number, filename: string) => {
@@ -192,9 +211,15 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
 
   // ── Bug 3: xác nhận nhầm ──────────────────────────────────────────────
   it("tin đầu 'Yêu cầu hỗ trợ: …' / 'ok app Duo lỗi…' không bao giờ tạo ticket", async () => {
-    const a = await pipeline.run({ chatId: "7101", message: "Yêu cầu hỗ trợ: app Duo lỗi không vào được lớp, em bên Sale" });
+    const a = await pipeline.run({
+      chatId: "7101",
+      message: "Yêu cầu hỗ trợ: app Duo lỗi không vào được lớp, em bên Sale",
+    });
     expect(a.action).not.toBe("ticket_created");
-    const b = await pipeline.run({ chatId: "7102", message: "ok app Duo lỗi đăng nhập, em bên Sale" });
+    const b = await pipeline.run({
+      chatId: "7102",
+      message: "ok app Duo lỗi đăng nhập, em bên Sale",
+    });
     expect(b.action).not.toBe("ticket_created");
     expect(it$.calls.createIssue.length).toBe(0);
   });
@@ -246,34 +271,69 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
     const llm = { baseUrl: "http://llm.fake", apiKey: "k", model: "m" };
     pipeline = build({
       extractor: new FieldExtractor(llm, async () =>
-        JSON.stringify({ userIntent: "report_issue", title: "Lỗi thanh toán", symptoms: ["bấm thanh toán ra 404"], blocksPayment: true, system: "CRM_Vuihoc", reportingDept: "Sale" }),
+        JSON.stringify({
+          userIntent: "report_issue",
+          title: "Lỗi thanh toán",
+          symptoms: ["bấm thanh toán ra 404"],
+          blocksPayment: true,
+          system: "CRM_Vuihoc",
+          reportingDept: "Sale",
+        }),
       ),
     });
-    const r = await pipeline.run({ chatId: CHAT, message: "Phụ huynh bấm thanh toán ra 404, em bên Sale" });
+    const r = await pipeline.run({
+      chatId: CHAT,
+      message: "Phụ huynh bấm thanh toán ra 404, em bên Sale",
+    });
     expect(r.document.fields.priority?.value).toBe("urgent");
   });
 
   describe("người báo xin gấp (29/09: có lý do thì cho hết)", () => {
     const llm = { baseUrl: "http://llm.fake", apiKey: "k", model: "m" };
-    const base = { userIntent: "report_issue", title: "Sai hạn khoá Tự học", symptoms: ["khoá tự học sai hạn"], system: "LMS_Vuihoc", reportingDept: "CSKH", studentAccount: "0900000006" };
+    const base = {
+      userIntent: "report_issue",
+      title: "Sai hạn khoá Tự học",
+      symptoms: ["khoá tự học sai hạn"],
+      system: "LMS_Vuihoc",
+      reportingDept: "CSKH",
+      studentAccount: "0900000006",
+    };
     const withLlm = (replies: Record<string, unknown>[]) => {
       let i = 0;
-      return build({ extractor: new FieldExtractor(llm, async () => JSON.stringify(replies[Math.min(i++, replies.length - 1)])) });
+      return build({
+        extractor: new FieldExtractor(llm, async () =>
+          JSON.stringify(replies[Math.min(i++, replies.length - 1)]),
+        ),
+      });
     };
 
     it("xin khẩn cấp kèm lý do → Urgent, lý do vào ticket", async () => {
-      pipeline = withLlm([{ ...base, requestedPriority: "urgent", requestedPriorityReason: "PH khiếu nại cả tuần" }, { userIntent: "confirm" }]);
-      const r = await pipeline.run({ chatId: CHAT, message: "khoá tự học sai hạn, em bên CSKH, khẩn cấp vì PH khiếu nại cả tuần" });
+      pipeline = withLlm([
+        { ...base, requestedPriority: "urgent", requestedPriorityReason: "PH khiếu nại cả tuần" },
+        { userIntent: "confirm" },
+      ]);
+      const r = await pipeline.run({
+        chatId: CHAT,
+        message: "khoá tự học sai hạn, em bên CSKH, khẩn cấp vì PH khiếu nại cả tuần",
+      });
       expect(r.action).toBe("confirm_summary");
       expect(r.document.fields.priority?.value).toBe("urgent");
       await pipeline.run({ chatId: CHAT, message: "đúng rồi" });
       expect(it$.calls.createIssue[0].priority).toBe("urgent");
-      expect(it$.calls.createIssue[0].description).toContain("Lý do ưu tiên (người báo): PH khiếu nại cả tuần");
+      expect(it$.calls.createIssue[0].description).toContain(
+        "Lý do ưu tiên (người báo): PH khiếu nại cả tuần",
+      );
     });
 
     it("xin gấp chưa có lý do → hỏi một lần; trả lời lý do → High", async () => {
-      pipeline = withLlm([{ ...base, requestedPriority: "high" }, { userIntent: "provide_info", symptoms: [] }]);
-      const r1 = await pipeline.run({ chatId: CHAT, message: "khoá tự học sai hạn, em bên CSKH, xử lý gấp giúp em" });
+      pipeline = withLlm([
+        { ...base, requestedPriority: "high" },
+        { userIntent: "provide_info", symptoms: [] },
+      ]);
+      const r1 = await pipeline.run({
+        chatId: CHAT,
+        message: "khoá tự học sai hạn, em bên CSKH, xử lý gấp giúp em",
+      });
       expect(r1.action).toBe("ask_missing_field");
       expect(r1.voiceText).toContain("lý do");
       const r2 = await pipeline.run({ chatId: CHAT, message: "học sinh mai thi rồi ạ" });
@@ -286,11 +346,19 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
       pipeline = withLlm([
         base,
         { userIntent: "confirm" },
-        { userIntent: "provide_info", symptoms: [], requestedPriority: "urgent", requestedPriorityReason: "PH đang gay gắt" },
+        {
+          userIntent: "provide_info",
+          symptoms: [],
+          requestedPriority: "urgent",
+          requestedPriorityReason: "PH đang gay gắt",
+        },
       ]);
       await pipeline.run({ chatId: CHAT, message: "khoá tự học sai hạn, em bên CSKH" });
       await pipeline.run({ chatId: CHAT, message: "đúng rồi" });
-      const asked = await pipeline.run({ chatId: CHAT, message: "đổi mức ưu tiên thành URGENT hộ em, PH đang gay gắt" });
+      const asked = await pipeline.run({
+        chatId: CHAT,
+        message: "đổi mức ưu tiên thành URGENT hộ em, PH đang gay gắt",
+      });
       expect(asked.action).toBe("confirm_ticket_action");
       expect(it$.calls.updateIssue.length).toBe(0);
       await pipeline.run({ chatId: CHAT, message: asked.buttons![0][0].callbackData });
@@ -299,7 +367,10 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
     });
 
     it("xin gấp mà 'không có' lý do → giữ mức theo bằng chứng", async () => {
-      pipeline = withLlm([{ ...base, requestedPriority: "urgent" }, { userIntent: "provide_info", symptoms: [] }]);
+      pipeline = withLlm([
+        { ...base, requestedPriority: "urgent" },
+        { userIntent: "provide_info", symptoms: [] },
+      ]);
       await pipeline.run({ chatId: CHAT, message: "khoá tự học sai hạn, em bên CSKH, urgent nhé" });
       const r2 = await pipeline.run({ chatId: CHAT, message: "không có" });
       expect(r2.action).toBe("confirm_summary");
@@ -391,7 +462,10 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
   it("thông tin bổ sung sau khi tạo → comment, KHÔNG ghi đè mô tả", async () => {
     const created = await toCreated();
     // SĐT khác SĐT trong ticket → hỏi trước (có thể là sự cố khác, test E2E 28/09); chọn "Bổ sung" mới ghi.
-    const asked = await pipeline.run({ chatId: CHAT, message: "bổ sung thêm SĐT phụ huynh 0900000008" });
+    const asked = await pipeline.run({
+      chatId: CHAT,
+      message: "bổ sung thêm SĐT phụ huynh 0900000008",
+    });
     expect(asked.action).toBe("confirm_ticket_action");
     expect(it$.calls.addComment.length).toBe(0);
     const r = await pipeline.run({ chatId: CHAT, message: asked.buttons![0][0].callbackData });
@@ -406,11 +480,21 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
   // không có định danh nào xung đột) rồi "ticket mới ạ" ghi tiếp vào đó. Nay luôn hỏi trước.
   describe("tin sau khi tạo ticket không bao giờ tự ghi vào ticket cũ (TECH-1013)", () => {
     const llm = { baseUrl: "http://llm.fake", apiKey: "k", model: "m" };
-    const report = { userIntent: "report_issue", title: "Sai hạn khoá Tự học", symptoms: ["khoá tự học sai hạn"], system: "LMS_Vuihoc", reportingDept: "CSKH" };
+    const report = {
+      userIntent: "report_issue",
+      title: "Sai hạn khoá Tự học",
+      symptoms: ["khoá tự học sai hạn"],
+      system: "LMS_Vuihoc",
+      reportingDept: "CSKH",
+    };
     const provide = { userIntent: "provide_info", symptoms: ["iPad báo connecting"] };
     const withLlm = (replies: Record<string, unknown>[]) => {
       let i = 0;
-      return build({ extractor: new FieldExtractor(llm, async () => JSON.stringify(replies[Math.min(i++, replies.length - 1)])) });
+      return build({
+        extractor: new FieldExtractor(llm, async () =>
+          JSON.stringify(replies[Math.min(i++, replies.length - 1)]),
+        ),
+      });
     };
     const createdWith = async (replies: Record<string, unknown>[]) => {
       pipeline = withLlm(replies);
@@ -422,7 +506,11 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
     it("tin có ảnh, không xung đột định danh → hỏi, chưa ghi gì", async () => {
       await createdWith([report, { userIntent: "confirm" }, provide]);
       const img = "/tmp/anh-ipad.jpg";
-      const asked = await pipeline.run({ chatId: CHAT, message: "0900000013 học sinh dùng iPad bị lỗi connecting", mediaPaths: [img] });
+      const asked = await pipeline.run({
+        chatId: CHAT,
+        message: "0900000013 học sinh dùng iPad bị lỗi connecting",
+        mediaPaths: [img],
+      });
       expect(asked.action).toBe("confirm_ticket_action");
       expect(asked.buttons?.flat().map((b) => b.text)).toContain("Sự cố mới");
       expect(asked.buttons?.flat()[0].text).toMatch(/^✅ Bổ sung vào /);
@@ -439,8 +527,13 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
 
     it('hỏi rồi người báo GÕ "ticket mới ạ" → sự cố mới từ tin đang chờ, ticket cũ không bị đụng', async () => {
       await createdWith([report, { userIntent: "confirm" }, provide, report]);
-      const created = repo.getByDocId((await pipeline.run({ chatId: CHAT, message: "cảm ơn em" })).docId)!;
-      await pipeline.run({ chatId: CHAT, message: "0900000013 học sinh dùng iPad bị lỗi connecting" });
+      const created = repo.getByDocId(
+        (await pipeline.run({ chatId: CHAT, message: "cảm ơn em" })).docId,
+      )!;
+      await pipeline.run({
+        chatId: CHAT,
+        message: "0900000013 học sinh dùng iPad bị lỗi connecting",
+      });
       const r = await pipeline.run({ chatId: CHAT, message: "ticket mới ạ" });
       expect(r.docId).not.toBe(created.docId);
       expect(r.status).toBe("collecting");
@@ -455,11 +548,28 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
     });
 
     describe("người báo có nhiều ticket đang mở (TECH-989 ↔ TECH-1001, 30/09)", () => {
-      const own = (n: number) => bindingRepo.saveBinding({ issueId: 5000 + n, channelType: "telegram", chatId: CHAT, messageId: "1", identifier: `TECHTEST-${n}` });
+      const own = (n: number) =>
+        bindingRepo.saveBinding({
+          issueId: 5000 + n,
+          channelType: "telegram",
+          chatId: CHAT,
+          messageId: "1",
+          identifier: `TECHTEST-${n}`,
+        });
       const interp = (cmd: any) => ({ interpret: async () => cmd });
       const build2 = (cmd: any) =>
-        build({ ticketCommands: interp(cmd), extractor: new FieldExtractor(llm, async (_c: any, _s: any, prompt: string) =>
-          JSON.stringify(/đúng rồi/i.test(prompt) ? { userIntent: "confirm" } : /thêm:/i.test(prompt) ? provide : report)) });
+        build({
+          ticketCommands: interp(cmd),
+          extractor: new FieldExtractor(llm, async (_c: any, _s: any, prompt: string) =>
+            JSON.stringify(
+              /đúng rồi/i.test(prompt)
+                ? { userIntent: "confirm" }
+                : /thêm:/i.test(prompt)
+                  ? provide
+                  : report,
+            ),
+          ),
+        });
       const toCreated2 = async (cmd: any) => {
         pipeline = build2(cmd);
         await pipeline.run({ chatId: CHAT, message: "khoá tự học sai hạn, em bên CSKH" });
@@ -468,7 +578,11 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
 
       it("hiểu ý chọn ticket cũ, mỗi ticket đang mở có nút riêng; bấm nút ticket cũ mới ghi vào ticket cũ", async () => {
         own(795);
-        await toCreated2({ action: "append", identifier: "TECHTEST-795", content: "thêm: PH đang giục gấp" });
+        await toCreated2({
+          action: "append",
+          identifier: "TECHTEST-795",
+          content: "thêm: PH đang giục gấp",
+        });
         const asked = await pipeline.run({ chatId: CHAT, message: "thêm: PH đang giục gấp" });
         expect(asked.action).toBe("confirm_ticket_action");
         const labels = asked.buttons!.flat().map((b) => b.text);
@@ -496,7 +610,11 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
 
     it("chỉ khi bấm nút xác nhận mới ghi comment vào ticket", async () => {
       await createdWith([report, { userIntent: "confirm" }, provide, provide]);
-      const asked = await pipeline.run({ chatId: CHAT, message: "thêm: học sinh dùng iPad", mediaPaths: [] });
+      const asked = await pipeline.run({
+        chatId: CHAT,
+        message: "thêm: học sinh dùng iPad",
+        mediaPaths: [],
+      });
       expect(it$.calls.addComment.length).toBe(0);
       const r = await pipeline.run({ chatId: CHAT, message: asked.buttons![0][0].callbackData });
       expect(r.action).toBe("post_create_update");
@@ -506,7 +624,10 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
 
   it("sự cố mới sau khi tạo → tài liệu mới, không ghi vào ticket cũ", async () => {
     const created = await toCreated();
-    const r = await pipeline.run({ chatId: CHAT, message: "CRM bị lỗi 500 khi mở đơn hàng của phụ huynh 0900000014" });
+    const r = await pipeline.run({
+      chatId: CHAT,
+      message: "CRM bị lỗi 500 khi mở đơn hàng của phụ huynh 0900000014",
+    });
     expect(r.docId).not.toBe(created.docId);
     expect(r.status).toBe("collecting");
     expect(it$.calls.addComment.length).toBe(0);
@@ -521,7 +642,10 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
     expect(c.action).toBe("canceled");
     expect(c.status).toBe("canceled");
 
-    const n1 = await pipeline.run({ chatId: CHAT, message: "CRM bị lỗi 500 khi mở đơn hàng của phụ huynh 0900000014" });
+    const n1 = await pipeline.run({
+      chatId: CHAT,
+      message: "CRM bị lỗi 500 khi mở đơn hàng của phụ huynh 0900000014",
+    });
     expect(n1.docId).not.toBe(r1.docId);
     const n2 = await pipeline.run({ chatId: CHAT, message: "Em bên Sale ạ" });
     // Cùng tài liệu mới, vẫn nhớ lượt trước
@@ -548,7 +672,10 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
 
   // ── Bug 10: hệ thống chưa rõ ──────────────────────────────────────────
   it("thiếu hệ thống: hỏi MỘT lần kèm nút, không biết thì tóm tắt ghi rõ 'Chưa xác định'", async () => {
-    const r1 = await pipeline.run({ chatId: CHAT, message: "Học sinh 0900000005 không làm bài được, em bên Vận hành" });
+    const r1 = await pipeline.run({
+      chatId: CHAT,
+      message: "Học sinh 0900000005 không làm bài được, em bên Vận hành",
+    });
     expect(r1.action).toBe("ask_missing_field");
     expect(r1.missingFields).toEqual(["system"]);
     expect(r1.buttons?.flat().map((b) => b.callbackData)).toContain("CRM_Vuihoc");
@@ -559,7 +686,10 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
   });
 
   it("chọn hệ thống qua nút thì điền đúng giá trị", async () => {
-    await pipeline.run({ chatId: CHAT, message: "Học sinh 0900000005 không làm bài được, em bên Vận hành" });
+    await pipeline.run({
+      chatId: CHAT,
+      message: "Học sinh 0900000005 không làm bài được, em bên Vận hành",
+    });
     const r = await pipeline.run({ chatId: CHAT, message: "VH_Tự học" });
     expect(r.document.fields.system?.value).toBe("VH_Tự học");
     expect(r.action).toBe("confirm_summary");
@@ -575,7 +705,14 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
           return {
             clusterId: "TECH-1",
             share: 1,
-            members: [{ identifier: "TECH-1", title: "cũ", humanCause: "Cache hỏng", humanFix: "Xoá cache app" }],
+            members: [
+              {
+                identifier: "TECH-1",
+                title: "cũ",
+                humanCause: "Cache hỏng",
+                humanFix: "Xoá cache app",
+              },
+            ],
             advice: { cause: "Cache hỏng", fix: "Xoá cache app", from: "TECH-1" },
           };
         },
@@ -613,7 +750,11 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
           members: [],
           question: "Anh/chị kiểm tra CRM xem 2 tài khoản có chung SĐT không nhé.",
           possible: [
-            { clusterId: "TECH-337", cause: "Hai hồ sơ học sinh gắn cùng một SĐT", sampleIds: ["TECH-712", "TECH-889"] },
+            {
+              clusterId: "TECH-337",
+              cause: "Hai hồ sơ học sinh gắn cùng một SĐT",
+              sampleIds: ["TECH-712", "TECH-889"],
+            },
           ],
         }),
       } as any,
@@ -745,7 +886,10 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
       await toSummary(CHAT, REPORT_A);
       const created = await pipeline.run({ chatId: CHAT, message: "đúng rồi" });
       const askedB = await pipeline.run({ chatId: CHAT, message: CONFLICTING_B });
-      const appended = await pipeline.run({ chatId: CHAT, message: askedB.buttons![0][0].callbackData });
+      const appended = await pipeline.run({
+        chatId: CHAT,
+        message: askedB.buttons![0][0].callbackData,
+      });
       expect(appended.action).toBe("post_create_update");
       expect(appended.docId).toBe(created.docId);
       // Bổ sung không đè định danh của ticket đã tạo.
@@ -765,7 +909,10 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
 
     it("nhắc lại ĐÚNG SĐT đã cho (cùng sự cố, không phải số khác) — không hỏi lại, không chặn nhầm", async () => {
       await toSummary(CHAT, REPORT_A);
-      const res = await pipeline.run({ chatId: CHAT, message: "Vâng SĐT của em là 0900000003 đúng rồi ạ" });
+      const res = await pipeline.run({
+        chatId: CHAT,
+        message: "Vâng SĐT của em là 0900000003 đúng rồi ạ",
+      });
 
       expect(res.action).not.toBe("ask_new_or_continue");
       expect(res.document.fields.studentAccount?.value).toBe("0900000003");
@@ -784,7 +931,10 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
 
         // Dẫn B đủ trường để hoàn tất tóm tắt (CONFLICTING_B không có mô tả lỗi rõ
         // ràng nên bot hỏi lại mô tả, rồi bộ phận, rồi hệ thống — như một sự cố mới bình thường).
-        await pipeline.run({ chatId: CHAT, message: "Lỗi hiển thị sai thời hạn khoá học trên đơn hàng ạ" });
+        await pipeline.run({
+          chatId: CHAT,
+          message: "Lỗi hiển thị sai thời hạn khoá học trên đơn hàng ạ",
+        });
         await pipeline.run({ chatId: CHAT, message: "Em bên Sale ạ" });
         const summaryB = await pipeline.run({ chatId: CHAT, message: "CRM_Vuihoc" });
         expect(summaryB.action).toBe("confirm_summary");
@@ -813,7 +963,9 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
       it("không có tờ khai nào bị gác lại → ticket_created bình thường, không có câu nhắc/nút phụ", async () => {
         const created = await toCreated();
         expect(created.voiceText).not.toContain("đang chờ xác nhận");
-        expect((created.buttons ?? []).flat().map((b) => b.callbackData)).not.toContain("Tiếp tục sự cố đang chờ");
+        expect((created.buttons ?? []).flat().map((b) => b.callbackData)).not.toContain(
+          "Tiếp tục sự cố đang chờ",
+        );
       });
 
       it('B bị HUỶ (không tạo ticket) → packet "canceled" cũng nhắc về A còn đang chờ', async () => {
@@ -851,14 +1003,34 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
     pipeline = build({
       extractor: new FieldExtractor(llm, async (_cfg, _sys, userPrompt: string) => {
         if (userPrompt.includes("9100001"))
-          return JSON.stringify({ userIntent: "report_issue", title: "Không tạo được đơn do trùng tài khoản", symptoms: ["trùng tài khoản 2 con"], customerId: "9100001", system: "CRM_Vuihoc", reportingDept: "Sale", product: "Tutor" });
+          return JSON.stringify({
+            userIntent: "report_issue",
+            title: "Không tạo được đơn do trùng tài khoản",
+            symptoms: ["trùng tài khoản 2 con"],
+            customerId: "9100001",
+            system: "CRM_Vuihoc",
+            reportingDept: "Sale",
+            product: "Tutor",
+          });
         if (/Sự cố mới/i.test(userPrompt)) return JSON.stringify({ userIntent: "provide_info" });
-        return JSON.stringify({ userIntent: "report_issue", title: "Học sinh bấm bài tập báo đăng ký tài khoản", symptoms: ["bấm bài tập báo đăng ký tài khoản"], system: "TUTOR_Vuihoc", product: "Tutor" });
+        return JSON.stringify({
+          userIntent: "report_issue",
+          title: "Học sinh bấm bài tập báo đăng ký tài khoản",
+          symptoms: ["bấm bài tập báo đăng ký tài khoản"],
+          system: "TUTOR_Vuihoc",
+          product: "Tutor",
+        });
       }),
     });
-    const r1 = await pipeline.run({ chatId: CHAT, message: "HS bấm vào bài tập vẫn báo đăng ký tài khoản" });
+    const r1 = await pipeline.run({
+      chatId: CHAT,
+      message: "HS bấm vào bài tập vẫn báo đăng ký tài khoản",
+    });
     expect(r1.action).toBe("ask_missing_field");
-    const r2 = await pipeline.run({ chatId: CHAT, message: "9100001 không tạo được đơn hàng do trùng tài khoản 2 con cùng 1 SĐT, em bên Sale" });
+    const r2 = await pipeline.run({
+      chatId: CHAT,
+      message: "9100001 không tạo được đơn hàng do trùng tài khoản 2 con cùng 1 SĐT, em bên Sale",
+    });
     expect(r2.action).toBe("ask_new_or_continue");
     expect(r2.document.fields.title?.value).toBe("Học sinh bấm bài tập báo đăng ký tài khoản");
     const r3 = await pipeline.run({ chatId: CHAT, message: "Sự cố mới" });
@@ -913,7 +1085,10 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
     };
 
     it("thiếu dữ kiện → hỏi MỘT lượt, câu trả lời vào mô tả rồi mới tóm tắt", async () => {
-      const r = reviewer({ missing: ["mã đơn hàng"], question: "Anh/chị cho em xin mã đơn hàng (DH…) nhé ạ." });
+      const r = reviewer({
+        missing: ["mã đơn hàng"],
+        question: "Anh/chị cho em xin mã đơn hàng (DH…) nhé ạ.",
+      });
       pipeline = build({ techReviewer: r });
       const r1 = await pipeline.run({ chatId: CHAT, message: REPORT });
       expect(r1.action).toBe("ask_missing_field");
@@ -922,7 +1097,10 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
       expect(r2.voiceText).toContain("mã đơn hàng");
       expect(r2.buttons?.flat().map((b) => b.text)).toContain("Không có");
       // Câu trả lời đọc như một lời báo đầy đủ vẫn là bổ sung, không bị hỏi "sự cố mới hay bổ sung"
-      const r3 = await pipeline.run({ chatId: CHAT, message: "Đơn DH900002 bị lỗi, hạn đang hiện 2026 nhưng đúng phải là 2030" });
+      const r3 = await pipeline.run({
+        chatId: CHAT,
+        message: "Đơn DH900002 bị lỗi, hạn đang hiện 2026 nhưng đúng phải là 2030",
+      });
       expect(r3.action).toBe("confirm_summary");
       expect(r3.document.fields.symptoms?.value?.join("\n")).toContain("DH900002");
       expect(r.seen.length).toBe(1);
@@ -935,7 +1113,9 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
     });
 
     it("câu trả lời chỉ gồm một mã vẫn vào mô tả", async () => {
-      pipeline = build({ techReviewer: reviewer({ missing: ["mã đơn hàng"], question: "Cho em xin mã đơn ạ." }) });
+      pipeline = build({
+        techReviewer: reviewer({ missing: ["mã đơn hàng"], question: "Cho em xin mã đơn ạ." }),
+      });
       await pipeline.run({ chatId: CHAT, message: REPORT });
       await pipeline.run({ chatId: CHAT, message: "Em bên Vận hành nhé" });
       const r3 = await pipeline.run({ chatId: CHAT, message: "DH900002" });
@@ -947,15 +1127,25 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
     it("mã đơn / link có trong lời báo được đưa vào 'Trường đã có'", async () => {
       const r = reviewer({ missing: [] });
       let known: Record<string, string> = {};
-      pipeline = build({ techReviewer: { review: async (input: any) => ((known = input.known), r.review(input)) } });
-      await pipeline.run({ chatId: CHAT, message: `${REPORT}, đơn DH900006, https://se-care.example.com/x/1` });
+      pipeline = build({
+        techReviewer: { review: async (input: any) => ((known = input.known), r.review(input)) },
+      });
+      await pipeline.run({
+        chatId: CHAT,
+        message: `${REPORT}, đơn DH900006, https://se-care.example.com/x/1`,
+      });
       await pipeline.run({ chatId: CHAT, message: "Em bên Vận hành nhé" });
       expect(known["Mã đơn hàng"]).toBe("DH900006");
       expect(known["Link"]).toContain("se-care.example.com");
     });
 
     it("người báo bấm 'Không có' → tóm tắt luôn, không hỏi lại", async () => {
-      pipeline = build({ techReviewer: reviewer({ missing: ["ảnh báo lỗi"], question: "Anh/chị gửi em ảnh báo lỗi nhé." }) });
+      pipeline = build({
+        techReviewer: reviewer({
+          missing: ["ảnh báo lỗi"],
+          question: "Anh/chị gửi em ảnh báo lỗi nhé.",
+        }),
+      });
       await pipeline.run({ chatId: CHAT, message: REPORT });
       await pipeline.run({ chatId: CHAT, message: "Em bên Vận hành nhé" });
       const r3 = await pipeline.run({ chatId: CHAT, message: "Không có" });
@@ -976,7 +1166,13 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
     it("đủ dữ kiện hoặc soát lỗi → tóm tắt như cũ", async () => {
       pipeline = build({ techReviewer: reviewer({ missing: [] }) });
       await toSummary();
-      pipeline = build({ techReviewer: { review: async () => { throw new Error("LLM chết"); } } });
+      pipeline = build({
+        techReviewer: {
+          review: async () => {
+            throw new Error("LLM chết");
+          },
+        },
+      });
       await toSummary("7002");
     });
   });
@@ -986,16 +1182,34 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
       const seen: any[] = [];
       return { seen, interpret: async (input: any) => (seen.push(input), cmd) };
     };
-    const techAsked = () => bindingRepo.saveMessageRoute("9001", "telegram", 5795, "TECHTEST-795", CHAT, "comment");
-    const own = (n: number) => bindingRepo.saveBinding({ issueId: 5000 + n, channelType: "telegram", chatId: CHAT, messageId: "1", identifier: `TECHTEST-${n}` });
+    const techAsked = () =>
+      bindingRepo.saveMessageRoute("9001", "telegram", 5795, "TECHTEST-795", CHAT, "comment");
+    const own = (n: number) =>
+      bindingRepo.saveBinding({
+        issueId: 5000 + n,
+        channelType: "telegram",
+        chatId: CHAT,
+        messageId: "1",
+        identifier: `TECHTEST-${n}`,
+      });
 
     it("kỹ thuật vừa hỏi → GỢI Ý bổ sung, chưa ghi gì; bấm xác nhận mới ghi", async () => {
       techAsked();
-      const c = interp({ action: "append", identifier: "TECHTEST-795", content: "Đơn hàng gia hạn ạ" });
+      const c = interp({
+        action: "append",
+        identifier: "TECHTEST-795",
+        content: "Đơn hàng gia hạn ạ",
+      });
       pipeline = build({ ticketCommands: c });
-      const r1 = await pipeline.run({ chatId: CHAT, message: "Đơn hàng gia hạn ạ- ac check tt hộ e ạ" });
+      const r1 = await pipeline.run({
+        chatId: CHAT,
+        message: "Đơn hàng gia hạn ạ- ac check tt hộ e ạ",
+      });
       expect(r1.action).toBe("confirm_ticket_action");
-      expect(r1.buttons?.flat().map((b) => b.text)).toEqual(["✅ Bổ sung vào TECHTEST-795", "Sự cố mới"]);
+      expect(r1.buttons?.flat().map((b) => b.text)).toEqual([
+        "✅ Bổ sung vào TECHTEST-795",
+        "Sự cố mới",
+      ]);
       expect(it$.calls.addComment).toHaveLength(0);
       expect(c.seen[0].candidates[0].techQuestion).toContain("đơn hàng nào sai");
       // model có thể bỏ emoji khi chuyển nhãn nút
@@ -1011,17 +1225,31 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
       own(795);
       const llm = { baseUrl: "http://llm.fake", apiKey: "k", model: "m" };
       pipeline = build({
-        ticketCommands: interp({ action: "append", identifier: "TECHTEST-795", content: "gấp lắm ạ, PH sắp khiếu nại" }),
+        ticketCommands: interp({
+          action: "append",
+          identifier: "TECHTEST-795",
+          content: "gấp lắm ạ, PH sắp khiếu nại",
+        }),
         extractor: new FieldExtractor(llm, async () =>
-          JSON.stringify({ userIntent: "provide_info", symptoms: [], requestedPriority: "urgent", requestedPriorityReason: "PH sắp khiếu nại" }),
+          JSON.stringify({
+            userIntent: "provide_info",
+            symptoms: [],
+            requestedPriority: "urgent",
+            requestedPriorityReason: "PH sắp khiếu nại",
+          }),
         ),
       });
-      const r1 = await pipeline.run({ chatId: CHAT, message: "TECHTEST-795 gấp lắm ạ, PH sắp khiếu nại" });
+      const r1 = await pipeline.run({
+        chatId: CHAT,
+        message: "TECHTEST-795 gấp lắm ạ, PH sắp khiếu nại",
+      });
       expect(r1.action).toBe("confirm_ticket_action");
       expect(it$.calls.updateIssue).toHaveLength(0);
       expect(it$.calls.addComment).toHaveLength(0);
       await pipeline.run({ chatId: CHAT, message: "Bổ sung vào TECHTEST-795" });
-      expect(it$.calls.updateIssue.some((u) => u.issueId === 5795 && u.patch.priority === "urgent")).toBe(true);
+      expect(
+        it$.calls.updateIssue.some((u) => u.issueId === 5795 && u.patch.priority === "urgent"),
+      ).toBe(true);
       expect(it$.calls.addComment.at(-1)?.content).toContain("Lý do: PH sắp khiếu nại");
     });
 
@@ -1038,8 +1266,17 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
     it("'bổ sung TECHTEST-795 …' khi đang soạn dở → xem trước + Huỷ; Huỷ thì không ghi, tờ khai giữ nguyên", async () => {
       own(795);
       await pipeline.run({ chatId: CHAT, message: REPORT });
-      pipeline = build({ ticketCommands: interp({ action: "append", identifier: "TECHTEST-795", content: "mã đơn DH900002" }) });
-      const r = await pipeline.run({ chatId: CHAT, message: "bổ sung TECHTEST-795 mã đơn DH900002" });
+      pipeline = build({
+        ticketCommands: interp({
+          action: "append",
+          identifier: "TECHTEST-795",
+          content: "mã đơn DH900002",
+        }),
+      });
+      const r = await pipeline.run({
+        chatId: CHAT,
+        message: "bổ sung TECHTEST-795 mã đơn DH900002",
+      });
       expect(r.action).toBe("confirm_ticket_action");
       expect(r.voiceText).toContain("DH900002");
       expect(r.buttons?.flat().map((b) => b.text)).toEqual(["✅ Bổ sung vào TECHTEST-795", "Huỷ"]);
@@ -1052,7 +1289,9 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
 
     it("đang chờ xác nhận mà nhắn việc khác → bỏ bản xem trước, xử lý tin mới như thường", async () => {
       own(795);
-      pipeline = build({ ticketCommands: interp({ action: "append", identifier: "TECHTEST-795", content: "x" }) });
+      pipeline = build({
+        ticketCommands: interp({ action: "append", identifier: "TECHTEST-795", content: "x" }),
+      });
       await pipeline.run({ chatId: CHAT, message: "bổ sung TECHTEST-795 x" });
       pipeline = build({ ticketCommands: interp({ action: "new" }) });
       const r = await pipeline.run({ chatId: CHAT, message: REPORT });
@@ -1061,10 +1300,14 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
     });
 
     it("ticket của người khác: không cho bổ sung, tra cứu chỉ thấy trạng thái", async () => {
-      pipeline = build({ ticketCommands: interp({ action: "append", identifier: "TECHTEST-777", content: "x" }) });
+      pipeline = build({
+        ticketCommands: interp({ action: "append", identifier: "TECHTEST-777", content: "x" }),
+      });
       const r = await pipeline.run({ chatId: CHAT, message: "bổ sung TECHTEST-777 x" });
       expect(r.voiceText).toContain("không phải ticket anh/chị báo");
-      pipeline = build({ ticketCommands: interp({ action: "lookup", identifier: "TECHTEST-777" }) });
+      pipeline = build({
+        ticketCommands: interp({ action: "lookup", identifier: "TECHTEST-777" }),
+      });
       const l = await pipeline.run({ chatId: CHAT, message: "TECHTEST-777 tới đâu rồi" });
       expect(l.action).toBe("lookup_result");
       expect(l.voiceText).toContain("Todo");
@@ -1072,7 +1315,9 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
     });
 
     it("ticket có Telegram ID người báo trong mô tả cũng là của mình (ticket bot cũ)", async () => {
-      pipeline = build({ ticketCommands: interp({ action: "lookup", identifier: "TECHTEST-888" }) });
+      pipeline = build({
+        ticketCommands: interp({ action: "lookup", identifier: "TECHTEST-888" }),
+      });
       const l = await pipeline.run({ chatId: "99999", message: "TECHTEST-888" });
       expect(l.voiceText).toContain("Ticket 888");
     });
@@ -1080,16 +1325,27 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
     it("sửa: xem trước cũ → mới, xác nhận thì sửa thẳng + comment dấu vết", async () => {
       own(795);
       pipeline = build({
-        ticketCommands: interp({ action: "edit", identifier: "TECHTEST-795", instruction: "SĐT thành 0900000015" }),
-        editPlanner: async () => [{ type: "field", label: "Tài khoản HS / SĐT", value: "0900000015" }],
+        ticketCommands: interp({
+          action: "edit",
+          identifier: "TECHTEST-795",
+          instruction: "SĐT thành 0900000015",
+        }),
+        editPlanner: async () => [
+          { type: "field", label: "Tài khoản HS / SĐT", value: "0900000015" },
+        ],
       });
-      const r = await pipeline.run({ chatId: CHAT, message: "sửa TECHTEST-795 SĐT thành 0900000015" });
+      const r = await pipeline.run({
+        chatId: CHAT,
+        message: "sửa TECHTEST-795 SĐT thành 0900000015",
+      });
       expect(r.action).toBe("confirm_ticket_action");
       expect(r.voiceText).toContain("0900000006 → 0900000015");
       expect(it$.calls.updateIssue).toHaveLength(0);
       const r2 = await pipeline.run({ chatId: CHAT, message: "✅ Sửa TECHTEST-795" });
       expect(r2.voiceText).toContain("đã sửa");
-      expect(it$.calls.updateIssue[0].patch.description).toContain("- Tài khoản HS / SĐT: 0900000015");
+      expect(it$.calls.updateIssue[0].patch.description).toContain(
+        "- Tài khoản HS / SĐT: 0900000015",
+      );
       expect(it$.calls.addComment[0].content).toContain("0900000006 → 0900000015");
     });
 
@@ -1099,30 +1355,51 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
       const created = await pipeline.run({ chatId: CHAT, message: "ok tạo đi" });
       expect(created.action).toBe("ticket_created");
       const newId = created.document.issueIdentifier!;
-      pipeline = build({ ticketCommands: interp({ action: "move_created", from: newId, identifier: "TECHTEST-795" }) });
-      const r = await pipeline.run({ chatId: CHAT, message: "nhầm rồi, cái này bổ sung cho TECHTEST-795" });
+      pipeline = build({
+        ticketCommands: interp({ action: "move_created", from: newId, identifier: "TECHTEST-795" }),
+      });
+      const r = await pipeline.run({
+        chatId: CHAT,
+        message: "nhầm rồi, cái này bổ sung cho TECHTEST-795",
+      });
       expect(r.action).toBe("confirm_ticket_action");
       expect(r.voiceText).toContain(`huỷ ${newId}`);
       await pipeline.run({ chatId: CHAT, message: "✅ Chuyển sang TECHTEST-795" });
-      expect(it$.calls.addComment.find((c) => c.issueId === 5795)?.content).toContain("Nội dung ticket vừa tạo nhầm");
-      expect(it$.calls.linkIssues[0]).toEqual({ a: created.document.issueId, b: 5795, kind: "duplicates" });
-      expect(it$.calls.updateIssue.find((u) => u.issueId === created.document.issueId)?.patch.columnId).toBe(9);
+      expect(it$.calls.addComment.find((c) => c.issueId === 5795)?.content).toContain(
+        "Nội dung ticket vừa tạo nhầm",
+      );
+      expect(it$.calls.linkIssues[0]).toEqual({
+        a: created.document.issueId,
+        b: 5795,
+        kind: "duplicates",
+      });
+      expect(
+        it$.calls.updateIssue.find((u) => u.issueId === created.document.issueId)?.patch.columnId,
+      ).toBe(9);
     });
 
     it("tin báo trạng thái, ticket đã huỷ, hay lời 'huỷ'/'cảm ơn' → không gợi ý ghi vào ticket", async () => {
       const c = interp({ action: "append", identifier: "TECHTEST-795", content: "x" });
       pipeline = build({ ticketCommands: c });
       bindingRepo.saveMessageRoute("9101", "telegram", 5795, "TECHTEST-795", CHAT, "state");
-      expect((await pipeline.run({ chatId: CHAT, message: "Đơn hàng gia hạn ạ" })).action).not.toBe("confirm_ticket_action");
+      expect((await pipeline.run({ chatId: CHAT, message: "Đơn hàng gia hạn ạ" })).action).not.toBe(
+        "confirm_ticket_action",
+      );
       await pipeline.run({ chatId: CHAT, message: "huỷ" });
       await new Promise((r) => setTimeout(r, 1100));
       bindingRepo.saveMessageRoute("9102", "telegram", 5796, "TECHTEST-796", CHAT, "comment");
-      expect((await pipeline.run({ chatId: CHAT, message: "Đơn hàng gia hạn ạ" })).action).not.toBe("confirm_ticket_action");
+      expect((await pipeline.run({ chatId: CHAT, message: "Đơn hàng gia hạn ạ" })).action).not.toBe(
+        "confirm_ticket_action",
+      );
       await pipeline.run({ chatId: CHAT, message: "huỷ" });
       await new Promise((r) => setTimeout(r, 1100));
       techAsked();
-      expect((await pipeline.run({ chatId: CHAT, message: "huỷ" })).action).not.toBe("confirm_ticket_action");
-      expect((await pipeline.run({ chatId: CHAT, message: "cảm ơn em" })).action).not.toBe("confirm_ticket_action");
+      expect((await pipeline.run({ chatId: CHAT, message: "huỷ" })).action).not.toBe(
+        "confirm_ticket_action",
+      );
+      expect((await pipeline.run({ chatId: CHAT, message: "cảm ơn em" })).action).not.toBe(
+        "confirm_ticket_action",
+      );
       expect(c.seen).toHaveLength(0);
     });
 
@@ -1146,7 +1423,10 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
     it("'/new' (cờ plugin) → mở sự cố mới, gác tờ khai đang dở", async () => {
       await pipeline.run({ chatId: CHAT, message: REPORT });
       bindingRepo.setChatFlag(CHAT, "force_new");
-      const r = await pipeline.run({ chatId: CHAT, message: "CRM không gọi được, số nào cũng báo máy bận" });
+      const r = await pipeline.run({
+        chatId: CHAT,
+        message: "CRM không gọi được, số nào cũng báo máy bận",
+      });
       expect(r.document.fields.symptoms?.value?.join(" ")).toContain("CRM không gọi được");
       expect(r.document.fields.symptoms?.value?.join(" ")).not.toContain("không làm bài được");
       expect(r.document.parkedDocId).toBeTruthy();
@@ -1174,7 +1454,8 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
             priority: "medium",
             createdAt: "2026-10-01T00:00:00.000Z",
             updatedAt: "2026-10-01T00:00:00.000Z",
-            description: "## Thông tin sự cố\n\n- Tài khoản HS / SĐT: 0900000006\n- Bộ phận: CSKH\n\n### Mô tả\n\n> Mô tả gốc\n\n---\n",
+            description:
+              "## Thông tin sự cố\n\n- Tài khoản HS / SĐT: 0900000006\n- Bộ phận: CSKH\n\n### Mô tả\n\n> Mô tả gốc\n\n---\n",
           };
         };
         it$.client.getIssueTimeline = async () => [
@@ -1207,9 +1488,18 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
           it$.calls.addComment.length = 0;
           setupTechColumnsAndIssue({ columnId: colId, specialistComments: specCount });
           pipeline = build({
-            ticketCommands: interp({ action: "cancel_or_close", identifier: "TECHTEST-951", content: msg, intent: "cancel" }),
+            ticketCommands: interp({
+              action: "cancel_or_close",
+              identifier: "TECHTEST-951",
+              content: msg,
+              intent: "cancel",
+            }),
           });
-          const preview = await pipeline.run({ chatId: CHAT, message: msg, reporter: { name: "SA_User***" } });
+          const preview = await pipeline.run({
+            chatId: CHAT,
+            message: msg,
+            reporter: { name: "SA_User***" },
+          });
           expect(preview.action).toBe("confirm_ticket_action");
           const btnTexts = preview.buttons?.flat().map((b) => b.text) ?? [];
           expect(btnTexts).toEqual(["✅ Hủy TECHTEST-951", "Giữ lại"]);
@@ -1217,7 +1507,11 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
           expect(it$.calls.updateIssue).toHaveLength(0);
           expect(it$.calls.addComment).toHaveLength(0);
 
-          const done = await pipeline.run({ chatId: CHAT, message: "✅ Hủy TECHTEST-951", reporter: { name: "SA_User***" } });
+          const done = await pipeline.run({
+            chatId: CHAT,
+            message: "✅ Hủy TECHTEST-951",
+            reporter: { name: "SA_User***" },
+          });
           expect(done.action).toBe("post_create_update");
           expect(it$.calls.updateIssue).toEqual([{ issueId: 5951, patch: { columnId: 5 } }]);
           expect(it$.calls.addComment).toHaveLength(1);
@@ -1244,7 +1538,10 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
           });
           const preview = await pipeline.run({ chatId: CHAT, message: "Đóng ticket TECHTEST-999" });
           expect(preview.action).toBe("confirm_ticket_action");
-          expect(preview.buttons?.flat().map((b) => b.text)).toEqual(["✅ Hủy TECHTEST-999", "Giữ lại"]);
+          expect(preview.buttons?.flat().map((b) => b.text)).toEqual([
+            "✅ Hủy TECHTEST-999",
+            "Giữ lại",
+          ]);
           const executed = await pipeline.run({ chatId: CHAT, message: "✅ Hủy TECHTEST-999" });
           expect(executed.action).toBe("post_create_update");
           expect(it$.calls.updateIssue).toEqual([{ issueId: 5999, patch: { columnId: 5 } }]);
@@ -1270,11 +1567,22 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
               intent: "close",
             }),
           });
-          const preview = await pipeline.run({ chatId: CHAT, message: msg, reporter: { name: "SC_User***" } });
+          const preview = await pipeline.run({
+            chatId: CHAT,
+            message: msg,
+            reporter: { name: "SC_User***" },
+          });
           expect(preview.action).toBe("confirm_ticket_action");
-          expect(preview.buttons?.flat().map((b) => b.text)).toEqual(["✅ Đóng TECHTEST-999", "Giữ lại"]);
+          expect(preview.buttons?.flat().map((b) => b.text)).toEqual([
+            "✅ Đóng TECHTEST-999",
+            "Giữ lại",
+          ]);
 
-          const executed = await pipeline.run({ chatId: CHAT, message: "✅ Đóng TECHTEST-999", reporter: { name: "SC_User***" } });
+          const executed = await pipeline.run({
+            chatId: CHAT,
+            message: "✅ Đóng TECHTEST-999",
+            reporter: { name: "SC_User***" },
+          });
           expect(executed.action).toBe("post_create_update");
           expect(it$.calls.updateIssue).toEqual([{ issueId: 5999, patch: { columnId: 4 } }]);
           expect(it$.calls.addComment[0].content).toContain("chuyển **Done**");
@@ -1326,12 +1634,19 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
         setupTechColumnsAndIssue({ columnId: 3, specialistComments: 1 });
         // Fallback khi bộ đọc lệnh trả nhầm 'edit' và editPlanner trả ops = []
         pipeline = build({
-          ticketCommands: interp({ action: "edit", identifier: "TECHTEST-951", instruction: "Hủy TECHTEST-951" }),
+          ticketCommands: interp({
+            action: "edit",
+            identifier: "TECHTEST-951",
+            instruction: "Hủy TECHTEST-951",
+          }),
           editPlanner: async () => [],
         });
         const preview = await pipeline.run({ chatId: CHAT, message: "Hủy TECHTEST-951" });
         expect(preview.action).toBe("confirm_ticket_action");
-        expect(preview.buttons?.flat().map((b) => b.text)).toEqual(["✅ Hủy TECHTEST-951", "Giữ lại"]);
+        expect(preview.buttons?.flat().map((b) => b.text)).toEqual([
+          "✅ Hủy TECHTEST-951",
+          "Giữ lại",
+        ]);
 
         const aborted = await pipeline.run({ chatId: CHAT, message: "Giữ lại" });
         expect(aborted.action).toBe("canceled");
@@ -1351,7 +1666,10 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
           }),
         });
         const askDone = await pipeline.run({ chatId: CHAT, message: "Đóng ticket TECHTEST-999" });
-        expect(askDone.buttons?.flat().map((b) => b.text)).toEqual(["✅ Đóng TECHTEST-999", "Giữ lại"]);
+        expect(askDone.buttons?.flat().map((b) => b.text)).toEqual([
+          "✅ Đóng TECHTEST-999",
+          "Giữ lại",
+        ]);
         // Chuyên viên kéo ngược từ Resolved (6) về In Progress (3) và chỉ có 1 comment chuyên viên
         setupTechColumnsAndIssue({ columnId: 3, specialistComments: 1 });
         await pipeline.run({ chatId: CHAT, message: "✅ Đóng TECHTEST-999" });
@@ -1365,15 +1683,26 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
           ticketCommands: {
             interpret: async (input) =>
               input.candidates.some((c) => c.ownTicket) && input.message === "Hủy TECHTEST-951"
-                ? { action: "cancel_or_close", identifier: "TECHTEST-951", content: input.message, intent: "cancel" }
+                ? {
+                    action: "cancel_or_close",
+                    identifier: "TECHTEST-951",
+                    content: input.message,
+                    intent: "cancel",
+                  }
                 : { action: "unclear" },
           },
         });
         const preview = await pipeline.run({ chatId: CHAT, message: "Hủy TECHTEST-951" });
-        expect(preview.buttons?.flat().map((b) => b.text)).toEqual(["✅ Hủy TECHTEST-951", "Giữ lại"]);
+        expect(preview.buttons?.flat().map((b) => b.text)).toEqual([
+          "✅ Hủy TECHTEST-951",
+          "Giữ lại",
+        ]);
 
         // Người lạ ở chat khác gửi đúng chuỗi callback "✅ Hủy TECHTEST-951" → không thực thi hủy vé của CHAT
-        const stranger = await pipeline.run({ chatId: "telegram:88888", message: "✅ Hủy TECHTEST-951" });
+        const stranger = await pipeline.run({
+          chatId: "telegram:88888",
+          message: "✅ Hủy TECHTEST-951",
+        });
         expect(stranger.action).not.toBe("confirm_ticket_action");
         expect(it$.calls.updateIssue).toHaveLength(0);
         expect(it$.calls.addComment).toHaveLength(0);
@@ -1387,7 +1716,10 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
         ]) {
           const ask = await pipeline.run({ chatId: CHAT, message: bugMsg });
           expect(ask.action).toBe("confirm_ticket_action");
-          expect(ask.buttons?.flat().map((b) => b.text)).toEqual(["✅ Bổ sung vào TECHTEST-951", "Sự cố mới"]);
+          expect(ask.buttons?.flat().map((b) => b.text)).toEqual([
+            "✅ Bổ sung vào TECHTEST-951",
+            "Sự cố mới",
+          ]);
           await pipeline.run({ chatId: CHAT, message: "Huỷ" });
         }
         expect(it$.calls.updateIssue).toHaveLength(0);
@@ -1421,14 +1753,21 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
           expect(stepImg.action).toBe("confirm_ticket_action");
           expect(stepImg.document.pendingTicketAction?.mediaPaths).toEqual([img1]);
 
-          const stepCmd = await pipeline.run({ chatId: CHAT, message: `update vào tick ${createdId}`, mediaPaths: [] });
+          const stepCmd = await pipeline.run({
+            chatId: CHAT,
+            message: `update vào tick ${createdId}`,
+            mediaPaths: [],
+          });
           expect(stepCmd.action).toBe("confirm_ticket_action");
           expect(stepCmd.document.pendingTicketAction?.mediaPaths).toEqual([img1]);
           expect(stepCmd.document.pendingTicketAction?.content).toBe("");
           expect(stepCmd.voiceText).toContain("(kèm 1 ảnh/tệp)");
           expect(stepCmd.voiceText).not.toContain(`> update vào tick ${createdId}`);
 
-          const done1 = await pipeline.run({ chatId: CHAT, message: `✅ Bổ sung vào ${createdId}` });
+          const done1 = await pipeline.run({
+            chatId: CHAT,
+            message: `✅ Bổ sung vào ${createdId}`,
+          });
           expect(done1.action).toBe("post_create_update");
           expect(it$.calls.uploadAttachment).toContain("test-attach-1218-a.jpg");
           expect(it$.calls.addComment).toHaveLength(1);
@@ -1438,9 +1777,15 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
           // Luồng 2: Lượt ảnh trước bị rớt (do gateway restart) nên chỉ nhận được "update vào tick TECHTEST-101" rỗng → hỏi xin ảnh/nội dung → lượt sau gửi ảnh → bấm xác nhận
           it$.calls.uploadAttachment.length = 0;
           it$.calls.addComment.length = 0;
-          const askPayload = await pipeline.run({ chatId: CHAT, message: `update vào tick ${createdId}`, mediaPaths: [] });
+          const askPayload = await pipeline.run({
+            chatId: CHAT,
+            message: `update vào tick ${createdId}`,
+            mediaPaths: [],
+          });
           expect(askPayload.action).toBe("clarify_intent");
-          expect(askPayload.voiceText).toContain(`gửi ảnh chụp màn hình hoặc nội dung cần bổ sung vào ${createdId}`);
+          expect(askPayload.voiceText).toContain(
+            `gửi ảnh chụp màn hình hoặc nội dung cần bổ sung vào ${createdId}`,
+          );
           expect(askPayload.voiceText).not.toContain(`> update vào tick ${createdId}`);
 
           const withPhoto = await pipeline.run({ chatId: CHAT, message: "", mediaPaths: [img2] });
@@ -1448,7 +1793,10 @@ describe("IntakeStepPipeline — vòng đời tài liệu", () => {
           expect(withPhoto.document.pendingTicketAction?.mediaPaths).toEqual([img2]);
           expect(withPhoto.voiceText).toContain("(kèm 1 ảnh/tệp)");
 
-          const done2 = await pipeline.run({ chatId: CHAT, message: `✅ Bổ sung vào ${createdId}` });
+          const done2 = await pipeline.run({
+            chatId: CHAT,
+            message: `✅ Bổ sung vào ${createdId}`,
+          });
           expect(done2.action).toBe("post_create_update");
           expect(it$.calls.uploadAttachment).toContain("test-attach-1218-b.jpg");
           expect(it$.calls.addComment).toHaveLength(1);

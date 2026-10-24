@@ -31,7 +31,11 @@ import fs from "node:fs";
 import { ItsaplanClient } from "../lib/itsaplan/client";
 import type { Record as Neo4jRecord } from "neo4j-driver";
 import { MemgraphClient } from "../lib/kg/memgraph-client";
-import { normalizeSystemName, CANONICAL_SYSTEMS, type CanonicalSystem } from "../lib/kg/system-taxonomy";
+import {
+  normalizeSystemName,
+  CANONICAL_SYSTEMS,
+  type CanonicalSystem,
+} from "../lib/kg/system-taxonomy";
 import systemTaxonomy from "../lib/kg/system-taxonomy.json";
 
 const APPLY = process.argv.includes("--apply");
@@ -163,7 +167,9 @@ async function countBySystem(): Promise<Record<string, number>> {
 }
 
 async function main(): Promise<void> {
-  console.log(`=== RELABEL System — ${APPLY ? "APPLY (mutate thật)" : "DRY RUN (không mutate)"} ===`);
+  console.log(
+    `=== RELABEL System — ${APPLY ? "APPLY (mutate thật)" : "DRY RUN (không mutate)"} ===`,
+  );
   console.log(`Danh mục chuẩn: ${CANONICAL_SYSTEMS.join(", ")}\n`);
 
   const before = await countBySystem();
@@ -174,7 +180,13 @@ async function main(): Promise<void> {
   const rows = await readAllTickets();
   await backup(rows);
 
-  const reviewList: Array<{ identifier: string; title: string; from: string; to: string; reason: string }> = [];
+  const reviewList: Array<{
+    identifier: string;
+    title: string;
+    from: string;
+    to: string;
+    reason: string;
+  }> = [];
   let relabeled = 0;
   let kept = 0;
 
@@ -187,10 +199,13 @@ async function main(): Promise<void> {
 
     let target: CanonicalSystem | undefined;
     let via = "";
-    let reason = "";
+    const reason = "";
 
     if (cur) {
-      const MIXED = cur === "Vuihoc (App/Web_Vuihoc + ERP_DUO)" || cur === "Web_Vuihoc" || cur === "App/Web_Vuihoc";
+      const MIXED =
+        cur === "Vuihoc (App/Web_Vuihoc + ERP_DUO)" ||
+        cur === "Web_Vuihoc" ||
+        cur === "App/Web_Vuihoc";
       if (MIXED && row.title) {
         // Nhãn trộn không nói gì về hệ thống thật — phân bằng keyword trên
         // title (Duo/ERP-DUO/Bitu → DUO; còn lại → VH_Tự học). Vẫn vào
@@ -248,7 +263,9 @@ async function main(): Promise<void> {
     }
 
     if (!target) continue;
-    console.log(`  ${APPLY ? "🔧" : "[dry]"} ${row.identifier}: ${cur || "<trống>"} → ${target} (${via})`);
+    console.log(
+      `  ${APPLY ? "🔧" : "[dry]"} ${row.identifier}: ${cur || "<trống>"} → ${target} (${via})`,
+    );
     if (APPLY) await relabelSafe(row.identifier, target);
     relabeled++;
   }

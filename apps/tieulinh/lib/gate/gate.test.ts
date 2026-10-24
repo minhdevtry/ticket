@@ -23,7 +23,9 @@ const rawCatalog: CatalogInput = {
         truong_mo_dau: "van_de",
         recap: ["tieu_de", "nhom", "van_de", "he_thong", "ghi_chu_noi_bo"],
         mot_trong: { truong: ["tan_suat", "quy_mo"] },
-        nhom_ngan_sach_hoi: [{ dem: ["van_de", "nguoi_anh_huong"], het: ["van_de", "nguoi_anh_huong"], toi_da: 3 }],
+        nhom_ngan_sach_hoi: [
+          { dem: ["van_de", "nguoi_anh_huong"], het: ["van_de", "nguoi_anh_huong"], toi_da: 3 },
+        ],
         truong: {
           van_de: {
             bat_buoc: true,
@@ -48,7 +50,12 @@ const rawCatalog: CatalogInput = {
             nhan: "Hệ thống",
             hoi: "Thuộc hệ thống nào ạ?",
           },
-          muc_khan_cap: { bat_buoc: false, kieu: "enum:muc_khan_cap", duoc_hoi: true, nhan: "Mức khẩn cấp" },
+          muc_khan_cap: {
+            bat_buoc: false,
+            kieu: "enum:muc_khan_cap",
+            duoc_hoi: true,
+            nhan: "Mức khẩn cấp",
+          },
           ly_do_gap: {
             bat_buoc_neu: "muc_khan_cap in muc_gap",
             kieu: "text",
@@ -56,7 +63,12 @@ const rawCatalog: CatalogInput = {
             nhan: "Lý do gấp",
             hoi: "Vì sao cần gấp ạ?",
           },
-          tan_suat: { kieu: "text", duoc_hoi: true, nhan: "Tần suất", hoi: "Gặp thường xuyên không ạ?" },
+          tan_suat: {
+            kieu: "text",
+            duoc_hoi: true,
+            nhan: "Tần suất",
+            hoi: "Gặp thường xuyên không ạ?",
+          },
           quy_mo: { kieu: "text", duoc_hoi: true, nhan: "Quy mô", hoi: "Bao nhiêu người gặp ạ?" },
           ghi_chu_noi_bo: { kieu: "text", duoc_hoi: false, nhan: "Ghi chú nội bộ" },
         },
@@ -74,7 +86,10 @@ const rawCatalog: CatalogInput = {
 
 const catalog: FieldCatalog = createCatalog(rawCatalog);
 
-function record(values: Record<string, string>, extra: Partial<ReturnType<typeof createRecord>> = {}) {
+function record(
+  values: Record<string, string>,
+  extra: Partial<ReturnType<typeof createRecord>> = {},
+) {
   return { ...createRecord("1", values), ...extra };
 }
 
@@ -132,16 +147,22 @@ describe("evaluateGate", () => {
   });
 
   test("asks for one oneOf member while none is answered", () => {
-    const gate = evaluateGate(catalog, record({ van_de: "a", nguoi_anh_huong: "b", he_thong: "CRM" }));
+    const gate = evaluateGate(
+      catalog,
+      record({ van_de: "a", nguoi_anh_huong: "b", he_thong: "CRM" }),
+    );
     expect(gate.fieldsToAsk).toEqual(["tan_suat"]);
   });
 
   test("giving up on the whole oneOf group completes, but does not claim to be resolved", () => {
     const gate = evaluateGate(
       catalog,
-      record({ van_de: "a", nguoi_anh_huong: "b", he_thong: "CRM" }, {
-        explicitlyMissing: ["tan_suat", "quy_mo"],
-      }),
+      record(
+        { van_de: "a", nguoi_anh_huong: "b", he_thong: "CRM" },
+        {
+          explicitlyMissing: ["tan_suat", "quy_mo"],
+        },
+      ),
     );
 
     // Settled and resolved are different things. The gate must stop asking, or
@@ -179,9 +200,12 @@ describe("evaluateGate", () => {
 
     const gate = evaluateGate(
       withDefaults,
-      record({ van_de: "a", nguoi_anh_huong: "b", he_thong: "CRM" }, {
-        explicitlyMissing: ["tan_suat", "quy_mo"],
-      }),
+      record(
+        { van_de: "a", nguoi_anh_huong: "b", he_thong: "CRM" },
+        {
+          explicitlyMissing: ["tan_suat", "quy_mo"],
+        },
+      ),
     );
 
     expect(gate.isFullyResolved).toBe(true);
@@ -192,9 +216,12 @@ describe("evaluateGate", () => {
   test("substitutes the declared default once a field's retry budget is spent", () => {
     const gate = evaluateGate(
       catalog,
-      record({ van_de: "a", he_thong: "CRM", tan_suat: "Hàng ngày" }, {
-        questionCount: { nguoi_anh_huong: 1 },
-      }),
+      record(
+        { van_de: "a", he_thong: "CRM", tan_suat: "Hàng ngày" },
+        {
+          questionCount: { nguoi_anh_huong: 1 },
+        },
+      ),
     );
 
     expect(gate.exhaustedFields).toContain("nguoi_anh_huong");
@@ -206,9 +233,12 @@ describe("evaluateGate", () => {
   test("treats a field the user cannot answer as settled", () => {
     const gate = evaluateGate(
       catalog,
-      record({ van_de: "a", he_thong: "CRM", tan_suat: "Hàng ngày" }, {
-        explicitlyMissing: ["nguoi_anh_huong"],
-      }),
+      record(
+        { van_de: "a", he_thong: "CRM", tan_suat: "Hàng ngày" },
+        {
+          explicitlyMissing: ["nguoi_anh_huong"],
+        },
+      ),
     );
     expect(gate.isComplete).toBe(true);
     expect(gate.missingRequired).toEqual([]);
@@ -218,9 +248,12 @@ describe("evaluateGate", () => {
     // Two questions on van_de plus one on nguoi_anh_huong reaches the group's max of 3.
     const gate = evaluateGate(
       catalog,
-      record({ he_thong: "CRM", tan_suat: "Hàng ngày" }, {
-        questionCount: { van_de: 2, nguoi_anh_huong: 1 },
-      }),
+      record(
+        { he_thong: "CRM", tan_suat: "Hàng ngày" },
+        {
+          questionCount: { van_de: 2, nguoi_anh_huong: 1 },
+        },
+      ),
     );
 
     expect(gate.exhaustedFields).toContain("van_de");
@@ -231,9 +264,12 @@ describe("evaluateGate", () => {
   test("keeps asking while the shared budget still has room", () => {
     const gate = evaluateGate(
       catalog,
-      record({ he_thong: "CRM", tan_suat: "Hàng ngày" }, {
-        questionCount: { van_de: 1 },
-      }),
+      record(
+        { he_thong: "CRM", tan_suat: "Hàng ngày" },
+        {
+          questionCount: { van_de: 1 },
+        },
+      ),
     );
     expect(gate.fieldsToAsk).toEqual(["van_de"]);
   });
@@ -276,7 +312,9 @@ describe("catalog integrity", () => {
   test("rejects a conditional rule referencing a missing vocabulary", () => {
     expect(() =>
       createCatalog({
-        fields: { nhanh: { "1": { truong: { x: { bat_buoc_neu: "y in vang_mat", kieu: "text" } } } } },
+        fields: {
+          nhanh: { "1": { truong: { x: { bat_buoc_neu: "y in vang_mat", kieu: "text" } } } },
+        },
       }),
     ).toThrow(/missing vocabulary/);
   });

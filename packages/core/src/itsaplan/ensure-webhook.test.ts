@@ -38,9 +38,7 @@ function fakeClient(hooks: Hook[]) {
 
 describe("deriveWebhookUrl", () => {
   it("sinh URL từ chính cổng nghe (không còn hai biến phải khớp tay)", () => {
-    expect(deriveWebhookUrl({ host: "10.0.0.5", port: 3104 })).toBe(
-      "http://10.0.0.5:3104/webhook",
-    );
+    expect(deriveWebhookUrl({ host: "10.0.0.5", port: 3104 })).toBe("http://10.0.0.5:3104/webhook");
     expect(deriveWebhookUrl({ host: "10.0.0.5", port: 8080, path: "hook", scheme: "https" })).toBe(
       "https://10.0.0.5:8080/hook",
     );

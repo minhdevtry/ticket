@@ -11,26 +11,38 @@ import productMapping from "../../mcp/tieulinh/domain/product_mapping.json";
 import urgencyRules from "../../mcp/tieulinh/domain/urgency-rules.json";
 import { createIssue } from "../../mcp/shared/tools/create-issue";
 import { ticketDomain } from "../../mcp/tieulinh/domain";
-import type { ValidationRules, FieldRequirementsTable, ProductMappingConfig, UrgencyRules } from "../../mcp/shared/index";
+import type {
+  ValidationRules,
+  FieldRequirementsTable,
+  ProductMappingConfig,
+  UrgencyRules,
+} from "../../mcp/shared/index";
 
 describe("TECH-1148: Chặn tin noop và chặn tạo ticket với tiêu đề/mô tả rỗng hoặc noop", () => {
   let db: Database;
   let repo: IntakeDocumentRepository;
   let pipeline: IntakeStepPipeline;
-  let createdIssues: Array<{ projectKey: string; payload: { title: string; description?: string } }>;
+  let createdIssues: Array<{
+    projectKey: string;
+    payload: { title: string; description?: string };
+  }>;
 
   function makeItsaplan(): ItsaplanClient {
     createdIssues = [];
     const client: Partial<ItsaplanClient> = {
       listProjects: async () =>
-        [{ id: 1, key: "TECH", name: "Tech", raw: { issueTypes: [{ id: 1, isDefault: true }] } }] as unknown as ItsaplanProject[],
-      listProjectColumns: async () => [{ id: 1, name: "Todo", stateType: "unstarted", position: 1 }],
+        [
+          { id: 1, key: "TECH", name: "Tech", raw: { issueTypes: [{ id: 1, isDefault: true }] } },
+        ] as unknown as ItsaplanProject[],
+      listProjectColumns: async () => [
+        { id: 1, name: "Todo", stateType: "unstarted", position: 1 },
+      ],
       listCustomFields: async () => [{ id: 42, name: "Related Tickets", fieldType: "markdown" }],
       setCustomFieldValue: async () => {},
       getIssueByNumber: async (_pk, seq) =>
         ({ id: 9000 + seq, identifier: `TECH-${seq}` }) as unknown as ItsaplanIssue,
       addLink: async () => ({ id: 1, kind: "relates" }),
-      updateIssue: async () => ({ id: 1 } as unknown as ItsaplanIssue),
+      updateIssue: async () => ({ id: 1 }) as unknown as ItsaplanIssue,
       addComment: async (_id, body) => ({ id: 1, body }),
       createIssue: async (projectKey, payload) => {
         createdIssues.push({ projectKey, payload });
@@ -164,9 +176,24 @@ describe("TECH-1148: Chặn tin noop và chặn tạo ticket với tiêu đề/m
       status: "ready_for_confirmation" as const,
       currentTurn: 2,
       fields: {
-        title: { value: "noop", source: "user_message" as const, turn: 1, updatedAt: new Date().toISOString() },
-        rawText: { value: "noop", source: "user_message" as const, turn: 1, updatedAt: new Date().toISOString() },
-        symptoms: { value: ["noop"], source: "user_message" as const, turn: 1, updatedAt: new Date().toISOString() },
+        title: {
+          value: "noop",
+          source: "user_message" as const,
+          turn: 1,
+          updatedAt: new Date().toISOString(),
+        },
+        rawText: {
+          value: "noop",
+          source: "user_message" as const,
+          turn: 1,
+          updatedAt: new Date().toISOString(),
+        },
+        symptoms: {
+          value: ["noop"],
+          source: "user_message" as const,
+          turn: 1,
+          updatedAt: new Date().toISOString(),
+        },
       },
       evidence: {},
       askedCount: {},

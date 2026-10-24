@@ -27,7 +27,28 @@ const fold = (s: string) =>
 
 // Tiền tố mô tả mức chắc chắn / cách trình bày, không phải cơ chế lỗi.
 const PREFIX = /^(chua ro nguyen nhan|issue \d+|loi du lieu|co the)\s+/;
-const STOP = new Set(["do", "bi", "nen", "va", "cua", "cho", "khi", "o", "la", "ko", "khong", "thi", "da", "dang", "se", "co", "ben", "cac", "1", "2"]);
+const STOP = new Set([
+  "do",
+  "bi",
+  "nen",
+  "va",
+  "cua",
+  "cho",
+  "khi",
+  "o",
+  "la",
+  "ko",
+  "khong",
+  "thi",
+  "da",
+  "dang",
+  "se",
+  "co",
+  "ben",
+  "cac",
+  "1",
+  "2",
+]);
 /** Câu nguyên nhân hay có đuôi riêng từng ticket (tên HS, mã đơn) — chỉ so phần đầu. */
 const HEAD_WORDS = 16;
 

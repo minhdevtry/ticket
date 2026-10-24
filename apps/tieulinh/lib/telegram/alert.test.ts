@@ -74,7 +74,10 @@ describe("savePendingButtons — chặn nút Telegram sẽ từ chối", () => {
    */
   test("loại nút quá 64 byte, vẫn ghi những nút còn lại", () => {
     savePendingButtons(tid, [
-      [{ text: "ok", callback_data: "Gấp" }, { text: "xấu", callback_data: tooLong }],
+      [
+        { text: "ok", callback_data: "Gấp" },
+        { text: "xấu", callback_data: tooLong },
+      ],
     ]);
     const saved = JSON.parse(fs.readFileSync(fileFor(tid), "utf-8"));
     expect(saved.buttons).toEqual([[{ text: "ok", callback_data: "Gấp" }]]);

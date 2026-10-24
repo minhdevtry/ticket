@@ -1,7 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import { buildCauseClusters, causeSimilarity } from "./cause-clusters";
 
-const node = (id: string, humanCause?: string, positives: string[] = [], negatives: string[] = []) => ({
+const node = (
+  id: string,
+  humanCause?: string,
+  positives: string[] = [],
+  negatives: string[] = [],
+) => ({
   id,
   humanCause,
   positives,
@@ -10,16 +15,24 @@ const node = (id: string, humanCause?: string, positives: string[] = [], negativ
 
 describe("causeSimilarity", () => {
   it("cùng mẫu câu tech lead, khác vài chữ → giống", () => {
-    expect(causeSimilarity("Bị gắn trùng tk học do cùng tên", "Bị gắn trùng tk học cho con cùng tên")).toBeGreaterThanOrEqual(0.6);
+    expect(
+      causeSimilarity("Bị gắn trùng tk học do cùng tên", "Bị gắn trùng tk học cho con cùng tên"),
+    ).toBeGreaterThanOrEqual(0.6);
   });
   it("tech lead tách 'khi book test cho con chưa có tk' thành nguyên nhân khác → không đủ giống", () => {
     expect(
-      causeSimilarity("Bị gắn trùng tk học do cùng tên", "Bị gắn trùng tk học khi book lịch test cho con cùng tên & chưa có tk học"),
+      causeSimilarity(
+        "Bị gắn trùng tk học do cùng tên",
+        "Bị gắn trùng tk học khi book lịch test cho con cùng tên & chưa có tk học",
+      ),
     ).toBeLessThan(0.6);
   });
   it("bỏ tiền tố 'Chưa rõ nguyên nhân', dấu, số dài", () => {
     expect(
-      causeSimilarity("Chưa rõ nguyên nhân - HS GS Toán 1:10 bị mất dòng bên ERP 12345678", "HS GS Toán 1:10 bị mất dòng bên ERP 87654321"),
+      causeSimilarity(
+        "Chưa rõ nguyên nhân - HS GS Toán 1:10 bị mất dòng bên ERP 12345678",
+        "HS GS Toán 1:10 bị mất dòng bên ERP 87654321",
+      ),
     ).toBe(1);
   });
   it("thiếu câu → 0", () => {
@@ -52,7 +65,11 @@ describe("buildCauseClusters", () => {
   });
 
   it("link người gắn gộp cả khi câu chữ khác hoặc thiếu comment ghim", () => {
-    const c = buildCauseClusters([node("TECH-10", "Nguyên nhân A", ["TECH-11"]), node("TECH-11"), node("TECH-12", "Khác hẳn")]);
+    const c = buildCauseClusters([
+      node("TECH-10", "Nguyên nhân A", ["TECH-11"]),
+      node("TECH-11"),
+      node("TECH-12", "Khác hẳn"),
+    ]);
     expect(c.get("TECH-11")).toBe(c.get("TECH-10"));
     expect(c.get("TECH-12")).toBe("TECH-12");
   });

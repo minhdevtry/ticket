@@ -14,11 +14,21 @@ import type { ChannelPort, NotifyBinding } from "../ports";
  * backoff; hết lượt → failed, không kẹt. Clock tiêm để kiểm backoff.
  */
 
-const binding: NotifyBinding = { issueId: 1, identifier: "OP-1", chatId: "7", channelType: "telegram" };
+const binding: NotifyBinding = {
+  issueId: 1,
+  identifier: "OP-1",
+  chatId: "7",
+  channelType: "telegram",
+};
 
 function fakeClock(start = 0): OutboxClock & { set(ms: number): void } {
   let t = start;
-  return { now: () => t, set: (ms: number) => { t = ms; } };
+  return {
+    now: () => t,
+    set: (ms: number) => {
+      t = ms;
+    },
+  };
 }
 
 function db(): Database {
@@ -105,7 +115,12 @@ describe("SqliteOutboxStore.drain", () => {
 
   it("hết maxAttempts → failed, thôi thử (không kẹt vô hạn)", async () => {
     const clock = fakeClock(0);
-    const store = new SqliteOutboxStore(db(), { clock, backoffBaseMs: 1, backoffMaxMs: 1, maxAttempts: 3 });
+    const store = new SqliteOutboxStore(db(), {
+      clock,
+      backoffBaseMs: 1,
+      backoffMaxMs: 1,
+      maxAttempts: 3,
+    });
     const { port } = flakyChannel(99);
     const wrapped = new OutboxChannelPort(port, store);
     await wrapped.sendComment({ binding, authorName: "KTV", text: "x" }); // attempts 0, pending

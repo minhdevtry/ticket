@@ -24,7 +24,12 @@ afterEach(() => db.close());
 // ── repository round-trip ──────────────────────────────────────────────────
 describe("SqliteIdentityRepository (:memory:)", () => {
   test("save + read round-trips with the userId rename over telegram_user_id", () => {
-    repo.saveUserIdentity({ userId: "123", nameCode: "TE_usera", fullName: "Lan", status: "pending" });
+    repo.saveUserIdentity({
+      userId: "123",
+      nameCode: "TE_usera",
+      fullName: "Lan",
+      status: "pending",
+    });
     const got = repo.getUserIdentity("123");
     expect(got?.userId).toBe("123");
     expect(got?.nameCode).toBe("TE_usera");
@@ -319,7 +324,12 @@ describe("relinkIdentityAndBindings (A1 — nhất quán lưu theo id)", () => {
     bindings.saveBinding({ issueId: 2, chatId: "c", identifier: "OP-2", reporterUserId: "111" });
 
     // đổi sang tài khoản mới 222
-    const r = relinkIdentityAndBindings(repo, bindings, { nameCode: "TE_usera", newUserId: "222", approver: "admin" }, authAll);
+    const r = relinkIdentityAndBindings(
+      repo,
+      bindings,
+      { nameCode: "TE_usera", newUserId: "222", approver: "admin" },
+      authAll,
+    );
 
     expect(r.success).toBe(true);
     expect(r.identity?.userId).toBe("222"); // định danh sang id mới
@@ -351,7 +361,12 @@ describe("relinkIdentityAndBindings (A1 — nhất quán lưu theo id)", () => {
 
   test("không truyền bindings → chỉ relink định danh, reboundBindings = 0", () => {
     repo.saveUserIdentity({ userId: "111", nameCode: "TE_y", status: "approved" });
-    const r = relinkIdentityAndBindings(repo, undefined, { nameCode: "TE_y", newUserId: "222", approver: "admin" }, authAll);
+    const r = relinkIdentityAndBindings(
+      repo,
+      undefined,
+      { nameCode: "TE_y", newUserId: "222", approver: "admin" },
+      authAll,
+    );
     expect(r.success).toBe(true);
     expect(r.reboundBindings).toBe(0);
     expect(repo.getUserIdentityByNameCode("TE_y")?.userId).toBe("222");

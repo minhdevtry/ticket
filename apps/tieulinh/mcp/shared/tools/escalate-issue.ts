@@ -30,7 +30,11 @@ export function escalateIssue(config: TrackerConfig, vocabulary: EscalateVocabul
       `("gấp lắm", "50 phút rồi chưa ai nhận", "muộn giờ học rồi"). ` +
       `Bắt buộc truyền \`identifier\` — chưa chắc là ticket nào thì hỏi lại người dùng, không tự đoán bằng \`latestTicket\`.`,
     inputSchema: {
-      identifier: z.string().describe('Mã cần nâng ưu tiên, ví dụ "TECH-42". Chưa chắc chắn thì phải hỏi lại người dùng trước.'),
+      identifier: z
+        .string()
+        .describe(
+          'Mã cần nâng ưu tiên, ví dụ "TECH-42". Chưa chắc chắn thì phải hỏi lại người dùng trước.',
+        ),
       reason: z.string().optional().describe("Lý do người dùng nêu, dùng cho tin báo trực ca"),
       reporterName: z.string().describe("Tên người báo, do host cung cấp"),
       reporterUsername: z.string().optional().describe("Username trên kênh chat, nếu có"),
@@ -44,7 +48,12 @@ export function escalateIssue(config: TrackerConfig, vocabulary: EscalateVocabul
       }
 
       await client.updateIssue(issue.id, { priority: "urgent" });
-      await client.addComment(issue.id, markBotComment(`🚨 **Người báo giục gấp.** ${escapeItsaplanMarkdown(input.reason ?? "")}`.trim()));
+      await client.addComment(
+        issue.id,
+        markBotComment(
+          `🚨 **Người báo giục gấp.** ${escapeItsaplanMarkdown(input.reason ?? "")}`.trim(),
+        ),
+      );
 
       const reporter = input.reporterUsername ? `@${input.reporterUsername}` : input.reporterName;
       const fill = (template: string) =>

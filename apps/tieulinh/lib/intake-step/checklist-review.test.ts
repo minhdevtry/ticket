@@ -5,7 +5,10 @@ const base = { attachments: 0, known: {} as Record<string, string> };
 
 describe("ChecklistTechReviewer", () => {
   it("không có ảnh → luôn xin ảnh màn hình, một tin, kết bằng 'không có'", async () => {
-    const out = await new ChecklistTechReviewer().review({ ...base, description: "Không vào được app" });
+    const out = await new ChecklistTechReviewer().review({
+      ...base,
+      description: "Không vào được app",
+    });
     expect(out.missing).toContain("ảnh màn hình");
     expect(out.question).toContain("1. Ảnh chụp màn hình");
     expect(out.question?.endsWith(CHECKLIST_CLOSING)).toBe(true);
@@ -23,31 +26,47 @@ describe("ChecklistTechReviewer", () => {
     const have = buildChecklist({
       ...base,
       system: "CARE",
-      description: "Không chuyển được phí https://se-care.example.com/student-care/student-detail/774883?taskType=1",
+      description:
+        "Không chuyển được phí https://se-care.example.com/student-care/student-detail/774883?taskType=1",
     });
     expect(have.missing).not.toContain("link chi tiết CARE");
   });
 
   it("CRM → xin link contact, LMS/khoá → xin UID hoặc link LMS", () => {
-    expect(buildChecklist({ ...base, system: "CRM", description: "Báo trùng tài khoản" }).missing).toContain("link contact CRM");
-    expect(buildChecklist({ ...base, system: "LMS", description: "Sai hạn khoá Toán" }).missing).toContain("UID/link LMS");
-    expect(buildChecklist({ ...base, system: "LMS", description: "Sai hạn khoá Toán uid: 90000009" }).missing).not.toContain("UID/link LMS");
+    expect(
+      buildChecklist({ ...base, system: "CRM", description: "Báo trùng tài khoản" }).missing,
+    ).toContain("link contact CRM");
+    expect(
+      buildChecklist({ ...base, system: "LMS", description: "Sai hạn khoá Toán" }).missing,
+    ).toContain("UID/link LMS");
+    expect(
+      buildChecklist({ ...base, system: "LMS", description: "Sai hạn khoá Toán uid: 90000009" })
+        .missing,
+    ).not.toContain("UID/link LMS");
   });
 
   it("mã đơn hàng: hỏi khi nói về đơn/hạn, bỏ khi đã có DH…", () => {
-    expect(buildChecklist({ ...base, description: "Đơn chưa lên khoá" }).missing).toContain("mã đơn hàng");
-    expect(buildChecklist({ ...base, description: "Đơn DH900001 chưa lên khoá" }).missing).not.toContain("mã đơn hàng");
+    expect(buildChecklist({ ...base, description: "Đơn chưa lên khoá" }).missing).toContain(
+      "mã đơn hàng",
+    );
+    expect(
+      buildChecklist({ ...base, description: "Đơn DH900001 chưa lên khoá" }).missing,
+    ).not.toContain("mã đơn hàng");
   });
 
   it("không hỏi nguyên nhân, không xin mật khẩu TeamViewer", () => {
-    const q = buildChecklist({ ...base, system: "CRM", description: "Máy tính không gọi được" }).question ?? "";
+    const q =
+      buildChecklist({ ...base, system: "CRM", description: "Máy tính không gọi được" }).question ??
+      "";
     expect(q.toLowerCase()).not.toContain("nguyên nhân");
     expect(q.toLowerCase()).not.toContain("teamviewer");
     expect(q.toLowerCase()).not.toContain("mật khẩu");
   });
 
   it("việc rõ ràng không thuộc TECH (chấm công/AMIS) → không hỏi", () => {
-    expect(buildChecklist({ ...base, description: "Sai công tháng này trên AMIS" })).toEqual({ missing: [] });
+    expect(buildChecklist({ ...base, description: "Sai công tháng này trên AMIS" })).toEqual({
+      missing: [],
+    });
   });
 
   it("báo đủ hết → missing rỗng", () => {
@@ -86,7 +105,11 @@ describe("tự học: mục học được nối thêm vào checklist", () => {
     expect(count(asked.question!, "Link chi tiết contact trên se-crm")).toBe(1);
     expect(asked.missing.filter((m) => m.startsWith("học thêm"))).toEqual([]);
     const have = buildChecklist(
-      { ...sample, attachments: 1, description: "Báo trùng https://se-crm.example.com/contact/detail/12" },
+      {
+        ...sample,
+        attachments: 1,
+        description: "Báo trùng https://se-crm.example.com/contact/detail/12",
+      },
       ["SCREENSHOT", "CRM_CONTACT_LINK"],
     );
     expect(have.missing.some((m) => m.startsWith("học thêm"))).toBe(false);
@@ -98,7 +121,9 @@ describe("tự học: mục học được nối thêm vào checklist", () => {
   });
 
   it("NOT_TECH vẫn không hỏi dù có mục học được", () => {
-    expect(buildChecklist({ ...base, description: "Sai công tháng này trên AMIS" }, ["ERROR_TEXT"])).toEqual({ missing: [] });
+    expect(
+      buildChecklist({ ...base, description: "Sai công tháng này trên AMIS" }, ["ERROR_TEXT"]),
+    ).toEqual({ missing: [] });
   });
 
   it("ChecklistTechReviewer: bộ học lỗi thì vẫn hỏi như cũ", async () => {
@@ -115,7 +140,11 @@ describe("tự học: mục học được nối thêm vào checklist", () => {
       seen = system;
       return ["EXTENT"];
     });
-    const out = await reviewer.review({ ...base, system: "LMS_Vuihoc", description: "Sai hạn khoá Toán" });
+    const out = await reviewer.review({
+      ...base,
+      system: "LMS_Vuihoc",
+      description: "Sai hạn khoá Toán",
+    });
     expect(seen).toBe("LMS_Vuihoc");
     expect(out.missing).toContain("học thêm: EXTENT");
   });
@@ -144,9 +173,9 @@ describe("tự học: mục học được nối thêm vào checklist", () => {
   it("ảnh màn hình luôn được ghim đầu tiên khi được hỏi, kể cả tỉ lệ thấp hơn mục khác", () => {
     const input = { ...base, system: "CARE_Vuihoc", description: "Lỗi chuyển phí" };
     const shares = {
-      CARE_STUDENT_LINK: 0.50,
+      CARE_STUDENT_LINK: 0.5,
       SCREENSHOT: 0.01,
-      STEPS: 0.20,
+      STEPS: 0.2,
     };
     const out = buildChecklist(input, [], shares);
     expect(out.missing[0]).toBe("ảnh màn hình");
@@ -157,9 +186,9 @@ describe("tự học: mục học được nối thêm vào checklist", () => {
   it("đã có ảnh đính kèm → không hỏi ảnh màn hình, mục có tỉ lệ cao nhất đứng đầu", () => {
     const input = { ...base, attachments: 1, system: "CARE_Vuihoc", description: "Lỗi chuyển phí" };
     const shares = {
-      CARE_STUDENT_LINK: 0.50,
+      CARE_STUDENT_LINK: 0.5,
       SCREENSHOT: 0.99,
-      STEPS: 0.20,
+      STEPS: 0.2,
     };
     const out = buildChecklist(input, [], shares);
     expect(out.missing).not.toContain("ảnh màn hình");
@@ -194,11 +223,23 @@ describe("tự học: mục học được nối thêm vào checklist", () => {
     const reviewerThrow = new ChecklistTechReviewer(() => {
       throw new Error("Lỗi kết nối kho SQLite");
     });
-    const outThrow = await reviewerThrow.review({ ...base, system: "CARE_Vuihoc", description: "Không chuyển được phí" });
-    expect(outThrow).toEqual(buildChecklist({ ...base, system: "CARE_Vuihoc", description: "Không chuyển được phí" }));
+    const outThrow = await reviewerThrow.review({
+      ...base,
+      system: "CARE_Vuihoc",
+      description: "Không chuyển được phí",
+    });
+    expect(outThrow).toEqual(
+      buildChecklist({ ...base, system: "CARE_Vuihoc", description: "Không chuyển được phí" }),
+    );
 
     const reviewerErrResult = new ChecklistTechReviewer(() => ({ items: [], shares: {} }));
-    const outErr = await reviewerErrResult.review({ ...base, system: "CARE_Vuihoc", description: "Không chuyển được phí" });
-    expect(outErr).toEqual(buildChecklist({ ...base, system: "CARE_Vuihoc", description: "Không chuyển được phí" }));
+    const outErr = await reviewerErrResult.review({
+      ...base,
+      system: "CARE_Vuihoc",
+      description: "Không chuyển được phí",
+    });
+    expect(outErr).toEqual(
+      buildChecklist({ ...base, system: "CARE_Vuihoc", description: "Không chuyển được phí" }),
+    );
   });
 });

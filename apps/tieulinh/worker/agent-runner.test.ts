@@ -89,16 +89,20 @@ describe("OnyxIngestService — khoá dự án", () => {
       getIssue: mock(async () => ({ id: 78, identifier: "PO-78", title: "x", description: "y" })),
       getIssueTimeline: mock(async () => []),
     } as any;
-    const service = new OnyxIngestService(itsaplan, {} as any, {
-      onyxBaseUrl: "http://onyx.invalid",
-      onyxApiKey: "k",
-      openaiBaseUrl: "",
-      openaiApiKey: "",
-      openaiModel: "m",
-      itsaplanWebUrl: "",
-      itsaplanProjectKey: "TECH",
-      docIdPrefix: "ticket_",
-    } as any);
+    const service = new OnyxIngestService(
+      itsaplan,
+      {} as any,
+      {
+        onyxBaseUrl: "http://onyx.invalid",
+        onyxApiKey: "k",
+        openaiBaseUrl: "",
+        openaiApiKey: "",
+        openaiModel: "m",
+        itsaplanWebUrl: "",
+        itsaplanProjectKey: "TECH",
+        docIdPrefix: "ticket_",
+      } as any,
+    );
 
     const result = await service.ingestDoneTicket(78);
     expect(result).toMatchObject({ success: true, status: "skipped" });

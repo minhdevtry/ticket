@@ -1,4 +1,4 @@
-import { ItsaplanClient } from "./client";
+import type { ItsaplanClient } from "./client";
 import { getLogger } from "../logger";
 
 /**
@@ -6,7 +6,12 @@ import { getLogger } from "../logger";
  * sửa comment — lúc tech lead ghim Nguyên nhân / Cách khắc phục thì worker chốt
  * ticket tương tự (worker/related-curator.ts, ADR-0007).
  */
-export const REQUIRED_WEBHOOK_EVENTS = ["comment.created", "comment.updated", "issue.state_changed", "issue.assigned"];
+export const REQUIRED_WEBHOOK_EVENTS = [
+  "comment.created",
+  "comment.updated",
+  "issue.state_changed",
+  "issue.assigned",
+];
 
 /**
  * Đảm bảo Webhook lắng nghe sự kiện trên Itsaplan luôn tồn tại, bật, và đủ sự kiện.
@@ -22,9 +27,13 @@ export async function ensureItsaplanWebhook(
       (h) => h.url.trim().toLowerCase() === webhookUrl.trim().toLowerCase(),
     );
 
-    const missing = matching ? REQUIRED_WEBHOOK_EVENTS.filter((e) => !(matching.events ?? []).includes(e)) : [];
+    const missing = matching
+      ? REQUIRED_WEBHOOK_EVENTS.filter((e) => !(matching.events ?? []).includes(e))
+      : [];
     if (matching && matching.isActive && missing.length) {
-      await client.updateWebhook(matching.id, { events: [...new Set([...(matching.events ?? []), ...missing])] });
+      await client.updateWebhook(matching.id, {
+        events: [...new Set([...(matching.events ?? []), ...missing])],
+      });
       const msg = `Webhook [${projectKey}] #${matching.id}: thêm sự kiện ${missing.join(", ")}`;
       getLogger().info(`[ensureWebhook] ${msg}`);
       return { success: true, webhookId: matching.id, message: msg };
@@ -37,7 +46,9 @@ export async function ensureItsaplanWebhook(
     }
 
     if (matching && !matching.isActive) {
-      getLogger().warn(`[ensureWebhook] Webhook ID ${matching.id} đang bị tắt (isActive = false), xóa và tạo mới...`);
+      getLogger().warn(
+        `[ensureWebhook] Webhook ID ${matching.id} đang bị tắt (isActive = false), xóa và tạo mới...`,
+      );
       await client.deleteWebhook(matching.id).catch(() => {});
     }
 

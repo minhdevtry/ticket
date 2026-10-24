@@ -12,7 +12,12 @@ import { applySchema } from "../../../lib/storage/schema";
 import validationRules from "../../tieulinh/domain/validation-rules.json";
 import fieldRequirements from "../../tieulinh/domain/required_fields.json";
 import productMapping from "../../tieulinh/domain/product_mapping.json";
-import { VALID_SYSTEMS, VALID_PRODUCTS, VALID_REPORTING_DEPTS, VALID_ERROR_CATEGORIES } from "../../tieulinh/domain/taxonomy";
+import {
+  VALID_SYSTEMS,
+  VALID_PRODUCTS,
+  VALID_REPORTING_DEPTS,
+  VALID_ERROR_CATEGORIES,
+} from "../../tieulinh/domain/taxonomy";
 
 function makeTool(dbPath?: string) {
   return validateFields(

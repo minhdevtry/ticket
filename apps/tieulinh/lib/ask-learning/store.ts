@@ -9,7 +9,7 @@
  * Thời gian lưu là epoch ms (INTEGER). Cột already_in_report thêm vào so với mô tả
  * ban đầu: học chỉ tính mục CHƯA có trong lời báo.
  */
-import { Database } from "bun:sqlite";
+import type { Database } from "bun:sqlite";
 import { openLazyDb } from "../storage/lazy-db";
 import { isCanonItem, type CanonItem } from "./items";
 
@@ -98,7 +98,9 @@ export class AskLearnStore {
   }
 
   hasComment(commentId: string): boolean {
-    return this.db.query("SELECT 1 FROM ask_learn_comment WHERE comment_id = ?").get(commentId) !== null;
+    return (
+      this.db.query("SELECT 1 FROM ask_learn_comment WHERE comment_id = ?").get(commentId) !== null
+    );
   }
   updateCommentsSystem(issueKey: string, system: string): number {
     const res = this.db
@@ -107,11 +109,17 @@ export class AskLearnStore {
     return res.changes;
   }
 
-
   ticketsOf(system: string): AskTicketRow[] {
     const rows = this.db
-      .query("SELECT issue_key, system, created_at, last_scanned_at FROM ask_learn_ticket WHERE system = ?")
-      .all(system) as Array<{ issue_key: string; system: string; created_at: number; last_scanned_at: number }>;
+      .query(
+        "SELECT issue_key, system, created_at, last_scanned_at FROM ask_learn_ticket WHERE system = ?",
+      )
+      .all(system) as Array<{
+      issue_key: string;
+      system: string;
+      created_at: number;
+      last_scanned_at: number;
+    }>;
     return rows.map((r) => ({
       issueKey: r.issue_key,
       system: r.system,
@@ -143,7 +151,9 @@ export class AskLearnStore {
   }
 
   systems(): string[] {
-    const rows = this.db.query("SELECT DISTINCT system FROM ask_learn_ticket").all() as Array<{ system: string }>;
+    const rows = this.db.query("SELECT DISTINCT system FROM ask_learn_ticket").all() as Array<{
+      system: string;
+    }>;
     return rows.map((r) => r.system);
   }
 }

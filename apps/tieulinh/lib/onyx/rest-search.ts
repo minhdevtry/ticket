@@ -14,8 +14,13 @@ import type { SimilarTicketItem } from "../intake-document/types";
  * đây là dữ liệu Onyx đã trích sẵn (pipeline ingest khác, ngoài phạm vi module
  * này), không phải KG, nên không đảm bảo là tín hiệu người đã xác nhận.
  */
-export function extractRootCauseAndResolution(fullText: string): { rootCause?: string; resolution?: string } {
-  const rootCauseMatch = fullText.match(/NGUYÊN NHÂN(?:\s*GỐC\s*RỄ)?:?\s*\n([\s\S]*?)(?=\n[A-ZÀ-Ỹ\s]+:|\n---|\nGIẢI\s*PHÁP|\nCÁCH\s*KHẮC\s*PHỤC|$)/i);
+export function extractRootCauseAndResolution(fullText: string): {
+  rootCause?: string;
+  resolution?: string;
+} {
+  const rootCauseMatch = fullText.match(
+    /NGUYÊN NHÂN(?:\s*GỐC\s*RỄ)?:?\s*\n([\s\S]*?)(?=\n[A-ZÀ-Ỹ\s]+:|\n---|\nGIẢI\s*PHÁP|\nCÁCH\s*KHẮC\s*PHỤC|$)/i,
+  );
   const fixMatch = fullText.match(
     /(?:GIẢI\s*PHÁP\s*XỬ\s*LÝ|CÁCH\s*KHẮC\s*PHỤC)[^:\n]*:?\s*\n([\s\S]*?)(?=\n[A-ZÀ-Ỹ\s]+:|\n---|\nHƯỚNG\s*DẪN|\nCÁCH\s*PHÒNG\s*TRÁNH|$)/i,
   );
@@ -47,7 +52,10 @@ export class OnyxRestSearchClient {
    */
   private columnStates?: ProjectColumnStates;
 
-  constructor(config: OnyxRestSearchConfig, private readonly itsaplan?: ItsaplanClient) {
+  constructor(
+    config: OnyxRestSearchConfig,
+    private readonly itsaplan?: ItsaplanClient,
+  ) {
     this.baseUrl = config.baseUrl.replace(/\/+$/, "");
     this.apiKey = config.apiKey;
     this.documentSets = config.documentSets || [
@@ -144,13 +152,49 @@ export class OnyxRestSearchClient {
 
     // Từ dừng tiếng Việt cơ bản để tính lexical overlap
     const STOPWORDS = new Set([
-      "a", "à", "ạ", "ơi", "em", "anh", "chị", "bị", "là", "và", "có", "của", "cho",
-      "các", "được", "không", "khi", "thì", "với", "đã", "đang", "sẽ", "nhưng", "do",
-      "ở", "vào", "ra", "lại", "này", "đó", "nào", "gì", "sao", "thế", "hãy", "giúp",
+      "a",
+      "à",
+      "ạ",
+      "ơi",
+      "em",
+      "anh",
+      "chị",
+      "bị",
+      "là",
+      "và",
+      "có",
+      "của",
+      "cho",
+      "các",
+      "được",
+      "không",
+      "khi",
+      "thì",
+      "với",
+      "đã",
+      "đang",
+      "sẽ",
+      "nhưng",
+      "do",
+      "ở",
+      "vào",
+      "ra",
+      "lại",
+      "này",
+      "đó",
+      "nào",
+      "gì",
+      "sao",
+      "thế",
+      "hãy",
+      "giúp",
     ]);
     const queryTokens = cleanQuery
       .toLowerCase()
-      .replace(/[^a-z0-9àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ\s_-]/g, " ")
+      .replace(
+        /[^a-z0-9àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ\s_-]/g,
+        " ",
+      )
       .split(/\s+/)
       .filter((w) => w.length >= 2 && !STOPWORDS.has(w));
 
@@ -172,9 +216,33 @@ export class OnyxRestSearchClient {
       // Stopwords mở rộng: từ xuất hiện trong HẦU HẾT doc giáo dục trực tuyến
       // (học, sinh, app, lỗi, ...) — bỏ để match phải vào từ ngữ nghĩa riêng.
       const DOMAIN_STOPWORDS = new Set([
-        "học", "sinh", "phụ", "huynh", "báo", "lỗi", "app", "vuihoc", "vui", "học",
-        "làm", "được", "phải", "cần", "tôi", "mình", "chị", "em", "anh",
-        "hệ", "thống", "trường", "lớp", "video", "xem", "đã", "vẫn",
+        "học",
+        "sinh",
+        "phụ",
+        "huynh",
+        "báo",
+        "lỗi",
+        "app",
+        "vuihoc",
+        "vui",
+        "học",
+        "làm",
+        "được",
+        "phải",
+        "cần",
+        "tôi",
+        "mình",
+        "chị",
+        "em",
+        "anh",
+        "hệ",
+        "thống",
+        "trường",
+        "lớp",
+        "video",
+        "xem",
+        "đã",
+        "vẫn",
       ]);
       const filteredQueryTokens = queryTokens.filter((t) => !DOMAIN_STOPWORDS.has(t));
       const effTokens = filteredQueryTokens.length > 0 ? filteredQueryTokens : queryTokens;
@@ -184,7 +252,10 @@ export class OnyxRestSearchClient {
         const docWords = new Set(
           fullText
             .toLowerCase()
-            .replace(/[^a-z0-9àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ\s_-]/g, " ")
+            .replace(
+              /[^a-z0-9àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ\s_-]/g,
+              " ",
+            )
             .split(/\s+/)
             .filter((w) => w.length >= 2),
         );
@@ -192,7 +263,11 @@ export class OnyxRestSearchClient {
         const ratio = matched / effTokens.length;
         // Đạt yêu cầu khi: tỷ lệ ≥ ngưỡng VÀ số từ tuyệt đối ≥ MIN_ABSOLUTE_MATCHES
         // Query rất ngắn (≤2 token) chỉ cần ≥ ratio + matched ≥ 1.
-        if (ratio < OVERLAP_RATIO_MIN && (matched < MIN_ABSOLUTE_MATCHES || effTokens.length < MIN_ABSOLUTE_MATCHES)) continue;
+        if (
+          ratio < OVERLAP_RATIO_MIN &&
+          (matched < MIN_ABSOLUTE_MATCHES || effTokens.length < MIN_ABSOLUTE_MATCHES)
+        )
+          continue;
       }
 
       for (const m of matches) {
@@ -207,7 +282,10 @@ export class OnyxRestSearchClient {
           system,
           rootCause,
           resolution,
-          link: r.link || r.url || `${process.env.ITSAPLAN_WEB_URL?.replace(/\/+$/, "") || "https://itsaplan.example.com"}/workbench/vuihoc/tracker/${code}`,
+          link:
+            r.link ||
+            r.url ||
+            `${process.env.ITSAPLAN_WEB_URL?.replace(/\/+$/, "") || "https://itsaplan.example.com"}/workbench/vuihoc/tracker/${code}`,
           verifiedOnTracker: false,
           source: "onyx",
         };
@@ -244,7 +322,9 @@ export class OnyxRestSearchClient {
           // đây chỉ dựa vào columnStates (cần gọi API), giờ kết hợp cả
           // stateType Itsaplan trả sẵn để chặn ngay trước khi đụng cache cột.
           if (issue.stateType === "canceled" || issue.archivedAt) continue;
-          const state = await columnStates.stateOf(parsed.projectKey, issue.columnId).catch(() => null);
+          const state = await columnStates
+            .stateOf(parsed.projectKey, issue.columnId)
+            .catch(() => null);
           if (state?.state === "canceled") continue;
           cand.verifiedOnTracker = true;
           if (issue.title) cand.title = issue.title;

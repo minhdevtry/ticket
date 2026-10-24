@@ -101,7 +101,9 @@ export async function resolveSupplementMentionTarget(
       assignees = project?.assignees ?? [];
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      getLogger().warn(`[supplement-notifier] Không lấy được assignees của ${options.projectKey}: ${message}`);
+      getLogger().warn(
+        `[supplement-notifier] Không lấy được assignees của ${options.projectKey}: ${message}`,
+      );
     }
   }
 
@@ -121,14 +123,21 @@ export async function resolveSupplementMentionTarget(
       timeline = await options.client.getIssueTimeline(options.issue.id);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      getLogger().warn(`[supplement-notifier] Không lấy được timeline #${options.issue.id}: ${message}`);
+      getLogger().warn(
+        `[supplement-notifier] Không lấy được timeline #${options.issue.id}: ${message}`,
+      );
     }
   }
 
   if (Array.isArray(timeline) && timeline.length > 0) {
     const reporterSet = new Set(
       (options.reporterNames ?? [])
-        .map((n) => String(n ?? "").trim().replace(/^@/, "").toLowerCase())
+        .map((n) =>
+          String(n ?? "")
+            .trim()
+            .replace(/^@/, "")
+            .toLowerCase(),
+        )
         .filter(Boolean),
     );
 
@@ -136,17 +145,32 @@ export async function resolveSupplementMentionTarget(
     for (const raw of timeline.slice().reverse()) {
       if (!raw || typeof raw !== "object") continue;
       const item = raw as TimelineCommentEntry;
-      if (item.kind !== "comment" || !item.body || typeof item.body !== "string" || !item.body.trim()) continue;
+      if (
+        item.kind !== "comment" ||
+        !item.body ||
+        typeof item.body !== "string" ||
+        !item.body.trim()
+      )
+        continue;
       if (isBotComment(item.body)) continue;
       if (item.actorKind === "agent") continue;
 
       const actorName = String(item.actorName ?? "").trim();
-      const actorUsername = String(item.actorUsername ?? "").trim().replace(/^@/, "");
+      const actorUsername = String(item.actorUsername ?? "")
+        .trim()
+        .replace(/^@/, "");
       const actorUserId = String(item.actorUserId ?? "").trim();
-      if (!actorName || isSystemActor(actorName) || NON_SPECIALIST_ACTOR_RE.test(`${actorName} ${actorUsername}`)) {
+      if (
+        !actorName ||
+        isSystemActor(actorName) ||
+        NON_SPECIALIST_ACTOR_RE.test(`${actorName} ${actorUsername}`)
+      ) {
         continue;
       }
-      if (reporterSet.has(actorName.toLowerCase()) || (actorUsername && reporterSet.has(actorUsername.toLowerCase()))) {
+      if (
+        reporterSet.has(actorName.toLowerCase()) ||
+        (actorUsername && reporterSet.has(actorUsername.toLowerCase()))
+      ) {
         continue;
       }
 
@@ -154,7 +178,9 @@ export async function resolveSupplementMentionTarget(
       const matched = assignees.find(
         (a) =>
           (actorUserId && a.userId === actorUserId) ||
-          (actorUsername && a.username && a.username.toLowerCase() === actorUsername.toLowerCase()) ||
+          (actorUsername &&
+            a.username &&
+            a.username.toLowerCase() === actorUsername.toLowerCase()) ||
           (actorName && a.name && a.name.toLowerCase() === actorName.toLowerCase()) ||
           (actorName && a.username && a.username.toLowerCase() === actorName.toLowerCase()),
       );
@@ -199,7 +225,9 @@ export function formatSupplementComment(options: FormatSupplementCommentOptions)
   }
 
   if (mentionClean) {
-    return markBotComment(`➕ **[Cập nhật bổ sung từ người dùng]** (cc @${mentionClean}):\n${bodyText}`);
+    return markBotComment(
+      `➕ **[Cập nhật bổ sung từ người dùng]** (cc @${mentionClean}):\n${bodyText}`,
+    );
   }
   return markBotComment(`➕ **[Cập nhật bổ sung từ người dùng]:**\n${bodyText}`);
 }
@@ -213,12 +241,17 @@ export async function notifyOnCallSupplement(options: {
   identifier: string;
   summary: string;
 }): Promise<void> {
-  const enabled = process.env.NOTIFY_ON_CALL_SUPPLEMENT === "1" || process.env.NOTIFY_ON_CALL_SUPPLEMENT === "true";
+  const enabled =
+    process.env.NOTIFY_ON_CALL_SUPPLEMENT === "1" ||
+    process.env.NOTIFY_ON_CALL_SUPPLEMENT === "true";
   if (!enabled || !options.notifier?.broadcastAlert) return;
-  const shortText = options.summary.length > 300 ? `${options.summary.slice(0, 300)}…` : options.summary;
+  const shortText =
+    options.summary.length > 300 ? `${options.summary.slice(0, 300)}…` : options.summary;
   const msg = `📢 **[Tiểu Linh]** Người báo vừa bổ sung thông tin vào ticket **${options.identifier}**:\n> ${shortText}`;
   await options.notifier.broadcastAlert(msg).catch((err: unknown) => {
     const message = err instanceof Error ? err.message : String(err);
-    getLogger().warn(`[supplement-notifier] broadcastAlert lỗi cho ${options.identifier}: ${message}`);
+    getLogger().warn(
+      `[supplement-notifier] broadcastAlert lỗi cho ${options.identifier}: ${message}`,
+    );
   });
 }

@@ -53,7 +53,14 @@ const judgeMode = judgeModeArg as "mechanism" | "applicability";
 // ─── 1) Dựng corpus + causeCluster từ kb.json, y hệt cách production tính
 //        (buildCauseClusters/humanKnowledgeOf) nhưng không cần Memgraph. ───
 interface KbTicket {
-  issue: { identifier: string; title: string; description?: string; createdAt?: string; statusSince?: string; updatedAt?: string };
+  issue: {
+    identifier: string;
+    title: string;
+    description?: string;
+    createdAt?: string;
+    statusSince?: string;
+    updatedAt?: string;
+  };
   timeline: any[];
 }
 const kb = JSON.parse(readFileSync(`${RESEARCH_DIR}/kb.json`, "utf8")) as { tickets: KbTicket[] };
@@ -61,7 +68,10 @@ const validIds = new Set(kb.tickets.map((t) => t.issue.identifier.toUpperCase())
 
 const humanByTicket = new Map<string, ReturnType<typeof humanKnowledgeOf>>();
 for (const t of kb.tickets) {
-  humanByTicket.set(t.issue.identifier.toUpperCase(), humanKnowledgeOf(t.timeline, t.issue.identifier));
+  humanByTicket.set(
+    t.issue.identifier.toUpperCase(),
+    humanKnowledgeOf(t.timeline, t.issue.identifier),
+  );
 }
 
 // negatives 2 chiều (đúng như memgraph-client.ts::loadSimilarityCorpus dùng MATCH không hướng):
@@ -109,13 +119,16 @@ const corpus: CorpusTicket[] = kb.tickets.map((t) => {
     negatives: negs.length ? negs : undefined,
   };
 });
-console.log(`Kho: ${corpus.length} ticket, ${new Set(corpus.map((c) => c.causeCluster)).size} cụm.`);
+console.log(
+  `Kho: ${corpus.length} ticket, ${new Set(corpus.map((c) => c.causeCluster)).size} cụm.`,
+);
 
 // ─── 2) Onyx /api/search thô (giống researcher A) — CHỈ ĐỌC, lọc lại theo kho
 //        (Onyx đã index cả ticket MỚI hơn kb.json, xem README.md). ───
 function need(name: string): string {
   const v = process.env[name];
-  if (!v) throw new Error(`Thiếu biến môi trường ${name} (đọc .env qua bun --env-file, hoặc export tay)`);
+  if (!v)
+    throw new Error(`Thiếu biến môi trường ${name} (đọc .env qua bun --env-file, hoặc export tay)`);
   return v;
 }
 const ONYX_BASE_URL = need("ONYX_BASE_URL");
@@ -135,7 +148,10 @@ const onyxCacheRaw: Record<string, Array<string | OnyxHit>> = existsSync(ONYX_CA
   : {};
 // Tương thích cache cũ (chỉ mảng mã, chưa có rootCause/resolution).
 const onyxCache: Record<string, OnyxHit[]> = Object.fromEntries(
-  Object.entries(onyxCacheRaw).map(([k, v]) => [k, v.map((x) => (typeof x === "string" ? { identifier: x } : x))]),
+  Object.entries(onyxCacheRaw).map(([k, v]) => [
+    k,
+    v.map((x) => (typeof x === "string" ? { identifier: x } : x)),
+  ]),
 );
 function saveOnyxCache() {
   writeFileSync(ONYX_CACHE_PATH, JSON.stringify(onyxCache, null, 1));
@@ -150,7 +166,8 @@ async function rawOnyxSearch(query: string): Promise<OnyxHit[]> {
     headers: { Authorization: `Bearer ${ONYX_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({ query }),
   });
-  if (!res.ok) throw new Error(`Onyx /api/search lỗi HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok)
+    throw new Error(`Onyx /api/search lỗi HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const data = (await res.json()) as { results?: Array<{ title?: string; content?: string }> };
   const byId = new Map<string, OnyxHit>();
   for (const r of data.results ?? []) {
@@ -159,7 +176,10 @@ async function rawOnyxSearch(query: string): Promise<OnyxHit[]> {
     // Onyx đã ingest sẵn tóm tắt NGUYÊN NHÂN/CÁCH KHẮC PHỤC trong nội dung tài
     // liệu (kg-cause-taxonomy/tech-done-tickets, xem lib/onyx/rest-search.ts) —
     // trích ra làm ngữ cảnh bổ sung cho LLM xác minh, y hệt production.
-    byId.set(id, { identifier: id, ...extractRootCauseAndResolution(`${r.title ?? ""}\n${r.content ?? ""}`) });
+    byId.set(id, {
+      identifier: id,
+      ...extractRootCauseAndResolution(`${r.title ?? ""}\n${r.content ?? ""}`),
+    });
   }
   const hits = [...byId.values()];
   onyxCache[key] = hits; // KHÔNG cache khi lỗi (đã throw ở trên trước khi tới đây)
@@ -184,7 +204,9 @@ const onyx: Pick<OnyxRestSearchClient, "searchSimilar"> = {
 //        gì, chỉ chặn network để không tốn lời gọi thật khi chạy lại. Không
 //        cache lỗi (chỉ ghi cache khi upstream trả 2xx). ───
 const LLM_CACHE_PATH = `${DATA_DIR}/similar-bench-llm-cache.json`;
-const llmCache: Record<string, string> = existsSync(LLM_CACHE_PATH) ? JSON.parse(readFileSync(LLM_CACHE_PATH, "utf8")) : {};
+const llmCache: Record<string, string> = existsSync(LLM_CACHE_PATH)
+  ? JSON.parse(readFileSync(LLM_CACHE_PATH, "utf8"))
+  : {};
 function saveLlmCache() {
   writeFileSync(LLM_CACHE_PATH, JSON.stringify(llmCache, null, 1));
 }
@@ -195,7 +217,8 @@ const llmProxy = Bun.serve({
   async fetch(req) {
     const bodyText = await req.text();
     const key = createHash("sha256").update(bodyText).digest("hex");
-    if (key in llmCache) return new Response(llmCache[key], { headers: { "Content-Type": "application/json" } });
+    if (key in llmCache)
+      return new Response(llmCache[key], { headers: { "Content-Type": "application/json" } });
     llmCalls++;
     let lastErr: unknown;
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -203,7 +226,10 @@ const llmProxy = Bun.serve({
       try {
         const upstream = await fetch(`${OPENAI_BASE_URL.replace(/\/+$/, "")}/chat/completions`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", ...(OPENAI_API_KEY ? { Authorization: `Bearer ${OPENAI_API_KEY}` } : {}) },
+          headers: {
+            "Content-Type": "application/json",
+            ...(OPENAI_API_KEY ? { Authorization: `Bearer ${OPENAI_API_KEY}` } : {}),
+          },
           body: bodyText,
         });
         const text = await upstream.text();
@@ -243,7 +269,9 @@ interface Question {
   title: string;
   reporterText: string;
 }
-const questions = JSON.parse(readFileSync(`${RESEARCH_DIR}/questions-${which}.json`, "utf8")) as Question[];
+const questions = JSON.parse(
+  readFileSync(`${RESEARCH_DIR}/questions-${which}.json`, "utf8"),
+) as Question[];
 
 async function main() {
   const preds: Record<string, string[]> = {};
@@ -252,17 +280,24 @@ async function main() {
     let members: string[] = [];
     try {
       const match = await src.find(text);
-      members = (match?.members ?? []).map((m) => m.identifier).filter((id) => id.toUpperCase() !== q.identifier.toUpperCase());
+      members = (match?.members ?? [])
+        .map((m) => m.identifier)
+        .filter((id) => id.toUpperCase() !== q.identifier.toUpperCase());
     } catch (err: any) {
       console.warn(`${q.identifier}: lỗi — ${err?.message ?? err}`);
     }
     preds[q.identifier] = members;
     console.log(`${q.identifier}: -> [${members.join(", ")}]`);
   }
-  const outPath = judgeMode === "mechanism" ? `${OUT_DIR}/pred-${which}.json` : `${OUT_DIR}/pred-${which}-${judgeMode}.json`;
+  const outPath =
+    judgeMode === "mechanism"
+      ? `${OUT_DIR}/pred-${which}.json`
+      : `${OUT_DIR}/pred-${which}-${judgeMode}.json`;
   writeFileSync(outPath, JSON.stringify(preds, null, 1));
   console.log(`\nĐã ghi ${outPath}. Số câu hỏi: ${questions.length}.`);
-  console.log(`Lời gọi Onyx thật (không tính cache hit): ${onyxCalls}. Lời gọi LLM thật: ${llmCalls}.`);
+  console.log(
+    `Lời gọi Onyx thật (không tính cache hit): ${onyxCalls}. Lời gọi LLM thật: ${llmCalls}.`,
+  );
   llmProxy.stop(true);
 }
 

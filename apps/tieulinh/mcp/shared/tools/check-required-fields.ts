@@ -56,10 +56,7 @@ function recallDepartment(memory: DepartmentMemory, userId: string | null): stri
  * hỏi lại, nhóm `một trong`, giá trị mặc định khi hết lượt — hai model khác
  * nhau bắt buộc phải cho ra cùng kết quả, nếu không bot sẽ hỏi mãi một câu.
  */
-export function checkRequiredFields(
-  catalog: FieldCatalog,
-  memory?: DepartmentMemory,
-): AnyMcpTool {
+export function checkRequiredFields(catalog: FieldCatalog, memory?: DepartmentMemory): AnyMcpTool {
   return defineTool({
     name: "check_required_fields",
     description:
@@ -79,7 +76,10 @@ export function checkRequiredFields(
         .array(z.string())
         .default([])
         .describe("Các trường người dùng đã nói rõ là không có thông tin"),
-      reporterChatId: z.string().optional().describe("Chat ID Telegram của người dùng (để đính nút bấm trên Telegram)"),
+      reporterChatId: z
+        .string()
+        .optional()
+        .describe("Chat ID Telegram của người dùng (để đính nút bấm trên Telegram)"),
       telegramUserId: z.string().optional().describe("Telegram User ID nếu khác Chat ID"),
     },
     handler: (input) => {
@@ -105,7 +105,9 @@ export function checkRequiredFields(
         };
       }
 
-      const variant = catalog.variants[input.variant] ? input.variant : Object.keys(catalog.variants)[0];
+      const variant = catalog.variants[input.variant]
+        ? input.variant
+        : Object.keys(catalog.variants)[0];
       const stringifiedCaptured: Record<string, string> = {};
       if (input.captured && typeof input.captured === "object") {
         for (const [k, v] of Object.entries(input.captured)) {

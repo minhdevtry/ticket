@@ -238,12 +238,17 @@ export class ItsaplanWebhookServer {
               return;
             }
             const userName =
-              typeof payload.userName === "string" && payload.userName.trim() ? payload.userName.trim() : "Người báo";
-            const chatId = payload.chatId === undefined || payload.chatId === null ? "" : String(payload.chatId);
+              typeof payload.userName === "string" && payload.userName.trim()
+                ? payload.userName.trim()
+                : "Người báo";
+            const chatId =
+              payload.chatId === undefined || payload.chatId === null ? "" : String(payload.chatId);
             try {
               this.reply(res, 200, await this.reporterOkHandler!({ issueId, chatId, userName }));
             } catch (err: any) {
-              getLogger().error(`[ItsaplanWebhookServer] reporter-ok #${issueId} lỗi: ${err.message}`);
+              getLogger().error(
+                `[ItsaplanWebhookServer] reporter-ok #${issueId} lỗi: ${err.message}`,
+              );
               this.reply(res, 200, { outcome: "error" });
             }
           });
@@ -252,18 +257,30 @@ export class ItsaplanWebhookServer {
 
         if (pathname === "/internal/reporter-reply") {
           await this.handleInternal(req, res, !!this.reporterReplyHandler, async (payload) => {
-            const chatId = payload?.chatId === undefined || payload?.chatId === null ? "" : String(payload.chatId);
+            const chatId =
+              payload?.chatId === undefined || payload?.chatId === null
+                ? ""
+                : String(payload.chatId);
             const rawMessageId = payload?.replyToMessageId;
-            const messageId = rawMessageId === undefined || rawMessageId === null ? "" : String(rawMessageId).trim();
+            const messageId =
+              rawMessageId === undefined || rawMessageId === null
+                ? ""
+                : String(rawMessageId).trim();
             const text = typeof payload?.text === "string" ? payload.text.trim() : "";
             if (!chatId || !messageId || !text) {
               this.reply(res, 400, { error: "Thiếu chatId/replyToMessageId/text" });
               return;
             }
             const userName =
-              typeof payload.senderName === "string" && payload.senderName.trim() ? payload.senderName.trim() : "Người báo";
+              typeof payload.senderName === "string" && payload.senderName.trim()
+                ? payload.senderName.trim()
+                : "Người báo";
             try {
-              this.reply(res, 200, await this.reporterReplyHandler!({ chatId, messageId, text, userName }));
+              this.reply(
+                res,
+                200,
+                await this.reporterReplyHandler!({ chatId, messageId, text, userName }),
+              );
             } catch (err: any) {
               getLogger().error(`[ItsaplanWebhookServer] reporter-reply lỗi: ${err.message}`);
               this.reply(res, 200, { handled: true });
@@ -274,7 +291,10 @@ export class ItsaplanWebhookServer {
 
         if (pathname === "/internal/force-new") {
           await this.handleInternal(req, res, !!this.forceNewHandler, async (payload) => {
-            const chatId = payload?.chatId === undefined || payload?.chatId === null ? "" : String(payload.chatId).trim();
+            const chatId =
+              payload?.chatId === undefined || payload?.chatId === null
+                ? ""
+                : String(payload.chatId).trim();
             if (!chatId) {
               this.reply(res, 400, { error: "Thiếu chatId" });
               return;
@@ -283,7 +303,9 @@ export class ItsaplanWebhookServer {
               await this.forceNewHandler!({ chatId });
               this.reply(res, 200, { ok: true });
             } catch (err: any) {
-              getLogger().error(`[ItsaplanWebhookServer] force-new (${chatId}) lỗi: ${err.message}`);
+              getLogger().error(
+                `[ItsaplanWebhookServer] force-new (${chatId}) lỗi: ${err.message}`,
+              );
               this.reply(res, 200, { ok: false });
             }
           });
@@ -305,7 +327,9 @@ export class ItsaplanWebhookServer {
           try {
             update = JSON.parse(body);
           } catch (err: any) {
-            getLogger().error(`[ItsaplanWebhookServer] Failed to parse Telegram webhook body: ${err.message}`);
+            getLogger().error(
+              `[ItsaplanWebhookServer] Failed to parse Telegram webhook body: ${err.message}`,
+            );
             this.reply(res, 400, { error: "Invalid JSON" });
             return;
           }
@@ -314,7 +338,9 @@ export class ItsaplanWebhookServer {
             try {
               await handler(update);
             } catch (err: any) {
-              getLogger().error(`[ItsaplanWebhookServer] Error in Telegram handler: ${err.message}`);
+              getLogger().error(
+                `[ItsaplanWebhookServer] Error in Telegram handler: ${err.message}`,
+              );
             }
           }
           return;
@@ -338,7 +364,9 @@ export class ItsaplanWebhookServer {
             this.signatureToleranceSec,
           );
           if (!ok) {
-            getLogger().warn("[ItsaplanWebhookServer] Từ chối /webhook: chữ ký X-Itsaplan-Signature thiếu hoặc sai.");
+            getLogger().warn(
+              "[ItsaplanWebhookServer] Từ chối /webhook: chữ ký X-Itsaplan-Signature thiếu hoặc sai.",
+            );
             this.reply(res, 401, { error: "Invalid signature" });
             return;
           }
@@ -346,7 +374,9 @@ export class ItsaplanWebhookServer {
 
         const parsed = parseWebhookEnvelope(body);
         if (!parsed.ok) {
-          getLogger().error(`[ItsaplanWebhookServer] Failed to parse webhook body: ${parsed.error}`);
+          getLogger().error(
+            `[ItsaplanWebhookServer] Failed to parse webhook body: ${parsed.error}`,
+          );
           this.reply(res, 400, { error: "Invalid JSON" });
           return;
         }

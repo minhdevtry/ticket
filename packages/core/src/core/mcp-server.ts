@@ -83,7 +83,10 @@ export interface HttpMcpOptions {
  * dùng hàm này để expose các tool có side-effect (create_issue, update_issue…);
  * chỉ bọc 1 server đã lọc sẵn tool cần công khai.
  */
-export function runOnHttp(makeServer: () => McpServer, options: HttpMcpOptions): ReturnType<typeof Bun.serve> {
+export function runOnHttp(
+  makeServer: () => McpServer,
+  options: HttpMcpOptions,
+): ReturnType<typeof Bun.serve> {
   const log = getLogger();
   const hostname = options.hostname ?? "127.0.0.1";
   const expectedAuth = options.apiKey ? Buffer.from(`Bearer ${options.apiKey}`) : null;
@@ -130,7 +133,11 @@ export function runOnHttp(makeServer: () => McpServer, options: HttpMcpOptions):
       } catch (err: any) {
         log.error(`[HttpMcp] Lỗi xử lý request: ${err.message}`);
         return new Response(
-          JSON.stringify({ jsonrpc: "2.0", error: { code: -32603, message: "Internal server error" }, id: null }),
+          JSON.stringify({
+            jsonrpc: "2.0",
+            error: { code: -32603, message: "Internal server error" },
+            id: null,
+          }),
           { status: 500, headers: { "Content-Type": "application/json" } },
         );
       } finally {

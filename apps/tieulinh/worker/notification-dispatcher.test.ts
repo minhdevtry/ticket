@@ -7,10 +7,10 @@ import type { ItsaplanWebhookEnvelope } from "./webhook-server";
 const HANDLES = ["bot-ticket-intake", "vhticket_bot", "intake-bot", "intake"];
 
 describe("NotificationDispatcher.extractReporterMessage (chế độ `mention`)", () => {
-  const dispatcher = new NotificationDispatcher(
-    {} as any,
-    { agentHandles: HANDLES, commentForwardPolicy: "mention" },
-  );
+  const dispatcher = new NotificationDispatcher({} as any, {
+    agentHandles: HANDLES,
+    commentForwardPolicy: "mention",
+  });
 
   test("matches handle at the beginning of comment", () => {
     const result = dispatcher.extractReporterMessage(
@@ -70,7 +70,9 @@ describe("NotificationDispatcher.extractReporterMessage (chế độ `all`, mặ
   const dispatcher = new NotificationDispatcher({} as any, { agentHandles: HANDLES });
 
   test("đẩy comment không tag ai", () => {
-    const result = dispatcher.extractReporterMessage("Bên em đã tiếp nhận, tuần sau sẽ có bản demo nhé");
+    const result = dispatcher.extractReporterMessage(
+      "Bên em đã tiếp nhận, tuần sau sẽ có bản demo nhé",
+    );
     expect(result.isCallToReporter).toBe(true);
     expect(result.cleanText).toBe("Bên em đã tiếp nhận, tuần sau sẽ có bản demo nhé");
   });
@@ -184,7 +186,9 @@ describe("NotificationDispatcher.handleWebhook", () => {
     });
     dispatcher.registerBot(adapter);
 
-    await dispatcher.handleWebhook(commentEvent(201, "Bên em đã tiếp nhận, tuần sau có bản demo nhé"));
+    await dispatcher.handleWebhook(
+      commentEvent(201, "Bên em đã tiếp nhận, tuần sau có bản demo nhé"),
+    );
 
     expect(adapter.notifyComment).toHaveBeenCalledWith(
       binding,
@@ -300,7 +304,10 @@ describe("NotificationDispatcher.handleWebhook", () => {
       updatedAt: new Date().toISOString(),
     };
     const closure = { onColumnChanged: mock(async () => "done" as const) };
-    const dispatcher = new NotificationDispatcher(createMockBindingRepo(binding), { agentHandles: ["vhticket_bot"], closure });
+    const dispatcher = new NotificationDispatcher(createMockBindingRepo(binding), {
+      agentHandles: ["vhticket_bot"],
+      closure,
+    });
 
     await dispatcher.handleWebhook({
       action: "update",
@@ -310,14 +317,19 @@ describe("NotificationDispatcher.handleWebhook", () => {
       data: { id: 103, identifier: "TECH-103", columnId: 4 },
     });
 
-    expect(closure.onColumnChanged).toHaveBeenCalledWith({ issueId: 103, identifier: "TECH-103", columnId: 4, columnChanged: true });
+    expect(closure.onColumnChanged).toHaveBeenCalledWith({
+      issueId: 103,
+      identifier: "TECH-103",
+      columnId: 4,
+      columnChanged: true,
+    });
   });
 
   test("extractCommentImages extracts markdown images and attachments and normalizes URLs", () => {
-    const dispatcher = new NotificationDispatcher(
-      {} as any,
-      { agentHandles: ["bot"], itsaplanBaseUrl: "https://itsaplan.example.com" },
-    );
+    const dispatcher = new NotificationDispatcher({} as any, {
+      agentHandles: ["bot"],
+      itsaplanBaseUrl: "https://itsaplan.example.com",
+    });
 
     const body =
       "Ảnh lỗi màn hình:\n![screenshot](/attachments/123/shot.png)\n![diagram](https://cdn.org/diag.jpg)";
@@ -516,10 +528,11 @@ describe("NotificationDispatcher.handleWebhook", () => {
       itsaplanWebUrl: "https://itsaplan.example.com",
     });
 
-    const urls = dispatcher.extractCommentImages("Ảnh: ![alt](http://127.0.0.1:3100/attachments/123/raw)");
+    const urls = dispatcher.extractCommentImages(
+      "Ảnh: ![alt](http://127.0.0.1:3100/attachments/123/raw)",
+    );
     expect(urls).toEqual(["https://itsaplan.example.com/attachments/123/raw"]);
   });
-
 
   test("IRIS (PO project): lọc sạch @bot-iris-intake / @iris và đặt authorName là 'Product team'", async () => {
     const binding = bindingFor(80, "PO-80");
@@ -543,7 +556,11 @@ describe("NotificationDispatcher.handleWebhook", () => {
 
     expect(adapter.notifyComment).toHaveBeenCalledTimes(1);
     const notifyCommentMock = adapter.notifyComment as unknown as ReturnType<typeof mock>;
-    const [calledBinding, calledAuthor, calledText] = notifyCommentMock.mock.calls[0] as [TicketBinding, string, string];
+    const [calledBinding, calledAuthor, calledText] = notifyCommentMock.mock.calls[0] as [
+      TicketBinding,
+      string,
+      string,
+    ];
     expect(calledBinding.identifier).toBe("PO-80");
     expect(calledAuthor).toBe("Product team");
     expect(calledText).toBe("hi");
@@ -587,7 +604,6 @@ describe("NotificationDispatcher.handleWebhook", () => {
   });
 });
 
-
 describe("NotificationDispatcher — khoá dự án & ghi trạng thái", () => {
   function binding(issueId: number, identifier: string): TicketBinding {
     return { issueId, channelType: "telegram", chatId: "c-1", messageId: "1", identifier };
@@ -616,7 +632,9 @@ describe("NotificationDispatcher — khoá dự án & ghi trạng thái", () => 
         fields: [{ fieldId: 3, value: "TECH-900" }],
         links: [],
       })),
-      listCustomFields: mock(async () => [{ id: 3, name: "Related Tickets", fieldType: "markdown" }]),
+      listCustomFields: mock(async () => [
+        { id: 3, name: "Related Tickets", fieldType: "markdown" },
+      ]),
       getIssueByNumber: mock(async () => ({ id: 900, identifier: "TECH-900" })),
       addLink: mock(async () => ({})),
     };
@@ -624,9 +642,21 @@ describe("NotificationDispatcher — khoá dự án & ghi trạng thái", () => 
 
   test("issue.updated (sửa mô tả) báo closure là KHÔNG đổi cột", async () => {
     const closure = { onColumnChanged: mock(async () => "open" as const) };
-    const dispatcher = new NotificationDispatcher(repoWith(null), { agentHandles: ["iris"], projectKey: "PO", closure });
-    await dispatcher.handleWebhook({ ...doneEvent({ id: 12, identifier: "PO-12", columnId: 9 }), event: "issue.updated" });
-    expect(closure.onColumnChanged).toHaveBeenCalledWith({ issueId: 12, identifier: "PO-12", columnId: 9, columnChanged: false });
+    const dispatcher = new NotificationDispatcher(repoWith(null), {
+      agentHandles: ["iris"],
+      projectKey: "PO",
+      closure,
+    });
+    await dispatcher.handleWebhook({
+      ...doneEvent({ id: 12, identifier: "PO-12", columnId: 9 }),
+      event: "issue.updated",
+    });
+    expect(closure.onColumnChanged).toHaveBeenCalledWith({
+      issueId: 12,
+      identifier: "PO-12",
+      columnId: 9,
+      columnChanged: false,
+    });
   });
 
   test("payload không có identifier, không binding: hỏi Itsaplan, ticket dự án khác thì bỏ qua hết", async () => {
@@ -654,7 +684,9 @@ describe("NotificationDispatcher — khoá dự án & ghi trạng thái", () => 
       itsaplanClient: client as any,
     });
 
-    await dispatcher.handleWebhook(doneEvent({ issueId: 6, identifier: "TECH-6", columnName: "In Progress" }));
+    await dispatcher.handleWebhook(
+      doneEvent({ issueId: 6, identifier: "TECH-6", columnName: "In Progress" }),
+    );
     await new Promise((r) => setTimeout(r, 10));
 
     expect(client.getIssue).not.toHaveBeenCalled();
@@ -663,7 +695,11 @@ describe("NotificationDispatcher — khoá dự án & ghi trạng thái", () => 
 
   test("không xác định được dự án (không identifier, không client) thì bỏ qua", async () => {
     const closure = { onColumnChanged: mock(async () => null) };
-    const dispatcher = new NotificationDispatcher(repoWith(null), { agentHandles: ["iris"], projectKey: "PO", closure });
+    const dispatcher = new NotificationDispatcher(repoWith(null), {
+      agentHandles: ["iris"],
+      projectKey: "PO",
+      closure,
+    });
 
     await dispatcher.handleWebhook(doneEvent({ issueId: 7, columnId: 10 }));
 
@@ -682,7 +718,12 @@ describe("NotificationDispatcher — khoá dự án & ghi trạng thái", () => 
 
     await dispatcher.handleWebhook(doneEvent({ issueId: 8, columnId: 10 }));
 
-    expect(closure.onColumnChanged).toHaveBeenCalledWith({ issueId: 8, identifier: "PO-8", columnId: 10, columnChanged: true });
+    expect(closure.onColumnChanged).toHaveBeenCalledWith({
+      issueId: 8,
+      identifier: "PO-8",
+      columnId: 10,
+      columnChanged: true,
+    });
   });
 
   test("issue.created không identifier, không client: không ghi SLA dưới mã đoán", async () => {
@@ -708,14 +749,35 @@ describe("NotificationDispatcher — khoá dự án & ghi trạng thái", () => 
 // ADR-0007: tech lead ghim Nguyên nhân (Itsaplan bắn comment.updated) → chốt ticket tương tự.
 describe("NotificationDispatcher → onTicketKnowledgeMaybeChanged", () => {
   const envelope = (event: ItsaplanWebhookEnvelope["event"], data: any): ItsaplanWebhookEnvelope =>
-    ({ action: "update", type: "Comment", event, data, createdAt: new Date().toISOString() }) as ItsaplanWebhookEnvelope;
+    ({
+      action: "update",
+      type: "Comment",
+      event,
+      data,
+      createdAt: new Date().toISOString(),
+    }) as ItsaplanWebhookEnvelope;
 
   test("comment.updated (ghim/sửa) và comment.created của người đều báo; không đẩy lại người báo", async () => {
     const seen: number[] = [];
-    const repo = { getBindingByIssueId: mock(() => null), saveMessageRoute: mock(() => {}) } as unknown as TicketBindingRepository;
-    const dispatcher = new NotificationDispatcher(repo, { agentHandles: HANDLES, onTicketKnowledgeMaybeChanged: (id) => seen.push(id) });
-    await dispatcher.handleWebhook(envelope("comment.updated", { id: 1, issueId: 793, body: "- **Nguyên nhân:** Bị gắn trùng tk học do cùng tên", pinned: true }));
-    await dispatcher.handleWebhook(envelope("comment.created", { id: 2, issueId: 794, body: "Anh @TechUser_B xem giúp em" }));
+    const repo = {
+      getBindingByIssueId: mock(() => null),
+      saveMessageRoute: mock(() => {}),
+    } as unknown as TicketBindingRepository;
+    const dispatcher = new NotificationDispatcher(repo, {
+      agentHandles: HANDLES,
+      onTicketKnowledgeMaybeChanged: (id) => seen.push(id),
+    });
+    await dispatcher.handleWebhook(
+      envelope("comment.updated", {
+        id: 1,
+        issueId: 793,
+        body: "- **Nguyên nhân:** Bị gắn trùng tk học do cùng tên",
+        pinned: true,
+      }),
+    );
+    await dispatcher.handleWebhook(
+      envelope("comment.created", { id: 2, issueId: 794, body: "Anh @TechUser_B xem giúp em" }),
+    );
     expect(seen).toEqual([793, 794]);
     expect((repo.getBindingByIssueId as any).mock.calls.map((c: any[]) => c[0])).toEqual([794]);
   });

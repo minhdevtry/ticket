@@ -40,7 +40,12 @@ export interface OnyxDocumentFields {
  * "không rõ" thì bỏ hẳn, không in dòng rỗng (ONYX-KHI-DONE.md §12.5 — dòng rỗng chỉ làm loãng vector).
  */
 export function buildOnyxDocumentBody(fields: OnyxDocumentFields): string {
-  const header = [fields.identifier, fields.system, fields.errorCategory, `đóng ${fields.closedDate}`]
+  const header = [
+    fields.identifier,
+    fields.system,
+    fields.errorCategory,
+    `đóng ${fields.closedDate}`,
+  ]
     .filter((part) => part && String(part).trim().length > 0)
     .join(" · ");
 

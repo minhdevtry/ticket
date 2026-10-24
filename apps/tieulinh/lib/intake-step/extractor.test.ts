@@ -23,7 +23,12 @@ describe("FieldExtractor & Merger", () => {
       fields: {
         title: { value: "Lỗi app", source: "user_message", turn: 1, updatedAt: "" },
         product: { value: "Tutor", source: "user_message", turn: 1, updatedAt: "" },
-        symptoms: { value: ["Không vào được phòng"], source: "user_message", turn: 1, updatedAt: "" },
+        symptoms: {
+          value: ["Không vào được phòng"],
+          source: "user_message",
+          turn: 1,
+          updatedAt: "",
+        },
       },
       evidence: {},
       askedCount: {},

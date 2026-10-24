@@ -3,7 +3,9 @@ import { describeState, stateMessageFor } from "./state-messages";
 
 describe("lời báo trạng thái theo dự án (PO — PO 01/10)", () => {
   test("cột PO có lời giải thích, tên cột không phân biệt hoa thường/dấu cách", () => {
-    expect(describeState("PO", "Discussion")).toBe("Discussion (PO nhặt ticket và bắt đầu trao đổi cùng các bên)");
+    expect(describeState("PO", "Discussion")).toBe(
+      "Discussion (PO nhặt ticket và bắt đầu trao đổi cùng các bên)",
+    );
     expect(describeState("po", "PO Inprogress")).toBe("PO inprogress (PO bắt đầu làm giải pháp)");
     expect(describeState("PO", "PO  Done")).toBe("PO done (đã làm xong giải pháp)");
     expect(describeState("PO", "Sent to dev")).toBe("Sent to dev (đã gửi ticket sang Tech team)");

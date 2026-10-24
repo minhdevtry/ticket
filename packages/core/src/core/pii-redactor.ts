@@ -26,10 +26,7 @@ export function redactIncidentPII(text: string): string {
   );
 
   // 3. Email addresses
-  cleaned = cleaned.replace(
-    /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
-    "[REDACTED_EMAIL]",
-  );
+  cleaned = cleaned.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, "[REDACTED_EMAIL]");
 
   // 4. National ID / CCCD (12 continuous digits)
   cleaned = cleaned.replace(/\b\d{12}\b/g, "[REDACTED_CCCD]");
@@ -41,14 +38,11 @@ export function redactIncidentPII(text: string): string {
   );
 
   // 6. Telegram user IDs (10 số, không bắt đầu bằng 0 — không khớp pattern SĐT)
-  cleaned = cleaned.replace(
-    /(?<!\d)(?:776\d{7}|8\d{9}|9\d{9})\b/g,
-    "[REDACTED_TELEGRAM]",
-  );
+  cleaned = cleaned.replace(/(?<!\d)(?:776\d{7}|8\d{9}|9\d{9})\b/g, "[REDACTED_TELEGRAM]");
 
   // 7. UltraViewer credentials (ultra: xxx xxx xxx - xxxxx hoặc "UltraViewer: ...")
   cleaned = cleaned.replace(
-    /\b(?:ultra(?:\s*viewer)?\s*(?:id)?\s*[:\-]?\s*[\d\s.\-]{6,})/gi,
+    /\b(?:ultra(?:\s*viewer)?\s*(?:id)?\s*[:-]?\s*[\d\s.-]{6,})/gi,
     "[REDACTED_ULTRAVIEWER]",
   );
 

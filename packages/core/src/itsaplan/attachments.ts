@@ -148,8 +148,8 @@ export async function uploadAttachments(
       const fullUrl = res.url.startsWith("http")
         ? res.url
         : isLoopback
-        ? res.url
-        : `${baseUrl.replace(/\/+$/, "")}${res.url.startsWith("/") ? "" : "/"}${res.url}`;
+          ? res.url
+          : `${baseUrl.replace(/\/+$/, "")}${res.url.startsWith("/") ? "" : "/"}${res.url}`;
       uploaded.push({ id: res.id, url: fullUrl, filename, contentType });
     } catch (err: unknown) {
       getLogger().warn(
@@ -179,8 +179,8 @@ export function spliceAttachmentsIntoDescription(
   const heading = description.includes(IMAGE_HEADING)
     ? IMAGE_HEADING
     : description.includes("### 📸 Tệp đính kèm")
-    ? "### 📸 Tệp đính kèm"
-    : IMAGE_HEADING;
+      ? "### 📸 Tệp đính kèm"
+      : IMAGE_HEADING;
 
   if (description.includes(heading)) {
     return description.replace(`${heading}\n`, `${heading}\n\n${mediaMarkdown}\n`);

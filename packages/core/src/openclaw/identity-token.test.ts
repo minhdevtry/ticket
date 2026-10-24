@@ -30,7 +30,11 @@ function issue(overrides: Partial<Parameters<typeof issueIdentityToken>[0]> = {}
 describe("verifyIdentityToken", () => {
   test("token hợp lệ ⇒ trả payload đúng người, đúng tool", () => {
     const token = issue();
-    const payload = verifyIdentityToken(token, { toolName: "create_ticket", secret: SECRET, now: T0 });
+    const payload = verifyIdentityToken(token, {
+      toolName: "create_ticket",
+      secret: SECRET,
+      now: T0,
+    });
     expect(payload.u).toBe("555000001");
     expect(payload.t).toBe("create_ticket");
     expect(payload.n).toBe("probe_a");
@@ -38,8 +42,9 @@ describe("verifyIdentityToken", () => {
 
   test("thiếu token ⇒ E_IDENTITY_TOKEN_MISSING", () => {
     for (const bad of [undefined, null, "", "   "]) {
-      expect(() => verifyIdentityToken(bad, { toolName: "create_ticket", secret: SECRET, now: T0 }))
-        .toThrow(IdentityTokenFailure);
+      expect(() =>
+        verifyIdentityToken(bad, { toolName: "create_ticket", secret: SECRET, now: T0 }),
+      ).toThrow(IdentityTokenFailure);
       try {
         verifyIdentityToken(bad, { toolName: "create_ticket", secret: SECRET, now: T0 });
       } catch (e) {
@@ -61,7 +66,9 @@ describe("verifyIdentityToken", () => {
   test("token bị sửa thân (payload) ⇒ chữ ký không khớp", () => {
     const token = issue();
     const [sig, body] = token.split(".");
-    const payload = JSON.parse(Buffer.from(body!, "base64url").toString("utf8")) as IdentityTokenPayload;
+    const payload = JSON.parse(
+      Buffer.from(body!, "base64url").toString("utf8"),
+    ) as IdentityTokenPayload;
     payload.u = "555000002"; // mạo danh người khác
     const forged = `${sig}.${Buffer.from(JSON.stringify(payload), "utf8").toString("base64url")}`;
     try {
@@ -89,7 +96,11 @@ describe("verifyIdentityToken", () => {
   test("lệch giờ phía tương lai cũng ⇒ E_IDENTITY_TOKEN_EXPIRED", () => {
     const token = issue({ now: T0 });
     try {
-      verifyIdentityToken(token, { toolName: "create_ticket", secret: SECRET, now: T0 - DEFAULT_IDENTITY_TTL_MS - 1 });
+      verifyIdentityToken(token, {
+        toolName: "create_ticket",
+        secret: SECRET,
+        now: T0 - DEFAULT_IDENTITY_TTL_MS - 1,
+      });
       throw new Error("đáng lẽ phải ném");
     } catch (e) {
       expect((e as IdentityTokenFailure).code).toBe("E_IDENTITY_TOKEN_EXPIRED");
@@ -109,14 +120,26 @@ describe("verifyIdentityToken", () => {
   test("runId chỉ so khi bên gọi truyền; khớp ⇒ ok, lệch ⇒ MISMATCH", () => {
     const token = issue({ runId: "run-1" });
     // Không truyền runId ⇒ bỏ qua (giống production MCP)
-    expect(verifyIdentityToken(token, { toolName: "create_ticket", secret: SECRET, now: T0 }).r).toBe("run-1");
+    expect(
+      verifyIdentityToken(token, { toolName: "create_ticket", secret: SECRET, now: T0 }).r,
+    ).toBe("run-1");
     // Truyền đúng ⇒ ok
     expect(
-      verifyIdentityToken(token, { toolName: "create_ticket", secret: SECRET, now: T0, runId: "run-1" }).u,
+      verifyIdentityToken(token, {
+        toolName: "create_ticket",
+        secret: SECRET,
+        now: T0,
+        runId: "run-1",
+      }).u,
     ).toBe("555000001");
     // Truyền lệch ⇒ mismatch
     try {
-      verifyIdentityToken(token, { toolName: "create_ticket", secret: SECRET, now: T0, runId: "run-2" });
+      verifyIdentityToken(token, {
+        toolName: "create_ticket",
+        secret: SECRET,
+        now: T0,
+        runId: "run-2",
+      });
       throw new Error("đáng lẽ phải ném");
     } catch (e) {
       expect((e as IdentityTokenFailure).code).toBe("E_IDENTITY_TOKEN_MISMATCH");
@@ -139,10 +162,20 @@ describe("replay protection", () => {
   test("dùng lại cùng token ⇒ lần hai E_IDENTITY_TOKEN_REPLAYED", () => {
     const store = new InMemoryReplayStore(() => T0);
     const token = issue();
-    const first = verifyIdentityToken(token, { toolName: "create_ticket", secret: SECRET, now: T0, replayStore: store });
+    const first = verifyIdentityToken(token, {
+      toolName: "create_ticket",
+      secret: SECRET,
+      now: T0,
+      replayStore: store,
+    });
     expect(first.u).toBe("555000001");
     try {
-      verifyIdentityToken(token, { toolName: "create_ticket", secret: SECRET, now: T0, replayStore: store });
+      verifyIdentityToken(token, {
+        toolName: "create_ticket",
+        secret: SECRET,
+        now: T0,
+        replayStore: store,
+      });
       throw new Error("đáng lẽ phải ném");
     } catch (e) {
       expect((e as IdentityTokenFailure).code).toBe("E_IDENTITY_TOKEN_REPLAYED");
@@ -153,20 +186,46 @@ describe("replay protection", () => {
     const store = new InMemoryReplayStore(() => T0);
     const a = issue({ nonce: "aaa" });
     const b = issue({ nonce: "bbb" });
-    expect(verifyIdentityToken(a, { toolName: "create_ticket", secret: SECRET, now: T0, replayStore: store }).u).toBe("555000001");
-    expect(verifyIdentityToken(b, { toolName: "create_ticket", secret: SECRET, now: T0, replayStore: store }).u).toBe("555000001");
+    expect(
+      verifyIdentityToken(a, {
+        toolName: "create_ticket",
+        secret: SECRET,
+        now: T0,
+        replayStore: store,
+      }).u,
+    ).toBe("555000001");
+    expect(
+      verifyIdentityToken(b, {
+        toolName: "create_ticket",
+        secret: SECRET,
+        now: T0,
+        replayStore: store,
+      }).u,
+    ).toBe("555000001");
   });
 
   test("token sai chữ ký KHÔNG làm bẩn kho replay", () => {
     const store = new InMemoryReplayStore(() => T0);
     const token = issue();
     try {
-      verifyIdentityToken(token, { toolName: "create_ticket", secret: "sai", now: T0, replayStore: store });
+      verifyIdentityToken(token, {
+        toolName: "create_ticket",
+        secret: "sai",
+        now: T0,
+        replayStore: store,
+      });
     } catch {
       /* mong đợi hỏng chữ ký */
     }
     // Cùng token với bí mật ĐÚNG vẫn phải qua (kho chưa ghi nonce vì chữ ký hỏng).
-    expect(verifyIdentityToken(token, { toolName: "create_ticket", secret: SECRET, now: T0, replayStore: store }).u).toBe("555000001");
+    expect(
+      verifyIdentityToken(token, {
+        toolName: "create_ticket",
+        secret: SECRET,
+        now: T0,
+        replayStore: store,
+      }).u,
+    ).toBe("555000001");
   });
 
   test("InMemoryReplayStore quên nonce sau khi hết hạn", () => {
@@ -182,7 +241,14 @@ describe("replay protection", () => {
 describe("signIdentityToken determinism", () => {
   test("cùng payload + secret ⇒ cùng chữ ký (khớp chéo plugin↔MCP)", () => {
     const payload: IdentityTokenPayload = {
-      u: "1", n: null, r: "r", s: "s", c: "c", t: "create_ticket", iat: T0, n2: "x",
+      u: "1",
+      n: null,
+      r: "r",
+      s: "s",
+      c: "c",
+      t: "create_ticket",
+      iat: T0,
+      n2: "x",
     };
     expect(signIdentityToken(payload, SECRET)).toBe(signIdentityToken(payload, SECRET));
   });

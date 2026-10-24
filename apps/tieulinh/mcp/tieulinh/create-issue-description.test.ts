@@ -13,7 +13,12 @@ describe("create_issue: mô tả sạch, gợi ý ở comment riêng (TECH-1084)
   let comments: Array<{ issueId: string; body: string }> = [];
   const CHAT = "1000000005";
 
-  const tracker = { baseUrl: "https://mock.itsaplan.test", apiKey: "k", projectKey: "TECH", webUrl: "https://x" } as any;
+  const tracker = {
+    baseUrl: "https://mock.itsaplan.test",
+    apiKey: "k",
+    projectKey: "TECH",
+    webUrl: "https://x",
+  } as any;
 
   beforeEach(() => {
     created = [];
@@ -21,7 +26,10 @@ describe("create_issue: mô tả sạch, gợi ý ở comment riêng (TECH-1084)
     const m = mock(async (input: any, init?: any) => {
       const url = String(input);
       const json = (body: unknown, status = 200) =>
-        new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+        new Response(JSON.stringify(body), {
+          status,
+          headers: { "content-type": "application/json" },
+        });
       if (url.endsWith("/projects/TECH")) {
         return json({
           id: 1,
@@ -36,7 +44,16 @@ describe("create_issue: mô tả sạch, gợi ý ở comment riêng (TECH-1084)
       if (url.endsWith("/projects/TECH/issues") && init?.method === "POST") {
         const body = JSON.parse(init.body);
         created.push(body);
-        return json({ id: 963, identifier: "TECH-1084", title: body.title, columnId: 10, sequenceNumber: 1084 }, 201);
+        return json(
+          {
+            id: 963,
+            identifier: "TECH-1084",
+            title: body.title,
+            columnId: 10,
+            sequenceNumber: 1084,
+          },
+          201,
+        );
       }
       if (/\/issues\/\d+\/comments$/.test(url) && init?.method === "POST") {
         const body = JSON.parse(init.body);
@@ -59,7 +76,8 @@ describe("create_issue: mô tả sạch, gợi ý ở comment riêng (TECH-1084)
     reporterChatId: CHAT,
     title: "Học sinh không thấy bài kiểm tra BTVN",
     // Bản model viết lại — KHÔNG được phép làm nội dung mô tả.
-    description: "Học sinh Nguyễn Văn Anh D báo không thấy bài kiểm tra. Cần đối chiếu dữ liệu lịch học.",
+    description:
+      "Học sinh Nguyễn Văn Anh D báo không thấy bài kiểm tra. Cần đối chiếu dữ liệu lịch học.",
     // Nguyên văn người báo — đây mới là mô tả.
     rawText: "con bé Nguyễn Văn Anh D không thấy bài kiểm tra ạ, em hỗ trợ chị với",
     hasSpecificSubject: false,
@@ -112,7 +130,11 @@ describe("create_issue: mô tả sạch, gợi ý ở comment riêng (TECH-1084)
 
   test("khi model không đưa rawText, bản xem trước nói rõ đó là lời tóm tắt", async () => {
     const tool = createIssue(tracker, ticketDomain);
-    const res = (await tool.handler({ ...baseInput, rawText: undefined, userConfirmed: false } as any)) as any;
+    const res = (await tool.handler({
+      ...baseInput,
+      rawText: undefined,
+      userConfirmed: false,
+    } as any)) as any;
 
     expect(res.message).toContain("Em tự tóm lại phần này");
   });
@@ -120,7 +142,11 @@ describe("create_issue: mô tả sạch, gợi ý ở comment riêng (TECH-1084)
   test("lời người gõ có Markdown không làm vỡ bản xem trước", async () => {
     const tool = createIssue(tracker, ticketDomain);
     const nasty = "lỗi *đậm* _nghiêng_ `code` [link](x) # heading | pipe";
-    const res = (await tool.handler({ ...baseInput, rawText: nasty, userConfirmed: false } as any)) as any;
+    const res = (await tool.handler({
+      ...baseInput,
+      rawText: nasty,
+      userConfirmed: false,
+    } as any)) as any;
 
     // Ký tự Markdown phải được escape, không nằm nguyên trong tin Telegram.
     expect(res.message).toContain("\\*đậm\\*");
@@ -131,18 +157,34 @@ describe("create_issue: mô tả sạch, gợi ý ở comment riêng (TECH-1084)
     const m = mock(async (input: any, init?: any) => {
       const url = String(input);
       const json = (body: unknown, status = 200) =>
-        new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+        new Response(JSON.stringify(body), {
+          status,
+          headers: { "content-type": "application/json" },
+        });
       if (url.endsWith("/projects/TECH")) {
         return json({
-          id: 1, key: "TECH", name: "Tech",
+          id: 1,
+          key: "TECH",
+          name: "Tech",
           columns: [{ id: 10, name: "Backlog", stateType: "backlog" }],
-          issueTypes: [], labels: [], customFields: [],
+          issueTypes: [],
+          labels: [],
+          customFields: [],
         });
       }
       if (url.endsWith("/projects/TECH/issues") && init?.method === "POST") {
         const body = JSON.parse(init.body);
         created.push(body);
-        return json({ id: 963, identifier: "TECH-1084", title: body.title, columnId: 10, sequenceNumber: 1084 }, 201);
+        return json(
+          {
+            id: 963,
+            identifier: "TECH-1084",
+            title: body.title,
+            columnId: 10,
+            sequenceNumber: 1084,
+          },
+          201,
+        );
       }
       if (/\/issues\/\d+\/comments$/.test(url)) {
         return json({ error: "db unavailable" }, 500);

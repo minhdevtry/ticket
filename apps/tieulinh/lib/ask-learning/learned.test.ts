@@ -7,18 +7,35 @@ const NOW = Date.parse("2026-10-16T00:00:00Z");
 const DAY = 86_400_000;
 const at = (daysBefore: number) => NOW - daysBefore * DAY;
 
-function addTicket(store: AskLearnStore, key: string, system: string, createdAt: number, item: "STEPS" | "TIME", commentAt: number, alreadyInReport = false) {
+function addTicket(
+  store: AskLearnStore,
+  key: string,
+  system: string,
+  createdAt: number,
+  item: "STEPS" | "TIME",
+  commentAt: number,
+  alreadyInReport = false,
+) {
   store.upsertTicket({ issueKey: key, system, createdAt, lastScannedAt: NOW });
   store.upsertComment({
-    commentId: `c-${key}`, issueKey: key, system, createdAt: commentAt, needsInfo: true, kind: "ask",
-    items: [item], alreadyInReport, model: "m", classifiedAt: NOW,
+    commentId: `c-${key}`,
+    issueKey: key,
+    system,
+    createdAt: commentAt,
+    needsInfo: true,
+    kind: "ask",
+    items: [item],
+    alreadyInReport,
+    model: "m",
+    classifiedAt: NOW,
   });
 }
 
 describe("learnedItems", () => {
   it("mục cần gần đây được học; mục chỉ cần từ 2 năm trước rơi ra", () => {
     const store = new AskLearnStore(new Database(":memory:"));
-    for (let i = 0; i < 5; i++) addTicket(store, `OLD-${i}`, "CRM_Vuihoc", at(730), "TIME", at(730));
+    for (let i = 0; i < 5; i++)
+      addTicket(store, `OLD-${i}`, "CRM_Vuihoc", at(730), "TIME", at(730));
     for (let i = 0; i < 4; i++) addTicket(store, `NEW-${i}`, "CRM_Vuihoc", at(6), "STEPS", at(6));
     const items = learnedItems(store, "CRM_Vuihoc", NOW);
     expect(items).toContain("STEPS");
@@ -35,7 +52,8 @@ describe("learnedItems", () => {
 
   it("bình luận đã có trong báo cáo (already_in_report) không được tính", () => {
     const store = new AskLearnStore(new Database(":memory:"));
-    for (let i = 0; i < 3; i++) addTicket(store, `A-${i}`, "DUO_Vuihoc", at(1), "TIME", at(1), true);
+    for (let i = 0; i < 3; i++)
+      addTicket(store, `A-${i}`, "DUO_Vuihoc", at(1), "TIME", at(1), true);
     expect(learnedItems(store, "DUO_Vuihoc", NOW)).toEqual([]);
   });
 
@@ -56,7 +74,8 @@ describe("learnedItems", () => {
 
   it("nhãn App/Web chưa rõ được đếm cho cả DUO_Vuihoc và VH_Tự học", () => {
     const store = new AskLearnStore(new Database(":memory:"));
-    for (let i = 0; i < 3; i++) addTicket(store, `W-${i}`, "Vuihoc (App/Web_Vuihoc + ERP_DUO)", at(1), "TIME", at(1));
+    for (let i = 0; i < 3; i++)
+      addTicket(store, `W-${i}`, "Vuihoc (App/Web_Vuihoc + ERP_DUO)", at(1), "TIME", at(1));
     expect(learnedItems(store, "DUO_Vuihoc", NOW)).toContain("TIME");
     expect(learnedItems(store, "VH_Tự học", NOW)).toContain("TIME");
     expect(learnedItems(store, "CRM_Vuihoc", NOW)).toEqual([]);
@@ -71,7 +90,9 @@ describe("learnedItems", () => {
     const care = rep.systems.find((r) => r.system === "CARE_Vuihoc")!;
     expect(care.tickets).toBe(3);
     expect(care.learned).toEqual(["STEPS"]);
-    expect(rep.unmapped).toEqual([{ label: "Chưa xác định (đội Kỹ thuật sẽ phân loại)", tickets: 1 }]);
+    expect(rep.unmapped).toEqual([
+      { label: "Chưa xác định (đội Kỹ thuật sẽ phân loại)", tickets: 1 },
+    ]);
   });
 });
 
@@ -116,7 +137,12 @@ describe("intakeSystemsOf", () => {
   });
 
   it("nhãn App/Web chưa rõ → cả DUO_Vuihoc lẫn VH_Tự học", () => {
-    for (const l of ["Vuihoc (App/Web_Vuihoc + ERP_DUO)", "App/Web_Vuihoc", "Web_Vuihoc", "APP/WEB/CARE_Vuihoc"]) {
+    for (const l of [
+      "Vuihoc (App/Web_Vuihoc + ERP_DUO)",
+      "App/Web_Vuihoc",
+      "Web_Vuihoc",
+      "APP/WEB/CARE_Vuihoc",
+    ]) {
       expect(intakeSystemsOf(l)).toEqual(["DUO_Vuihoc", "VH_Tự học"]);
     }
   });

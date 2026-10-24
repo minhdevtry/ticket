@@ -129,13 +129,19 @@ export interface ChannelBindingStore {
     reporterUsername?: string;
   }): void;
   /** Most recent ticket bound to this chat (optionally scoped by identifier prefix). */
-  getLatestBinding(chatId: string, identifierPrefix?: string): { issueId: number; identifier: string; title?: string } | null;
+  getLatestBinding(
+    chatId: string,
+    identifierPrefix?: string,
+  ): { issueId: number; identifier: string; title?: string } | null;
   /**
    * Ticket mới nhất gắn với MỘT NGƯỜI BÁO theo user id (khóa định danh bền), độc
    * lập với chat id. Tùy chọn vì không phải bot nào cũng tra theo người; bot
    * Telegram lưu `reporterUserId` thì dùng được. Không có id → null.
    */
-  getLatestBindingByUserId?(reporterUserId: string, identifierPrefix?: string): { issueId: number; identifier: string; title?: string } | null;
+  getLatestBindingByUserId?(
+    reporterUserId: string,
+    identifierPrefix?: string,
+  ): { issueId: number; identifier: string; title?: string } | null;
   /**
    * Đổi tài khoản (A1): chuyển MỌI binding đang gắn `oldUserId` sang `newUserId`.
    * Khi người dùng đổi tài khoản Telegram, định danh (name_code) được relink sang
@@ -325,7 +331,6 @@ export interface TicketCommandInterpreterPort {
 export interface PostCreateHookPort {
   afterCreate(input: { issue: TrackerIssue; description: string; chatId: string }): Promise<void>;
 }
-
 
 // ── ticket 14: notify (webhook → chat) ports ────────────────────────────────
 //

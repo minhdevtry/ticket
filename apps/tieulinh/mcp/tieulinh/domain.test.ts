@@ -79,7 +79,8 @@ describe("ticketDomain.build", () => {
   test("rawText nguyên văn thắng description do model viết lại (TECH-1084)", () => {
     const built = build({
       rawText: "con bé không thấy bài kiểm tra ạ, em hỗ trợ chị với",
-      description: "Học sinh Nguyễn Văn A báo không thấy bài kiểm tra. Cần đối chiếu dữ liệu lịch học.",
+      description:
+        "Học sinh Nguyễn Văn A báo không thấy bài kiểm tra. Cần đối chiếu dữ liệu lịch học.",
     });
     // Toàn bộ phần người đọc thấy phải là lời nguyên văn, không phải bản viết lại.
     expect(built.description).toContain("> con bé không thấy bài kiểm tra ạ, em hỗ trợ chị với");

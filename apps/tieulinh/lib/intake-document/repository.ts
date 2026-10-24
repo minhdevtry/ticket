@@ -22,7 +22,9 @@ export const INTAKE_DRAFT_TTL_MS = 24 * 3600_000;
 /** `updated_at` của SQLite là "YYYY-MM-DD HH:MM:SS" (UTC, không kèm múi giờ). */
 export function parseSqliteTimestamp(value?: string | null): number | null {
   if (!value) return null;
-  const iso = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value) ? `${value.replace(" ", "T")}Z` : value;
+  const iso = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value)
+    ? `${value.replace(" ", "T")}Z`
+    : value;
   const t = Date.parse(iso);
   return Number.isNaN(t) ? null : t;
 }
@@ -176,22 +178,47 @@ export class IntakeDocumentRepository {
 
       // Ánh xạ các trường từ legacyState
       if (legacyState.title) {
-        doc.fields.title = { value: legacyState.title, source: "user_message", turn: 1, updatedAt: now };
+        doc.fields.title = {
+          value: legacyState.title,
+          source: "user_message",
+          turn: 1,
+          updatedAt: now,
+        };
       }
       if (legacyState.product) {
-        doc.fields.product = { value: legacyState.product, source: "user_message", turn: 1, updatedAt: now };
+        doc.fields.product = {
+          value: legacyState.product,
+          source: "user_message",
+          turn: 1,
+          updatedAt: now,
+        };
       }
       if (legacyState.system) {
         // Draft cũ có thể chứa nhãn hệ thống trước 2026-09-23 (15 nhãn rác
         // LLM) — chuẩn hoá về danh mục 9 giá trị khi migrate.
         const norm = normalizeSystemName(legacyState.system);
-        doc.fields.system = { value: norm?.value ?? legacyState.system, source: "user_message", turn: 1, updatedAt: now };
+        doc.fields.system = {
+          value: norm?.value ?? legacyState.system,
+          source: "user_message",
+          turn: 1,
+          updatedAt: now,
+        };
       }
       if (legacyState.category) {
-        doc.fields.errorCategory = { value: legacyState.category, source: "user_message", turn: 1, updatedAt: now };
+        doc.fields.errorCategory = {
+          value: legacyState.category,
+          source: "user_message",
+          turn: 1,
+          updatedAt: now,
+        };
       }
       if (legacyState.reportingDept) {
-        doc.fields.reportingDept = { value: legacyState.reportingDept, source: "user_message", turn: 1, updatedAt: now };
+        doc.fields.reportingDept = {
+          value: legacyState.reportingDept,
+          source: "user_message",
+          turn: 1,
+          updatedAt: now,
+        };
       }
       if (legacyState.studentId || legacyState.studentAccount) {
         doc.fields.studentAccount = {
@@ -202,7 +229,12 @@ export class IntakeDocumentRepository {
         };
       }
       if (legacyState.customerId) {
-        doc.fields.customerId = { value: legacyState.customerId, source: "user_message", turn: 1, updatedAt: now };
+        doc.fields.customerId = {
+          value: legacyState.customerId,
+          source: "user_message",
+          turn: 1,
+          updatedAt: now,
+        };
       }
       if (legacyState.symptoms || legacyState.rawText) {
         const text = legacyState.symptoms || legacyState.rawText;

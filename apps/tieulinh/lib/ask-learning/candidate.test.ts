@@ -11,12 +11,22 @@ describe("isCandidateComment", () => {
     expect(isCandidateComment("@SA_UserE bạn cho em xin mã KH", "TechUser_C")).toBe(true);
   });
   it("nhắc người báo hoặc Tiểu Linh qua thẻ HTML (@<span...>, <p>, entities) → ứng viên", () => {
-    expect(isCandidateComment('<p>@<span class="mention">SA_UserE</span> bạn cho em xin mã KH</p>', "TechUser_C")).toBe(true);
-    expect(isCandidateComment('<div>Nhờ @<span>tieulinh</span> kiểm tra giúp</div>', "TechUser_B")).toBe(true);
-    expect(isCandidateComment('@<span data-type="mention">@SA_UserE</span> gửi ảnh', "TechLead_A")).toBe(true);
-    expect(isCandidateComment("&lt;p&gt;@CS_UserF kiểm tra lại&lt;/p&gt;", "TechUser_C")).toBe(true);
+    expect(
+      isCandidateComment(
+        '<p>@<span class="mention">SA_UserE</span> bạn cho em xin mã KH</p>',
+        "TechUser_C",
+      ),
+    ).toBe(true);
+    expect(
+      isCandidateComment("<div>Nhờ @<span>tieulinh</span> kiểm tra giúp</div>", "TechUser_B"),
+    ).toBe(true);
+    expect(
+      isCandidateComment('@<span data-type="mention">@SA_UserE</span> gửi ảnh', "TechLead_A"),
+    ).toBe(true);
+    expect(isCandidateComment("&lt;p&gt;@CS_UserF kiểm tra lại&lt;/p&gt;", "TechUser_C")).toBe(
+      true,
+    );
   });
-
 
   it("không phải kỹ thuật viên → không", () => {
     expect(isCandidateComment("@Tiểu Linh gửi ảnh giúp em", "SA_UserE")).toBe(false);

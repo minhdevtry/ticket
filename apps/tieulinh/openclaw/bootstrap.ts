@@ -70,12 +70,7 @@ for (const [agentId, agentSpec] of Object.entries<any>(config.agents)) {
 // 3. Kiểm tra biến môi trường
 console.log("\n🔑 Kiểm tra biến môi trường (Environment):");
 const REQUIRED_ENV = ["ITSAPLAN_BASE_URL", "ITSAPLAN_API_KEY"];
-const OPTIONAL_ENV = [
-  "TELEGRAM_BOT_TOKEN_TIEULINH",
-  "ONYX_BASE_URL",
-  "ONYX_API_KEY",
-  "ADMIN_IDS",
-];
+const OPTIONAL_ENV = ["TELEGRAM_BOT_TOKEN_TIEULINH", "ONYX_BASE_URL", "ONYX_API_KEY", "ADMIN_IDS"];
 
 for (const envKey of REQUIRED_ENV) {
   if (process.env[envKey]) {
@@ -99,7 +94,10 @@ if (process.env.ITSAPLAN_BASE_URL && process.env.ITSAPLAN_API_KEY) {
   try {
     const { ItsaplanClient } = await import("../lib/itsaplan/client");
     const { syncHulyLabelsToItsaplan } = await import("../lib/itsaplan/sync-labels");
-    const itsaplan = new ItsaplanClient(process.env.ITSAPLAN_BASE_URL, process.env.ITSAPLAN_API_KEY);
+    const itsaplan = new ItsaplanClient(
+      process.env.ITSAPLAN_BASE_URL,
+      process.env.ITSAPLAN_API_KEY,
+    );
     await syncHulyLabelsToItsaplan(itsaplan, "TECH");
     await syncHulyLabelsToItsaplan(itsaplan, "PO");
     console.log("  ✅ Đã đồng bộ đủ 18 nhãn chuẩn Huly cho cả TECH và PO.");
@@ -114,7 +112,10 @@ if (process.env.ITSAPLAN_BASE_URL && process.env.ITSAPLAN_API_KEY && process.env
   try {
     const { ItsaplanClient } = await import("../lib/itsaplan/client");
     const { ensureItsaplanWebhook } = await import("../lib/itsaplan/ensure-webhook");
-    const itsaplan = new ItsaplanClient(process.env.ITSAPLAN_BASE_URL, process.env.ITSAPLAN_API_KEY);
+    const itsaplan = new ItsaplanClient(
+      process.env.ITSAPLAN_BASE_URL,
+      process.env.ITSAPLAN_API_KEY,
+    );
     const resTech = await ensureItsaplanWebhook(itsaplan, "TECH", process.env.WEBHOOK_URL);
     console.log(`  ✅ [TECH] ${resTech.message}`);
   } catch (err: any) {
@@ -125,7 +126,9 @@ if (process.env.ITSAPLAN_BASE_URL && process.env.ITSAPLAN_API_KEY && process.env
 console.log("\n------------------------------------------");
 if (mcpErrors === 0 && agentErrors === 0) {
   console.log("🎉 TẤT CẢ FILE CẤU HÌNH, NHÃN & WEBHOOK ĐỀU SẴN SÀNG!");
-  console.log("👉 Bạn có thể cắm trực tiếp apps/tieulinh/openclaw/openclaw.json vào OpenClaw để chạy.");
+  console.log(
+    "👉 Bạn có thể cắm trực tiếp apps/tieulinh/openclaw/openclaw.json vào OpenClaw để chạy.",
+  );
 } else {
   console.error(`⚠️ Phát hiện ${mcpErrors + agentErrors} lỗi cần sửa chữa trước khi khởi chạy.`);
   process.exit(1);

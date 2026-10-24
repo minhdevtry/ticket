@@ -85,7 +85,12 @@ async function run() {
 
   // 2. Test Validate Fields
   console.log("\n2. Test Kiểm tra tính hợp lệ của trường (validate_fields):");
-  const valTool = validateFields(validationRules as any, fieldRequirements as any, productMapping as any, dbPath);
+  const valTool = validateFields(
+    validationRules as any,
+    fieldRequirements as any,
+    productMapping as any,
+    dbPath,
+  );
   const valValid = (await valTool.handler({
     values: {
       system: "Vuihoc (App/Web_Vuihoc + ERP_DUO)",
@@ -115,7 +120,10 @@ async function run() {
     scope: "single_user",
     hasWorkaround: true,
   })) as any;
-  assert("Trần 1 người dùng có phương án tạm hạ mức ưu tiên xuống High", pWorkaround.allowedLevel === "High");
+  assert(
+    "Trần 1 người dùng có phương án tạm hạ mức ưu tiên xuống High",
+    pWorkaround.allowedLevel === "High",
+  );
 
   // 4. Test Redact PII
   console.log("\n4. Test Khử thông tin nhạy cảm (redact_pii):");
@@ -134,7 +142,10 @@ async function run() {
     description: "Phòng học ROOM-5511 báo lỗi 502 Bad Gateway toàn bộ học sinh không vào được",
   })) as any;
   assert("search_knowledge kết nối Onyx thành công", searchRes && typeof searchRes === "object");
-  console.log("  • Trích xuất gợi ý:", (searchRes.answer || "Không có nội dung").slice(0, 100) + "...");
+  console.log(
+    "  • Trích xuất gợi ý:",
+    (searchRes.answer || "Không có nội dung").slice(0, 100) + "...",
+  );
 
   // 6. Test Create Issue (2 bước an toàn)
   console.log("\n6. Test Tạo ticket (create_issue):");
@@ -154,14 +165,27 @@ async function run() {
     reporterChatId: "test_chat_tl_999",
     userConfirmed: false,
   })) as any;
-  assert("Bước 1 chưa ghi lên Itsaplan", step1.created === false && step1.needsConfirmation === true);
-  assert("Bản tóm tắt bước 1 sạch icon", !step1.message.includes("📋") && !step1.message.includes("🚨"));
-  console.log("  • Tin tóm tắt bước 1:\n" + step1.message.split("\n").map((l: string) => "    " + l).join("\n"));
+  assert(
+    "Bước 1 chưa ghi lên Itsaplan",
+    step1.created === false && step1.needsConfirmation === true,
+  );
+  assert(
+    "Bản tóm tắt bước 1 sạch icon",
+    !step1.message.includes("📋") && !step1.message.includes("🚨"),
+  );
+  console.log(
+    "  • Tin tóm tắt bước 1:\n" +
+      step1.message
+        .split("\n")
+        .map((l: string) => "    " + l)
+        .join("\n"),
+  );
 
   console.log("\n  6.2. Bước 2: userConfirmed = true (Tạo thật lên Itsaplan)");
   const step2 = (await createTool.handler({
     title: "CRM không tạo được đơn do trùng tài khoản [Live E2E Test]",
-    description: "Số 0900000022 bị trùng tài khoản học nên không lên đơn được. Người báo không sửa hoặc xóa được tên trên CRM.",
+    description:
+      "Số 0900000022 bị trùng tài khoản học nên không lên đơn được. Người báo không sửa hoặc xóa được tên trên CRM.",
     hasSpecificSubject: true,
     product: "Khác",
     system: "CRM_Vuihoc",
@@ -175,20 +199,38 @@ async function run() {
     reporterChatId: "test_chat_tl_999",
     userConfirmed: true,
   })) as any;
-  assert("Bước 2 tạo ticket thành công trên Itsaplan", step2.created === true && Boolean(step2.issue?.identifier));
+  assert(
+    "Bước 2 tạo ticket thành công trên Itsaplan",
+    step2.created === true && Boolean(step2.issue?.identifier),
+  );
   const createdIdentifier = step2.issue?.identifier;
   const createdIssueId = step2.issue?.id;
   console.log(`  • Ticket đã tạo: ${createdIdentifier} (ID: ${createdIssueId})`);
   assert("Tin thông báo tạo thành công sạch icon", !step2.message.includes("✅"));
-  console.log("  • Tin phản hồi bước 2:\n" + step2.message.split("\n").map((l: string) => "    " + l).join("\n"));
+  console.log(
+    "  • Tin phản hồi bước 2:\n" +
+      step2.message
+        .split("\n")
+        .map((l: string) => "    " + l)
+        .join("\n"),
+  );
 
   // Kiểm tra ticket vừa tạo trên Itsaplan có đúng nhãn và taxonomy
   const createdRaw = await itsaplanClient.getIssue(createdIssueId);
-  assert("Ticket có gắn nhãn labelIds (Lỗi dữ liệu)", Array.isArray(createdRaw.labelIds) && createdRaw.labelIds.length > 0);
+  assert(
+    "Ticket có gắn nhãn labelIds (Lỗi dữ liệu)",
+    Array.isArray(createdRaw.labelIds) && createdRaw.labelIds.length > 0,
+  );
   assert("Mô tả chứa taxonomy Sản phẩm", createdRaw.description.includes("- Sản phẩm: Khác"));
   assert("Mô tả chứa taxonomy Hệ thống", createdRaw.description.includes("- Hệ thống: CRM_Vuihoc"));
-  assert("Mô tả chứa taxonomy Phân loại lỗi", createdRaw.description.includes("- Phân loại lỗi: Lỗi dữ liệu"));
-  assert("Mô tả chứa trường Tài khoản HS / SĐT", createdRaw.description.includes("- Tài khoản HS / SĐT: 0900000022"));
+  assert(
+    "Mô tả chứa taxonomy Phân loại lỗi",
+    createdRaw.description.includes("- Phân loại lỗi: Lỗi dữ liệu"),
+  );
+  assert(
+    "Mô tả chứa trường Tài khoản HS / SĐT",
+    createdRaw.description.includes("- Tài khoản HS / SĐT: 0900000022"),
+  );
   assert("Mô tả chứa vuihoc-meta chuẩn", createdRaw.description.includes("<!-- vuihoc-meta:"));
 
   // Chờ background microtask làm giàu tri thức từ Onyx
@@ -201,11 +243,23 @@ async function run() {
   const getById = (await getTool.handler({ identifier: createdIdentifier })) as any;
   assert("get_issue tìm thấy ticket vừa tạo", getById.found === true);
   assert("Trạng thái khởi tạo là Mới tiếp nhận", getById.status?.name === "Mới tiếp nhận");
-  assert("humanSummary không chứa icon rườm rà", !getById.humanSummary.includes("🎫") && !getById.humanSummary.includes("📥"));
-  console.log("  • humanSummary tra cứu theo mã:\n" + getById.humanSummary.split("\n").map((l: string) => "    " + l).join("\n"));
+  assert(
+    "humanSummary không chứa icon rườm rà",
+    !getById.humanSummary.includes("🎫") && !getById.humanSummary.includes("📥"),
+  );
+  console.log(
+    "  • humanSummary tra cứu theo mã:\n" +
+      getById.humanSummary
+        .split("\n")
+        .map((l: string) => "    " + l)
+        .join("\n"),
+  );
 
   const getByChatId = (await getTool.handler({ chatId: "test_chat_tl_999" })) as any;
-  assert("get_issue tự động lấy ticket gần nhất qua chatId", getByChatId.identifier === createdIdentifier);
+  assert(
+    "get_issue tự động lấy ticket gần nhất qua chatId",
+    getByChatId.identifier === createdIdentifier,
+  );
 
   // 8. Test Update Issue & Đính kèm ảnh
   console.log("\n8. Test Bổ sung thông tin và đính kèm ảnh (update_issue):");
@@ -217,21 +271,38 @@ async function run() {
     device: "Máy tính bảng Samsung Tab A9",
     mediaPaths: ["/tmp/test-ticket-screenshot.png"],
   })) as any;
-  assert("update_issue bổ sung thông tin thành công vào ticket", updRes.updated === true && updRes.identifier === createdIdentifier);
-  assert("update_issue trả về lời nhắn lịch sự không icon", !updRes.message.includes("💬") && !updRes.message.includes("✅"));
+  assert(
+    "update_issue bổ sung thông tin thành công vào ticket",
+    updRes.updated === true && updRes.identifier === createdIdentifier,
+  );
+  assert(
+    "update_issue trả về lời nhắn lịch sự không icon",
+    !updRes.message.includes("💬") && !updRes.message.includes("✅"),
+  );
   console.log("  • Lời nhắn update_issue: " + updRes.message);
 
   const issueAfterUpdate = await itsaplanClient.getIssue(createdIssueId);
-  assert("Mô tả được cập nhật trường Thiết bị mới", issueAfterUpdate.description.includes("- Thiết bị: Máy tính bảng Samsung Tab A9"));
-  assert("Mô tả có mục ➕ Bổ sung với ICT timestamp", issueAfterUpdate.description.includes("### ➕ Bổ sung"));
-  assert("Mô tả có mục 📸 Ảnh đính kèm", issueAfterUpdate.description.includes("### 📸 Ảnh đính kèm"));
+  assert(
+    "Mô tả được cập nhật trường Thiết bị mới",
+    issueAfterUpdate.description.includes("- Thiết bị: Máy tính bảng Samsung Tab A9"),
+  );
+  assert(
+    "Mô tả có mục ➕ Bổ sung với ICT timestamp",
+    issueAfterUpdate.description.includes("### ➕ Bổ sung"),
+  );
+  assert(
+    "Mô tả có mục 📸 Ảnh đính kèm",
+    issueAfterUpdate.description.includes("### 📸 Ảnh đính kèm"),
+  );
 
   // 9. Test Escalate Issue
   console.log("\n9. Test Giục khẩn cấp (escalate_issue):");
   const escTool = escalateIssue(tracker, {
     noun: "ticket",
-    acknowledgement: "Dạ em hiểu lớp học đang gấp lắm rồi ạ! Em đã nâng mức ưu tiên của ticket {identifier} lên Urgent rồi nhé ạ.",
-    alertTemplate: "[KHẨN CẤP] {identifier} — {title}\nNgười báo: {reporter} đang giục gấp. {reason}",
+    acknowledgement:
+      "Dạ em hiểu lớp học đang gấp lắm rồi ạ! Em đã nâng mức ưu tiên của ticket {identifier} lên Urgent rồi nhé ạ.",
+    alertTemplate:
+      "[KHẨN CẤP] {identifier} — {title}\nNgười báo: {reporter} đang giục gấp. {reason}",
   });
   const escRes = (await escTool.handler({
     identifier: createdIdentifier,
@@ -240,7 +311,13 @@ async function run() {
   })) as any;
   assert("escalate_issue nâng ưu tiên thành công", escRes.escalated === true);
   assert("Nội dung cảnh báo không chứa icon", !escRes.alert.includes("🚨"));
-  console.log("  • Cảnh báo trực ca sinh ra:\n" + escRes.alert.split("\n").map((l: string) => "    " + l).join("\n"));
+  console.log(
+    "  • Cảnh báo trực ca sinh ra:\n" +
+      escRes.alert
+        .split("\n")
+        .map((l: string) => "    " + l)
+        .join("\n"),
+  );
 
   // 10. Test Trạng thái Resolved (chờ người dùng duyệt)
   console.log("\n10. Test Trạng thái Resolved (chờ người dùng duyệt):");
@@ -251,14 +328,31 @@ async function run() {
   const doneCol = columns.find((c) => c.name.toLowerCase().includes("done"));
 
   if (resolvedCol) {
-    console.log(`  • Chuyển ticket sang cột Resolved (ID: ${resolvedCol.id}, Name: ${resolvedCol.name})`);
+    console.log(
+      `  • Chuyển ticket sang cột Resolved (ID: ${resolvedCol.id}, Name: ${resolvedCol.name})`,
+    );
     await itsaplanClient.updateIssue(createdIssueId, { columnId: resolvedCol.id });
 
     const getResolved = (await getTool.handler({ identifier: createdIdentifier })) as any;
-    assert("Nhận diện trạng thái Resolved isResolved = true", getResolved.status?.isResolved === true);
-    assert("Tên trạng thái tiếng Việt: Đã xử lý (chờ duyệt)", getResolved.status?.name === "Đã xử lý (chờ duyệt)");
-    assert("humanSummary có lưu ý mời duyệt nghiệm thu", getResolved.humanSummary.includes("Kỹ thuật đã xử lý xong"));
-    console.log("  • humanSummary khi ở trạng thái Resolved:\n" + getResolved.humanSummary.split("\n").map((l: string) => "    " + l).join("\n"));
+    assert(
+      "Nhận diện trạng thái Resolved isResolved = true",
+      getResolved.status?.isResolved === true,
+    );
+    assert(
+      "Tên trạng thái tiếng Việt: Đã xử lý (chờ duyệt)",
+      getResolved.status?.name === "Đã xử lý (chờ duyệt)",
+    );
+    assert(
+      "humanSummary có lưu ý mời duyệt nghiệm thu",
+      getResolved.humanSummary.includes("Kỹ thuật đã xử lý xong"),
+    );
+    console.log(
+      "  • humanSummary khi ở trạng thái Resolved:\n" +
+        getResolved.humanSummary
+          .split("\n")
+          .map((l: string) => "    " + l)
+          .join("\n"),
+    );
   } else {
     console.log("  [SKIP] Dự án không có cột Resolved riêng");
   }
@@ -270,8 +364,17 @@ async function run() {
 
     const getDone = (await getTool.handler({ identifier: createdIdentifier })) as any;
     assert("Tên trạng thái tiếng Việt: Hoàn tất", getDone.status?.name === "Hoàn tất");
-    assert("isResolved chuyển về false khi đã Done hoàn toàn", getDone.status?.isResolved === false);
-    console.log("  • humanSummary khi Done:\n" + getDone.humanSummary.split("\n").map((l: string) => "    " + l).join("\n"));
+    assert(
+      "isResolved chuyển về false khi đã Done hoàn toàn",
+      getDone.status?.isResolved === false,
+    );
+    console.log(
+      "  • humanSummary khi Done:\n" +
+        getDone.humanSummary
+          .split("\n")
+          .map((l: string) => "    " + l)
+          .join("\n"),
+    );
   }
 
   // TỔNG KẾT

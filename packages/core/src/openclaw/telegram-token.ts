@@ -31,10 +31,7 @@ export interface OpenClawConfigShape {
  * ⇒ null (KHÔNG đoán token của account khác: khoá nhầm bot còn tệ hơn không khoá —
  * xem ghi chú `layBotToken`). `accountId` null/rỗng ⇒ chỉ xét token một-tài-khoản.
  */
-export function readTelegramBotToken(
-  config: unknown,
-  accountId?: string | null,
-): string | null {
+export function readTelegramBotToken(config: unknown, accountId?: string | null): string | null {
   if (!config || typeof config !== "object") return null;
   const tg = (config as OpenClawConfigShape).channels?.telegram;
   if (!tg) return null;

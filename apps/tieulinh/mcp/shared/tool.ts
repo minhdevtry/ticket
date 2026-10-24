@@ -4,7 +4,7 @@
  * Tên tool và tên trường bằng tiếng Anh — đó là thứ model và host đọc như định
  * danh. Phần mô tả và câu chữ trả về cho người dùng vẫn là tiếng Việt.
  */
-import { z } from "zod";
+import type { z } from "zod";
 
 export interface McpTool<TShape extends z.ZodRawShape = z.ZodRawShape> {
   /** Định danh model gọi. snake_case tiếng Anh. */

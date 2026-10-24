@@ -65,17 +65,27 @@ try {
   plugin.register(api);
   assert(hooks.has("before_agent_run") && hooks.has("before_tool_call"), "thiếu hook");
 
-  const ctx = { agentId: "demo-agent", runId: "run-xyz", senderId: 555000001, sessionKey: "agent:demo-agent:x" };
+  const ctx = {
+    agentId: "demo-agent",
+    runId: "run-xyz",
+    senderId: 555000001,
+    sessionKey: "agent:demo-agent:x",
+  };
 
   // 4. before_agent_run nhớ danh tính; before_tool_call ký _identity.
   await hooks.get("before_agent_run")({ runId: "run-xyz", senderId: 555000001 }, ctx);
-  const res = await hooks.get("before_tool_call")({ toolName: "demo__do_thing", params: { x: 1 } }, ctx);
+  const res = await hooks.get("before_tool_call")(
+    { toolName: "demo__do_thing", params: { x: 1 } },
+    ctx,
+  );
   assert(res && res.params, "before_tool_call không trả params");
   const token = res.params._identity;
   assert(typeof token === "string" && token.includes("."), "không ký được _identity");
 
   // 5. Verify token bằng chính kit (import TS trực tiếp qua Bun) — khớp chéo.
-  const { verifyIdentityToken } = await import(join(HERE, "..", "..", "src", "openclaw", "identity-token.ts"));
+  const { verifyIdentityToken } = await import(
+    join(HERE, "..", "..", "src", "openclaw", "identity-token.ts")
+  );
   const payload = verifyIdentityToken(token, { toolName: "do_thing", secret: "smoke-secret" });
   assert(payload.u === "555000001", `payload.u sai: ${payload.u}`);
 
@@ -86,7 +96,9 @@ try {
   );
   assert(outOfScope === undefined, "lượt agent khác đáng lẽ bị bỏ qua");
 
-  console.log("SMOKE OK: bundle dựng được, plugin tải+chạy, _identity ký & verify khớp, agent-gating đúng.");
+  console.log(
+    "SMOKE OK: bundle dựng được, plugin tải+chạy, _identity ký & verify khớp, agent-gating đúng.",
+  );
 } finally {
   rmSync(outDir, { recursive: true, force: true });
 }

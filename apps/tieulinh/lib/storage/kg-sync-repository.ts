@@ -60,7 +60,9 @@ export class KgSyncRepository {
 
   getQueued(identifier: string): KgSyncQueueRow | null {
     return (
-      (this.db.query(`SELECT * FROM ${this.table} WHERE identifier = ?`).get(identifier) as KgSyncQueueRow) ?? null
+      (this.db
+        .query(`SELECT * FROM ${this.table} WHERE identifier = ?`)
+        .get(identifier) as KgSyncQueueRow) ?? null
     );
   }
 
@@ -80,7 +82,9 @@ export class KgSyncRepository {
   }
 
   listQueue(): KgSyncQueueRow[] {
-    return this.db.query(`SELECT * FROM ${this.table} ORDER BY next_attempt_at ASC`).all() as KgSyncQueueRow[];
+    return this.db
+      .query(`SELECT * FROM ${this.table} ORDER BY next_attempt_at ASC`)
+      .all() as KgSyncQueueRow[];
   }
 
   getLedger(identifier: string): { fingerprint: string; syncedAt: number } | null {
@@ -106,7 +110,8 @@ export class KgSyncRepository {
   } {
     return {
       get: (identifier) => this.getLedger(identifier),
-      record: (identifier, fingerprint, syncedAt) => this.recordLedger(identifier, fingerprint, syncedAt),
+      record: (identifier, fingerprint, syncedAt) =>
+        this.recordLedger(identifier, fingerprint, syncedAt),
     };
   }
 }

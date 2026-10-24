@@ -12,13 +12,11 @@ import type { CopyKey } from "../../src/intake/ports";
 export const tieuLinhCopy: Record<CopyKey, string> = {
   "confirm.too_soon":
     "Anh/chị xem lại bản tóm tắt phía trên, đúng thì bấm nút xác nhận giúp em nhé ạ.",
-  "confirm.in_progress":
-    "Dạ em đang tạo ticket cho anh/chị, anh/chị chờ em một chút nhé ạ.",
+  "confirm.in_progress": "Dạ em đang tạo ticket cho anh/chị, anh/chị chờ em một chút nhé ạ.",
   "confirm.resend":
     "Dạ em xin lỗi, em bị mất phần thông tin vừa tóm tắt nên chưa gửi đi được ạ. " +
     "Anh/chị nhắn lại giúp em nội dung chính một lần nữa nhé, em ghi lại ngay.",
-  "ticket.created":
-    "Dạ em đã tạo ticket {identifier} cho anh/chị rồi ạ: {url}",
+  "ticket.created": "Dạ em đã tạo ticket {identifier} cho anh/chị rồi ạ: {url}",
   "ticket.already_created":
     "Dạ sự cố này em đã tạo ticket {identifier} rồi ạ — anh/chị không cần tạo lại nhé.",
   "ticket.create_failed":

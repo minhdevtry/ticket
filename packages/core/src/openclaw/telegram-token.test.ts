@@ -45,7 +45,9 @@ describe("readTelegramBotToken (hàm thuần)", () => {
 
 describe("loadTelegramBotToken (nạp theo đường dẫn tường minh)", () => {
   test("đọc file rồi rút token", () => {
-    const token = loadTelegramBotToken("/duong/openclaw.json", "ticket", () => JSON.stringify(CONFIG));
+    const token = loadTelegramBotToken("/duong/openclaw.json", "ticket", () =>
+      JSON.stringify(CONFIG),
+    );
     expect(token).toBe("token-ticket");
   });
 

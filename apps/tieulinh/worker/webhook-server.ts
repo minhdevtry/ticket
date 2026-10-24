@@ -1,6 +1,6 @@
 import http from "node:http";
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { ItsaplanClient } from "../lib/itsaplan/client";
+import type { ItsaplanClient } from "../lib/itsaplan/client";
 import { getLogger } from "../lib/logger";
 import type { ReporterOkResult, ReporterReplyResult } from "./ticket-closure";
 
@@ -285,13 +285,22 @@ export class ItsaplanWebhookServer {
             this.reply(res, 400, { error: "issueId không hợp lệ" });
             return;
           }
-          const userName = typeof payload.userName === "string" && payload.userName.trim() ? payload.userName.trim() : "Người báo";
-          const chatId = payload.chatId === undefined || payload.chatId === null ? "" : String(payload.chatId);
+          const userName =
+            typeof payload.userName === "string" && payload.userName.trim()
+              ? payload.userName.trim()
+              : "Người báo";
+          const chatId =
+            payload.chatId === undefined || payload.chatId === null ? "" : String(payload.chatId);
           try {
             this.reply(res, 200, await this.reporterOkHandler({ issueId, chatId, userName }));
           } catch (err: any) {
-            getLogger().error(`[ItsaplanWebhookServer] reporter-ok #${issueId} lỗi: ${err.message}`);
-            this.reply(res, 200, { outcome: "error", replyText: "Dạ em chưa ghi nhận được, anh/chị bấm lại giúp em sau ít phút nhé." });
+            getLogger().error(
+              `[ItsaplanWebhookServer] reporter-ok #${issueId} lỗi: ${err.message}`,
+            );
+            this.reply(res, 200, {
+              outcome: "error",
+              replyText: "Dạ em chưa ghi nhận được, anh/chị bấm lại giúp em sau ít phút nhé.",
+            });
           }
           return;
         }
@@ -315,7 +324,8 @@ export class ItsaplanWebhookServer {
           } catch {
             payload = null;
           }
-          const chatId = payload?.chatId === undefined || payload?.chatId === null ? "" : String(payload.chatId);
+          const chatId =
+            payload?.chatId === undefined || payload?.chatId === null ? "" : String(payload.chatId);
           const rawMessageId = payload?.replyToMessageId;
           const messageId =
             rawMessageId === undefined || rawMessageId === null ? "" : String(rawMessageId).trim();
@@ -325,9 +335,15 @@ export class ItsaplanWebhookServer {
             return;
           }
           const userName =
-            typeof payload.senderName === "string" && payload.senderName.trim() ? payload.senderName.trim() : "Người báo";
+            typeof payload.senderName === "string" && payload.senderName.trim()
+              ? payload.senderName.trim()
+              : "Người báo";
           try {
-            this.reply(res, 200, await this.reporterReplyHandler({ chatId, messageId, text, userName }));
+            this.reply(
+              res,
+              200,
+              await this.reporterReplyHandler({ chatId, messageId, text, userName }),
+            );
           } catch (err: any) {
             getLogger().error(`[ItsaplanWebhookServer] reporter-reply lỗi: ${err.message}`);
             this.reply(res, 200, {
@@ -357,7 +373,10 @@ export class ItsaplanWebhookServer {
           } catch {
             payload = null;
           }
-          const chatId = payload?.chatId === undefined || payload?.chatId === null ? "" : String(payload.chatId).trim();
+          const chatId =
+            payload?.chatId === undefined || payload?.chatId === null
+              ? ""
+              : String(payload.chatId).trim();
           if (!chatId) {
             this.reply(res, 400, { error: "Thiếu chatId" });
             return;
@@ -425,7 +444,9 @@ export class ItsaplanWebhookServer {
             this.signatureToleranceSec,
           );
           if (!ok) {
-            getLogger().warn(`[ItsaplanWebhookServer] Từ chối /webhook: chữ ký X-Itsaplan-Signature thiếu hoặc sai.`);
+            getLogger().warn(
+              `[ItsaplanWebhookServer] Từ chối /webhook: chữ ký X-Itsaplan-Signature thiếu hoặc sai.`,
+            );
             this.reply(res, 401, { error: "Invalid signature" });
             return;
           }
@@ -435,9 +456,7 @@ export class ItsaplanWebhookServer {
         try {
           envelope = JSON.parse(body) as ItsaplanWebhookEnvelope;
         } catch (err: any) {
-          getLogger().error(
-            `[ItsaplanWebhookServer] Failed to parse webhook body: ${err.message}`,
-          );
+          getLogger().error(`[ItsaplanWebhookServer] Failed to parse webhook body: ${err.message}`);
           this.reply(res, 400, { error: "Invalid JSON" });
           return;
         }
@@ -461,9 +480,7 @@ export class ItsaplanWebhookServer {
           try {
             await handler(envelope);
           } catch (err: any) {
-            getLogger().error(
-              `[ItsaplanWebhookServer] Error in webhook handler: ${err.message}`,
-            );
+            getLogger().error(`[ItsaplanWebhookServer] Error in webhook handler: ${err.message}`);
           }
         }
       });

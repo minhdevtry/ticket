@@ -1,6 +1,6 @@
 import { complete, extractJson } from "./llm";
-import { ItsaplanClient } from "../lib/itsaplan/client";
-import { OnyxConnectorManager } from "../lib/onyx/connector-manager";
+import type { ItsaplanClient } from "../lib/itsaplan/client";
+import type { OnyxConnectorManager } from "../lib/onyx/connector-manager";
 import { redactIncidentPII } from "../lib/onyx/pii-redactor";
 import { evaluatePreLlmFilter, evaluatePostLlmFilter } from "../lib/onyx/filter";
 import { buildOnyxDocumentBody, parseVuihocMeta } from "../lib/onyx/document";
@@ -23,9 +23,7 @@ export class OnyxIngestService {
     private readonly itsaplan: ItsaplanClient,
     private readonly connectorManager: OnyxConnectorManager,
     private readonly config: OnyxServiceConfig,
-  ) {
-    
-  }
+  ) {}
 
   /**
    * Ingest a completed/resolved ticket into the connector/cc-pair the connector manager
@@ -50,7 +48,11 @@ export class OnyxIngestService {
         getLogger().info(
           `[OnyxIngestService] Bỏ qua #${issueId} (${issue.identifier}): không thuộc dự án ${config.itsaplanProjectKey}`,
         );
-        return { success: true, status: "skipped", reason: `không thuộc dự án ${config.itsaplanProjectKey}` };
+        return {
+          success: true,
+          status: "skipped",
+          reason: `không thuộc dự án ${config.itsaplanProjectKey}`,
+        };
       }
 
       const timeline = await this.itsaplan.getIssueTimeline(issueId);
@@ -114,7 +116,10 @@ ${comments.join("\n---\n") || "(Không có bình luận bổ sung)"}`;
           if (parsed.prevention) prevention = parsed.prevention;
         }
       } catch (llmErr: any) {
-        getLogger().warn("[OnyxIngestService] LLM synthesis warning, falling back to direct fields:", llmErr.message);
+        getLogger().warn(
+          "[OnyxIngestService] LLM synthesis warning, falling back to direct fields:",
+          llmErr.message,
+        );
       }
 
       // 3. Redact PII (passwords, phone numbers, tokens, emails)
@@ -128,14 +133,22 @@ ${comments.join("\n---\n") || "(Không có bình luận bổ sung)"}`;
       const docId = `${prefix}${issue.identifier.toLowerCase().replace(/[^a-z0-9_-]/g, "_")}`;
       const teamRef = await resolveProjectTeamRef(this.itsaplan, config.itsaplanProjectKey);
       const issueUrl =
-        issueWebUrl(config.itsaplanWebUrl, config.itsaplanProjectKey, issue.identifier, issue.sequenceNumber, teamRef) ?? "";
+        issueWebUrl(
+          config.itsaplanWebUrl,
+          config.itsaplanProjectKey,
+          issue.identifier,
+          issue.sequenceNumber,
+          teamRef,
+        ) ?? "";
 
       // Hệ thống/phân loại lỗi không phải trường native trên ItsaplanIssue — đọc lại từ khối
       // <!-- vuihoc-meta: {...} --> mà formatTicketDescription() đã ghi vào mô tả lúc tạo ticket.
       const meta = parseVuihocMeta(issue.description || "");
       const system = typeof meta?.system === "string" ? meta.system : undefined;
       const errorCategory = typeof meta?.category === "string" ? meta.category : undefined;
-      const closedDate = (issue.updatedAt ? new Date(issue.updatedAt) : new Date()).toISOString().slice(0, 10);
+      const closedDate = (issue.updatedAt ? new Date(issue.updatedAt) : new Date())
+        .toISOString()
+        .slice(0, 10);
 
       const textDocument = buildOnyxDocumentBody({
         identifier: issue.identifier,
@@ -232,7 +245,10 @@ ${comments.join("\n---\n") || "(Không có bình luận bổ sung)"}`;
           ),
         );
       } catch (cmtErr: any) {
-        getLogger().warn("[OnyxIngestService] Failed posting confirmation comment:", cmtErr.message);
+        getLogger().warn(
+          "[OnyxIngestService] Failed posting confirmation comment:",
+          cmtErr.message,
+        );
       }
 
       return {

@@ -146,7 +146,11 @@ export interface OnyxSnippet {
   resolution?: string;
 }
 
-function buildCandidateBlock(cand: CorpusTicket, candQuotes: string[], onyxSnippet?: OnyxSnippet): string {
+function buildCandidateBlock(
+  cand: CorpusTicket,
+  candQuotes: string[],
+  onyxSnippet?: OnyxSnippet,
+): string {
   const quotes = candQuotes.length ? candQuotes.map((q) => `"${q}"`).join(" | ") : "(không có)";
   const extra =
     onyxSnippet?.rootCause || onyxSnippet?.resolution
@@ -168,7 +172,12 @@ function buildCandidateBlock(cand: CorpusTicket, candQuotes: string[], onyxSnipp
   return `Tiêu đề: ${cand.title}\nThông báo lỗi nguyên văn tìm thấy: ${quotes}\nMô tả/triệu chứng: ${(cand.symptomsText ?? "").slice(0, 1200)}\nNguyên nhân đã xác nhận (người viết): ${cause}\nCách khắc phục (người viết): ${fix}${extra}`;
 }
 
-function buildUserPrompt(newText: string, newQuotes: string[], candidateId: string, candidateBlock: string): string {
+function buildUserPrompt(
+  newText: string,
+  newQuotes: string[],
+  candidateId: string,
+  candidateBlock: string,
+): string {
   const q = newQuotes.length ? newQuotes.map((x) => `"${x}"`).join(" | ") : "(không có)";
   return `TICKET MỚI (đang cần xử lý, CHƯA có kết luận nguyên nhân):\n${newText}\nThông báo lỗi nguyên văn tìm thấy trong ticket mới: ${q}\n\nTICKET ỨNG VIÊN ${candidateId} (đã xử lý xong):\n${candidateBlock}\n\nSo sánh 2 ticket trên và trả lời đúng JSON theo schema đã nêu.`;
 }
@@ -205,19 +214,29 @@ export async function verifyCandidate(
   const newQuotes = extractQuotedErrors(newText);
   const candQuotes = candidateQuotesOf(candidate, onyxSnippet);
   const userPrompt =
-    buildUserPrompt(newText, newQuotes, candidate.identifier, buildCandidateBlock(candidate, candQuotes, onyxSnippet)) +
-    (attempt > 1 ? `\n\n(Kiểm tra độc lập lần ${attempt})` : "");
+    buildUserPrompt(
+      newText,
+      newQuotes,
+      candidate.identifier,
+      buildCandidateBlock(candidate, candQuotes, onyxSnippet),
+    ) + (attempt > 1 ? `\n\n(Kiểm tra độc lập lần ${attempt})` : "");
   try {
     const raw = await complete(llm, VERIFY_SYSTEM_PROMPTS[judgeMode], userPrompt);
     const parsed = extractJson<Record<string, unknown>>(raw);
     if (!parsed) return null;
-    const confidence = parsed.confidence === "high" || parsed.confidence === "medium" ? (parsed.confidence as Confidence) : "low";
+    const confidence =
+      parsed.confidence === "high" || parsed.confidence === "medium"
+        ? (parsed.confidence as Confidence)
+        : "low";
     return {
       sameRootCause: Boolean(parsed.same_root_cause),
       confidence,
-      newCauseGuess: typeof parsed.new_cause_guess === "string" ? parsed.new_cause_guess : undefined,
-      candidateCause: typeof parsed.candidate_cause === "string" ? parsed.candidate_cause : undefined,
-      matchingMechanism: typeof parsed.matching_mechanism === "string" ? parsed.matching_mechanism : undefined,
+      newCauseGuess:
+        typeof parsed.new_cause_guess === "string" ? parsed.new_cause_guess : undefined,
+      candidateCause:
+        typeof parsed.candidate_cause === "string" ? parsed.candidate_cause : undefined,
+      matchingMechanism:
+        typeof parsed.matching_mechanism === "string" ? parsed.matching_mechanism : undefined,
     };
   } catch {
     return null;
@@ -252,7 +271,11 @@ function buildQuestionPrompt(newText: string, cards: ClusterCard[]): string {
 }
 
 /** Ứng viên chấp nhận rơi vào ≥ 2 cụm khác nhau: không ghi gì, hỏi 1 câu phân biệt thay vì đoán liều. */
-export async function askDiscriminatingQuestion(llm: LlmConfig, newText: string, cards: ClusterCard[]): Promise<string> {
+export async function askDiscriminatingQuestion(
+  llm: LlmConfig,
+  newText: string,
+  cards: ClusterCard[],
+): Promise<string> {
   try {
     const raw = await complete(llm, QUESTION_SYSTEM_PROMPT, buildQuestionPrompt(newText, cards));
     const parsed = extractJson<{ question?: string }>(raw);

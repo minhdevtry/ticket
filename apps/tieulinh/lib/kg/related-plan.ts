@@ -60,7 +60,13 @@ export function planRelatedTickets(
   corpus: CorpusTicket[],
   options: { similarity?: number; differentSimilarity?: number } = {},
 ): RelatedPlan {
-  const none: RelatedPlan = { clusterId: null, desired: [], fieldValue: null, addLinks: [], removeLinks: [] };
+  const none: RelatedPlan = {
+    clusterId: null,
+    desired: [],
+    fieldValue: null,
+    addLinks: [],
+    removeLinks: [],
+  };
   if (!target.humanCause?.trim()) return none;
 
   const self = target.identifier.toUpperCase();
@@ -97,7 +103,8 @@ export function planRelatedTickets(
   const selfTicket = corpus.find((t) => t.identifier.toUpperCase() === self);
   const selfCluster = selfTicket?.causeCluster;
 
-  const membersOf = (cluster: string) => others.filter((t) => t.causeCluster === cluster).map((t) => t.identifier.toUpperCase());
+  const membersOf = (cluster: string) =>
+    others.filter((t) => t.causeCluster === cluster).map((t) => t.identifier.toUpperCase());
 
   // Dựng Map cụm→câu một lần cho toàn bộ corpus
   const causesByCluster = new Map<string, string[]>();
@@ -115,7 +122,9 @@ export function planRelatedTickets(
   // b) Không có (a) thì dò theo độ giống câu nguyên nhân, hoà điểm thì ưu tiên cụm
   //    nhiều thành viên hơn, rồi mới theo mã cụm (ổn định, xác định).
   let clusterId: string | null = null;
-  const selfOtherMembers = selfCluster ? membersOf(selfCluster).filter((m) => !negatives.has(m)) : [];
+  const selfOtherMembers = selfCluster
+    ? membersOf(selfCluster).filter((m) => !negatives.has(m))
+    : [];
   if (selfTicket && selfCluster && selfOtherMembers.length >= 1) {
     clusterId = selfCluster;
   } else {
@@ -230,7 +239,10 @@ export function planRelatedTickets(
 export function planSuggestedTickets(
   target: RelatedTarget,
   corpus: CorpusTicket[],
-  suggested?: SimilarMatch | { clusterId?: string | null; members?: Array<{ identifier: string }> } | null,
+  suggested?:
+    | SimilarMatch
+    | { clusterId?: string | null; members?: Array<{ identifier: string }> }
+    | null,
   options: { cleanupOnly?: boolean } = {},
 ): RelatedPlan {
   const self = target.identifier.toUpperCase();
@@ -274,14 +286,16 @@ export function planSuggestedTickets(
   // lẻ hay link bộ mới gắn chỉ vì lần tra này LLM không chắc (28/09: TECH-953 suýt mất 8 link PCM
   // đúng, TECH-873↔886 "Zalo lag" suýt bị tách).
   const junk = target.junk ? new Set(target.junk.map((x) => x.toUpperCase())) : null;
-  const removable = (id: string) => !desired.has(id) && (junk ? junk.has(id) || negatives.has(id) : true);
+  const removable = (id: string) =>
+    !desired.has(id) && (junk ? junk.has(id) || negatives.has(id) : true);
   const removeLinks = target.links
     .filter((l) => !l.addedByHuman && removable(l.identifier.toUpperCase()))
     .map((l) => ({ identifier: l.identifier.toUpperCase(), linkId: l.linkId }));
 
   const current = new Set(target.fieldKeys.map((k) => k.toUpperCase()));
   const next = new Set<string>();
-  if (junk) for (const k of current) if (!removable(k) && projectOf(k) === projectOf(self)) next.add(k);
+  if (junk)
+    for (const k of current) if (!removable(k) && projectOf(k) === projectOf(self)) next.add(k);
   for (const d of desired) next.add(d);
   if (next.size > 0 && (desired.size > 0 || current.has(self))) next.add(self);
 
@@ -294,4 +308,3 @@ export function planSuggestedTickets(
     removeLinks,
   };
 }
-

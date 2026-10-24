@@ -49,12 +49,8 @@ export class HttpError extends Error {
 }
 
 /** Exponential backoff with full jitter. */
-export function calculateBackoff(
-  attempt: number,
-  baseDelayMs: number,
-  maxDelayMs: number,
-): number {
-  const exp = Math.min(maxDelayMs, baseDelayMs * Math.pow(2, attempt));
+export function calculateBackoff(attempt: number, baseDelayMs: number, maxDelayMs: number): number {
+  const exp = Math.min(maxDelayMs, baseDelayMs * 2 ** attempt);
   return Math.floor(Math.random() * exp);
 }
 
@@ -107,7 +103,10 @@ export async function withRetry<T>(
             // (`maxRetryAfterMs`) vì header do server kiểm soát: một header sai (24h)
             // sẽ treo worker suốt đêm.
             if (retryAfterMs !== null) {
-              delayMs = Math.min(options.maxRetryAfterMs ?? MAX_HONOURED_RETRY_AFTER_MS, retryAfterMs);
+              delayMs = Math.min(
+                options.maxRetryAfterMs ?? MAX_HONOURED_RETRY_AFTER_MS,
+                retryAfterMs,
+              );
             }
           }
         }

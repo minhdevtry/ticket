@@ -17,7 +17,9 @@ afterEach(async () => {
   server = null;
 });
 
-async function startWith(opts: ConstructorParameters<typeof ItsaplanWebhookServer>[0]): Promise<string> {
+async function startWith(
+  opts: ConstructorParameters<typeof ItsaplanWebhookServer>[0],
+): Promise<string> {
   server = new ItsaplanWebhookServer(opts);
   await server.start(0);
   const port = server.port();
@@ -47,7 +49,10 @@ describe("ItsaplanWebhookServer /webhook", () => {
     const ts = Math.floor(Date.now() / 1000);
     const res = await fetch(`${base}/webhook`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Itsaplan-Signature": sign(secret, ts, body) },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Itsaplan-Signature": sign(secret, ts, body),
+      },
       body,
     });
     expect(res.status).toBe(200);
@@ -66,7 +71,10 @@ describe("ItsaplanWebhookServer /webhook", () => {
     const ts = Math.floor(Date.now() / 1000);
     const res = await fetch(`${base}/webhook`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Itsaplan-Signature": sign("whsec_wrong", ts, body) },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Itsaplan-Signature": sign("whsec_wrong", ts, body),
+      },
       body,
     });
     expect(res.status).toBe(401);
@@ -103,13 +111,20 @@ describe("ItsaplanWebhookServer /webhook", () => {
 
   test("duplicate (same dedupe key) → 200 duplicate, handler fires once", async () => {
     const seen: unknown[] = [];
-    const base = await startWith({ itsaplanSecrets: [], dedupeStore: new MemoryWebhookDedupeStore() });
+    const base = await startWith({
+      itsaplanSecrets: [],
+      dedupeStore: new MemoryWebhookDedupeStore(),
+    });
     server!.onEvent(async (e) => {
       seen.push(e);
     });
     const body = envBody();
     const post = () =>
-      fetch(`${base}/webhook`, { method: "POST", headers: { "Content-Type": "application/json" }, body });
+      fetch(`${base}/webhook`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
     const r1 = await post();
     const r2 = await post();
     expect(r1.status).toBe(200);
@@ -149,7 +164,10 @@ describe("ItsaplanWebhookServer /telegram-webhook secret", () => {
     });
     const res = await fetch(`${base}/telegram-webhook`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Telegram-Bot-Api-Secret-Token": "tg_secret" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Telegram-Bot-Api-Secret-Token": "tg_secret",
+      },
       body: JSON.stringify({ update_id: 1 }),
     });
     expect(res.status).toBe(200);
@@ -169,7 +187,12 @@ describe("internal loopback endpoints", () => {
     const res = await fetch(`${base}/internal/reporter-reply`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chatId: "123", replyToMessageId: 55, text: "chưa ổn ạ", senderName: "Cô A" }),
+      body: JSON.stringify({
+        chatId: "123",
+        replyToMessageId: 55,
+        text: "chưa ổn ạ",
+        senderName: "Cô A",
+      }),
     });
     expect(res.status).toBe(200);
     expect(got).toEqual([{ chatId: "123", messageId: "55", text: "chưa ổn ạ", userName: "Cô A" }]);
@@ -208,14 +231,19 @@ describe("ItsaplanWebhookServer listenHost", () => {
     const secret = "whsec_any";
     const seen: ItsaplanWebhookEnvelope[] = [];
     server = new ItsaplanWebhookServer({ itsaplanSecrets: [secret], listenHost: "0.0.0.0" });
-    server.onEvent(async (e) => { seen.push(e); });
+    server.onEvent(async (e) => {
+      seen.push(e);
+    });
     await server.start(0);
     expect(server.host()).toBe("0.0.0.0");
     const body = envBody();
     const ts = Math.floor(Date.now() / 1000);
     const res = await fetch(`http://127.0.0.1:${server.port()}/webhook`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Itsaplan-Signature": sign(secret, ts, body) },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Itsaplan-Signature": sign(secret, ts, body),
+      },
       body,
     });
     expect(res.status).toBe(200);
@@ -231,10 +259,14 @@ describe("ItsaplanWebhookServer listenHost", () => {
   test("endpoint /internal/* vẫn chỉ nhận từ loopback dù bind 0.0.0.0 (nguồn loopback ⇒ nhận)", async () => {
     server = new ItsaplanWebhookServer({ listenHost: "0.0.0.0" });
     let called = 0;
-    server.onForceNew(() => { called++; });
+    server.onForceNew(() => {
+      called++;
+    });
     await server.start(0);
     const res = await fetch(`http://127.0.0.1:${server.port()}/internal/force-new`, {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chatId: "1" }),
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chatId: "1" }),
     });
     expect(res.status).toBeLessThan(300);
     expect(called).toBe(1);

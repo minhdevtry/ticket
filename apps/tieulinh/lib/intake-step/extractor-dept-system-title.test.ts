@@ -1,10 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import {
-  detectUnrecognizedDept,
-  detectSystem,
-  stripGreeting,
-  FieldExtractor,
-} from "./extractor";
+import { detectUnrecognizedDept, detectSystem, stripGreeting, FieldExtractor } from "./extractor";
 import { intakeStep } from "../../mcp/tieulinh/tools/intake-step";
 import { IntakeDocumentRepository } from "../intake-document/repository";
 import { applySchema } from "../storage/schema";
@@ -36,8 +31,10 @@ describe("Bộ phận ngoài danh mục (unrecognized dept)", () => {
 
   it("extractor trả reportingDeptUnrecognized khi LLM không đoán ra bộ phận", async () => {
     // LLM trả null (không đoán) — detector bắt từ câu chữ
-    const ex = new FieldExtractor({ baseUrl: "http://llm.fake", apiKey: "k", model: "m" }, async () =>
-      JSON.stringify({ userIntent: "report_issue", reportingDept: null, symptoms: ["lỗi Zalo"] }),
+    const ex = new FieldExtractor(
+      { baseUrl: "http://llm.fake", apiKey: "k", model: "m" },
+      async () =>
+        JSON.stringify({ userIntent: "report_issue", reportingDept: null, symptoms: ["lỗi Zalo"] }),
     );
     const res = await ex.extract("Tôi là kế toán bộ phận Kế toán, không gửi được Zalo cho khách");
     expect(res.reportingDept).toBeUndefined();
@@ -60,9 +57,9 @@ describe("System synonyms cho công cụ bên thứ 3", () => {
 
 describe("Tiêu đề dự phòng bỏ lời chào", () => {
   it("cắt 'Em chào anh, em là …' khỏi tiêu đề heuristic", () => {
-    expect(stripGreeting("Em chào anh, em là HueDT bên bộ phận Sale. Zalo PC bị đơ không gửi được tin")).toBe(
-      "Zalo PC bị đơ không gửi được tin",
-    );
+    expect(
+      stripGreeting("Em chào anh, em là HueDT bên bộ phận Sale. Zalo PC bị đơ không gửi được tin"),
+    ).toBe("Zalo PC bị đơ không gửi được tin");
   });
 
   it("giữ nguyên câu không có lời chào", () => {
@@ -89,7 +86,11 @@ describe("Pipeline hỏi lại bộ phận ngoài danh mục đúng một lần"
     const repo = new IntakeDocumentRepository(db);
     const fakeLlm = { baseUrl: "http://llm.fake", apiKey: "k", model: "m" };
     const extractor = new FieldExtractor(fakeLlm, async () =>
-      JSON.stringify({ userIntent: "report_issue", reportingDept: null, symptoms: ["lỗi Zalo PC đơ"] }),
+      JSON.stringify({
+        userIntent: "report_issue",
+        reportingDept: null,
+        symptoms: ["lỗi Zalo PC đơ"],
+      }),
     );
     const step = intakeStep({
       repo,
@@ -106,9 +107,15 @@ describe("Pipeline hỏi lại bộ phận ngoài danh mục đúng một lần"
   }
 
   it("câu hỏi nói rõ bộ phận không có trong danh mục thay vì lặp lại câu cũ", async () => {
-    const { step, dbPath } = makeStep(`data/test-unrecognized-dept-${Date.now()}-${process.pid}.db`);
+    const { step, dbPath } = makeStep(
+      `data/test-unrecognized-dept-${Date.now()}-${process.pid}.db`,
+    );
     const chatId = "chat_unrec_dept_test";
-    const r1 = (await step.handler({ chatId, message: "Em chào anh, Zalo PC em bị đơ không gửi được tin cho khách. Em bên bộ phận Kế toán ạ." })) as any;
+    const r1 = (await step.handler({
+      chatId,
+      message:
+        "Em chào anh, Zalo PC em bị đơ không gửi được tin cho khách. Em bên bộ phận Kế toán ạ.",
+    })) as any;
     expect(r1.action).toBe("ask_missing_field");
     expect(r1.missingFields).toContain("reporting_dept");
     // Câu hỏi phải nói rõ lý do, không lặp câu cũ

@@ -29,7 +29,10 @@ const lastSentAt = new Map<string, number>();
 /** Cấu hình mặc định lấy từ biến môi trường, để mọi tiến trình dùng chung một lối. */
 function resolveConfig(): AlertConfig {
   if (config) return config;
-  const adminIds = (process.env.ADMIN_IDS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const adminIds = (process.env.ADMIN_IDS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   config = {
     botToken: process.env.TELEGRAM_BOT_TOKEN,
     chatId: process.env.ALERT_CHAT_ID ?? adminIds[0],

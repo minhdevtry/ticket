@@ -44,7 +44,10 @@ export class ProjectColumnStates {
   }
 
   /** `null` khi dự án không có cột đó (kể cả sau khi tải lại). */
-  async stateOf(projectKey: string, columnId: number): Promise<{ state: TicketState; column: ProjectColumn } | null> {
+  async stateOf(
+    projectKey: string,
+    columnId: number,
+  ): Promise<{ state: TicketState; column: ProjectColumn } | null> {
     let column = (await this.columnsOf(projectKey)).find((c) => c.id === columnId);
     // Cột vừa được thêm (vd Resolved cho PO) chưa có trong cache → tải lại một lần.
     if (!column) column = (await this.columnsOf(projectKey, true)).find((c) => c.id === columnId);

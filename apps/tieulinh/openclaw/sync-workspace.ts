@@ -34,7 +34,16 @@ const AGENTS: Array<{ repoDir: string; workspace: string }> = [
  * (`media/`, `messages/`, `openclaw-workspace-state.json`) — chép đè lên đó
  * là xoá mất trạng thái thật của bot.
  */
-const OWNED = ["AGENTS.md", "SOUL.md", "IDENTITY.md", "TOOLS.md", "USER.md", "bot.json", "skills", "references"];
+const OWNED = [
+  "AGENTS.md",
+  "SOUL.md",
+  "IDENTITY.md",
+  "TOOLS.md",
+  "USER.md",
+  "bot.json",
+  "skills",
+  "references",
+];
 
 const checkOnly = process.argv.includes("--check");
 
@@ -45,7 +54,8 @@ function filesUnder(root: string): string[] {
   const out: string[] = [];
   for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
     const rel = entry.name;
-    if (entry.isDirectory()) out.push(...filesUnder(path.join(root, rel)).map((f) => path.join(rel, f)));
+    if (entry.isDirectory())
+      out.push(...filesUnder(path.join(root, rel)).map((f) => path.join(rel, f)));
     else out.push(rel);
   }
   return out;
@@ -99,7 +109,9 @@ for (const agent of AGENTS) {
 console.log();
 if (checkOnly) {
   if (drifted > 0) {
-    console.error(`❌ ${drifted} file lệch giữa repo và workspace — bot đang chạy bản khác với bản trong repo.`);
+    console.error(
+      `❌ ${drifted} file lệch giữa repo và workspace — bot đang chạy bản khác với bản trong repo.`,
+    );
     console.error(`   Chạy: bun run openclaw:sync`);
     process.exit(1);
   }
@@ -111,5 +123,7 @@ if (checkOnly) {
   }
 }
 if (missingWorkspace === AGENTS.length) {
-  console.log("⚠️  Không tìm thấy workspace nào. Đặt OPENCLAW_CONFIG_DIR nếu OpenClaw nằm chỗ khác.");
+  console.log(
+    "⚠️  Không tìm thấy workspace nào. Đặt OPENCLAW_CONFIG_DIR nếu OpenClaw nằm chỗ khác.",
+  );
 }

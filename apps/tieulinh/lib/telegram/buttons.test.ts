@@ -93,4 +93,3 @@ describe("savePendingButtons & clearPendingButtons", () => {
     expect(fs.existsSync(filePath)).toBe(false);
   });
 });
-

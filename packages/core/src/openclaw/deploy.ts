@@ -56,7 +56,11 @@ export function planWorkspaceSync(
 }
 
 /** Tóm tắt kế hoạch cho log/báo cáo. */
-export function summarizeSyncPlan(plan: SyncPlanEntry[]): { create: number; update: number; unchanged: number } {
+export function summarizeSyncPlan(plan: SyncPlanEntry[]): {
+  create: number;
+  update: number;
+  unchanged: number;
+} {
   return {
     create: plan.filter((e) => e.action === "create").length,
     update: plan.filter((e) => e.action === "update").length,
@@ -84,7 +88,11 @@ const DEFAULT_BLOCK = "bot-core";
  * Dùng cho định dạng có comment theo dòng (TOML, sh, ini). KHÔNG dùng cho JSON
  * (JSON không có comment) — với JSON dùng `mergeJsonConfig`.
  */
-export function spliceConfigBlock(original: string, block: string, opts: SpliceOptions = {}): string {
+export function spliceConfigBlock(
+  original: string,
+  block: string,
+  opts: SpliceOptions = {},
+): string {
   const name = opts.blockName ?? DEFAULT_BLOCK;
   const cp = opts.commentPrefix ?? "#";
   const begin = `${cp} >>> ${name} BEGIN (quản lý tự động — đừng sửa tay trong khối)`;
@@ -119,7 +127,10 @@ export function removeConfigBlock(original: string, opts: SpliceOptions = {}): s
   if (e < 0) return original;
   const before = original.slice(0, b).replace(/\n*$/, "");
   const after = original.slice(e + end.length).replace(/^\n*/, "");
-  return [before, after].filter(Boolean).join("\n").replace(/\n{3,}/g, "\n\n");
+  return [before, after]
+    .filter(Boolean)
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n");
 }
 
 /**
@@ -128,10 +139,20 @@ export function removeConfigBlock(original: string, opts: SpliceOptions = {}): s
  * nguyên thủy ở `patch` GHI ĐÈ; object lồng nhau trộn nông một cấp. Chạy lại cùng
  * patch cho ra cùng kết quả.
  */
-export function mergeJsonConfig<T extends Record<string, any>>(base: T, patch: Record<string, any>): T {
+export function mergeJsonConfig<T extends Record<string, any>>(
+  base: T,
+  patch: Record<string, any>,
+): T {
   const out: Record<string, any> = { ...base };
   for (const [k, v] of Object.entries(patch)) {
-    if (v && typeof v === "object" && !Array.isArray(v) && base[k] && typeof base[k] === "object" && !Array.isArray(base[k])) {
+    if (
+      v &&
+      typeof v === "object" &&
+      !Array.isArray(v) &&
+      base[k] &&
+      typeof base[k] === "object" &&
+      !Array.isArray(base[k])
+    ) {
       out[k] = { ...base[k], ...v };
     } else {
       out[k] = v;
@@ -160,7 +181,14 @@ export interface BuildBinaryOptions {
  * spawn). Trả argv để tránh lỗi quote khi nối chuỗi.
  */
 export function buildBinaryCommand(opts: BuildBinaryOptions): string[] {
-  const argv = [opts.bunBin ?? "bun", "build", opts.entrypoint, "--compile", "--outfile", opts.outfile];
+  const argv = [
+    opts.bunBin ?? "bun",
+    "build",
+    opts.entrypoint,
+    "--compile",
+    "--outfile",
+    opts.outfile,
+  ];
   if (opts.target) argv.push("--target", opts.target);
   if (opts.minify) argv.push("--minify");
   return argv;
@@ -208,7 +236,8 @@ export function checkCompileReadiness(input: CompileReadinessInput): CompileRead
   }
 
   // Luật 1: import gói runtime nặng trong entrypoint MCP → kéo cả runtime vào.
-  const HEAVY_RUNTIME = /(from|require\()\s*["']@openclaw\/|openclaw-runtime|["']telegraf["']|["']node-telegram-bot-api["']/;
+  const HEAVY_RUNTIME =
+    /(from|require\()\s*["']@openclaw\/|openclaw-runtime|["']telegraf["']|["']node-telegram-bot-api["']/;
   if (HEAVY_RUNTIME.test(input.entrypointSource)) {
     issues.push({
       severity: "warn",

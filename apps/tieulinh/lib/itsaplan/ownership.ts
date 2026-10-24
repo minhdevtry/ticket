@@ -21,5 +21,9 @@ export function isOwnTicket(
   const bare = bareChat(chatId);
   const binding = repo?.getBindingByIdentifier(identifier);
   if (binding && bareChat(binding.chatId) === bare) return true;
-  return /^\d{5,}$/.test(bare) && Boolean(description) && new RegExp(`(?<!\\d)${bare}(?!\\d)`).test(description!);
+  return (
+    /^\d{5,}$/.test(bare) &&
+    Boolean(description) &&
+    new RegExp(`(?<!\\d)${bare}(?!\\d)`).test(description!)
+  );
 }

@@ -4,12 +4,7 @@
  * after the intake commit / incident it stands in for.
  */
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
-import {
-  TelegramTransport,
-  TelegramApiError,
-  isEntityParseError,
-  plainText,
-} from "./transport";
+import { TelegramTransport, TelegramApiError, isEntityParseError, plainText } from "./transport";
 import { sendMessage, ackReaction } from "./send";
 import { Alerter, buttonDropAlert } from "./alert";
 
@@ -165,7 +160,12 @@ describe("sendMessage — safe buttons (14/09 BUTTON_DATA_INVALID)", () => {
     const sent = await sendMessage(transport, {
       chatId: "9",
       text: "Chọn nhánh",
-      buttons: [[{ text: "ok", callback_data: "ok" }, { text: "bad", callback_data: long }]],
+      buttons: [
+        [
+          { text: "ok", callback_data: "ok" },
+          { text: "bad", callback_data: long },
+        ],
+      ],
       onButtonDrop: (r) => dropped.push(r),
     });
     expect(sent).toHaveLength(1); // message went out

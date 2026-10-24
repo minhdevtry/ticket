@@ -32,7 +32,17 @@ describe("parseIdentifier", () => {
   });
 
   test("trả null khi không phải mã hoặc bắt đầu bằng chữ số (không khớp nhầm SĐT/ngày)", () => {
-    for (const s of ["TECH", "42", "TECH-", "TECH-4a", "", "0900-000005", "2026-10", "2TECH-15", "TECH_1-5"]) {
+    for (const s of [
+      "TECH",
+      "42",
+      "TECH-",
+      "TECH-4a",
+      "",
+      "0900-000005",
+      "2026-10",
+      "2TECH-15",
+      "TECH_1-5",
+    ]) {
       expect(parseIdentifier(s)).toBeNull();
     }
   });
@@ -113,8 +123,7 @@ describe("findIssueByIdentifier chỉ trong dự án của bot", () => {
 
   test("ticket đã bị chuyển sang dự án khác (#493 issue_key_alias) → trả null", async () => {
     const movedClient: Pick<ItsaplanClient, "getIssueByNumber"> = {
-      getIssueByNumber: async () =>
-        ({ id: 42, identifier: "PO-105" }) as unknown as ItsaplanIssue,
+      getIssueByNumber: async () => ({ id: 42, identifier: "PO-105" }) as unknown as ItsaplanIssue,
     };
     expect(await findIssueByIdentifier(movedClient, "TECH-42", "TECH")).toBeNull();
     expect(await findIssueByIdentifier(movedClient, "TECH-42")).toBeNull();

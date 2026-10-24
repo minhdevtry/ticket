@@ -14,11 +14,7 @@ import { IntakeStepPipeline, type IntakePipelineOptions } from "./pipeline";
 import type { ItsaplanClient, ItsaplanIssue } from "../itsaplan/client";
 import type { IntakeDocument } from "../intake-document/types";
 import type { IntakePacket } from "../intake-document/packet";
-import {
-  isInvalidTitle,
-  deriveFallbackTitle,
-  splitMultiIncidentReport,
-} from "./multi-incident";
+import { isInvalidTitle, deriveFallbackTitle, splitMultiIncidentReport } from "./multi-incident";
 import validationRules from "../../mcp/tieulinh/domain/validation-rules.json";
 import fieldRequirements from "../../mcp/tieulinh/domain/required_fields.json";
 import productMapping from "../../mcp/tieulinh/domain/product_mapping.json";
@@ -51,7 +47,12 @@ function fakeItsaplan(): FakeItsaplan {
     createIssue: async (_pk: string, payload: Record<string, unknown>) => {
       calls.createIssue.push(payload);
       seq++;
-      return { id: seq, identifier: `TECHTEST-${seq}`, title: payload.title as string | undefined, sequenceNumber: seq } as unknown as ItsaplanIssue;
+      return {
+        id: seq,
+        identifier: `TECHTEST-${seq}`,
+        title: payload.title as string | undefined,
+        sequenceNumber: seq,
+      } as unknown as ItsaplanIssue;
     },
     updateIssue: async (issueId: number, patch: unknown) => {
       calls.updateIssue.push({ issueId, patch });
@@ -61,8 +62,21 @@ function fakeItsaplan(): FakeItsaplan {
       calls.addComment.push({ issueId, content });
       return { id: 1, body: content };
     },
-    getIssueByNumber: async (_pk: string, n: number) => ({ id: 5000 + n, identifier: `TECHTEST-${n}`, title: `Ticket ${n}`, description: "" } as unknown as ItsaplanIssue),
-    getIssue: async (id: number) => ({ id, identifier: `TECHTEST-${id}`, title: `Ticket ${id}`, columnId: 1, description: "" } as unknown as ItsaplanIssue),
+    getIssueByNumber: async (_pk: string, n: number) =>
+      ({
+        id: 5000 + n,
+        identifier: `TECHTEST-${n}`,
+        title: `Ticket ${n}`,
+        description: "",
+      }) as unknown as ItsaplanIssue,
+    getIssue: async (id: number) =>
+      ({
+        id,
+        identifier: `TECHTEST-${id}`,
+        title: `Ticket ${id}`,
+        columnId: 1,
+        description: "",
+      }) as unknown as ItsaplanIssue,
     uploadAttachment: async (issueId: number, filename: string) => {
       calls.uploadAttachment.push({ issueId, filename });
       return { id: `att-${filename}`, url: `/attachments/${filename}/raw`, filename };
@@ -96,7 +110,6 @@ function buildPipeline(
   });
 }
 
-
 const TWO_STUDENTS = `Bạn A
 Code: 9100004
 Mã học sinh: 900101
@@ -126,7 +139,10 @@ describe("W29-SPLIT pipeline đối kháng (Vòng 3)", () => {
     chat++;
   });
 
-  async function toSplitQuestion(report = TWO_STUDENTS, extra: { message?: string; mediaPaths?: string[] } = {}) {
+  async function toSplitQuestion(
+    report = TWO_STUDENTS,
+    extra: { message?: string; mediaPaths?: string[] } = {},
+  ) {
     const r = await pipeline.run({ chatId: String(chat), message: report, ...extra });
     return r;
   }
@@ -136,7 +152,8 @@ describe("W29-SPLIT pipeline đối kháng (Vòng 3)", () => {
     for (let i = 0; i < 4 && r.action !== "confirm_summary" && r.action !== "ticket_created"; i++) {
       r = await pipeline.run({ chatId: doc.chatId, message: "Quản lý lớp" });
     }
-    if (r.action === "confirm_summary") r = await pipeline.run({ chatId: doc.chatId, message: "đúng rồi" });
+    if (r.action === "confirm_summary")
+      r = await pipeline.run({ chatId: doc.chatId, message: "đúng rồi" });
     return r;
   }
 
@@ -145,18 +162,24 @@ describe("W29-SPLIT pipeline đối kháng (Vòng 3)", () => {
     expect(r1.action).toBe("ask_split_or_merge");
     expect(String(r1.voiceText)).toContain("2 học sinh/sự cố");
 
-    let r2 = await pipeline.run({ chatId: String(chat), message: "Tách 2 ticket" });
+    const r2 = await pipeline.run({ chatId: String(chat), message: "Tách 2 ticket" });
     expect(r2.document.pendingSplit).toBeUndefined();
     expect(r2.document.pendingSplitQueue?.length).toBe(1);
 
     // xác nhận ticket 1
     let r3 = await confirmTo_ticket(r2.document);
-    for (let i = 0; i < 5 && it$.calls.createIssue.length < 1; i++) r3 = await pipeline.run({ chatId: String(chat), message: "đúng rồi" });
+    for (let i = 0; i < 5 && it$.calls.createIssue.length < 1; i++)
+      r3 = await pipeline.run({ chatId: String(chat), message: "đúng rồi" });
     expect(it$.calls.createIssue.length).toBe(1);
 
     // xác nhận ticket 2 (doc mới đang chờ xác nhận)
     let r4 = await pipeline.run({ chatId: String(chat), message: "đúng rồi" });
-    for (let i = 0; i < 4 && it$.calls.createIssue.length < 2 && r4.action !== "ticket_created"; i++) r4 = await pipeline.run({ chatId: String(chat), message: "đúng rồi" });
+    for (
+      let i = 0;
+      i < 4 && it$.calls.createIssue.length < 2 && r4.action !== "ticket_created";
+      i++
+    )
+      r4 = await pipeline.run({ chatId: String(chat), message: "đúng rồi" });
     expect(it$.calls.createIssue.length).toBe(2);
   });
 
@@ -189,7 +212,11 @@ describe("W29-SPLIT pipeline đối kháng (Vòng 3)", () => {
       const c = String(20000 + cases.indexOf([msg, expectKind] as any));
       await p.run({ chatId: c, message: TWO_STUDENTS });
       const second = await p.run({ chatId: c, message: msg });
-      const kind = second.document.pendingSplitQueue?.length ? "split" : second.document.pendingSplit ? "other" : "merge";
+      const kind = second.document.pendingSplitQueue?.length
+        ? "split"
+        : second.document.pendingSplit
+          ? "other"
+          : "merge";
       expect(kind).toBe(expectKind);
       expect(second.document.pendingSplit).toBeUndefined();
     }
@@ -200,7 +227,12 @@ describe("W29-SPLIT pipeline đối kháng (Vòng 3)", () => {
     applySchema(db);
     const r0 = new IntakeDocumentRepository(db);
     const it0 = fakeItsaplan();
-    const p = buildPipeline(r0, new TicketBindingRepository(db), new DraftSessionRepository(db), it0);
+    const p = buildPipeline(
+      r0,
+      new TicketBindingRepository(db),
+      new DraftSessionRepository(db),
+      it0,
+    );
     const c = "30001";
     await p.run({ chatId: c, message: TWO_STUDENTS, mediaPaths: ["/tmp/ev.png"] });
 
@@ -232,7 +264,12 @@ describe("W29-SPLIT pipeline đối kháng (Vòng 3)", () => {
     applySchema(db);
     const r0 = new IntakeDocumentRepository(db);
     const it0 = fakeItsaplan();
-    const p = buildPipeline(r0, new TicketBindingRepository(db), new DraftSessionRepository(db), it0);
+    const p = buildPipeline(
+      r0,
+      new TicketBindingRepository(db),
+      new DraftSessionRepository(db),
+      it0,
+    );
     const c = "30002";
     await p.run({ chatId: c, message: TWO_STUDENTS });
     const r2 = await p.run({ chatId: c, message: TWO_STUDENTS });
@@ -247,32 +284,65 @@ describe("W29-SPLIT pipeline đối kháng (Vòng 3)", () => {
     applySchema(db);
     const r0 = new IntakeDocumentRepository(db);
     const it0 = fakeItsaplan();
-    const p = buildPipeline(r0, new TicketBindingRepository(db), new DraftSessionRepository(db), it0);
+    const p = buildPipeline(
+      r0,
+      new TicketBindingRepository(db),
+      new DraftSessionRepository(db),
+      it0,
+    );
     const c = "30003";
     await p.run({ chatId: c, message: TWO_STUDENTS });
-    const r2 = await p.run({ chatId: c, message: "Bạn C\nCode: 55555555\nMã học sinh: 777777\nHS khác bị lỗi điểm số ạ" });
+    const r2 = await p.run({
+      chatId: c,
+      message: "Bạn C\nCode: 55555555\nMã học sinh: 777777\nHS khác bị lỗi điểm số ạ",
+    });
     // Không bị crash hay mất dữ liệu: hỏi lại câu tách
     expect(r2.action).toBe("ask_split_or_merge");
     expect(r2.document.pendingSplit).toBeDefined();
-    expect(r2.document.pendingSplit!.extraText?.some((t: string) => t.includes("777777"))).toBe(true);
+    expect(r2.document.pendingSplit!.extraText?.some((t: string) => t.includes("777777"))).toBe(
+      true,
+    );
   });
 
   it("F. không tách được — các dạng KHÔNG phải 2 sự cố độc lập", async () => {
     const negs: Array<[string, string]> = [
-      ["SĐT + Mã HS cùng 1 HS", "**Phạm Văn O**\nCode: 9100004\nMã học sinh: 900101\nHS còn buổi học nhưng vào làm bài báo lỗi ạ\n\ntài khoản:\nTK: 0900000005\nMK: 0900000008"],
-      ["danh sách VD: dưới 1 lỗi hệ thống", "Anh/chị kiểm tra giúp em HS có ca học hôm nay bị đẩy hết về Hoàn thành ạ.\n=> Vdu: Hoàng Văn F (SID: 900013)\nPhạm Thị E (SID: 900012)"],
+      [
+        "SĐT + Mã HS cùng 1 HS",
+        "**Phạm Văn O**\nCode: 9100004\nMã học sinh: 900101\nHS còn buổi học nhưng vào làm bài báo lỗi ạ\n\ntài khoản:\nTK: 0900000005\nMK: 0900000008",
+      ],
+      [
+        "danh sách VD: dưới 1 lỗi hệ thống",
+        "Anh/chị kiểm tra giúp em HS có ca học hôm nay bị đẩy hết về Hoàn thành ạ.\n=> Vdu: Hoàng Văn F (SID: 900013)\nPhạm Thị E (SID: 900012)",
+      ],
       ["2 mã đơn DH", "DH900003 bị lỗi không vào được lớp ạ, cả DH900005 cũng lỗi tương tự ạ"],
-      ["mã phiếu thu TNX", "Mã phiếu thu TNX123456789 bị sai số tiền ạ, không hiện trên care nữa ạ"],
-      ["URL có cid=", "Link khóa gốc https://se-lms.example.com/module/lms/courseSectionModule/index?cid=670&id=90107 bị lỗi không hiển thị Loại đề ạ\nLink khác ?cid=1035&id=90108 cũng lỗi ạ"],
-      ["Code: 123 hai lần cùng giá trị", "Code: 12345678 bị lỗi không vào được lớp ạ\n\nCode: 12345678 lại bị lỗi điểm không hiện ạ"],
-      ["2 HS trong 1 báo cáo hệ thống có VD:", "Lỗi hiển thị điểm toàn hệ thống ạ, các HS bị: Hoàng Văn F (SID: 900013) và Phạm Thị E (SID: 900012) ạ"],
+      [
+        "mã phiếu thu TNX",
+        "Mã phiếu thu TNX123456789 bị sai số tiền ạ, không hiện trên care nữa ạ",
+      ],
+      [
+        "URL có cid=",
+        "Link khóa gốc https://se-lms.example.com/module/lms/courseSectionModule/index?cid=670&id=90107 bị lỗi không hiển thị Loại đề ạ\nLink khác ?cid=1035&id=90108 cũng lỗi ạ",
+      ],
+      [
+        "Code: 123 hai lần cùng giá trị",
+        "Code: 12345678 bị lỗi không vào được lớp ạ\n\nCode: 12345678 lại bị lỗi điểm không hiện ạ",
+      ],
+      [
+        "2 HS trong 1 báo cáo hệ thống có VD:",
+        "Lỗi hiển thị điểm toàn hệ thống ạ, các HS bị: Hoàng Văn F (SID: 900013) và Phạm Thị E (SID: 900012) ạ",
+      ],
     ];
     for (const [name, text] of negs) {
       const db = new Database(":memory:");
       applySchema(db);
       const r0 = new IntakeDocumentRepository(db);
       const it0 = fakeItsaplan();
-      const p = buildPipeline(r0, new TicketBindingRepository(db), new DraftSessionRepository(db), it0);
+      const p = buildPipeline(
+        r0,
+        new TicketBindingRepository(db),
+        new DraftSessionRepository(db),
+        it0,
+      );
       const c = `3100${negs.indexOf([name, text] as any) + 1}`;
       const r = await p.run({ chatId: c, message: text });
       const direct = splitMultiIncidentReport(text);
@@ -286,7 +356,12 @@ describe("W29-SPLIT pipeline đối kháng (Vòng 3)", () => {
     applySchema(db);
     const r0 = new IntakeDocumentRepository(db);
     const it0 = fakeItsaplan();
-    const p = buildPipeline(r0, new TicketBindingRepository(db), new DraftSessionRepository(db), it0);
+    const p = buildPipeline(
+      r0,
+      new TicketBindingRepository(db),
+      new DraftSessionRepository(db),
+      it0,
+    );
     const c = "30004";
     await p.run({ chatId: c, message: TWO_STUDENTS });
     await p.run({ chatId: c, message: "Tách 2 ticket" });
@@ -309,7 +384,12 @@ describe("W29-SPLIT pipeline đối kháng (Vòng 3)", () => {
     applySchema(db);
     const r0 = new IntakeDocumentRepository(db);
     const it0 = fakeItsaplan();
-    const p = buildPipeline(r0, new TicketBindingRepository(db), new DraftSessionRepository(db), it0);
+    const p = buildPipeline(
+      r0,
+      new TicketBindingRepository(db),
+      new DraftSessionRepository(db),
+      it0,
+    );
     const c = "30005";
     await p.run({ chatId: c, message: TWO_STUDENTS, mediaPaths: ["/tmp/photo1.png"] });
 

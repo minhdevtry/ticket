@@ -114,10 +114,10 @@ describe("intake engine adapters", () => {
 
   test("toTelegramButtons converts callbackData → callback_data", () => {
     expect(
-      toTelegramButtons([[{ text: "Có", callbackData: "yes" }], [{ text: "Không", callbackData: "no" }]]),
-    ).toEqual([
-      [{ text: "Có", callback_data: "yes" }],
-      [{ text: "Không", callback_data: "no" }],
-    ]);
+      toTelegramButtons([
+        [{ text: "Có", callbackData: "yes" }],
+        [{ text: "Không", callbackData: "no" }],
+      ]),
+    ).toEqual([[{ text: "Có", callback_data: "yes" }], [{ text: "Không", callback_data: "no" }]]);
   });
 });

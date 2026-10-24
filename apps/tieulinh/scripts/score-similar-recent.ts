@@ -5,7 +5,9 @@
 // Dùng: bun scripts/score-similar-recent.ts <mechanism|applicability>
 const mode = process.argv[2] ?? "mechanism";
 const DATA_DIR = `${import.meta.dir}/../data`;
-const results = JSON.parse(await Bun.file(`${DATA_DIR}/similar-recent-results-${mode}.json`).text()) as Array<{
+const results = JSON.parse(
+  await Bun.file(`${DATA_DIR}/similar-recent-results-${mode}.json`).text(),
+) as Array<{
   id: string;
   gold: string[];
   accepted: string[];
@@ -50,4 +52,6 @@ console.log(
 );
 console.log(`Gắn bừa trên nhóm đáp án rỗng: ${falseWrite}/${emptyGold.length}`);
 console.log(`=== HIỂN THỊ (possible) khi KHÔNG ghi đúng ===`);
-console.log(`Trong ${displayable} ca chưa ghi đúng cụm: có gợi ý đúng cụm (possible) ${displayHit}/${displayable}`);
+console.log(
+  `Trong ${displayable} ca chưa ghi đúng cụm: có gợi ý đúng cụm (possible) ${displayHit}/${displayable}`,
+);

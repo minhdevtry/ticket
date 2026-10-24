@@ -22,7 +22,11 @@
  */
 import { getLogger } from "../../core/logger";
 import { isBotComment, stripBotMentions, stripCommentHtml } from "../../core/formatting";
-import { identifierInProject, normalizeProjectKey, projectOfIdentifier } from "../../itsaplan/project-lock";
+import {
+  identifierInProject,
+  normalizeProjectKey,
+  projectOfIdentifier,
+} from "../../itsaplan/project-lock";
 import type { ItsaplanWebhookEnvelope } from "../../itsaplan/webhook/events";
 import type {
   ChannelPort,
@@ -105,7 +109,11 @@ export class NotificationDispatcher {
       await this.handleComment(envelope, data);
       return;
     }
-    if (event === "issue.state_changed" || event === "issue.column_changed" || event === "issue.updated") {
+    if (
+      event === "issue.state_changed" ||
+      event === "issue.column_changed" ||
+      event === "issue.updated"
+    ) {
       await this.handleStateChange(envelope, data, event);
       return;
     }
@@ -144,7 +152,9 @@ export class NotificationDispatcher {
       "";
 
     if (this.isInternalComment(bodyText)) {
-      getLogger().info(`[NotificationDispatcher] Comment ${binding.identifier} gắn cờ nội bộ, giữ trên tracker.`);
+      getLogger().info(
+        `[NotificationDispatcher] Comment ${binding.identifier} gắn cờ nội bộ, giữ trên tracker.`,
+      );
       return;
     }
 
@@ -171,19 +181,26 @@ export class NotificationDispatcher {
         });
       }
     } catch (err: any) {
-      getLogger().error(`[NotificationDispatcher] Gửi comment ${binding.identifier} lỗi: ${err.message}`);
+      getLogger().error(
+        `[NotificationDispatcher] Gửi comment ${binding.identifier} lỗi: ${err.message}`,
+      );
     }
   }
 
   /** Đổi cột/trạng thái → báo người báo (ADR-0006 closure). */
-  private async handleStateChange(envelope: ItsaplanWebhookEnvelope, data: any, event: string): Promise<void> {
+  private async handleStateChange(
+    envelope: ItsaplanWebhookEnvelope,
+    data: any,
+    event: string,
+  ): Promise<void> {
     const issueId = Number(data.id || data.issueId);
     if (!issueId) return;
 
     // 837fb08: khoá dự án TRƯỚC mọi tác dụng phụ.
     const identifier = await this.resolveIdentifier(issueId, data.identifier);
     if (!identifier || !this.ownsProject(identifier)) {
-      if (!identifier) getLogger().info(`[NotificationDispatcher] ${event} #${issueId} không rõ dự án, bỏ qua.`);
+      if (!identifier)
+        getLogger().info(`[NotificationDispatcher] ${event} #${issueId} không rõ dự án, bỏ qua.`);
       return;
     }
 
@@ -194,7 +211,9 @@ export class NotificationDispatcher {
 
     const resolved = await this.o.columns.stateOf({ project, columnId }).catch(() => null);
     if (!resolved) {
-      getLogger().warn(`[NotificationDispatcher] ${identifier}: cột #${columnId} không tra ra, bỏ qua.`);
+      getLogger().warn(
+        `[NotificationDispatcher] ${identifier}: cột #${columnId} không tra ra, bỏ qua.`,
+      );
       return;
     }
     const { state, columnName } = resolved;
@@ -230,7 +249,9 @@ export class NotificationDispatcher {
         });
       }
     } catch (err: any) {
-      getLogger().error(`[NotificationDispatcher] Báo trạng thái ${binding.identifier} lỗi: ${err.message}`);
+      getLogger().error(
+        `[NotificationDispatcher] Báo trạng thái ${binding.identifier} lỗi: ${err.message}`,
+      );
     }
   }
 
@@ -276,8 +297,12 @@ export class NotificationDispatcher {
    * Identifier của issue: payload → binding → hỏi tracker. `null` khi không
    * biết (nơi gọi bỏ qua, không đoán). NGUỒN: intake `resolveIdentifier`.
    */
-  private async resolveIdentifier(issueId: number, payloadIdentifier?: unknown): Promise<string | null> {
-    if (typeof payloadIdentifier === "string" && projectOfIdentifier(payloadIdentifier)) return payloadIdentifier;
+  private async resolveIdentifier(
+    issueId: number,
+    payloadIdentifier?: unknown,
+  ): Promise<string | null> {
+    if (typeof payloadIdentifier === "string" && projectOfIdentifier(payloadIdentifier))
+      return payloadIdentifier;
     const fromBinding = this.o.bindings.getBindingByIssueId(issueId)?.identifier;
     if (fromBinding && projectOfIdentifier(fromBinding)) return fromBinding;
     if (!this.o.tracker) return null;
@@ -286,6 +311,8 @@ export class NotificationDispatcher {
   }
 
   private defaultAuthorName(binding: NotifyBinding): string {
-    return binding.identifier.startsWith("PO-") || this.projectKey === "PO" ? "Product team" : "Kỹ thuật viên Itsaplan";
+    return binding.identifier.startsWith("PO-") || this.projectKey === "PO"
+      ? "Product team"
+      : "Kỹ thuật viên Itsaplan";
   }
 }

@@ -1,11 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import {
-  getLogger,
-  setLogger,
-  redactSecrets,
-  Logger,
-  type IntakeLogger,
-} from "./logger";
+import { getLogger, setLogger, redactSecrets, Logger, type IntakeLogger } from "./logger";
 
 afterEach(() => {
   // restore the default console shim between tests
@@ -57,7 +51,9 @@ describe("logger: redactSecrets (CM)", () => {
   });
 
   test("redacts an sk- API key and a GitHub token", () => {
-    const out = String(redactSecrets("key sk-ABCDEFGHIJKLMNOPQRSTUV and ghp_ABCDEFGHIJKLMNOPQRSTUV12345"));
+    const out = String(
+      redactSecrets("key sk-ABCDEFGHIJKLMNOPQRSTUV and ghp_ABCDEFGHIJKLMNOPQRSTUV12345"),
+    );
     expect(out).toContain("[REDACTED_API_KEY]");
     expect(out).toContain("[REDACTED_GITHUB_TOKEN]");
   });

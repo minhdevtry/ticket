@@ -78,9 +78,7 @@ describe("supplement-notifier", () => {
     });
 
     it("assignee có tiền tố @ → tự động gỡ @ khỏi username", async () => {
-      const client = fakeClient([
-        { userId: "u-test", username: "@testuser", name: "Test" },
-      ]);
+      const client = fakeClient([{ userId: "u-test", username: "@testuser", name: "Test" }]);
       const target = await resolveSupplementMentionTarget({
         client,
         projectKey: "TECH",
@@ -92,7 +90,12 @@ describe("supplement-notifier", () => {
 
     it("no assignee → mention last technician commenter từ timeline", async () => {
       const timeline = [
-        { kind: "comment", actorUserId: "u-chung", actorName: "TechUser_B", body: "Kỹ thuật đang kiểm tra" },
+        {
+          kind: "comment",
+          actorUserId: "u-chung",
+          actorName: "TechUser_B",
+          body: "Kỹ thuật đang kiểm tra",
+        },
         { kind: "comment", actorName: "Tiểu Linh", body: "Thông báo bot <!-- intake-bot -->" },
       ];
       const client = {
@@ -113,7 +116,12 @@ describe("supplement-notifier", () => {
 
     it("no assignee + timeline có technician với actorUsername hợp lệ nhưng chưa trong assignees → dùng actorUsername", async () => {
       const timeline = [
-        { kind: "comment", actorName: "Kỹ thuật viên K", actorUsername: "techuser_k", body: "Đã kiểm tra server" },
+        {
+          kind: "comment",
+          actorName: "Kỹ thuật viên K",
+          actorUsername: "techuser_k",
+          body: "Đã kiểm tra server",
+        },
       ];
       const client = {
         ...fakeClient(),

@@ -37,7 +37,10 @@ export const WEBHOOK_DEDUPE_SCHEMA = [
 ];
 
 /** Apply the webhook-dedupe schema (shape matches core's `ApplySchema`). */
-export function webhookDedupeApplySchema(db: Database, opts: { wal: boolean } = { wal: false }): void {
+export function webhookDedupeApplySchema(
+  db: Database,
+  opts: { wal: boolean } = { wal: false },
+): void {
   if (opts.wal) {
     db.run("PRAGMA journal_mode = WAL;");
     db.run("PRAGMA synchronous = NORMAL;");
@@ -75,7 +78,9 @@ export class SqliteWebhookDedupeStore implements WebhookDedupeStore {
 
   /** Dọn bản ghi hết hạn. Trả số dòng đã xoá. */
   purgeExpired(): number {
-    return this.db.run("DELETE FROM webhook_dedupe WHERE expires_at <= ?", [new Date().toISOString()]).changes;
+    return this.db.run("DELETE FROM webhook_dedupe WHERE expires_at <= ?", [
+      new Date().toISOString(),
+    ]).changes;
   }
 }
 

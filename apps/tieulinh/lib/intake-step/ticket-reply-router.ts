@@ -72,7 +72,10 @@ export function mentionedIdentifiers(text: string, projectKey: string): string[]
   // (TECH-1001, 30/09: "đây là ticket 989 mà", "cái này là của 989", "TECH_989" đều bị bỏ sót).
   const key = projectKey.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const keySep = /\d$/.test(projectKey) ? "[\\s_:#-]+" : "[\\s_:#-]*";
-  const re = new RegExp(`(?<![\\p{L}\\p{N}])(?:${key}${keySep}|(?:ticket|tick|tk)[\\s_:#-]*)(\\d{1,6})(?!\\d)|#(\\d{2,6})(?!\\d)`, "giu");
+  const re = new RegExp(
+    `(?<![\\p{L}\\p{N}])(?:${key}${keySep}|(?:ticket|tick|tk)[\\s_:#-]*)(\\d{1,6})(?!\\d)|#(\\d{2,6})(?!\\d)`,
+    "giu",
+  );
   const out = new Set<string>();
   for (const m of text.matchAll(re)) out.add(`${projectKey.toUpperCase()}-${Number(m[1] ?? m[2])}`);
   return [...out];
@@ -145,7 +148,10 @@ const SUPPLEMENT_COMMAND_TICKET_FIRST_RE = new RegExp(
  * Khi người báo chỉ gõ câu lệnh trần (vì ảnh đã gửi ở tin trước hoặc chuẩn bị gửi ở tin sau),
  * `content` trả về `""` để pipeline không ghi nhầm chính câu lệnh ("update vào tick TECH-1218") thành comment.
  */
-export function stripSupplementCommandWrapper(text: string): { isSupplementCommand: boolean; content: string } {
+export function stripSupplementCommandWrapper(text: string): {
+  isSupplementCommand: boolean;
+  content: string;
+} {
   const trimmed = typeof text === "string" ? text.trim() : "";
   if (!trimmed || !HAS_TICKET_ID_RE.test(trimmed)) {
     return { isSupplementCommand: false, content: trimmed };
@@ -157,7 +163,9 @@ export function stripSupplementCommandWrapper(text: string): { isSupplementComma
   ) {
     return { isSupplementCommand: false, content: trimmed };
   }
-  const m = trimmed.match(SUPPLEMENT_COMMAND_PREFIX_RE) ?? trimmed.match(SUPPLEMENT_COMMAND_TICKET_FIRST_RE);
+  const m =
+    trimmed.match(SUPPLEMENT_COMMAND_PREFIX_RE) ??
+    trimmed.match(SUPPLEMENT_COMMAND_TICKET_FIRST_RE);
   if (!m) {
     return { isSupplementCommand: false, content: trimmed };
   }
@@ -216,7 +224,10 @@ const RESOLVED_CONFIRMATION_RE = new RegExp(
 );
 
 /** Ý định ĐÓNG / báo đã tự hết (không nói rõ hủy) → chuyển Done nếu chuyên viên đã xử lý, ngược lại chuyển Cancelled. */
-export const CLOSE_TICKET_RE = new RegExp(`${EXPLICIT_CLOSE_DIRECT_RE.source}|${RESOLVED_CONFIRMATION_RE.source}`, "iu");
+export const CLOSE_TICKET_RE = new RegExp(
+  `${EXPLICIT_CLOSE_DIRECT_RE.source}|${RESOLVED_CONFIRMATION_RE.source}`,
+  "iu",
+);
 
 /**
  * Phân loại ý định hủy rõ ("cancel") hay đóng ("close") trên câu của người báo.
@@ -234,9 +245,11 @@ export function classifyCancelOrCloseIntent(text: string): CancelOrCloseIntent |
     return null;
   }
   if (EXPLICIT_CANCEL_TICKET_RE.test(text)) return "cancel";
-  if (!ONGOING_SYMPTOM_OR_CONTRAST_RE.test(text) && NO_LONGER_NEEDED_TICKET_RE.test(text)) return "cancel";
+  if (!ONGOING_SYMPTOM_OR_CONTRAST_RE.test(text) && NO_LONGER_NEEDED_TICKET_RE.test(text))
+    return "cancel";
   if (EXPLICIT_CLOSE_DIRECT_RE.test(text)) return "close";
-  if (!ONGOING_SYMPTOM_OR_CONTRAST_RE.test(text) && RESOLVED_CONFIRMATION_RE.test(text)) return "close";
+  if (!ONGOING_SYMPTOM_OR_CONTRAST_RE.test(text) && RESOLVED_CONFIRMATION_RE.test(text))
+    return "close";
   return null;
 }
 
@@ -264,21 +277,43 @@ export function countSpecialistTimelineComments(
   timeline: unknown[],
   options?: {
     reporterNames?: Array<string | undefined | null>;
-    projectAssignees?: Array<{ userId?: string; name?: string; username?: string | null; kind?: string | null }>;
+    projectAssignees?: Array<{
+      userId?: string;
+      name?: string;
+      username?: string | null;
+      kind?: string | null;
+    }>;
   },
 ): number {
   if (!Array.isArray(timeline) || timeline.length === 0) return 0;
   const reporterSet = new Set(
     (options?.reporterNames ?? [])
-      .map((n) => String(n ?? "").trim().replace(/^@/, "").toLowerCase())
+      .map((n) =>
+        String(n ?? "")
+          .trim()
+          .replace(/^@/, "")
+          .toLowerCase(),
+      )
       .filter(Boolean),
   );
   const humanMembers = (options?.projectAssignees ?? []).filter(
-    (a) => a && a.kind !== "agent" && !isSystemActor(a.name) && !NON_SPECIALIST_ACTOR_RE.test(`${a.name ?? ""} ${a.username ?? ""}`),
+    (a) =>
+      a &&
+      a.kind !== "agent" &&
+      !isSystemActor(a.name) &&
+      !NON_SPECIALIST_ACTOR_RE.test(`${a.name ?? ""} ${a.username ?? ""}`),
   );
   const memberIds = new Set(humanMembers.map((a) => String(a.userId ?? "").trim()).filter(Boolean));
   const memberNames = new Set(
-    humanMembers.flatMap((a) => [a.name, a.username].map((s) => String(s ?? "").trim().toLowerCase()).filter(Boolean)),
+    humanMembers.flatMap((a) =>
+      [a.name, a.username]
+        .map((s) =>
+          String(s ?? "")
+            .trim()
+            .toLowerCase(),
+        )
+        .filter(Boolean),
+    ),
   );
   const enforceMemberList = memberIds.size > 0 || memberNames.size > 0;
 
@@ -290,14 +325,26 @@ export function countSpecialistTimelineComments(
     if (isBotComment(item.body)) continue;
     if (item.actorKind === "agent") continue;
     const actorName = String(item.actorName ?? "").trim();
-    const actorUsername = String(item.actorUsername ?? "").trim().replace(/^@/, "");
+    const actorUsername = String(item.actorUsername ?? "")
+      .trim()
+      .replace(/^@/, "");
     const actorUserId = String(item.actorUserId ?? "").trim();
-    if (!actorName || isSystemActor(actorName) || NON_SPECIALIST_ACTOR_RE.test(`${actorName} ${actorUsername}`)) continue;
-    if (reporterSet.has(actorName.toLowerCase()) || (actorUsername && reporterSet.has(actorUsername.toLowerCase()))) continue;
+    if (
+      !actorName ||
+      isSystemActor(actorName) ||
+      NON_SPECIALIST_ACTOR_RE.test(`${actorName} ${actorUsername}`)
+    )
+      continue;
+    if (
+      reporterSet.has(actorName.toLowerCase()) ||
+      (actorUsername && reporterSet.has(actorUsername.toLowerCase()))
+    )
+      continue;
     if (enforceMemberList) {
       const matchedById = Boolean(actorUserId && memberIds.has(actorUserId));
       const matchedByName =
-        memberNames.has(actorName.toLowerCase()) || (Boolean(actorUsername) && memberNames.has(actorUsername.toLowerCase()));
+        memberNames.has(actorName.toLowerCase()) ||
+        (Boolean(actorUsername) && memberNames.has(actorUsername.toLowerCase()));
       if (!matchedById && !matchedByName) continue;
     }
     count++;
@@ -325,7 +372,9 @@ function userPrompt(input: TicketCommandInput): string {
         c.mentioned ? "  (người báo nhắc mã này trong tin)" : "",
         c.justCreated ? "  (bot VỪA TẠO ticket này trong chat)" : "",
         c.techQuestion ? `  Kỹ thuật vừa hỏi người báo: "${c.techQuestion.slice(0, 600)}"` : "",
-        c.recentlyRelayed && !c.techQuestion ? "  (bot vừa chuyển tin của kỹ thuật về ticket này cho người báo)" : "",
+        c.recentlyRelayed && !c.techQuestion
+          ? "  (bot vừa chuyển tin của kỹ thuật về ticket này cho người báo)"
+          : "",
       ]
         .filter(Boolean)
         .join("\n"),
@@ -333,7 +382,9 @@ function userPrompt(input: TicketCommandInput): string {
     .join("\n");
   return [
     `Ticket đã có liên quan:\n${cands}`,
-    input.draftTitle ? `Tờ khai sự cố đang soạn dở: "${input.draftTitle}"` : "Không có tờ khai đang soạn.",
+    input.draftTitle
+      ? `Tờ khai sự cố đang soạn dở: "${input.draftTitle}"`
+      : "Không có tờ khai đang soạn.",
     `Tin nhắn mới${input.attachments ? ` (kèm ${input.attachments} ảnh/tệp)` : ""}:\n"${input.message.slice(0, 2000)}"`,
   ].join("\n\n");
 }
@@ -356,22 +407,41 @@ export class LlmTicketCommandInterpreter implements TicketCommandInterpreter {
   async interpret(input: TicketCommandInput): Promise<TicketCommand> {
     const cancelIntent = classifyCancelOrCloseIntent(input.message);
     const supplement = stripSupplementCommandWrapper(input.message);
-    const raw = await withTimeout(this.completeFn(this.llm, SYSTEM_PROMPT, userPrompt(input)), this.timeoutMs, "ticket-command").catch((err) => {
+    const raw = await withTimeout(
+      this.completeFn(this.llm, SYSTEM_PROMPT, userPrompt(input)),
+      this.timeoutMs,
+      "ticket-command",
+    ).catch((err) => {
       if (cancelIntent || supplement.isSupplementCommand) return "{}";
       throw err;
     });
     const parsed = extractJson<Record<string, unknown>>(raw) ?? {};
-    const action = String(parsed.action ?? "").trim().toLowerCase();
-    const find = (v: unknown) => input.candidates.find((c) => c.identifier.toUpperCase() === String(v ?? "").trim().toUpperCase());
+    const action = String(parsed.action ?? "")
+      .trim()
+      .toLowerCase();
+    const find = (v: unknown) =>
+      input.candidates.find(
+        (c) =>
+          c.identifier.toUpperCase() ===
+          String(v ?? "")
+            .trim()
+            .toUpperCase(),
+      );
     const target = find(parsed.ticket);
     const text = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : "");
     if (action === "move_created" && target) {
       const from = find(parsed.from) ?? input.candidates.find((c) => c.justCreated);
-      if (from?.justCreated && from.identifier !== target.identifier) return { action: "move_created", from: from.identifier, identifier: target.identifier };
+      if (from?.justCreated && from.identifier !== target.identifier)
+        return { action: "move_created", from: from.identifier, identifier: target.identifier };
     }
-    const projectKeys = new Set(["TECH", ...input.candidates.map((c) => c.identifier.split("-")[0]).filter(Boolean)]);
+    const projectKeys = new Set([
+      "TECH",
+      ...input.candidates.map((c) => c.identifier.split("-")[0]).filter(Boolean),
+    ]);
     const msgMentions = new Set(
-      [...projectKeys].flatMap((pk) => mentionedIdentifiers(input.message, pk).map((id) => id.toUpperCase())),
+      [...projectKeys].flatMap((pk) =>
+        mentionedIdentifiers(input.message, pk).map((id) => id.toUpperCase()),
+      ),
     );
     if (cancelIntent) {
       const mentionedOwn = input.candidates.find(
@@ -383,7 +453,12 @@ export class LlmTicketCommandInterpreter implements TicketCommandInterpreter {
       // Chỉ nhận diện hủy/đóng khi người báo nêu mã ticket trong tin nhắn; không tự đoán sang ticket khác.
       const cancelTarget = mentionedOwn ?? mentionedAny;
       if (cancelTarget) {
-        return { action: "cancel_or_close", identifier: cancelTarget.identifier, content: input.message.trim(), intent: cancelIntent };
+        return {
+          action: "cancel_or_close",
+          identifier: cancelTarget.identifier,
+          content: input.message.trim(),
+          intent: cancelIntent,
+        };
       }
     }
     if (action === "new") return { action: "new" };
@@ -402,17 +477,22 @@ export class LlmTicketCommandInterpreter implements TicketCommandInterpreter {
         intent: cancelIntent,
       };
     }
-    if (action === "edit" && target) return { action: "edit", identifier: target.identifier, instruction: text(parsed.instruction) || input.message };
+    if (action === "edit" && target)
+      return {
+        action: "edit",
+        identifier: target.identifier,
+        instruction: text(parsed.instruction) || input.message,
+      };
     if (action === "append" && target) {
       const llmContent = text(parsed.content);
       const content =
         supplement.isSupplementCommand && !supplement.content
           ? ""
           : llmContent && llmContent.toLowerCase() !== input.message.trim().toLowerCase()
-          ? llmContent
-          : supplement.isSupplementCommand
-          ? supplement.content
-          : llmContent || input.message;
+            ? llmContent
+            : supplement.isSupplementCommand
+              ? supplement.content
+              : llmContent || input.message;
       return { action: "append", identifier: target.identifier, content };
     }
     if (supplement.isSupplementCommand) {
@@ -461,7 +541,11 @@ export async function planEdit(
   timeoutMs = 45_000,
 ): Promise<EditOp[]> {
   const raw = await withTimeout(
-    completeFn(llm, EDIT_PROMPT, `Tiêu đề: ${input.title}\n\nMô tả hiện tại:\n${input.description.slice(0, 6000)}\n\nĐề nghị sửa:\n"${input.instruction}"`),
+    completeFn(
+      llm,
+      EDIT_PROMPT,
+      `Tiêu đề: ${input.title}\n\nMô tả hiện tại:\n${input.description.slice(0, 6000)}\n\nĐề nghị sửa:\n"${input.instruction}"`,
+    ),
     timeoutMs,
     "ticket-edit",
   );
@@ -469,10 +553,22 @@ export async function planEdit(
   if (!Array.isArray(ops)) return [];
   const out: EditOp[] = [];
   for (const o of ops as any[]) {
-    if (o?.type === "title" && typeof o.value === "string" && o.value.trim()) out.push({ type: "title", value: o.value.trim() });
-    else if (o?.type === "field" && typeof o.label === "string" && typeof o.value === "string" && o.label.trim() && o.value.trim())
+    if (o?.type === "title" && typeof o.value === "string" && o.value.trim())
+      out.push({ type: "title", value: o.value.trim() });
+    else if (
+      o?.type === "field" &&
+      typeof o.label === "string" &&
+      typeof o.value === "string" &&
+      o.label.trim() &&
+      o.value.trim()
+    )
       out.push({ type: "field", label: o.label.trim(), value: o.value.trim() });
-    else if (o?.type === "replace" && typeof o.old === "string" && typeof o.new === "string" && o.old.trim())
+    else if (
+      o?.type === "replace" &&
+      typeof o.old === "string" &&
+      typeof o.new === "string" &&
+      o.old.trim()
+    )
       out.push({ type: "replace", old: o.old, new: o.new });
   }
   return out;
@@ -500,7 +596,8 @@ export function applyEditOps(
       const re = new RegExp(`^(- ${esc}:)[ \\t]*(.*)$`, "m");
       const m = d.match(re);
       if (m) {
-        if (m[2].trim() !== op.value) changes.push({ what: op.label, before: m[2].trim(), after: op.value });
+        if (m[2].trim() !== op.value)
+          changes.push({ what: op.label, before: m[2].trim(), after: op.value });
         d = d.replace(re, `$1 ${op.value}`);
       } else {
         const head = d.indexOf("## Thông tin sự cố");

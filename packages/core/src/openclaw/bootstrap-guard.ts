@@ -49,11 +49,7 @@ const TEMPLATE_MARKERS = [
 ];
 
 /** AGENTS.md còn kiểu template "this folder is home / first run / BOOTSTRAP". */
-const AGENTS_TEMPLATE_MARKERS = [
-  /this folder is (your )?home/i,
-  /first run/i,
-  /BOOTSTRAP/,
-];
+const AGENTS_TEMPLATE_MARKERS = [/this folder is (your )?home/i, /first run/i, /BOOTSTRAP/];
 
 function looksLikeTemplate(content: string | undefined, markers: RegExp[]): boolean {
   const text = (content ?? "").trim();
@@ -83,14 +79,16 @@ export function auditBootstrapReadiness(files: WorkspaceFiles): BootstrapFinding
     findings.push({
       severity: "block",
       code: "identity-empty",
-      message: "IDENTITY.md còn là template rỗng (chưa điền persona) — bot chưa biết nó là ai. Điền trước khi cho ai nhắn.",
+      message:
+        "IDENTITY.md còn là template rỗng (chưa điền persona) — bot chưa biết nó là ai. Điền trước khi cho ai nhắn.",
     });
   }
   if (looksLikeTemplate(files.soul, TEMPLATE_MARKERS)) {
     findings.push({
       severity: "warn",
       code: "soul-empty",
-      message: "SOUL.md còn là template rỗng — nên điền giọng điệu/nguyên tắc để bot không trả lời chung chung.",
+      message:
+        "SOUL.md còn là template rỗng — nên điền giọng điệu/nguyên tắc để bot không trả lời chung chung.",
     });
   }
 
@@ -100,7 +98,7 @@ export function auditBootstrapReadiness(files: WorkspaceFiles): BootstrapFinding
       severity: "block",
       code: "agents-template",
       message:
-        "AGENTS.md vẫn là template gateway (\"this folder is home\"/first run/BOOTSTRAP) — bot chưa có quy trình tiếp nhận. Viết AGENTS.md quy trình thật trước khi phục vụ.",
+        'AGENTS.md vẫn là template gateway ("this folder is home"/first run/BOOTSTRAP) — bot chưa có quy trình tiếp nhận. Viết AGENTS.md quy trình thật trước khi phục vụ.',
     });
   }
 

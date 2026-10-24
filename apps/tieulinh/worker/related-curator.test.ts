@@ -2,14 +2,41 @@ import { describe, expect, it } from "bun:test";
 import { RelatedTicketsCurator } from "./related-curator";
 import type { CorpusTicket } from "../lib/kg/similar-finder";
 
-const PIN = "- **Nguyên nhân:** Bị gắn trùng tk học do cùng tên\n- **Cách khắc phục:** Gỡ tk học 1 con bị trùng & thêm chữ BỎ";
+const PIN =
+  "- **Nguyên nhân:** Bị gắn trùng tk học do cùng tên\n- **Cách khắc phục:** Gỡ tk học 1 con bị trùng & thêm chữ BỎ";
 const KG: CorpusTicket[] = [
-  { identifier: "TECH-337", title: "Bị gắn trùng tk học do cùng tên", causeCluster: "A", humanCause: "Bị gắn trùng tk học do cùng tên" },
-  { identifier: "TECH-769", title: "Bị gắn trùng tk học do cùng tên", causeCluster: "A", humanCause: "Bị gắn trùng tk học do cùng tên" },
-  { identifier: "TECH-840", title: "Do id đơn hàng bị > 1 triệu", causeCluster: "C", humanCause: "Do id đơn hàng bị > 1 triệu" },
+  {
+    identifier: "TECH-337",
+    title: "Bị gắn trùng tk học do cùng tên",
+    causeCluster: "A",
+    humanCause: "Bị gắn trùng tk học do cùng tên",
+  },
+  {
+    identifier: "TECH-769",
+    title: "Bị gắn trùng tk học do cùng tên",
+    causeCluster: "A",
+    humanCause: "Bị gắn trùng tk học do cùng tên",
+  },
+  {
+    identifier: "TECH-840",
+    title: "Do id đơn hàng bị > 1 triệu",
+    causeCluster: "C",
+    humanCause: "Do id đơn hàng bị > 1 triệu",
+  },
 ];
 
-function world(over: { labelIds?: number[]; pinned?: boolean; identifier?: string; title?: string; description?: string; columnId?: number; burst?: boolean; otherSideBurst?: boolean } = {}) {
+function world(
+  over: {
+    labelIds?: number[];
+    pinned?: boolean;
+    identifier?: string;
+    title?: string;
+    description?: string;
+    columnId?: number;
+    burst?: boolean;
+    otherSideBurst?: boolean;
+  } = {},
+) {
   const identifier = over.identifier ?? "TECH-920";
   const issues: Record<number, any> = {
     793: {
@@ -19,23 +46,61 @@ function world(over: { labelIds?: number[]; pinned?: boolean; identifier?: strin
       description: over.description ?? "### Mô tả\n> Bị gắn trùng tk học do cùng tên",
       columnId: over.columnId ?? 3,
       labelIds: over.labelIds ?? [8],
-      fields: [{ fieldId: 3, name: "Related Tickets", value: "TECH-337, TECH-840, TEST-KG-TAXON-A-1" }],
+      fields: [
+        { fieldId: 3, name: "Related Tickets", value: "TECH-337, TECH-840, TEST-KG-TAXON-A-1" },
+      ],
       links: [
         { id: 11, issue: { id: 88, identifier: "TECH-337" } },
         { id: 12, issue: { id: 700, identifier: "TECH-840" } },
       ],
     },
-    88: { id: 88, identifier: "TECH-337", labelIds: [], fields: [{ fieldId: 3, name: "Related Tickets", value: "TECH-337, TECH-769" }], links: [] },
+    88: {
+      id: 88,
+      identifier: "TECH-337",
+      labelIds: [],
+      fields: [{ fieldId: 3, name: "Related Tickets", value: "TECH-337, TECH-769" }],
+      links: [],
+    },
     528: { id: 528, identifier: "TECH-769", labelIds: [], fields: [], links: [] },
     700: { id: 700, identifier: "TECH-840", labelIds: [], fields: [], links: [] },
   };
   const bySeq: Record<number, number> = { 337: 88, 769: 528, 840: 700, 920: 793 };
   const timeline = [
-    { kind: "activity", action: "link_add", actorName: "Tiểu Linh", createdAt: "2026-09-26T01:39:00Z", payload: { to: { value: "TECH-337" } } },
-    { kind: "activity", action: "link_add", actorName: "Tiểu Linh", createdAt: "2026-09-26T01:39:00Z", payload: { to: { value: "TECH-840" } } },
+    {
+      kind: "activity",
+      action: "link_add",
+      actorName: "Tiểu Linh",
+      createdAt: "2026-09-26T01:39:00Z",
+      payload: { to: { value: "TECH-337" } },
+    },
+    {
+      kind: "activity",
+      action: "link_add",
+      actorName: "Tiểu Linh",
+      createdAt: "2026-09-26T01:39:00Z",
+      payload: { to: { value: "TECH-840" } },
+    },
     // Đợt gắn hàng loạt của thuật toán cũ (≥ 5 link trong 2 phút, trước 26/09 15:08) = rác được phép dọn.
-    ...(over.burst ? ["TECH-1", "TECH-2", "TECH-3"].map((v) => ({ kind: "activity", action: "link_add", actorName: "Tiểu Linh", createdAt: "2026-09-26T01:39:30Z", payload: { to: { value: v } } })) : []),
-    ...(over.pinned === false ? [] : [{ kind: "comment", pinned: true, actorName: "TechLead_A", body: PIN, createdAt: "2026-09-26T01:54:10Z" }]),
+    ...(over.burst
+      ? ["TECH-1", "TECH-2", "TECH-3"].map((v) => ({
+          kind: "activity",
+          action: "link_add",
+          actorName: "Tiểu Linh",
+          createdAt: "2026-09-26T01:39:30Z",
+          payload: { to: { value: v } },
+        }))
+      : []),
+    ...(over.pinned === false
+      ? []
+      : [
+          {
+            kind: "comment",
+            pinned: true,
+            actorName: "TechLead_A",
+            body: PIN,
+            createdAt: "2026-09-26T01:54:10Z",
+          },
+        ]),
   ];
   const writes: string[] = [];
   const client = {
@@ -44,22 +109,35 @@ function world(over: { labelIds?: number[]; pinned?: boolean; identifier?: strin
       id === 793
         ? timeline
         : id === 700 && over.otherSideBurst
-          ? ["TECH-920", "TECH-11", "TECH-12", "TECH-13", "TECH-14"].map((v) => ({ kind: "activity", action: "link_add", actorName: "Tiểu Linh", createdAt: "2026-09-26T02:00:00Z", payload: { to: { value: v } } }))
+          ? ["TECH-920", "TECH-11", "TECH-12", "TECH-13", "TECH-14"].map((v) => ({
+              kind: "activity",
+              action: "link_add",
+              actorName: "Tiểu Linh",
+              createdAt: "2026-09-26T02:00:00Z",
+              payload: { to: { value: v } },
+            }))
           : [],
     getIssueByNumber: async (_p: string, seq: number) => issues[bySeq[seq]],
-    getProject: async () => ({ labels: [{ id: 8, name: "Hỗ trợ" }, { id: 9, name: "IT Support" }] }),
+    getProject: async () => ({
+      labels: [
+        { id: 8, name: "Hỗ trợ" },
+        { id: 9, name: "IT Support" },
+      ],
+    }),
     listProjectColumns: async () => [
       { id: 3, name: "Đang xử lý", stateType: "in_progress" },
       { id: 4, name: "Done", stateType: "completed" },
       { id: 5, name: "Huỷ", stateType: "canceled" },
     ],
     listCustomFields: async () => [{ id: 3, name: "Related Tickets", fieldType: "markdown" }],
-    setCustomFieldValue: async (id: number, fieldId: number, value: string) => void writes.push(`field #${id} f${fieldId} = ${value}`),
+    setCustomFieldValue: async (id: number, fieldId: number, value: string) =>
+      void writes.push(`field #${id} f${fieldId} = ${value}`),
     addLink: async (from: number, to: number) => {
       writes.push(`link ${from}→${to}`);
       return { id: 1, kind: "relates" };
     },
-    deleteLink: async (id: number, linkId: number) => void writes.push(`unlink #${id} link${linkId}`),
+    deleteLink: async (id: number, linkId: number) =>
+      void writes.push(`unlink #${id} link${linkId}`),
   };
   const corpus = { loadSimilarityCorpus: async () => KG };
   // Mô phỏng SimilarTicketSource mới (KG + Onyx + BM25 + LLM) cho mode "suggested":
@@ -76,7 +154,13 @@ function world(over: { labelIds?: number[]; pinned?: boolean; identifier?: strin
 }
 
 const make = (w: ReturnType<typeof world>, over: Record<string, unknown> = {}) =>
-  new RelatedTicketsCurator({ itsaplan: w.client as any, corpus: w.corpus, similarSource: w.similarSource as any, projectKey: "TECH", ...over });
+  new RelatedTicketsCurator({
+    itsaplan: w.client as any,
+    corpus: w.corpus,
+    similarSource: w.similarSource as any,
+    projectKey: "TECH",
+    ...over,
+  });
 
 describe("RelatedTicketsCurator.run", () => {
   it("có nguyên nhân ghim → đủ cụm (có cả mã chính nó), gỡ link bot sai, thêm mã mới vào ticket cũ cùng cụm", async () => {
@@ -124,10 +208,7 @@ describe("RelatedTicketsCurator.run", () => {
     expect(r.plan?.desired).toEqual(["TECH-337"]);
     expect(r.plan?.addLinks).toEqual([]);
     expect(r.propagate).toEqual([]);
-    expect(w.writes).toEqual([
-      "field #793 f3 = TECH-337, TECH-920",
-      "unlink #793 link12",
-    ]);
+    expect(w.writes).toEqual(["field #793 f3 = TECH-337, TECH-920", "unlink #793 link12"]);
   });
 
   it("mode 'suggested' dùng similarSource đã tiêm (KG+Onyx+LLM mới), không tự dò BM25 nữa", async () => {
@@ -149,7 +230,11 @@ describe("RelatedTicketsCurator.run", () => {
 
   it("mode 'suggested' không có similarSource → không gợi ý gì, chỉ dọn theo mã/link người đã gắn", async () => {
     const w = world({ pinned: false });
-    const r = await new RelatedTicketsCurator({ itsaplan: w.client as any, corpus: w.corpus, projectKey: "TECH" }).run(793);
+    const r = await new RelatedTicketsCurator({
+      itsaplan: w.client as any,
+      corpus: w.corpus,
+      projectKey: "TECH",
+    }).run(793);
     expect(r.status).toBe("applied");
     expect(r.mode).toBe("suggested");
     expect(r.plan?.desired).toEqual([]);

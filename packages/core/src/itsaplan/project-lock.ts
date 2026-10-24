@@ -12,13 +12,17 @@
 
 /** Chuẩn hoá mã dự án: bỏ khoảng trắng, viết hoa; rỗng → null (không khoá). */
 export function normalizeProjectKey(projectKey?: string | null): string | null {
-  const key = String(projectKey ?? "").trim().toUpperCase();
+  const key = String(projectKey ?? "")
+    .trim()
+    .toUpperCase();
   return key.length > 0 ? key : null;
 }
 
 /** Tiền tố dự án của một identifier "TECH-12" → "TECH"; không đọc được → null. */
 export function projectOfIdentifier(identifier?: string | null): string | null {
-  const match = String(identifier ?? "").trim().match(/^([A-Za-z][A-Za-z0-9_]*)-(\d+)$/);
+  const match = String(identifier ?? "")
+    .trim()
+    .match(/^([A-Za-z][A-Za-z0-9_]*)-(\d+)$/);
   return match ? match[1].toUpperCase() : null;
 }
 

@@ -83,7 +83,9 @@ export class TelegramNotifier implements Notifier {
       return await this.transport.call<any>(method, payload);
     } catch (err: any) {
       if (!payload.parse_mode || !isEntityParseError(err)) throw err;
-      getLogger().warn(`[notifier] ${method}: Telegram không đọc được định dạng Markdown, gửi lại dạng văn bản thuần.`);
+      getLogger().warn(
+        `[notifier] ${method}: Telegram không đọc được định dạng Markdown, gửi lại dạng văn bản thuần.`,
+      );
       const { parse_mode: _drop, ...rest } = payload;
       for (const key of ["text", "caption"] as const) {
         if (typeof rest[key] === "string") rest[key] = plainText(rest[key] as string);
@@ -141,12 +143,17 @@ export class TelegramNotifier implements Notifier {
           plain.append(type, blob, `attachment${ext}`);
           plain.append("caption", plainText(caption));
           try {
-            return await this.transport.sendFormData(type === "photo" ? "sendPhoto" : "sendVideo", plain);
+            return await this.transport.sendFormData(
+              type === "photo" ? "sendPhoto" : "sendVideo",
+              plain,
+            );
           } catch (err2: any) {
             err = err2;
           }
         }
-        getLogger().warn(`[notifier] Gửi multipart ${type} thất bại: ${err.message}, thử gửi theo URL...`);
+        getLogger().warn(
+          `[notifier] Gửi multipart ${type} thất bại: ${err.message}, thử gửi theo URL...`,
+        );
       }
     }
 
@@ -192,14 +199,18 @@ export class TelegramNotifier implements Notifier {
           const res = await this.sendMedia(rawChatId, "photo", images[0], captionHead);
           return res?.message_id;
         } catch (err: any) {
-          getLogger().warn(`[notifier] Gửi ảnh kèm caption thất bại: ${err?.message}, thử gửi text trước...`);
+          getLogger().warn(
+            `[notifier] Gửi ảnh kèm caption thất bại: ${err?.message}, thử gửi text trước...`,
+          );
         }
       } else if (videos.length === 1) {
         try {
           const res = await this.sendMedia(rawChatId, "video", videos[0], captionHead);
           return res?.message_id;
         } catch (err: any) {
-          getLogger().warn(`[notifier] Gửi video kèm caption thất bại: ${err?.message}, thử gửi text trước...`);
+          getLogger().warn(
+            `[notifier] Gửi video kèm caption thất bại: ${err?.message}, thử gửi text trước...`,
+          );
         }
       }
     }
@@ -236,7 +247,6 @@ export class TelegramNotifier implements Notifier {
     return firstMessageId;
   }
 
-
   async notifyStateChange(
     binding: TicketBinding,
     label: string,
@@ -244,10 +254,9 @@ export class TelegramNotifier implements Notifier {
     exact = false,
   ): Promise<string | number | void> {
     const rawChatId = String(binding.chatId).replace(/^telegram:/i, "");
-    const text =
-      exact
-        ? `${binding.identifier} chuyển sang: **${label}**`
-        : state === "resolved"
+    const text = exact
+      ? `${binding.identifier} chuyển sang: **${label}**`
+      : state === "resolved"
         ? `Ticket ${binding.identifier} đã được xử lý. Anh/chị kiểm tra giúp em; nếu ổn thì bấm nút dưới đây, còn chưa ổn thì cứ nhắn lại vào tin này ạ.`
         : state === "done"
           ? `Ticket ${binding.identifier} đã hoàn tất.`
@@ -259,7 +268,13 @@ export class TelegramNotifier implements Notifier {
       text,
       parse_mode: "Markdown",
       ...(state === "resolved"
-        ? { reply_markup: { inline_keyboard: [[{ text: "👍 Đã ổn", callback_data: `${REPORTER_OK_PREFIX}${binding.issueId}` }]] } }
+        ? {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: "👍 Đã ổn", callback_data: `${REPORTER_OK_PREFIX}${binding.issueId}` }],
+              ],
+            },
+          }
         : {}),
     });
     return sent?.message_id;

@@ -175,7 +175,11 @@ export class ItsaplanClient {
     return this.request<ItsaplanProject[]>("/projects");
   }
 
-  async createProject(payload: { key: string; name: string; description?: string }): Promise<ItsaplanProject> {
+  async createProject(payload: {
+    key: string;
+    name: string;
+    description?: string;
+  }): Promise<ItsaplanProject> {
     return this.request<ItsaplanProject>("/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -259,7 +263,10 @@ export class ItsaplanClient {
    * Liệt kê issue của một dự án (một trang, tối đa `limit`). Dùng cho script
    * backfill/đối soát — trước đây script phải gọi thẳng `request` private.
    */
-  async listProjectIssues(projectKey: string, options: { limit?: number; page?: number } = {}): Promise<ItsaplanIssue[]> {
+  async listProjectIssues(
+    projectKey: string,
+    options: { limit?: number; page?: number } = {},
+  ): Promise<ItsaplanIssue[]> {
     const q = new URLSearchParams();
     if (options.limit) q.set("limit", String(options.limit));
     if (options.page) q.set("page", String(options.page));
@@ -330,14 +337,21 @@ export class ItsaplanClient {
     });
   }
 
-  async listComments(issueId: number): Promise<Array<{ id: number; body: string; author?: { name?: string; id?: string }; createdAt?: string }>> {
+  async listComments(
+    issueId: number,
+  ): Promise<
+    Array<{ id: number; body: string; author?: { name?: string; id?: string }; createdAt?: string }>
+  > {
     const timeline = await this.getIssueTimeline(issueId);
     return (timeline as Array<Record<string, unknown>>)
       .filter((item) => item.kind === "comment")
       .map((item) => ({
         id: typeof item.id === "number" ? item.id : Number(item.id),
         body: typeof item.body === "string" ? item.body : "",
-        author: { name: typeof item.actorName === "string" ? item.actorName : undefined, id: typeof item.actorUserId === "string" ? item.actorUserId : undefined },
+        author: {
+          name: typeof item.actorName === "string" ? item.actorName : undefined,
+          id: typeof item.actorUserId === "string" ? item.actorUserId : undefined,
+        },
         createdAt: typeof item.createdAt === "string" ? item.createdAt : undefined,
       }));
   }
@@ -387,21 +401,29 @@ export class ItsaplanClient {
   }
 
   async listWebhooks(projectKey: string): Promise<WebhookSubscription[]> {
-    return this.request<WebhookSubscription[]>(`/projects/${encodeURIComponent(projectKey)}/webhooks`);
+    return this.request<WebhookSubscription[]>(
+      `/projects/${encodeURIComponent(projectKey)}/webhooks`,
+    );
   }
 
   async createWebhook(
     projectKey: string,
     payload: { url: string; events: string[]; isActive?: boolean },
   ): Promise<WebhookSubscription> {
-    return this.request<WebhookSubscription>(`/projects/${encodeURIComponent(projectKey)}/webhooks`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    return this.request<WebhookSubscription>(
+      `/projects/${encodeURIComponent(projectKey)}/webhooks`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+    );
   }
 
-  async updateWebhook(webhookId: number, patch: { events?: string[]; isActive?: boolean; url?: string }): Promise<WebhookSubscription> {
+  async updateWebhook(
+    webhookId: number,
+    patch: { events?: string[]; isActive?: boolean; url?: string },
+  ): Promise<WebhookSubscription> {
     return this.request<WebhookSubscription>(`/webhooks/${webhookId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -425,4 +447,3 @@ export interface WebhookSubscription {
   isActive: boolean;
   createdAt: string;
 }
-

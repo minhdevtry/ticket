@@ -85,7 +85,9 @@ export function stripChannelEnvelope(text: string | null | undefined): string {
         // JSON trần: tới khi đóng ngoặc
         let depth = 0;
         do {
-          depth += ((lines[i] ?? "").match(/\{/g) ?? []).length - ((lines[i] ?? "").match(/\}/g) ?? []).length;
+          depth +=
+            ((lines[i] ?? "").match(/\{/g) ?? []).length -
+            ((lines[i] ?? "").match(/\}/g) ?? []).length;
           i++;
         } while (i < lines.length && depth > 0);
       } else {
@@ -171,7 +173,10 @@ export function stripChannelEnvelope(text: string | null | undefined): string {
     i++;
   }
 
-  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  return out
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 export interface ChannelEnvelopeInfo {

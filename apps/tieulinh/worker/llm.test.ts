@@ -11,7 +11,9 @@ const proxy = Bun.serve({
     seen.push(body.model);
     // local-router (26/09): không ghi stream:false là trả SSE, res.json() vỡ "Failed to parse JSON".
     if (body.model === "sse-mac-dinh" && body.stream !== false) {
-      return new Response('data: {"choices":[{"delta":{"content":"{"}}]}\n\n', { headers: { "Content-Type": "text/event-stream" } });
+      return new Response('data: {"choices":[{"delta":{"content":"{"}}]}\n\n', {
+        headers: { "Content-Type": "text/event-stream" },
+      });
     }
     if (body.model === "chet") return new Response('{"error":"ECONNREFUSED"}', { status: 503 });
     if (body.model === "sai-input") return new Response('{"error":"bad"}', { status: 400 });
@@ -31,12 +33,16 @@ describe("complete — danh sách model dự phòng", () => {
 
   it("lỗi 4xx (request sai) không đổi model — đổi cũng vô ích", async () => {
     seen.length = 0;
-    await expect(complete({ baseUrl, apiKey: "", model: "sai-input,song" }, "s", "u")).rejects.toThrow(/400/);
+    await expect(
+      complete({ baseUrl, apiKey: "", model: "sai-input,song" }, "s", "u"),
+    ).rejects.toThrow(/400/);
     expect(seen).toEqual(["sai-input"]);
   });
 
   it("luôn xin trả lời một lần (stream:false) — proxy mặc định stream thì vẫn đọc được", async () => {
-    expect(await complete({ baseUrl, apiKey: "", model: "sse-mac-dinh" }, "s", "u")).toBe("tra-loi-tu-sse-mac-dinh");
+    expect(await complete({ baseUrl, apiKey: "", model: "sse-mac-dinh" }, "s", "u")).toBe(
+      "tra-loi-tu-sse-mac-dinh",
+    );
   });
 
   it("hết model thì ném lỗi của model cuối", async () => {
@@ -66,7 +72,10 @@ describe("extractJson", () => {
 
 describe("llmConfigFromEnv / isLlmConfigured", () => {
   test("OpenClaw chỉ cần model, không cần URL/key (server dùng model OpenClaw đang đăng nhập)", () => {
-    const c = llmConfigFromEnv({ OPENAI_API_STYLE: "openclaw", OPENAI_MODEL: "openai/gpt-5.6-luna" });
+    const c = llmConfigFromEnv({
+      OPENAI_API_STYLE: "openclaw",
+      OPENAI_MODEL: "openai/gpt-5.6-luna",
+    });
     expect(c.api).toBe("openclaw");
     expect(isLlmConfigured(c)).toBe(true);
   });

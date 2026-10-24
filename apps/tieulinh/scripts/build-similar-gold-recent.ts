@@ -38,9 +38,21 @@ for (const { issue, timeline } of dump.issues) {
   const positives = hk.positives.filter((x) => x !== id);
   const pin = (timeline ?? [])
     .filter((c: any) => c?.kind === "comment" && c.pinned && !isSystemActor(c.actorName))
-    .sort((a: any, b: any) => String(a.pinnedAt ?? a.createdAt ?? "").localeCompare(String(b.pinnedAt ?? b.createdAt ?? "")))
+    .sort((a: any, b: any) =>
+      String(a.pinnedAt ?? a.createdAt ?? "").localeCompare(
+        String(b.pinnedAt ?? b.createdAt ?? ""),
+      ),
+    )
     .at(-1);
-  rows.push({ id, createdAt: issue.createdAt, title: issue.title, positives, cause: hk.cause, fix: hk.fix, pinnedActor: pin?.actorName });
+  rows.push({
+    id,
+    createdAt: issue.createdAt,
+    title: issue.title,
+    positives,
+    cause: hk.cause,
+    fix: hk.fix,
+    pinnedActor: pin?.actorName,
+  });
 }
 
 const withPositives = rows.filter((r) => r.positives.length > 0);
@@ -48,7 +60,12 @@ const pinnedNoPositives = rows.filter((r) => r.positives.length === 0 && r.cause
 
 console.log(`Tổng ticket TECH tạo từ ${CUTOFF}: ${rows.length}`);
 console.log(`Có người gắn tương tự (positives>0): ${withPositives.length}`);
-console.log(`Có ghim nguyên nhân nhưng KHÔNG gắn tương tự (đáp án rỗng): ${pinnedNoPositives.length}`);
+console.log(
+  `Có ghim nguyên nhân nhưng KHÔNG gắn tương tự (đáp án rỗng): ${pinnedNoPositives.length}`,
+);
 
-await Bun.write(`${DATA_DIR}/similar-recent-gold.json`, JSON.stringify({ withPositives, pinnedNoPositives }, null, 1));
+await Bun.write(
+  `${DATA_DIR}/similar-recent-gold.json`,
+  JSON.stringify({ withPositives, pinnedNoPositives }, null, 1),
+);
 console.log(`Đã ghi ${DATA_DIR}/similar-recent-gold.json`);

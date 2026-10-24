@@ -1,7 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import { SimilarityIndex, searchTokens, type CorpusTicket } from "./similar-finder";
 
-const t = (identifier: string, title: string, causeCluster?: string, extra: Partial<CorpusTicket> = {}): CorpusTicket => ({
+const t = (
+  identifier: string,
+  title: string,
+  causeCluster?: string,
+  extra: Partial<CorpusTicket> = {},
+): CorpusTicket => ({
   identifier,
   title,
   causeCluster,
@@ -15,9 +20,15 @@ const CORPUS: CorpusTicket[] = [
     humanFix: "Gỡ tk học 1 con bị trùng & thêm chữ BỎ",
     resolvedAt: "2026-09-21T09:00:00Z",
   }),
-  t("TECH-775", "Không tạo được đơn do trùng tài khoản con", "TECH-337", { resolvedAt: "2026-09-22T09:00:00Z" }),
-  t("TECH-337", "Không thể lên đơn do trùng tên con và tài khoản Vuihoc", "TECH-337", { resolvedAt: "2026-09-01T09:00:00Z" }),
-  t("TECH-909", "Tài khoản con bị trùng, sale không lên được đơn", "TECH-337", { resolvedAt: "2026-09-25T09:00:00Z" }),
+  t("TECH-775", "Không tạo được đơn do trùng tài khoản con", "TECH-337", {
+    resolvedAt: "2026-09-22T09:00:00Z",
+  }),
+  t("TECH-337", "Không thể lên đơn do trùng tên con và tài khoản Vuihoc", "TECH-337", {
+    resolvedAt: "2026-09-01T09:00:00Z",
+  }),
+  t("TECH-909", "Tài khoản con bị trùng, sale không lên được đơn", "TECH-337", {
+    resolvedAt: "2026-09-25T09:00:00Z",
+  }),
   t("TECH-840", "Không tạo được đơn với số điện thoại trên OMS", "TECH-813"),
   t("TECH-703", "Web Vuihoc chậm, không vào được lớp", "TECH-703"),
   t("TECH-704", "Web vuihoc quay vòng không vào học được", "TECH-703"),
@@ -47,7 +58,9 @@ describe("SimilarityIndex.search", () => {
   });
 
   it("loại excludeIds", () => {
-    const hits = index.search("bị trùng tài khoản con, sale không lên được đơn", { excludeIds: ["TECH-909"] });
+    const hits = index.search("bị trùng tài khoản con, sale không lên được đơn", {
+      excludeIds: ["TECH-909"],
+    });
     expect(hits.map((h) => h.ticket.identifier)).not.toContain("TECH-909");
   });
 

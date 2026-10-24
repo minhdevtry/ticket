@@ -20,19 +20,31 @@ import { resolveFriendlyStatusName } from "../lib/itsaplan/status";
 import { describeState } from "../lib/itsaplan/state-messages";
 import type { TicketBinding, TicketBindingRepository } from "../lib/storage/binding-repository";
 import { markBotComment, escapeItsaplanMarkdown } from "../lib/formatting";
-import { closedTicketRefusalMessage, resolveSupplementMentionTarget } from "../lib/itsaplan/supplement-notifier";
+import {
+  closedTicketRefusalMessage,
+  resolveSupplementMentionTarget,
+} from "../lib/itsaplan/supplement-notifier";
 import { getLogger } from "../lib/logger";
 import type { Notifier } from "./notifier";
-import { identifierInProject, isTieuLinhProject, normalizeProjectKey, projectOfIdentifier } from "./project-lock";
+import {
+  identifierInProject,
+  isTieuLinhProject,
+  normalizeProjectKey,
+  projectOfIdentifier,
+} from "./project-lock";
 
 export type TicketDoneHandler = (issueId: number, identifier: string) => Promise<void>;
 
 export interface TicketClosureOptions {
   db: Database;
   columns: Pick<ProjectColumnStates, "stateOf">;
-  bindings: Pick<TicketBindingRepository, "getBindingByIssueId" | "saveMessageRoute" | "getMessageRoute">;
+  bindings: Pick<
+    TicketBindingRepository,
+    "getBindingByIssueId" | "saveMessageRoute" | "getMessageRoute"
+  >;
   notifiers: Map<string, Notifier>;
-  itsaplan: Pick<ItsaplanClient, "addComment" | "getIssue"> & Partial<Pick<ItsaplanClient, "getProject" | "getIssueTimeline">>;
+  itsaplan: Pick<ItsaplanClient, "addComment" | "getIssue"> &
+    Partial<Pick<ItsaplanClient, "getProject" | "getIssueTimeline">>;
   projectKey?: string;
   onTicketDone?: TicketDoneHandler;
   now?: () => number;
@@ -73,7 +85,10 @@ interface TicketStateRow {
   column_id?: number | null;
 }
 
-const rawChat = (chatId: string | number) => String(chatId).replace(/^telegram:/i, "").trim();
+const rawChat = (chatId: string | number) =>
+  String(chatId)
+    .replace(/^telegram:/i, "")
+    .trim();
 
 function vnTime(ms: number): string {
   const parts = new Intl.DateTimeFormat("vi-VN", {
@@ -100,7 +115,11 @@ export class TicketClosure {
   }
 
   private row(issueId: number): TicketStateRow | null {
-    return (this.db.query(`SELECT * FROM ticket_states WHERE issue_id = ?`).get(issueId) as TicketStateRow) ?? null;
+    return (
+      (this.db
+        .query(`SELECT * FROM ticket_states WHERE issue_id = ?`)
+        .get(issueId) as TicketStateRow) ?? null
+    );
   }
 
   private owns(identifier: string): boolean {
@@ -128,7 +147,9 @@ export class TicketClosure {
 
     const resolved = await this.options.columns.stateOf(projectKey, columnId);
     if (!resolved) {
-      getLogger().warn(`[TicketClosure] ${identifier}: cột #${columnId} không có trong dự án ${projectKey}, bỏ qua.`);
+      getLogger().warn(
+        `[TicketClosure] ${identifier}: cột #${columnId} không có trong dự án ${projectKey}, bỏ qua.`,
+      );
       return null;
     }
     const { state, column } = resolved;
@@ -136,13 +157,17 @@ export class TicketClosure {
     // Dự án có lời báo riêng cho từng cột (PO): đổi giữa hai cột cùng nhóm "mở" (Discussion → PO inprogress → …)
     // cũng phải báo; các dự án khác chỉ báo khi đổi nhóm trạng thái như cũ.
     const described = describeState(projectKey, column.name);
-    const sameColumn = event.columnChanged === false || (prev?.column_id !== null && prev?.column_id !== undefined && prev.column_id === columnId);
+    const sameColumn =
+      event.columnChanged === false ||
+      (prev?.column_id !== null && prev?.column_id !== undefined && prev.column_id === columnId);
     if (prev?.state === state && (!described || sameColumn)) return state;
 
     const now = this.now();
     if (!prev && event.columnChanged === false) {
       this.db
-        .query(`INSERT INTO ticket_states (issue_id, identifier, project_key, state, column_id, updated_at) VALUES (?, ?, ?, ?, ?, ?)`)
+        .query(
+          `INSERT INTO ticket_states (issue_id, identifier, project_key, state, column_id, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+        )
         .run(issueId, identifier, projectKey, state, columnId, now);
       return state;
     }
@@ -161,13 +186,25 @@ export class TicketClosure {
     const notifier = binding ? this.options.notifiers.get(binding.channelType) : undefined;
 
     // Rời đã xử lý (sang hoàn tất hay bị kéo lại) → nút "Đã ổn" cũ hết nghĩa.
-    if (prev?.state === "resolved" && prev.prompt_message_id && binding && notifier?.clearInteractiveButtons) {
+    if (
+      prev?.state === "resolved" &&
+      prev.prompt_message_id &&
+      binding &&
+      notifier?.clearInteractiveButtons
+    ) {
       await notifier.clearInteractiveButtons(binding, prev.prompt_message_id).catch(() => {});
     }
 
     if (binding && notifier) {
       // Dự án có lời giải thích riêng cho từng cột (PO — PO 01/10) thì báo đúng lời đó.
-      await this.notify(binding, notifier, issueId, described ?? resolveFriendlyStatusName(column.name, column.stateType), state, described !== null);
+      await this.notify(
+        binding,
+        notifier,
+        issueId,
+        described ?? resolveFriendlyStatusName(column.name, column.stateType),
+        state,
+        described !== null,
+      );
     }
 
     if (state === "done" && this.options.onTicketDone) {
@@ -189,12 +226,23 @@ export class TicketClosure {
     try {
       const sent = await notifier.notifyStateChange(binding, label, state, exact);
       if (sent === undefined || sent === null) return;
-      this.options.bindings.saveMessageRoute(String(sent), binding.channelType, issueId, binding.identifier, binding.chatId, "state");
+      this.options.bindings.saveMessageRoute(
+        String(sent),
+        binding.channelType,
+        issueId,
+        binding.identifier,
+        binding.chatId,
+        "state",
+      );
       if (state === "resolved") {
-        this.db.query(`UPDATE ticket_states SET prompt_message_id = ? WHERE issue_id = ?`).run(String(sent), issueId);
+        this.db
+          .query(`UPDATE ticket_states SET prompt_message_id = ? WHERE issue_id = ?`)
+          .run(String(sent), issueId);
       }
     } catch (err: any) {
-      getLogger().error(`[TicketClosure] Báo trạng thái ${binding.identifier} cho người báo lỗi: ${err.message}`);
+      getLogger().error(
+        `[TicketClosure] Báo trạng thái ${binding.identifier} cho người báo lỗi: ${err.message}`,
+      );
     }
   }
 
@@ -202,23 +250,37 @@ export class TicketClosure {
    * Người báo bấm "👍 Đã ổn". Chỉ ghi comment — không đổi trạng thái ticket.
    * Trạng thái xét theo Itsaplan ngay lúc bấm (nút có thể đã cũ).
    */
-  async recordReporterOk(request: { issueId: number; chatId: string | number; userName?: string }): Promise<ReporterOkResult> {
+  async recordReporterOk(request: {
+    issueId: number;
+    chatId: string | number;
+    userName?: string;
+  }): Promise<ReporterOkResult> {
     const { issueId } = request;
     const binding = this.options.bindings.getBindingByIssueId(issueId);
     if (!binding || !this.owns(binding.identifier)) {
       return { outcome: "unknown", replyText: "Dạ em không tìm thấy ticket này ạ." };
     }
     if (rawChat(binding.chatId) !== rawChat(request.chatId)) {
-      getLogger().warn(`[TicketClosure] Bấm "Đã ổn" cho ${binding.identifier} từ chat lạ ${request.chatId}, bỏ qua.`);
-      return { outcome: "not_bound", replyText: "Dạ nút này không thuộc cuộc trò chuyện của ticket ạ." };
+      getLogger().warn(
+        `[TicketClosure] Bấm "Đã ổn" cho ${binding.identifier} từ chat lạ ${request.chatId}, bỏ qua.`,
+      );
+      return {
+        outcome: "not_bound",
+        replyText: "Dạ nút này không thuộc cuộc trò chuyện của ticket ạ.",
+      };
     }
 
     const state = await this.liveState(issueId, binding.identifier);
     const id = binding.identifier;
-    if (state === "done") return { outcome: "done", replyText: `Dạ ticket ${id} đã hoàn tất rồi ạ.` };
-    if (state === "canceled") return { outcome: "canceled", replyText: `Dạ ticket ${id} đã được huỷ ạ.` };
+    if (state === "done")
+      return { outcome: "done", replyText: `Dạ ticket ${id} đã hoàn tất rồi ạ.` };
+    if (state === "canceled")
+      return { outcome: "canceled", replyText: `Dạ ticket ${id} đã được huỷ ạ.` };
     if (state !== "resolved") {
-      return { outcome: "reopened", replyText: `Dạ ticket ${id} đang được xử lý lại, em sẽ báo anh/chị khi xong ạ.` };
+      return {
+        outcome: "reopened",
+        replyText: `Dạ ticket ${id} đang được xử lý lại, em sẽ báo anh/chị khi xong ạ.`,
+      };
     }
 
     const ack = "Dạ em đã ghi nhận, chuyên viên sẽ kiểm tra lại và đóng ticket ạ.";
@@ -227,7 +289,10 @@ export class TicketClosure {
 
     const now = this.now();
     const who = request.userName?.trim() || "Người báo";
-    await this.options.itsaplan.addComment(issueId, markBotComment(`**${who}** phản hồi: đã ổn (${vnTime(now)}).`));
+    await this.options.itsaplan.addComment(
+      issueId,
+      markBotComment(`**${who}** phản hồi: đã ổn (${vnTime(now)}).`),
+    );
     this.db
       .query(`
         INSERT INTO ticket_states (issue_id, identifier, project_key, state, reporter_ok_at, updated_at)
@@ -307,7 +372,9 @@ export class TicketClosure {
     }
     await this.options.itsaplan.addComment(
       route.issueId,
-      markBotComment(`**${who}** phản hồi${mentionSuffix}: ${escapeItsaplanMarkdown(request.text)} (${vnTime(now)}).`),
+      markBotComment(
+        `**${who}** phản hồi${mentionSuffix}: ${escapeItsaplanMarkdown(request.text)} (${vnTime(now)}).`,
+      ),
     );
     return {
       handled: true,

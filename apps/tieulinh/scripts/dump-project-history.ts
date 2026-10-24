@@ -41,8 +41,14 @@ const list = await retry(() => client.listProjectIssues(project, { limit: 1000 }
 const columns = await retry(() => client.listProjectColumns(project));
 const issues: Array<{ issue: unknown; timeline: unknown[] }> = [];
 for (const item of list) {
-  issues.push({ issue: await retry(() => client.getIssue(item.id)), timeline: await retry(() => client.getIssueTimeline(item.id)) });
+  issues.push({
+    issue: await retry(() => client.getIssue(item.id)),
+    timeline: await retry(() => client.getIssueTimeline(item.id)),
+  });
   await Bun.sleep(40);
 }
-await Bun.write(out, JSON.stringify({ project, dumpedAt: new Date().toISOString(), columns, issues }));
+await Bun.write(
+  out,
+  JSON.stringify({ project, dumpedAt: new Date().toISOString(), columns, issues }),
+);
 console.log(`${project}: ${issues.length} ticket → ${out}`);

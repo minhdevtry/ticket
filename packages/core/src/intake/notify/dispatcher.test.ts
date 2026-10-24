@@ -69,7 +69,9 @@ const copy: StateChangeCopyMap = {
         : null,
 };
 
-const columns = (map: Record<number, { state: TicketLifecycleState; columnName: string }>): ColumnStateResolverPort => ({
+const columns = (
+  map: Record<number, { state: TicketLifecycleState; columnName: string }>,
+): ColumnStateResolverPort => ({
   async stateOf({ columnId }) {
     return map[columnId] ?? null;
   },

@@ -29,7 +29,10 @@ describe("tool-error: error codes", () => {
 
 describe("tool-error: describeToolFailure", () => {
   test("thông báo mang đủ mã lỗi, chi tiết và lời dặn chụp màn hình (intake)", () => {
-    const failure = describeToolFailure("create_issue", new Error("Itsaplan 503 Service Unavailable"));
+    const failure = describeToolFailure(
+      "create_issue",
+      new Error("Itsaplan 503 Service Unavailable"),
+    );
     expect(failure.loi).toBe(true);
     expect(failure.thong_bao_cho_nguoi_dung).toContain(failure.ma_loi);
     expect(failure.thong_bao_cho_nguoi_dung).toContain("Itsaplan 503 Service Unavailable");

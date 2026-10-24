@@ -1,4 +1,4 @@
-import { ItsaplanClient } from "./client";
+import type { ItsaplanClient } from "./client";
 import { getLogger } from "../logger";
 
 export interface LabelDefinition {

@@ -34,41 +34,81 @@ describe("LlmSimilarTickets.find", () => {
 
   it("chốt chặn quote-match: chấp nhận dù LLM chỉ báo confidence thấp, không cần cụm ≥ 2", async () => {
     const corpus: CorpusTicket[] = [
-      { identifier: "TECH-1", title: "Lỗi thanh toán", symptomsText: 'Hệ thống báo "Không thể xử lý giao dịch do trùng mã đơn hàng"' },
+      {
+        identifier: "TECH-1",
+        title: "Lỗi thanh toán",
+        symptomsText: 'Hệ thống báo "Không thể xử lý giao dịch do trùng mã đơn hàng"',
+      },
     ];
-    const { server: s, baseUrl } = makeLlmServer(() => ({ same_root_cause: true, confidence: "low" }));
+    const { server: s, baseUrl } = makeLlmServer(() => ({
+      same_root_cause: true,
+      confidence: "low",
+    }));
     server = s;
     const src = new LlmSimilarTickets({
       memgraph: memgraphOf(corpus),
       llm: { baseUrl, apiKey: "", model: "m" },
       projectKey: "TECH",
     });
-    const match = await src.find('Khách báo "Không thể xử lý giao dịch do trùng mã đơn hàng ABC123"');
+    const match = await src.find(
+      'Khách báo "Không thể xử lý giao dịch do trùng mã đơn hàng ABC123"',
+    );
     expect(match?.members.map((m) => m.identifier)).toEqual(["TECH-1"]);
   });
 
   it("chốt chặn quote-conflict: từ chối dù LLM báo same_root_cause=true, confidence high", async () => {
     const corpus: CorpusTicket[] = [
-      { identifier: "TECH-1", title: "Lỗi khác", symptomsText: 'Hệ thống báo "Số dư tài khoản không đủ để thực hiện giao dịch"' },
+      {
+        identifier: "TECH-1",
+        title: "Lỗi khác",
+        symptomsText: 'Hệ thống báo "Số dư tài khoản không đủ để thực hiện giao dịch"',
+      },
     ];
-    const { server: s, baseUrl } = makeLlmServer(() => ({ same_root_cause: true, confidence: "high" }));
+    const { server: s, baseUrl } = makeLlmServer(() => ({
+      same_root_cause: true,
+      confidence: "high",
+    }));
     server = s;
     const src = new LlmSimilarTickets({
       memgraph: memgraphOf(corpus),
       llm: { baseUrl, apiKey: "", model: "m" },
       projectKey: "TECH",
     });
-    const match = await src.find('Khách báo "Không thể xử lý giao dịch do trùng mã đơn hàng ABC123"');
+    const match = await src.find(
+      'Khách báo "Không thể xử lý giao dịch do trùng mã đơn hàng ABC123"',
+    );
     expect(match).toBeNull();
   });
 
   it("không có quote để đối chiếu: cần LLM 'high' VÀ cụm ứng viên đã ≥ 2 thành viên", async () => {
     const corpus: CorpusTicket[] = [
-      { identifier: "TECH-1", title: "Đồng bộ lớp lỗi", symptomsText: "Không đồng bộ được lớp học", causeCluster: "A", humanCause: "Lỗi sync cache", humanFix: "Xoá cache app" },
-      { identifier: "TECH-2", title: "Đồng bộ lỗi lần 2", symptomsText: "Lớp học không đồng bộ", causeCluster: "A" },
-      { identifier: "TECH-3", title: "Sai học phí", symptomsText: "Học phí tính sai sau đổi gói", causeCluster: "B", humanCause: "Đổi gói tính sai học phí", humanFix: "Tính lại thủ công" },
+      {
+        identifier: "TECH-1",
+        title: "Đồng bộ lớp lỗi",
+        symptomsText: "Không đồng bộ được lớp học",
+        causeCluster: "A",
+        humanCause: "Lỗi sync cache",
+        humanFix: "Xoá cache app",
+      },
+      {
+        identifier: "TECH-2",
+        title: "Đồng bộ lỗi lần 2",
+        symptomsText: "Lớp học không đồng bộ",
+        causeCluster: "A",
+      },
+      {
+        identifier: "TECH-3",
+        title: "Sai học phí",
+        symptomsText: "Học phí tính sai sau đổi gói",
+        causeCluster: "B",
+        humanCause: "Đổi gói tính sai học phí",
+        humanFix: "Tính lại thủ công",
+      },
     ];
-    const { server: s, baseUrl } = makeLlmServer(() => ({ same_root_cause: true, confidence: "high" }));
+    const { server: s, baseUrl } = makeLlmServer(() => ({
+      same_root_cause: true,
+      confidence: "high",
+    }));
     server = s;
     const src = new LlmSimilarTickets({
       memgraph: memgraphOf(corpus),
@@ -79,14 +119,26 @@ describe("LlmSimilarTickets.find", () => {
     const match = await src.find("không đồng bộ được lớp học");
     expect(match?.clusterId).toBe("A");
     expect(match?.members.map((m) => m.identifier).sort()).toEqual(["TECH-1", "TECH-2"]);
-    expect(match?.advice).toEqual({ cause: "Lỗi sync cache", fix: "Xoá cache app", from: "TECH-1" });
+    expect(match?.advice).toEqual({
+      cause: "Lỗi sync cache",
+      fix: "Xoá cache app",
+      from: "TECH-1",
+    });
   });
 
   it("cụm ứng viên đơn lẻ (không ai khác cùng cụm) dù LLM báo 'high' → không đủ căn cứ, không gợi ý", async () => {
     const corpus: CorpusTicket[] = [
-      { identifier: "TECH-9", title: "Sự cố lẻ", symptomsText: "Sự cố abc không rõ nguyên nhân", causeCluster: "Z" },
+      {
+        identifier: "TECH-9",
+        title: "Sự cố lẻ",
+        symptomsText: "Sự cố abc không rõ nguyên nhân",
+        causeCluster: "Z",
+      },
     ];
-    const { server: s, baseUrl } = makeLlmServer(() => ({ same_root_cause: true, confidence: "high" }));
+    const { server: s, baseUrl } = makeLlmServer(() => ({
+      same_root_cause: true,
+      confidence: "high",
+    }));
     server = s;
     const src = new LlmSimilarTickets({
       memgraph: memgraphOf(corpus),
@@ -98,9 +150,27 @@ describe("LlmSimilarTickets.find", () => {
 
   it("giãn cụm KG trừ negatives: thành viên bị REJECTED_RELATION với ứng viên chấp nhận không được kéo ra", async () => {
     const corpus: CorpusTicket[] = [
-      { identifier: "TECH-1", title: "Đăng nhập lỗi", symptomsText: "App treo khi đăng nhập lần đầu", causeCluster: "C", humanCause: "Token hết hạn", humanFix: "Đăng xuất, đăng nhập lại", negatives: ["TECH-2"] },
-      { identifier: "TECH-2", title: "Đăng nhập lỗi khác", symptomsText: "Đăng nhập app bị văng liên tục", causeCluster: "C" },
-      { identifier: "TECH-3", title: "Đăng nhập lỗi lần 3", symptomsText: "App đăng nhập lỗi treo màn hình", causeCluster: "C" },
+      {
+        identifier: "TECH-1",
+        title: "Đăng nhập lỗi",
+        symptomsText: "App treo khi đăng nhập lần đầu",
+        causeCluster: "C",
+        humanCause: "Token hết hạn",
+        humanFix: "Đăng xuất, đăng nhập lại",
+        negatives: ["TECH-2"],
+      },
+      {
+        identifier: "TECH-2",
+        title: "Đăng nhập lỗi khác",
+        symptomsText: "Đăng nhập app bị văng liên tục",
+        causeCluster: "C",
+      },
+      {
+        identifier: "TECH-3",
+        title: "Đăng nhập lỗi lần 3",
+        symptomsText: "App đăng nhập lỗi treo màn hình",
+        causeCluster: "C",
+      },
     ];
     const { server: s, baseUrl } = makeLlmServer((prompt) => ({
       same_root_cause: prompt.includes("TECH-1") || prompt.includes("TECH-3"),
@@ -118,13 +188,40 @@ describe("LlmSimilarTickets.find", () => {
 
   it("ứng viên chấp nhận rơi vào ≥ 2 cụm khác nhau → không ghi gì, có câu hỏi phân biệt", async () => {
     const corpus: CorpusTicket[] = [
-      { identifier: "TECH-1", title: "Trùng tài khoản A", symptomsText: "Trùng tài khoản do 2 hồ sơ cùng tên", causeCluster: "A", humanCause: "Cùng tên nên trùng hồ sơ", humanFix: "Gỡ 1 hồ sơ trùng" },
-      { identifier: "TECH-2", title: "Trùng tài khoản A2", symptomsText: "Trùng tài khoản do 2 hồ sơ cùng tên khác", causeCluster: "A" },
-      { identifier: "TECH-3", title: "Trùng tài khoản B", symptomsText: "Trùng tài khoản do book test chưa có tk", causeCluster: "B", humanCause: "Book test tạo tk trùng", humanFix: "Xoá tk test" },
-      { identifier: "TECH-4", title: "Trùng tài khoản B2", symptomsText: "Trùng tài khoản khi book test lần 2", causeCluster: "B" },
+      {
+        identifier: "TECH-1",
+        title: "Trùng tài khoản A",
+        symptomsText: "Trùng tài khoản do 2 hồ sơ cùng tên",
+        causeCluster: "A",
+        humanCause: "Cùng tên nên trùng hồ sơ",
+        humanFix: "Gỡ 1 hồ sơ trùng",
+      },
+      {
+        identifier: "TECH-2",
+        title: "Trùng tài khoản A2",
+        symptomsText: "Trùng tài khoản do 2 hồ sơ cùng tên khác",
+        causeCluster: "A",
+      },
+      {
+        identifier: "TECH-3",
+        title: "Trùng tài khoản B",
+        symptomsText: "Trùng tài khoản do book test chưa có tk",
+        causeCluster: "B",
+        humanCause: "Book test tạo tk trùng",
+        humanFix: "Xoá tk test",
+      },
+      {
+        identifier: "TECH-4",
+        title: "Trùng tài khoản B2",
+        symptomsText: "Trùng tài khoản khi book test lần 2",
+        causeCluster: "B",
+      },
     ];
     const { server: s, baseUrl } = makeLlmServer((prompt) => {
-      if (prompt.includes("CÁC THẺ NGUYÊN NHÂN")) return { question: "Anh/chị kiểm tra CRM xem hồ sơ có phải do book test hay trùng tên nhé." };
+      if (prompt.includes("CÁC THẺ NGUYÊN NHÂN"))
+        return {
+          question: "Anh/chị kiểm tra CRM xem hồ sơ có phải do book test hay trùng tên nhé.",
+        };
       return { same_root_cause: true, confidence: "high" };
     });
     server = s;
@@ -140,8 +237,13 @@ describe("LlmSimilarTickets.find", () => {
   });
 
   it("hết giờ (timeout) xác minh → không gợi ý, không trả kết quả nửa vời", async () => {
-    const corpus: CorpusTicket[] = [{ identifier: "TECH-1", title: "Lỗi chậm", symptomsText: "Sự cố lỗi chậm chạp" }];
-    const { server: s, baseUrl } = makeLlmServer(() => ({ same_root_cause: true, confidence: "high" }), 200);
+    const corpus: CorpusTicket[] = [
+      { identifier: "TECH-1", title: "Lỗi chậm", symptomsText: "Sự cố lỗi chậm chạp" },
+    ];
+    const { server: s, baseUrl } = makeLlmServer(
+      () => ({ same_root_cause: true, confidence: "high" }),
+      200,
+    );
     server = s;
     const src = new LlmSimilarTickets({
       memgraph: memgraphOf(corpus),
@@ -184,7 +286,8 @@ describe("LlmSimilarTickets.find", () => {
       },
     ];
     const { server: s, baseUrl } = makeLlmServer((prompt) => {
-      if (prompt.includes("CÁC THẺ NGUYÊN NHÂN")) return { question: "Anh/chị kiểm tra CRM xem 2 tài khoản có chung SĐT không nhé." };
+      if (prompt.includes("CÁC THẺ NGUYÊN NHÂN"))
+        return { question: "Anh/chị kiểm tra CRM xem 2 tài khoản có chung SĐT không nhé." };
       return { same_root_cause: prompt.includes("TECH-712"), confidence: "medium" };
     });
     server = s;
@@ -205,9 +308,16 @@ describe("LlmSimilarTickets.find", () => {
 
   it("không ứng viên nào same_root_cause=true → không gợi ý gì (không possible, không question)", async () => {
     const corpus: CorpusTicket[] = [
-      { identifier: "TECH-1", title: "Lỗi không liên quan", symptomsText: "Sự cố hoàn toàn khác không ăn nhập" },
+      {
+        identifier: "TECH-1",
+        title: "Lỗi không liên quan",
+        symptomsText: "Sự cố hoàn toàn khác không ăn nhập",
+      },
     ];
-    const { server: s, baseUrl } = makeLlmServer(() => ({ same_root_cause: false, confidence: "low" }));
+    const { server: s, baseUrl } = makeLlmServer(() => ({
+      same_root_cause: false,
+      confidence: "low",
+    }));
     server = s;
     const src = new LlmSimilarTickets({
       memgraph: memgraphOf(corpus),
@@ -232,38 +342,96 @@ describe("LlmSimilarTickets.find", () => {
   });
   it("nhánh high phải ổn định: kiểm lại lật sang false → KHÔNG ghi, hạ xuống 'chưa chắc' (TECH-956 28/09)", async () => {
     const corpus: CorpusTicket[] = [
-      { identifier: "TECH-1", title: "Trùng tài khoản học", symptomsText: "Không tạo được đơn do trùng tài khoản", causeCluster: "A", humanCause: "Gắn trùng tk học do cùng tên" },
-      { identifier: "TECH-2", title: "Trùng tài khoản học", symptomsText: "Không tạo được đơn do trùng tài khoản", causeCluster: "A", humanCause: "Gắn trùng tk học do cùng tên" },
+      {
+        identifier: "TECH-1",
+        title: "Trùng tài khoản học",
+        symptomsText: "Không tạo được đơn do trùng tài khoản",
+        causeCluster: "A",
+        humanCause: "Gắn trùng tk học do cùng tên",
+      },
+      {
+        identifier: "TECH-2",
+        title: "Trùng tài khoản học",
+        symptomsText: "Không tạo được đơn do trùng tài khoản",
+        causeCluster: "A",
+        humanCause: "Gắn trùng tk học do cùng tên",
+      },
     ];
     const { server: s, baseUrl } = makeLlmServer((p) =>
-      p.includes("Kiểm tra độc lập lần") ? { same_root_cause: false, confidence: "low" } : { same_root_cause: true, confidence: "high" },
+      p.includes("Kiểm tra độc lập lần")
+        ? { same_root_cause: false, confidence: "low" }
+        : { same_root_cause: true, confidence: "high" },
     );
     server = s;
-    const src = new LlmSimilarTickets({ memgraph: memgraphOf(corpus), llm: { baseUrl, apiKey: "", model: "m" }, projectKey: "TECH" });
+    const src = new LlmSimilarTickets({
+      memgraph: memgraphOf(corpus),
+      llm: { baseUrl, apiKey: "", model: "m" },
+      projectKey: "TECH",
+    });
     const match = await src.find("Không tạo được đơn hàng do trùng tài khoản");
     expect(match?.members ?? []).toEqual([]);
   });
 
   it("nhánh high ổn định 3/3 → ghi cả cụm như cũ", async () => {
     const corpus: CorpusTicket[] = [
-      { identifier: "TECH-1", title: "Trùng tài khoản học", symptomsText: "Không tạo được đơn do trùng tài khoản", causeCluster: "A", humanCause: "Gắn trùng tk học do cùng tên" },
-      { identifier: "TECH-2", title: "Trùng tài khoản học", symptomsText: "Không tạo được đơn do trùng tài khoản", causeCluster: "A", humanCause: "Gắn trùng tk học do cùng tên" },
+      {
+        identifier: "TECH-1",
+        title: "Trùng tài khoản học",
+        symptomsText: "Không tạo được đơn do trùng tài khoản",
+        causeCluster: "A",
+        humanCause: "Gắn trùng tk học do cùng tên",
+      },
+      {
+        identifier: "TECH-2",
+        title: "Trùng tài khoản học",
+        symptomsText: "Không tạo được đơn do trùng tài khoản",
+        causeCluster: "A",
+        humanCause: "Gắn trùng tk học do cùng tên",
+      },
     ];
-    const { server: s, baseUrl } = makeLlmServer(() => ({ same_root_cause: true, confidence: "high" }));
+    const { server: s, baseUrl } = makeLlmServer(() => ({
+      same_root_cause: true,
+      confidence: "high",
+    }));
     server = s;
-    const src = new LlmSimilarTickets({ memgraph: memgraphOf(corpus), llm: { baseUrl, apiKey: "", model: "m" }, projectKey: "TECH" });
+    const src = new LlmSimilarTickets({
+      memgraph: memgraphOf(corpus),
+      llm: { baseUrl, apiKey: "", model: "m" },
+      projectKey: "TECH",
+    });
     const match = await src.find("Không tạo được đơn hàng do trùng tài khoản");
     expect(match?.members.map((m) => m.identifier).sort()).toEqual(["TECH-1", "TECH-2"]);
   });
   it("quote-match nhận cả khi LLM nói khác nguyên nhân (TECH-958: cùng câu lỗi PCM, khác môn)", async () => {
     const corpus: CorpusTicket[] = [
-      { identifier: "TECH-864", title: "Không chuyển được phí", symptomsText: 'Báo lỗi "Không tìm thấy gói chuyển phí bên PCM"', causeCluster: "P", humanCause: 'Lỗi "Không tìm thấy gói chuyển phí bên PCM"' },
-      { identifier: "TECH-859", title: "Không chuyển nhượng được", symptomsText: 'Báo lỗi "Không tìm thấy gói chuyển phí bên PCM"', causeCluster: "P", humanCause: 'Lỗi "Không tìm thấy gói chuyển phí bên PCM"' },
+      {
+        identifier: "TECH-864",
+        title: "Không chuyển được phí",
+        symptomsText: 'Báo lỗi "Không tìm thấy gói chuyển phí bên PCM"',
+        causeCluster: "P",
+        humanCause: 'Lỗi "Không tìm thấy gói chuyển phí bên PCM"',
+      },
+      {
+        identifier: "TECH-859",
+        title: "Không chuyển nhượng được",
+        symptomsText: 'Báo lỗi "Không tìm thấy gói chuyển phí bên PCM"',
+        causeCluster: "P",
+        humanCause: 'Lỗi "Không tìm thấy gói chuyển phí bên PCM"',
+      },
     ];
-    const { server: s, baseUrl } = makeLlmServer(() => ({ same_root_cause: false, confidence: "medium" }));
+    const { server: s, baseUrl } = makeLlmServer(() => ({
+      same_root_cause: false,
+      confidence: "medium",
+    }));
     server = s;
-    const src = new LlmSimilarTickets({ memgraph: memgraphOf(corpus), llm: { baseUrl, apiKey: "", model: "m" }, projectKey: "TECH" });
-    const match = await src.find('HS không chuyển được phí môn Sinh, báo lỗi "Không tìm thấy gói chuyển phí bên PCM"');
+    const src = new LlmSimilarTickets({
+      memgraph: memgraphOf(corpus),
+      llm: { baseUrl, apiKey: "", model: "m" },
+      projectKey: "TECH",
+    });
+    const match = await src.find(
+      'HS không chuyển được phí môn Sinh, báo lỗi "Không tìm thấy gói chuyển phí bên PCM"',
+    );
     expect(match?.members.map((m) => m.identifier).sort()).toEqual(["TECH-859", "TECH-864"]);
   });
 });

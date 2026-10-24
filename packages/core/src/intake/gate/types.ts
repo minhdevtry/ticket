@@ -184,6 +184,9 @@ export interface InlineButton {
   callbackData: string;
 }
 
-export function createRecord(variant: VariantKey, values: Record<string, string> = {}): IntakeRecord {
+export function createRecord(
+  variant: VariantKey,
+  values: Record<string, string> = {},
+): IntakeRecord {
   return { variant, values, questionCount: {}, explicitlyMissing: [] };
 }

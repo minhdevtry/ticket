@@ -45,7 +45,9 @@ if (limit > 0) tickets = tickets.slice(0, limit);
 
 if (dryRun) {
   for (const t of tickets.slice(0, 10)) {
-    console.log(`  [dry] ${t.identifier} — ${t.causeTaxonId ?? "(chưa phân loại)"} — ${t.rootCause.slice(0, 60)}`);
+    console.log(
+      `  [dry] ${t.identifier} — ${t.causeTaxonId ?? "(chưa phân loại)"} — ${t.rootCause.slice(0, 60)}`,
+    );
   }
   console.log(`... và ${Math.max(0, tickets.length - 10)} ticket nữa`);
   await memgraph.close();
@@ -61,7 +63,9 @@ console.log("Đang đảm bảo connector/document-set 'kg-cause-taxonomy' tồn
 const conn = await connectorManager.ensureTestConnector();
 console.log(`OK — cc_pair_id=${conn.ccPairId}, document_set=${conn.documentSetName}`);
 
-const formatDoc = (t: Awaited<ReturnType<typeof memgraph.listResolvedTicketsForExport>>[number]) => {
+const formatDoc = (
+  t: Awaited<ReturnType<typeof memgraph.listResolvedTicketsForExport>>[number],
+) => {
   const closedDate = t.resolvedAt ? t.resolvedAt.slice(0, 10) : "";
   const headerParts = [t.identifier];
   if (t.system) headerParts.push(t.system);
@@ -86,12 +90,16 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const itsaplanTeamRef =
   itsaplanBaseUrl && itsaplanApiKey
-    ? await resolveProjectTeamRef(new ItsaplanClient(itsaplanBaseUrl, itsaplanApiKey), itsaplanProjectKey)
+    ? await resolveProjectTeamRef(
+        new ItsaplanClient(itsaplanBaseUrl, itsaplanApiKey),
+        itsaplanProjectKey,
+      )
     : undefined;
 
 for (const [i, t] of tickets.entries()) {
   const docId = `kg_${t.identifier.toLowerCase().replace(/[^a-z0-9_-]/g, "_")}`;
-  const link = issueWebUrl(itsaplanWebUrl, itsaplanProjectKey, t.identifier, undefined, itsaplanTeamRef) ?? "";
+  const link =
+    issueWebUrl(itsaplanWebUrl, itsaplanProjectKey, t.identifier, undefined, itsaplanTeamRef) ?? "";
   const textDocument = formatDoc(t);
 
   const payload = {
@@ -122,7 +130,9 @@ for (const [i, t] of tickets.entries()) {
       console.log(`[${i + 1}/${tickets.length}] ✅ ${t.identifier} -> ${docId}`);
     } else {
       failed++;
-      console.log(`[${i + 1}/${tickets.length}] ⚠️  ${t.identifier}: HTTP ${res.status} ${await res.text()}`);
+      console.log(
+        `[${i + 1}/${tickets.length}] ⚠️  ${t.identifier}: HTTP ${res.status} ${await res.text()}`,
+      );
     }
   } catch (err: any) {
     failed++;

@@ -1,5 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import { docXacNhan, docBangWorker, layChatId, layReplyToId, boPhongBiKenh, xuLyXacNhan, laLenhSuCoMoi } from "./index.mjs";
+import {
+  docXacNhan,
+  docBangWorker,
+  layChatId,
+  layReplyToId,
+  boPhongBiKenh,
+  xuLyXacNhan,
+  laLenhSuCoMoi,
+} from "./index.mjs";
 
 describe("docXacNhan", () => {
   it("bắt callback_data reporter_ok:<id>, và confirm_done:<id> của nút cũ trước 24/09", () => {
@@ -7,7 +15,13 @@ describe("docXacNhan", () => {
     expect(docXacNhan("callback_data:confirm_done:7")).toBe(7);
   });
   it("không bắt tin thường hay id lạ", () => {
-    for (const t of ["đã ổn rồi em", "reporter_ok", "callback_data: reporter_ok:abc", "callback_data: đúng rồi", ""]) {
+    for (const t of [
+      "đã ổn rồi em",
+      "reporter_ok",
+      "callback_data: reporter_ok:abc",
+      "callback_data: đúng rồi",
+      "",
+    ]) {
       expect(docXacNhan(t)).toBeNull();
     }
   });
@@ -16,8 +30,15 @@ describe("docXacNhan", () => {
 describe("layChatId", () => {
   // Session key THẬT của gateway (24/09): agent:<agent>:telegram:<account>:direct:<id>.
   it("lấy từ session key, cả chat riêng lẫn nhóm (giữ dấu âm của group id)", () => {
-    expect(layChatId({ sessionKey: "agent:iris-agent:telegram:iris:direct:1000000004" })).toBe("1000000004");
-    expect(layChatId({ sessionKey: "agent:iris-agent:telegram:iris:group:-1000000000001", senderId: "1000000004" })).toBe("-1000000000001");
+    expect(layChatId({ sessionKey: "agent:iris-agent:telegram:iris:direct:1000000004" })).toBe(
+      "1000000004",
+    );
+    expect(
+      layChatId({
+        sessionKey: "agent:iris-agent:telegram:iris:group:-1000000000001",
+        senderId: "1000000004",
+      }),
+    ).toBe("-1000000000001");
   });
   it("ưu tiên chatId khai sẵn; chỉ rơi về senderId khi không còn nguồn nào", () => {
     expect(layChatId({ chatId: "telegram:-100555666", senderId: "111222" })).toBe("-100555666");
@@ -66,12 +87,18 @@ Conversation info (untrusted metadata):
 });
 
 describe("laLenhSuCoMoi", () => {
-  it("bắt \"/new\", không phân biệt hoa thường, có hoặc không kèm @botname", () => {
-    for (const t of ["/new", "/NEW", "/New xin chào", "/new@ticket_intake_bot", "/new@ticket_intake_bot bị lỗi khác"]) {
+  it('bắt "/new", không phân biệt hoa thường, có hoặc không kèm @botname', () => {
+    for (const t of [
+      "/new",
+      "/NEW",
+      "/New xin chào",
+      "/new@ticket_intake_bot",
+      "/new@ticket_intake_bot bị lỗi khác",
+    ]) {
       expect(laLenhSuCoMoi(t)).toBe(true);
     }
   });
-  it("không bắt tin thường, hay \"/new\" là một phần của từ khác", () => {
+  it('không bắt tin thường, hay "/new" là một phần của từ khác', () => {
     for (const t of ["xin chào", "/newbie hỏi thử", "app báo lỗi mới", "", undefined]) {
       expect(laLenhSuCoMoi(t)).toBe(false);
     }
@@ -90,7 +117,12 @@ Conversation info (untrusted metadata):
 describe("docBangWorker", () => {
   it("mặc định chỉ Iris; env ghi đè được", () => {
     expect(docBangWorker({})).toEqual({ "iris-agent": "http://127.0.0.1:3103" });
-    expect(docBangWorker({ XAC_NHAN_XONG_WORKERS: "ticket-intake-agent=http://127.0.0.1:3102, iris-agent=http://127.0.0.1:3103" })).toEqual({
+    expect(
+      docBangWorker({
+        XAC_NHAN_XONG_WORKERS:
+          "ticket-intake-agent=http://127.0.0.1:3102, iris-agent=http://127.0.0.1:3103",
+      }),
+    ).toEqual({
       "ticket-intake-agent": "http://127.0.0.1:3102",
       "iris-agent": "http://127.0.0.1:3103",
     });
@@ -98,7 +130,12 @@ describe("docBangWorker", () => {
 });
 
 describe("xuLyXacNhan", () => {
-  const ctx = { trigger: "user", agentId: "iris-agent", senderId: "111", sessionKey: "agent:iris-agent:telegram:iris:direct:55555" };
+  const ctx = {
+    trigger: "user",
+    agentId: "iris-agent",
+    senderId: "111",
+    sessionKey: "agent:iris-agent:telegram:iris:direct:55555",
+  };
   const worker = (body, status = 200) => {
     const f = async (url, init) => {
       f.last = { url, body: JSON.parse(init.body) };
@@ -109,7 +146,10 @@ describe("xuLyXacNhan", () => {
   const opts = (fetch, daThay = new Map()) => ({ fetch, workers: docBangWorker({}), daThay });
 
   it("gọi /internal/reporter-ok kèm chatId của cuộc trò chuyện, trả nguyên câu worker trả lời", async () => {
-    const f = worker({ outcome: "recorded", replyText: "Dạ em đã ghi nhận, chuyên viên sẽ kiểm tra lại và đóng ticket ạ." });
+    const f = worker({
+      outcome: "recorded",
+      replyText: "Dạ em đã ghi nhận, chuyên viên sẽ kiểm tra lại và đóng ticket ạ.",
+    });
     const r = await xuLyXacNhan({ cleanedBody: "callback_data: reporter_ok:42" }, ctx, opts(f));
     expect(r.handled).toBe(true);
     expect(r.reply.text).toContain("chuyên viên sẽ kiểm tra lại");
@@ -118,7 +158,11 @@ describe("xuLyXacNhan", () => {
   });
 
   it("không bao giờ nói ticket đã đóng (ADR-0006)", async () => {
-    const r = await xuLyXacNhan({ cleanedBody: "callback_data: confirm_done:42" }, ctx, opts(worker({ outcome: "recorded", replyText: "Dạ em đã ghi nhận" })));
+    const r = await xuLyXacNhan(
+      { cleanedBody: "callback_data: confirm_done:42" },
+      ctx,
+      opts(worker({ outcome: "recorded", replyText: "Dạ em đã ghi nhận" })),
+    );
     expect(r.reply.text).not.toMatch(/đóng lại|Hoàn tất và đóng/);
   });
 
@@ -139,22 +183,48 @@ describe("xuLyXacNhan", () => {
       return new Response('{"outcome":"recorded","replyText":"ok"}');
     };
     await xuLyXacNhan({ cleanedBody: "callback_data: reporter_ok:42" }, ctx, opts(f, daThay));
-    const lan2 = await xuLyXacNhan({ cleanedBody: "callback_data: reporter_ok:42" }, ctx, opts(f, daThay));
+    const lan2 = await xuLyXacNhan(
+      { cleanedBody: "callback_data: reporter_ok:42" },
+      ctx,
+      opts(f, daThay),
+    );
     expect(goi).toBe(1);
     expect(lan2).toEqual({ handled: true, reason: "xac-nhan-xong:trung" });
   });
 
   it("agent không có worker, tin thường, hay nhịp tim/cron → không đụng (trả undefined)", async () => {
     const o = opts(worker({ outcome: "recorded", replyText: "ok" }));
-    expect(await xuLyXacNhan({ cleanedBody: "callback_data: reporter_ok:42" }, { ...ctx, agentId: "sales" }, o)).toBeUndefined();
+    expect(
+      await xuLyXacNhan(
+        { cleanedBody: "callback_data: reporter_ok:42" },
+        { ...ctx, agentId: "sales" },
+        o,
+      ),
+    ).toBeUndefined();
     expect(await xuLyXacNhan({ cleanedBody: "xin chào" }, ctx, o)).toBeUndefined();
-    expect(await xuLyXacNhan({ cleanedBody: "callback_data: reporter_ok:42" }, { ...ctx, trigger: "cron" }, o)).toBeUndefined();
-    expect(await xuLyXacNhan({ cleanedBody: "callback_data: reporter_ok:42" }, { ...ctx, trigger: "heartbeat" }, o)).toBeUndefined();
+    expect(
+      await xuLyXacNhan(
+        { cleanedBody: "callback_data: reporter_ok:42" },
+        { ...ctx, trigger: "cron" },
+        o,
+      ),
+    ).toBeUndefined();
+    expect(
+      await xuLyXacNhan(
+        { cleanedBody: "callback_data: reporter_ok:42" },
+        { ...ctx, trigger: "heartbeat" },
+        o,
+      ),
+    ).toBeUndefined();
   });
 
   it("trigger khác 'user' (vd gửi qua openclaw agent) vẫn được bắt — bug PO-88", async () => {
     for (const trigger of [undefined, "cli", "api"]) {
-      const r = await xuLyXacNhan({ cleanedBody: "callback_data: reporter_ok:42" }, { ...ctx, trigger }, opts(worker({ outcome: "done", replyText: "đã hoàn tất rồi" })));
+      const r = await xuLyXacNhan(
+        { cleanedBody: "callback_data: reporter_ok:42" },
+        { ...ctx, trigger },
+        opts(worker({ outcome: "done", replyText: "đã hoàn tất rồi" })),
+      );
       expect(r?.handled).toBe(true);
     }
   });
@@ -171,7 +241,10 @@ Conversation info (untrusted metadata):
 `;
 
     it("route khớp → gọi /internal/reporter-reply, trả lời worker, short-circuit agent", async () => {
-      const f = worker({ handled: true, replyText: "Dạ em đã chuyển phản hồi của anh/chị vào TECH-961 cho đội Kỹ thuật ạ." });
+      const f = worker({
+        handled: true,
+        replyText: "Dạ em đã chuyển phản hồi của anh/chị vào TECH-961 cho đội Kỹ thuật ạ.",
+      });
       const r = await xuLyXacNhan({ cleanedBody: PHAN_HOI }, ctx, opts(f));
       expect(r.handled).toBe(true);
       expect(r.reply.text).toContain("TECH-961");
@@ -215,8 +288,12 @@ Conversation info (untrusted metadata):
 
     it("nhịp tim/cron hay agent chưa có worker → không đụng", async () => {
       const o = opts(worker({ handled: true, replyText: "ok" }));
-      expect(await xuLyXacNhan({ cleanedBody: PHAN_HOI }, { ...ctx, trigger: "cron" }, o)).toBeUndefined();
-      expect(await xuLyXacNhan({ cleanedBody: PHAN_HOI }, { ...ctx, agentId: "sales" }, o)).toBeUndefined();
+      expect(
+        await xuLyXacNhan({ cleanedBody: PHAN_HOI }, { ...ctx, trigger: "cron" }, o),
+      ).toBeUndefined();
+      expect(
+        await xuLyXacNhan({ cleanedBody: PHAN_HOI }, { ...ctx, agentId: "sales" }, o),
+      ).toBeUndefined();
     });
   });
 });
@@ -224,14 +301,20 @@ Conversation info (untrusted metadata):
 describe("xuLyTruocDispatch (hook before_dispatch — có replyToId thật của OpenClaw)", () => {
   const { xuLyTruocDispatch } = require("./index.mjs");
   const fakeFetch = (body) => {
-    const f = async (url, opts) => { f.last = { url, body: JSON.parse(opts.body) }; return { ok: true, status: 200, json: async () => body }; };
+    const f = async (url, opts) => {
+      f.last = { url, body: JSON.parse(opts.body) };
+      return { ok: true, status: 200, json: async () => body };
+    };
     return f;
   };
   it("reply vào tin thông báo của Tiểu Linh → gọi worker 3102, trả {handled,text}", async () => {
     const f = fakeFetch({ handled: true, replyText: "Dạ em đã chuyển phản hồi vào TECH-961 ạ." });
     const r = await xuLyTruocDispatch(
       { body: "vẫn chưa được ạ", replyToId: "11544", senderId: "1000000001" },
-      { sessionKey: "agent:ticket-intake-agent:telegram:ticket:direct:1000000001", conversationId: "1000000001" },
+      {
+        sessionKey: "agent:ticket-intake-agent:telegram:ticket:direct:1000000001",
+        conversationId: "1000000001",
+      },
       { fetch: f, workers: { "ticket-intake-agent": "http://127.0.0.1:3102" }, daThay: new Map() },
     );
     expect(r).toEqual({ handled: true, text: "Dạ em đã chuyển phản hồi vào TECH-961 ạ." });
@@ -240,27 +323,42 @@ describe("xuLyTruocDispatch (hook before_dispatch — có replyToId thật của
     expect(f.last.body.chatId).toBe("1000000001");
   });
   it("không có replyToId → không đụng", async () => {
-    const r = await xuLyTruocDispatch({ body: "xin chào" }, { sessionKey: "agent:ticket-intake-agent:x" }, { fetch: fakeFetch({}), workers: {}, daThay: new Map() });
+    const r = await xuLyTruocDispatch(
+      { body: "xin chào" },
+      { sessionKey: "agent:ticket-intake-agent:x" },
+      { fetch: fakeFetch({}), workers: {}, daThay: new Map() },
+    );
     expect(r).toBeUndefined();
   });
   it("worker báo không phải tin route đã biết → để tin đi tiếp", async () => {
     const r = await xuLyTruocDispatch(
       { body: "ừ", replyToId: "99" },
       { sessionKey: "agent:ticket-intake-agent:telegram:ticket:direct:1234567" },
-      { fetch: fakeFetch({ handled: false }), workers: { "ticket-intake-agent": "http://127.0.0.1:3102" }, daThay: new Map() },
+      {
+        fetch: fakeFetch({ handled: false }),
+        workers: { "ticket-intake-agent": "http://127.0.0.1:3102" },
+        daThay: new Map(),
+      },
     );
     expect(r).toBeUndefined();
   });
 
   // ADR-0008: "/new" là lệnh reset phiên của OpenClaw, bị nuốt trước khi tới
   // agent. Plugin phải báo worker đặt cờ RỒI để tin đi tiếp — không "handled".
-  describe("bắt \"/new\" (ADR-0008) trước khi OpenClaw nuốt mất", () => {
+  describe('bắt "/new" (ADR-0008) trước khi OpenClaw nuốt mất', () => {
     it("gọi /internal/force-new kèm chatId, rồi trả undefined để tin đi tiếp", async () => {
       const f = fakeFetch({ ok: true });
       const r = await xuLyTruocDispatch(
         { body: "/new bị lỗi khác rồi ạ", senderId: "1000000001" },
-        { sessionKey: "agent:ticket-intake-agent:telegram:ticket:direct:1000000001", conversationId: "1000000001" },
-        { fetch: f, workers: { "ticket-intake-agent": "http://127.0.0.1:3102" }, daThay: new Map() },
+        {
+          sessionKey: "agent:ticket-intake-agent:telegram:ticket:direct:1000000001",
+          conversationId: "1000000001",
+        },
+        {
+          fetch: f,
+          workers: { "ticket-intake-agent": "http://127.0.0.1:3102" },
+          daThay: new Map(),
+        },
       );
       expect(r).toBeUndefined();
       expect(f.last.url).toBe("http://127.0.0.1:3102/internal/force-new");
@@ -272,7 +370,11 @@ describe("xuLyTruocDispatch (hook before_dispatch — có replyToId thật của
       const r = await xuLyTruocDispatch(
         { body: "/NEW@ticket_intake_bot", senderId: "1" },
         { sessionKey: "agent:ticket-intake-agent:telegram:ticket:direct:1" },
-        { fetch: f, workers: { "ticket-intake-agent": "http://127.0.0.1:3102" }, daThay: new Map() },
+        {
+          fetch: f,
+          workers: { "ticket-intake-agent": "http://127.0.0.1:3102" },
+          daThay: new Map(),
+        },
       );
       expect(r).toBeUndefined();
       expect(f.last.url).toBe("http://127.0.0.1:3102/internal/force-new");
@@ -285,7 +387,11 @@ describe("xuLyTruocDispatch (hook before_dispatch — có replyToId thật của
       const r = await xuLyTruocDispatch(
         { body: "/new", senderId: "1" },
         { sessionKey: "agent:ticket-intake-agent:telegram:ticket:direct:1" },
-        { fetch: hong, workers: { "ticket-intake-agent": "http://127.0.0.1:3102" }, daThay: new Map() },
+        {
+          fetch: hong,
+          workers: { "ticket-intake-agent": "http://127.0.0.1:3102" },
+          daThay: new Map(),
+        },
       );
       expect(r).toBeUndefined();
     });
@@ -295,7 +401,11 @@ describe("xuLyTruocDispatch (hook before_dispatch — có replyToId thật của
       const r = await xuLyTruocDispatch(
         { body: "/new", senderId: "1" },
         { sessionKey: "agent:sales-agent:telegram:ticket:direct:1" },
-        { fetch: f, workers: { "ticket-intake-agent": "http://127.0.0.1:3102" }, daThay: new Map() },
+        {
+          fetch: f,
+          workers: { "ticket-intake-agent": "http://127.0.0.1:3102" },
+          daThay: new Map(),
+        },
       );
       expect(r).toBeUndefined();
       expect(f.last).toBeUndefined();
@@ -306,7 +416,11 @@ describe("xuLyTruocDispatch (hook before_dispatch — có replyToId thật của
       const r = await xuLyTruocDispatch(
         { body: "app báo lỗi từ sáng", senderId: "1" },
         { sessionKey: "agent:ticket-intake-agent:telegram:ticket:direct:1" },
-        { fetch: f, workers: { "ticket-intake-agent": "http://127.0.0.1:3102" }, daThay: new Map() },
+        {
+          fetch: f,
+          workers: { "ticket-intake-agent": "http://127.0.0.1:3102" },
+          daThay: new Map(),
+        },
       );
       expect(r).toBeUndefined();
       expect(f.last).toBeUndefined();

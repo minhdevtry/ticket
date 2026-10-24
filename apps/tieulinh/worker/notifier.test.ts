@@ -27,17 +27,31 @@ afterEach(() => {
 });
 
 describe("TelegramNotifier — Markdown hỏng không làm mất tin (PO-91, 01/10)", () => {
-  const parseError = () => jsonResponse({ ok: false, description: "Bad Request: can't parse entities: Can't find end of the entity starting at byte offset 324" }, 400);
+  const parseError = () =>
+    jsonResponse(
+      {
+        ok: false,
+        description:
+          "Bad Request: can't parse entities: Can't find end of the entity starting at byte offset 324",
+      },
+      400,
+    );
 
   test("bình luận có tên chứa dấu gạch dưới → gửi lại dạng văn bản thuần, người báo vẫn nhận được", async () => {
     const bodies: any[] = [];
     globalThis.fetch = mock(async (_url: any, init: any) => {
       const body = JSON.parse(init.body);
       bodies.push(body);
-      return body.parse_mode ? parseError() : jsonResponse({ ok: true, result: { message_id: 77 } });
+      return body.parse_mode
+        ? parseError()
+        : jsonResponse({ ok: true, result: { message_id: 77 } });
     }) as any;
     const notifier = new TelegramNotifier({ botToken: "tok" });
-    const id = await notifier.notifyComment(mockBinding, "PO_UserA", "liên hệ @PRO_UserB thứ 2 -> thứ 6");
+    const id = await notifier.notifyComment(
+      mockBinding,
+      "PO_UserA",
+      "liên hệ @PRO_UserB thứ 2 -> thứ 6",
+    );
     expect(id).toBe(77);
     expect(bodies).toHaveLength(2);
     expect(bodies[1].parse_mode).toBeUndefined();
@@ -50,7 +64,10 @@ describe("TelegramNotifier — Markdown hỏng không làm mất tin (PO-91, 01/
     let calls = 0;
     globalThis.fetch = mock(async () => {
       calls++;
-      return jsonResponse({ ok: false, description: "Forbidden: bot was blocked by the user" }, 403);
+      return jsonResponse(
+        { ok: false, description: "Forbidden: bot was blocked by the user" },
+        403,
+      );
     }) as any;
     const notifier = new TelegramNotifier({ botToken: "tok" });
     const id = await notifier.notifyComment(mockBinding, "A", "xin chào");
@@ -171,9 +188,16 @@ describe("TelegramNotifier.notifyStateChange — lời giải thích riêng củ
     }) as any;
     const notifier = new TelegramNotifier({ botToken: "tok" });
     const binding = { ...mockBinding, identifier: "PO-79" };
-    await notifier.notifyStateChange(binding, "Discussion (PO nhặt ticket và bắt đầu trao đổi cùng các bên)", "open", true);
+    await notifier.notifyStateChange(
+      binding,
+      "Discussion (PO nhặt ticket và bắt đầu trao đổi cùng các bên)",
+      "open",
+      true,
+    );
     await notifier.notifyStateChange(binding, "Golive (tính năng đã golive)", "done", true);
-    expect(bodies[0].text).toBe("PO-79 chuyển sang: **Discussion (PO nhặt ticket và bắt đầu trao đổi cùng các bên)**");
+    expect(bodies[0].text).toBe(
+      "PO-79 chuyển sang: **Discussion (PO nhặt ticket và bắt đầu trao đổi cùng các bên)**",
+    );
     expect(bodies[1].text).toBe("PO-79 chuyển sang: **Golive (tính năng đã golive)**");
     expect(bodies[1].text).not.toContain("đã hoàn tất");
     expect(bodies[1].reply_markup).toBeUndefined();
@@ -197,7 +221,9 @@ describe("TelegramNotifier.notifyStateChange (ADR-0006)", () => {
     expect(id).toBe(7);
     expect(body.text).toContain("TECH-100 đã được xử lý");
     expect(body.text).toContain("chưa ổn thì cứ nhắn lại");
-    expect(body.reply_markup.inline_keyboard).toEqual([[{ text: "👍 Đã ổn", callback_data: "reporter_ok:100" }]]);
+    expect(body.reply_markup.inline_keyboard).toEqual([
+      [{ text: "👍 Đã ổn", callback_data: "reporter_ok:100" }],
+    ]);
   });
 
   test("hoàn tất: báo đã hoàn tất, không kèm nút", async () => {

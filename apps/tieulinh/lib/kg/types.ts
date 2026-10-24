@@ -1,8 +1,8 @@
 export interface TicketGraphNode {
   identifier: string; // VD: TECH-776 hoặc TECHTEST-1
   title: string;
-  status: string;     // Open, In_Progress, Resolved, Done
-  priority: string;   // urgent, high, medium, low
+  status: string; // Open, In_Progress, Resolved, Done
+  priority: string; // urgent, high, medium, low
   createdAt: string;
   resolvedAt?: string;
   // Các thuộc tính bóc tách

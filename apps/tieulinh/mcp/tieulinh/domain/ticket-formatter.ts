@@ -1,4 +1,9 @@
-import type { IncidentDetails, ReporterInfo, SimilarIssue, UploadedAttachmentResult } from "./types";
+import type {
+  IncidentDetails,
+  ReporterInfo,
+  SimilarIssue,
+  UploadedAttachmentResult,
+} from "./types";
 
 export interface FormatTicketDescriptionOptions {
   incident: IncidentDetails;
@@ -8,7 +13,12 @@ export interface FormatTicketDescriptionOptions {
   sourceName?: string;
 }
 
-import { cleanMediaTags, formatIctTimestamp, appendTicketUpdateDescription, escapeItsaplanMarkdown } from "../../../lib/formatting";
+import {
+  cleanMediaTags,
+  formatIctTimestamp,
+  appendTicketUpdateDescription,
+  escapeItsaplanMarkdown,
+} from "../../../lib/formatting";
 import { getLogger } from "../../../lib/logger";
 import {
   IDENTIFIER_FIELD_KEYS,
@@ -134,7 +144,10 @@ export function splitDiagnosis(rawText: string): string[] {
  * `_Tránh_`: viết lại mục này thành comment mới của người dùng (đây là comment
  * của bot), hoặc bỏ câu hỏi phân biệt vì "đã bỏ khỏi mô tả" — xem CONTEXT.md.
  */
-export function buildAdviceComment(diagnosis?: string | null, runbookAdvice?: string | null): string | null {
+export function buildAdviceComment(
+  diagnosis?: string | null,
+  runbookAdvice?: string | null,
+): string | null {
   const combined = [diagnosis, runbookAdvice].filter(Boolean).join("\n");
   if (!combined.trim()) return null;
   const points = splitDiagnosis(combined).filter(
@@ -143,7 +156,11 @@ export function buildAdviceComment(diagnosis?: string | null, runbookAdvice?: st
       !p.toLowerCase().includes("không trả về tài liệu"),
   );
   if (points.length === 0) return null;
-  return ["**Gợi ý chuyên môn & nguyên nhân đã biết**", "", ...points.map((p) => `- ${escapeItsaplanMarkdown(p)}`)].join("\n");
+  return [
+    "**Gợi ý chuyên môn & nguyên nhân đã biết**",
+    "",
+    ...points.map((p) => `- ${escapeItsaplanMarkdown(p)}`),
+  ].join("\n");
 }
 
 /**
@@ -156,7 +173,12 @@ export function buildAdviceComment(diagnosis?: string | null, runbookAdvice?: st
  * Mô tả KHÔNG chứa suy luận của bot — phần đó nằm ở `buildAdviceComment`.
  */
 export function formatTicketDescription(options: FormatTicketDescriptionOptions): string {
-  const { reporter, uploadedAttachments = [], similarIssues = [], sourceName = "ticket-intake" } = options;
+  const {
+    reporter,
+    uploadedAttachments = [],
+    similarIssues = [],
+    sourceName = "ticket-intake",
+  } = options;
   const incident = groundIdentifierFields(options.incident);
 
   const metadataLines: string[] = [];
@@ -169,7 +191,10 @@ export function formatTicketDescription(options: FormatTicketDescriptionOptions)
     const parts: string[] = [];
 
     if (cleanName && cleanU) {
-      if (cleanName.toLowerCase() === cleanU.toLowerCase() || cleanName.toLowerCase().includes(cleanU.toLowerCase())) {
+      if (
+        cleanName.toLowerCase() === cleanU.toLowerCase() ||
+        cleanName.toLowerCase().includes(cleanU.toLowerCase())
+      ) {
         parts.push(cleanName);
       } else {
         parts.push(`${cleanName} (@${cleanU})`);
@@ -191,18 +216,27 @@ export function formatTicketDescription(options: FormatTicketDescriptionOptions)
 
   // 2. Incident metadata (standard taxonomy) - NEVER output "null" or "undefined"
   const isMeaningful = (val?: string | null) =>
-    val && val.trim() !== "" && val.trim().toLowerCase() !== "null" && val.trim().toLowerCase() !== "undefined";
+    val &&
+    val.trim() !== "" &&
+    val.trim().toLowerCase() !== "null" &&
+    val.trim().toLowerCase() !== "undefined";
 
-  if (isMeaningful(incident.product)) metadataLines.push(`- Sản phẩm: ${escapeItsaplanMarkdown(incident.product)}`);
-  if (isMeaningful(incident.system)) metadataLines.push(`- Hệ thống: ${escapeItsaplanMarkdown(incident.system)}`);
+  if (isMeaningful(incident.product))
+    metadataLines.push(`- Sản phẩm: ${escapeItsaplanMarkdown(incident.product)}`);
+  if (isMeaningful(incident.system))
+    metadataLines.push(`- Hệ thống: ${escapeItsaplanMarkdown(incident.system)}`);
   if (isMeaningful(incident.customerId) && incident.customerId !== incident.studentAccount) {
     metadataLines.push(`- Mã khách hàng: ${escapeItsaplanMarkdown(incident.customerId)}`);
   }
   if (isMeaningful(incident.studentAccount)) {
     metadataLines.push(`- Tài khoản HS / SĐT: ${escapeItsaplanMarkdown(incident.studentAccount)}`);
   }
-  if (isMeaningful(incident.reportingDept)) metadataLines.push(`- Bộ phận: ${escapeItsaplanMarkdown(incident.reportingDept)}`);
-  if (isMeaningful(incident.priorityReason)) metadataLines.push(`- Lý do ưu tiên (người báo): ${escapeItsaplanMarkdown(incident.priorityReason)}`);
+  if (isMeaningful(incident.reportingDept))
+    metadataLines.push(`- Bộ phận: ${escapeItsaplanMarkdown(incident.reportingDept)}`);
+  if (isMeaningful(incident.priorityReason))
+    metadataLines.push(
+      `- Lý do ưu tiên (người báo): ${escapeItsaplanMarkdown(incident.priorityReason)}`,
+    );
 
   // Ticket tương tự được quản lý native qua Links của Itsaplan (client.addLink), không ghi lặp trong mô tả text
   // Phân loại lỗi -> đã lên labelIds (client.addLink) và Ưu tiên -> đã lên trường priority native,
@@ -221,13 +255,20 @@ export function formatTicketDescription(options: FormatTicketDescriptionOptions)
   }
 
   // Soft/additional fields
-  if (isMeaningful(incident.roomCode)) metadataLines.push(`- Phòng học / Lớp: ${escapeItsaplanMarkdown(incident.roomCode)}`);
-  if (isMeaningful(incident.deviceType)) metadataLines.push(`- Thiết bị: ${escapeItsaplanMarkdown(incident.deviceType)}`);
-  if (isMeaningful(incident.deviceOs)) metadataLines.push(`- Hệ điều hành: ${escapeItsaplanMarkdown(incident.deviceOs)}`);
-  if (isMeaningful(incident.appVersion)) metadataLines.push(`- Phiên bản app: ${escapeItsaplanMarkdown(incident.appVersion)}`);
-  if (isMeaningful(incident.browser)) metadataLines.push(`- Trình duyệt: ${escapeItsaplanMarkdown(incident.browser)}`);
-  if (isMeaningful(incident.transactionId)) metadataLines.push(`- Mã giao dịch: ${escapeItsaplanMarkdown(incident.transactionId)}`);
-  if (isMeaningful(incident.assignmentId)) metadataLines.push(`- Mã bài tập: ${escapeItsaplanMarkdown(incident.assignmentId)}`);
+  if (isMeaningful(incident.roomCode))
+    metadataLines.push(`- Phòng học / Lớp: ${escapeItsaplanMarkdown(incident.roomCode)}`);
+  if (isMeaningful(incident.deviceType))
+    metadataLines.push(`- Thiết bị: ${escapeItsaplanMarkdown(incident.deviceType)}`);
+  if (isMeaningful(incident.deviceOs))
+    metadataLines.push(`- Hệ điều hành: ${escapeItsaplanMarkdown(incident.deviceOs)}`);
+  if (isMeaningful(incident.appVersion))
+    metadataLines.push(`- Phiên bản app: ${escapeItsaplanMarkdown(incident.appVersion)}`);
+  if (isMeaningful(incident.browser))
+    metadataLines.push(`- Trình duyệt: ${escapeItsaplanMarkdown(incident.browser)}`);
+  if (isMeaningful(incident.transactionId))
+    metadataLines.push(`- Mã giao dịch: ${escapeItsaplanMarkdown(incident.transactionId)}`);
+  if (isMeaningful(incident.assignmentId))
+    metadataLines.push(`- Mã bài tập: ${escapeItsaplanMarkdown(incident.assignmentId)}`);
 
   const sections: string[] = [];
 
@@ -271,7 +312,12 @@ export function formatTicketDescription(options: FormatTicketDescriptionOptions)
     }
     sections.push("");
   } else if (incident.mediaAmbiguous) {
-    sections.push("### 📸 Ảnh đính kèm", "", "*(Ảnh đính kèm chung cho các sự cố trong cùng lượt báo)*", "");
+    sections.push(
+      "### 📸 Ảnh đính kèm",
+      "",
+      "*(Ảnh đính kèm chung cho các sự cố trong cùng lượt báo)*",
+      "",
+    );
   }
 
   // 6. Structured metadata comment (hidden in markdown, used for reliable updates)
@@ -325,21 +371,14 @@ export interface FormatConfirmationOptions {
  * Format concise, high-clarity response to Telegram user (following VuiHoc TMS Model B)
  */
 export function formatConfirmationMessage(options: FormatConfirmationOptions): string {
-  const {
-    issueIdentifier,
-    missingSoftFields = [],
-  } = options;
+  const { issueIdentifier, missingSoftFields = [] } = options;
   const incident = groundIdentifierFields(options.incident);
 
   const prio = incident.priority
     ? incident.priority.charAt(0).toUpperCase() + incident.priority.slice(1).toLowerCase()
     : "Medium";
 
-  const lines: string[] = [
-    `Đã tạo ticket ${issueIdentifier}`,
-    "",
-    `- Tiêu đề: ${incident.title}`,
-  ];
+  const lines: string[] = [`Đã tạo ticket ${issueIdentifier}`, "", `- Tiêu đề: ${incident.title}`];
 
   if (incident.product) lines.push(`- Sản phẩm: ${incident.product}`);
   if (incident.system) lines.push(`- Hệ thống: ${incident.system}`);

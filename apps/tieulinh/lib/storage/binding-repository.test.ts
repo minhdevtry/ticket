@@ -24,9 +24,17 @@ describe("message_routes theo chat", () => {
 
   test("dòng cũ không có chat_id chỉ khớp khi binding của ticket đó nằm đúng chat", () => {
     const { db, repo } = freshRepo();
-    repo.saveBinding({ issueId: 7, channelType: "telegram", chatId: "chat-A", messageId: "1", identifier: "TECH-7" });
+    repo.saveBinding({
+      issueId: 7,
+      channelType: "telegram",
+      chatId: "chat-A",
+      messageId: "1",
+      identifier: "TECH-7",
+    });
     // Mô phỏng worker bản cũ còn chạy song song: ghi route không kèm chat_id.
-    db.run(`INSERT INTO message_routes (message_id, channel_type, issue_id, identifier) VALUES ('77', 'telegram', 7, 'TECH-7')`);
+    db.run(
+      `INSERT INTO message_routes (message_id, channel_type, issue_id, identifier) VALUES ('77', 'telegram', 7, 'TECH-7')`,
+    );
 
     expect(repo.getMessageRoute("77", "telegram", "chat-A")?.identifier).toBe("TECH-7");
     expect(repo.getMessageRoute("77", "telegram", "chat-B")).toBeNull();
@@ -34,8 +42,16 @@ describe("message_routes theo chat", () => {
 
   test("dòng có chat_id đúng được ưu tiên hơn dòng cũ không rõ chat", () => {
     const { db, repo } = freshRepo();
-    repo.saveBinding({ issueId: 8, channelType: "telegram", chatId: "chat-A", messageId: "1", identifier: "TECH-8" });
-    db.run(`INSERT INTO message_routes (message_id, channel_type, issue_id, identifier) VALUES ('88', 'telegram', 8, 'TECH-8')`);
+    repo.saveBinding({
+      issueId: 8,
+      channelType: "telegram",
+      chatId: "chat-A",
+      messageId: "1",
+      identifier: "TECH-8",
+    });
+    db.run(
+      `INSERT INTO message_routes (message_id, channel_type, issue_id, identifier) VALUES ('88', 'telegram', 8, 'TECH-8')`,
+    );
     repo.saveMessageRoute("88", "telegram", 9, "TECH-9", "chat-A");
 
     expect(repo.getMessageRoute("88", "telegram", "chat-A")?.identifier).toBe("TECH-9");
@@ -53,10 +69,16 @@ describe("migration message_routes (DB cũ khoá (message_id, channel_type))", (
       message_id TEXT NOT NULL, channel_type TEXT NOT NULL, issue_id INTEGER NOT NULL,
       identifier TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (message_id, channel_type))`);
-    db.run(`INSERT INTO ticket_bindings (issue_id, channel_type, chat_id, message_id, identifier) VALUES (1, 'telegram', 'chat-A', '10', 'TECH-1')`);
-    db.run(`INSERT INTO message_routes (message_id, channel_type, issue_id, identifier, created_at) VALUES ('100', 'telegram', 1, 'TECH-1', '2026-09-01 10:00:00')`);
+    db.run(
+      `INSERT INTO ticket_bindings (issue_id, channel_type, chat_id, message_id, identifier) VALUES (1, 'telegram', 'chat-A', '10', 'TECH-1')`,
+    );
+    db.run(
+      `INSERT INTO message_routes (message_id, channel_type, issue_id, identifier, created_at) VALUES ('100', 'telegram', 1, 'TECH-1', '2026-09-01 10:00:00')`,
+    );
     // Route của ticket không còn binding — không suy ra được chat.
-    db.run(`INSERT INTO message_routes (message_id, channel_type, issue_id, identifier) VALUES ('200', 'telegram', 99, 'TECH-99')`);
+    db.run(
+      `INSERT INTO message_routes (message_id, channel_type, issue_id, identifier) VALUES ('200', 'telegram', 99, 'TECH-99')`,
+    );
     return db;
   }
 
@@ -64,12 +86,21 @@ describe("migration message_routes (DB cũ khoá (message_id, channel_type))", (
     const db = legacyDb();
     applySchema(db);
 
-    const cols = (db.query(`PRAGMA table_info(message_routes)`).all() as Array<{ name: string }>).map((c) => c.name);
+    const cols = (
+      db.query(`PRAGMA table_info(message_routes)`).all() as Array<{ name: string }>
+    ).map((c) => c.name);
     expect(cols).toContain("chat_id");
 
     const rows = db
-      .query(`SELECT message_id, chat_id, issue_id, created_at FROM message_routes ORDER BY message_id`)
-      .all() as Array<{ message_id: string; chat_id: string; issue_id: number; created_at: string }>;
+      .query(
+        `SELECT message_id, chat_id, issue_id, created_at FROM message_routes ORDER BY message_id`,
+      )
+      .all() as Array<{
+      message_id: string;
+      chat_id: string;
+      issue_id: number;
+      created_at: string;
+    }>;
     expect(rows).toEqual([
       { message_id: "100", chat_id: "chat-A", issue_id: 1, created_at: "2026-09-01 10:00:00" },
       { message_id: "200", chat_id: "", issue_id: 99, created_at: rows[1].created_at },
@@ -98,8 +129,22 @@ describe("getLatestBinding theo dự án (hai bot dùng chung DB)", () => {
   // trả TECHTEST-110 của Tiểu Linh vì cùng chat_id, ticket Tiểu Linh mới hơn.
   test("lọc theo projectKey: không lấy nhầm ticket của bot kia dù mới hơn", () => {
     const { db, repo } = freshRepo();
-    repo.saveBinding({ issueId: 1, channelType: "telegram", chatId: "chat-A", messageId: "1", identifier: "PO-80", reporterUsername: "user_c" });
-    repo.saveBinding({ issueId: 2, channelType: "telegram", chatId: "chat-A", messageId: "2", identifier: "TECHTEST-110", reporterUsername: "user_c" });
+    repo.saveBinding({
+      issueId: 1,
+      channelType: "telegram",
+      chatId: "chat-A",
+      messageId: "1",
+      identifier: "PO-80",
+      reporterUsername: "user_c",
+    });
+    repo.saveBinding({
+      issueId: 2,
+      channelType: "telegram",
+      chatId: "chat-A",
+      messageId: "2",
+      identifier: "TECHTEST-110",
+      reporterUsername: "user_c",
+    });
     db.run(`UPDATE ticket_bindings SET updated_at = '2026-09-20 10:00:00' WHERE issue_id = 1`);
     db.run(`UPDATE ticket_bindings SET updated_at = '2026-09-25 10:00:00' WHERE issue_id = 2`);
 
@@ -111,7 +156,13 @@ describe("getLatestBinding theo dự án (hai bot dùng chung DB)", () => {
 
   test("tiền tố phải khớp đủ: dự án TECH không lấy TECHTEST", () => {
     const { repo } = freshRepo();
-    repo.saveBinding({ issueId: 2, channelType: "telegram", chatId: "chat-A", messageId: "2", identifier: "TECHTEST-110" });
+    repo.saveBinding({
+      issueId: 2,
+      channelType: "telegram",
+      chatId: "chat-A",
+      messageId: "2",
+      identifier: "TECHTEST-110",
+    });
     expect(repo.getLatestBinding("chat-A", undefined, "TECH")).toBeNull();
   });
 });

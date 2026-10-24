@@ -14,8 +14,14 @@ import {
   type UploadedAttachment,
 } from "../../../lib/itsaplan/attachments";
 import { findRecentInboundMedia } from "../../../lib/media";
-import { getSharedBindingRepo, type TicketBindingRepository } from "../../../lib/storage/binding-repository";
-import { getSharedDraftSessionRepo, type DraftSessionRepository } from "../../../lib/storage/session-repository";
+import {
+  getSharedBindingRepo,
+  type TicketBindingRepository,
+} from "../../../lib/storage/binding-repository";
+import {
+  getSharedDraftSessionRepo,
+  type DraftSessionRepository,
+} from "../../../lib/storage/session-repository";
 import {
   getSharedIntakeDocRepo,
   parseSqliteTimestamp,
@@ -308,8 +314,8 @@ export function createIssue<TShape extends z.ZodRawShape>(
       .default(false)
       .describe(
         "Người dùng đã xác nhận đồng ý tạo ticket chưa? " +
-        "false khi đang tóm tắt để người dùng kiểm tra lại, " +
-        "true chỉ khi người dùng đã duyệt/đồng ý tạo ticket."
+          "false khi đang tóm tắt để người dùng kiểm tra lại, " +
+          "true chỉ khi người dùng đã duyệt/đồng ý tạo ticket.",
       ),
   };
 
@@ -320,301 +326,343 @@ export function createIssue<TShape extends z.ZodRawShape>(
     handler: async (rawInput: any) => {
       // Phong bì kênh OpenClaw (chat_id, username, lịch sử hội thoại) không bao giờ vào ticket (TECH-924).
       const input: any = Object.fromEntries(
-        Object.entries(rawInput ?? {}).map(([k, v]) => [k, typeof v === "string" ? stripChannelEnvelope(v) : v]),
+        Object.entries(rawInput ?? {}).map(([k, v]) => [
+          k,
+          typeof v === "string" ? stripChannelEnvelope(v) : v,
+        ]),
       );
       const lockChatId = input.reporterChatId ?? input.telegramUserId;
       // Bước ghi thật đi qua cùng khoá chat với intake_step — chống bấm đúp và
       // chống hai đường cùng tạo ticket cho một sự cố.
-      return input.userConfirmed && lockChatId ? withChatLock(lockChatId, () => handle(input)) : handle(input);
+      return input.userConfirmed && lockChatId
+        ? withChatLock(lockChatId, () => handle(input))
+        : handle(input);
     },
   });
 
   async function handle(input: any) {
-      let effectiveInput = input;
-      const targetChatId = input.reporterChatId ?? input.telegramUserId;
+    let effectiveInput = input;
+    const targetChatId = input.reporterChatId ?? input.telegramUserId;
 
-      // Khi người dùng bấm xác nhận (userConfirmed = true), nếu agent truyền thiếu tham số
-      // (hoặc chỉ truyền userConfirmed = true và chatId), tự động khôi phục từ bản nháp SQLite đã lưu ở bước userConfirmed = false.
-      if (input.userConfirmed && targetChatId && dbPath) {
-        let draftState: Record<string, unknown> | null = null;
-        let draftSavedAt: string | undefined;
-        try {
-          const draft = resolveDraft(getSharedDraftSessionRepo(dbPath), targetChatId);
-          if (draft?.state && typeof draft.state === "object") draftState = draft.state as Record<string, unknown>;
-          draftSavedAt = draft?.updatedAt;
-        } catch (err) {
-          getLogger().warn("create_issue: không đọc được bản nháp", { chatId: String(targetChatId), err: String(err) });
-        }
-
-        // intake_step (đường chính) đã tạo ticket cho sự cố này rồi → trả lại
-        // đúng ticket đó thay vì tạo bản thứ hai.
-        let intakeTicket: IntakeDocument | null = null;
-        try {
-          intakeTicket = findIntakeCreatedTicket(getSharedIntakeDocRepo(dbPath), targetChatId, draftSavedAt);
-        } catch (err) {
-          getLogger().warn("create_issue: không đọc được IntakeDocument", { chatId: String(targetChatId), err: String(err) });
-        }
-        if (intakeTicket?.issueId && intakeTicket.issueIdentifier) {
-          clearConfirmationState(targetChatId, getSharedDraftSessionRepo(dbPath));
-          return {
-            created: false,
-            alreadyCreated: true,
-            issue: {
-              id: intakeTicket.issueId,
-              identifier: intakeTicket.issueIdentifier,
-              title: intakeTicket.fields.title?.value ?? "",
-              url: intakeTicket.issueUrl,
-            },
-            message: `Dạ sự cố này em đã tạo ticket **${intakeTicket.issueIdentifier}** rồi ạ — anh/chị không cần tạo lại nhé.`,
-          };
-        }
-
-        if (draftState) {
-          effectiveInput = mergeOverDraft(draftState, input);
-          // Đo được ở TECH-637: model gọi lại `create_issue` ở lượt xác nhận
-          // kèm `mediaPaths` nhưng không nhớ đủ mọi đường dẫn ảnh đã gom ở
-          // Bước 1 — ghi đè nông (`...input` đè lên `...draftState`) làm rớt
-          // các ảnh mà bản nháp đã có. Gộp thay vì đè.
-          const draftMedia = Array.isArray(draftState.mediaPaths) ? (draftState.mediaPaths as string[]) : [];
-          const inputMedia = Array.isArray(input.mediaPaths) ? (input.mediaPaths as string[]) : [];
-          if (draftMedia.length > 0 || inputMedia.length > 0) {
-            effectiveInput.mediaPaths = Array.from(new Set([...draftMedia, ...inputMedia]));
-          }
-        } else if (isBareConfirmation(input)) {
-          // Bản nháp đã bị xoá ở lượt xác nhận trước, mà cú gọi này không mang
-          // theo nội dung nào — tức là nút xác nhận bị bấm lại lần nữa. Dựng
-          // ticket từ input rỗng thì ra một ticket trắng, nên trả lại đúng cái
-          // vừa tạo. Telegram vẫn gửi callback cho nút cũ kể cả sau khi khoá,
-          // và bản thân cú khoá nút cũng có lúc hỏng.
-          const existing = getSharedBindingRepo(dbPath).getLatestBinding(String(targetChatId), undefined, config.projectKey);
-          if (existing) {
-            clearPendingButtons(targetChatId);
-            return {
-              created: false,
-              alreadyCreated: true,
-              issue: { id: existing.issueId, identifier: existing.identifier, title: existing.title },
-              message: `Dạ yêu cầu này em đã gửi Product team rồi ạ — mã **${existing.identifier}**. Anh/chị không cần bấm lại nhé.`,
-            };
-          }
-        }
-
-      }
-
-      // Lưới cuối: không bản nháp, không nội dung, mà cũng không tra ra bản
-      // ghi cũ nào. Dựng tiếp thì ra một ticket trắng gửi lên tracker — thà
-      // xin lại thông tin còn hơn để team nhận một bản ghi rỗng. Đặt NGOÀI
-      // nhánh có chatId: PO-88 (24/09) model gọi xác nhận trần không kèm chatId
-      // và lọt qua lưới khi nó còn nằm trong nhánh đó.
-      if (input.userConfirmed && isBareConfirmation(effectiveInput)) {
-        return {
-          created: false,
-          needsConfirmation: true,
-          message:
-            "Dạ em xin lỗi, em bị mất phần thông tin vừa tóm tắt nên chưa gửi đi được ạ. " +
-            "Anh/chị nhắn lại giúp em nội dung chính một lần nữa nhé, em ghi lại ngay.",
-        };
-      }
-      const built = domain.build(effectiveInput);
-
-      // TECH-1148: Chặn tạo ticket có tiêu đề hoặc mô tả rỗng hoặc chỉ là token nội bộ (noop)
-      const candidateTitle = (built.title || effectiveInput.title || "").trim();
-      const candidateContent = String(effectiveInput.rawText || effectiveInput.description || "").trim();
-      const isInvalidTitle = !candidateTitle || isInternalCallbackToken(candidateTitle);
-      const isInvalidContent = !candidateContent || isInternalCallbackToken(candidateContent);
-      if (isInvalidTitle || isInvalidContent) {
-        return {
-          created: false,
-          needsConfirmation: true,
-          message:
-            "Dạ em chưa nhận được nội dung mô tả sự cố cụ thể nên chưa tạo ticket được ạ. " +
-            "Anh/chị nhắn lại giúp em nội dung sự cố nhé, em ghi lại ngay.",
-        };
-      }
-      // Bước xác nhận: nếu chưa có xác nhận từ người dùng, trả về tóm tắt và đính nút bấm Telegram
-      if (!input.userConfirmed) {
-        if (targetChatId) {
-          savePendingButtons(targetChatId, getConfirmationButtons(confirmButtonLabel));
-          if (dbPath) {
-            try {
-              getSharedDraftSessionRepo(dbPath).saveDraft(String(targetChatId), input);
-            } catch {
-              // Không để lỗi lưu bản nháp làm hỏng bước xác nhận
-            }
-          }
-        }
-
-        const details: string[] = [];
-        details.push(`- Tiêu đề: ${built.title}`);
-        if (built.product) details.push(`- Sản phẩm: ${built.product}`);
-        if (built.system) details.push(`- Hệ thống: ${built.system}`);
-        const isPhone = (val?: string) => Boolean(val && /^(?:\+84|0)[35789]\d{8}$/.test(val.replace(/[\s.-]+/g, "")));
-        const phoneOrAcc = effectiveInput.studentId ?? (isPhone(effectiveInput.customerId) ? effectiveInput.customerId : undefined);
-        const validCustId = effectiveInput.customerId && !isPhone(effectiveInput.customerId) && effectiveInput.customerId !== effectiveInput.studentId ? effectiveInput.customerId : undefined;
-
-        if (validCustId) details.push(`- Mã khách hàng: ${validCustId}`);
-        if (phoneOrAcc) details.push(`- Tài khoản HS / SĐT: ${phoneOrAcc}`);
-        if (effectiveInput.reportingDept) details.push(`- Bộ phận: ${effectiveInput.reportingDept}`);
-        if (built.errorCategory) details.push(`- Phân loại lỗi: ${built.errorCategory}`);
-        details.push(`- Mức ưu tiên: ${built.priority.toUpperCase()}`);
-
-        // Nội dung sẽ ghi vào mục "### Mô tả" trên ticket. ADR-0008: người báo
-        // phải thấy đúng thứ sẽ được ghi trước khi bấm xác nhận. Trước đây mô
-        // tả không có trong bản xem trước, nên người báo xác nhận mà không thấy
-        // lời của mình — TECH-1084 càng làm nặng vì mô tả giờ phải là NGUYÊN VĂN.
-        const previewText = String(effectiveInput.rawText || effectiveInput.description || "").trim();
-        // Khi model không đưa `rawText`, mô tả là bản nó viết lại — nói rõ để
-        // người báo biết mình đang xác nhận lời tóm tắt chứ không phải lời mình.
-        const isParaphrase = !effectiveInput.rawText;
-
-        return {
-          created: false,
-          needsConfirmation: true,
-          draft: {
-            title: built.title,
-            product: built.product,
-            system: built.system,
-            errorCategory: built.errorCategory,
-            priority: built.priority,
-          },
-          message:
-            built.confirmationMessage ??
-            (`**Em tóm tắt lại sự cố của anh/chị nhé ạ:**\n\n` +
-              details.join("\n") +
-              (previewText
-                ? `\n\n**Nội dung sẽ ghi vào ticket:**\n${quoteForPreview(previewText)}\n` +
-                  (isParaphrase
-                    ? `_Em tự tóm lại phần này. Nếu anh/chị muốn giữ đúng lời mình nói, anh/chị nhắn lại giúp em nhé ạ._`
-                    : "")
-                : "") +
-              `\n\nAnh/chị vui lòng kiểm tra kỹ thông tin trước khi xác nhận. Nếu thông tin không chính xác, Tiểu Linh sẽ không thể phân loại đúng và đội Kỹ thuật sẽ gặp khó khăn trong việc xử lý.`),
-        };
-      }
-
-      // Khi người dùng đã xác nhận, xóa nút chờ và bản nháp — đã sang bước ghi thật
-      if (targetChatId) {
-        let draftRepo: DraftSessionRepository | undefined;
-        try {
-          draftRepo = dbPath ? getSharedDraftSessionRepo(dbPath) : undefined;
-        } catch {}
-        clearConfirmationState(targetChatId, draftRepo);
-      }
-
-      const project = await resolveProject(client, config.projectKey);
-      const column = await resolveBacklogColumn(client, project);
-
-      // Phân loại lỗi -> Gán nhãn labelIds trên Itsaplan theo chuẩn Huly
-      const category = built.errorCategory || effectiveInput.errorCategory;
-      const additionalLabels = Array.isArray(effectiveInput.labels) ? effectiveInput.labels : [];
-      const labelIds = await resolveLabelsForIssue(client, project.key, category, additionalLabels);
-
-      // Tự động gán Issue Type mặc định (ví dụ Task)
-      const rawProject = project.raw;
-      const defaultType =
-        rawProject.issueTypes?.find((t) => t.isDefault) ?? rawProject.issueTypes?.[0];
-      const typeId = defaultType?.id ?? undefined;
-
-      const issue = await client.createIssue(project.key, {
-        title: built.title,
-        description: built.description,
-        columnId: column.id,
-        priority: built.priority,
-        typeId,
-        labelIds: labelIds.length > 0 ? labelIds : undefined,
-      });
-
-      // Không ghi Related Tickets / link từ mã do model tự đưa (ADR-0007): ticket
-      // tương tự chỉ đến từ cụm nguyên nhân người xác định trong KG, qua intake_step.
-
-      // Tải lên ảnh/video đính kèm nếu có mediaPaths hoặc nếu tin nhắn có đề cập đến ảnh/video
-      let mediaList: string[] = Array.isArray(effectiveInput.mediaPaths)
-        ? effectiveInput.mediaPaths
-        : Array.isArray(built.mediaPaths)
-        ? built.mediaPaths
-        : [];
-
-      // Fallback: nếu mediaList rỗng nhưng mô tả hoặc tiêu đề nhắc tới ảnh / video / chụp màn hình
-      if (mediaList.length === 0) {
-        // Cần `rawText` nữa: sau khi tách nó ra (TECH-1084), lời người báo nhắc
-        // "gửi ảnh giúp em" nằm ở tin nguyên văn, không còn trong `description`
-        // mà model viết tóm — bỏ nó thì ảnh không được đính kèm.
-        const textToCheck = [effectiveInput.title, effectiveInput.rawText, effectiveInput.description]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-        if (
-          textToCheck.includes("ảnh") ||
-          textToCheck.includes("video") ||
-          textToCheck.includes("chụp màn hình") ||
-          textToCheck.includes("screenshot") ||
-          textToCheck.includes("hình ảnh") ||
-          textToCheck.includes("đính kèm")
-        ) {
-          const recent = findRecentInboundMedia(10, 3);
-          if (recent.length > 0) {
-            mediaList = recent;
-            getLogger().info(`[create_issue] Đã tự động tìm thấy ${recent.length} file đính kèm gần đây trong inbound`);
-          }
-        }
-      }
-
-      await attachMediaToIssue(client, config.baseUrl, issue.id, built.description, mediaList);
-
-      // Suy luận kỹ thuật của bot nằm ở comment riêng, không lẫn vào mô tả
-      // (TECH-1084). Phải đánh dấu `markBotComment` — nếu không, bot sẽ bị tính là
-      // người thật: kg-sync/human-signals học gợi ý của bot thành "tri thức"
-      // (human-signals.ts:1), và duplicate-merger có thể tự huỷ ticket vì bản
-      // thân nó nhắc mã ticket đồng nghiệp. Best-effort: hỏng comment không được
-      // làm hỏng cả ticket.
-      const advice = buildAdviceComment(built.diagnosis, null);
-      if (advice) {
-        await client.addComment(issue.id, markBotComment(advice)).catch((err: any) => {
-          getLogger().warn(`[create_issue] Không ghi được comment gợi ý cho ${issue.identifier}: ${err?.message ?? err}`);
+    // Khi người dùng bấm xác nhận (userConfirmed = true), nếu agent truyền thiếu tham số
+    // (hoặc chỉ truyền userConfirmed = true và chatId), tự động khôi phục từ bản nháp SQLite đã lưu ở bước userConfirmed = false.
+    if (input.userConfirmed && targetChatId && dbPath) {
+      let draftState: Record<string, unknown> | null = null;
+      let draftSavedAt: string | undefined;
+      try {
+        const draft = resolveDraft(getSharedDraftSessionRepo(dbPath), targetChatId);
+        if (draft?.state && typeof draft.state === "object")
+          draftState = draft.state as Record<string, unknown>;
+        draftSavedAt = draft?.updatedAt;
+      } catch (err) {
+        getLogger().warn("create_issue: không đọc được bản nháp", {
+          chatId: String(targetChatId),
+          err: String(err),
         });
       }
 
-      const url = issueWebUrl(config.webUrl, project.key, issue.identifier, issue.sequenceNumber, project.raw);
+      // intake_step (đường chính) đã tạo ticket cho sự cố này rồi → trả lại
+      // đúng ticket đó thay vì tạo bản thứ hai.
+      let intakeTicket: IntakeDocument | null = null;
+      try {
+        intakeTicket = findIntakeCreatedTicket(
+          getSharedIntakeDocRepo(dbPath),
+          targetChatId,
+          draftSavedAt,
+        );
+      } catch (err) {
+        getLogger().warn("create_issue: không đọc được IntakeDocument", {
+          chatId: String(targetChatId),
+          err: String(err),
+        });
+      }
+      if (intakeTicket?.issueId && intakeTicket.issueIdentifier) {
+        clearConfirmationState(targetChatId, getSharedDraftSessionRepo(dbPath));
+        return {
+          created: false,
+          alreadyCreated: true,
+          issue: {
+            id: intakeTicket.issueId,
+            identifier: intakeTicket.issueIdentifier,
+            title: intakeTicket.fields.title?.value ?? "",
+            url: intakeTicket.issueUrl,
+          },
+          message: `Dạ sự cố này em đã tạo ticket **${intakeTicket.issueIdentifier}** rồi ạ — anh/chị không cần tạo lại nhé.`,
+        };
+      }
 
-      // Lưu binding vào SQLite để worker báo ngược Telegram khi IT phản hồi
-      if (targetChatId && dbPath) {
-        try {
-          bindIssueToChat(
-            getSharedBindingRepo(dbPath),
-            issue,
-            targetChatId,
-            effectiveInput.reporterUsername ?? effectiveInput.reporterNameCode,
-          );
+      if (draftState) {
+        effectiveInput = mergeOverDraft(draftState, input);
+        // Đo được ở TECH-637: model gọi lại `create_issue` ở lượt xác nhận
+        // kèm `mediaPaths` nhưng không nhớ đủ mọi đường dẫn ảnh đã gom ở
+        // Bước 1 — ghi đè nông (`...input` đè lên `...draftState`) làm rớt
+        // các ảnh mà bản nháp đã có. Gộp thay vì đè.
+        const draftMedia = Array.isArray(draftState.mediaPaths)
+          ? (draftState.mediaPaths as string[])
+          : [];
+        const inputMedia = Array.isArray(input.mediaPaths) ? (input.mediaPaths as string[]) : [];
+        if (draftMedia.length > 0 || inputMedia.length > 0) {
+          effectiveInput.mediaPaths = Array.from(new Set([...draftMedia, ...inputMedia]));
+        }
+      } else if (isBareConfirmation(input)) {
+        // Bản nháp đã bị xoá ở lượt xác nhận trước, mà cú gọi này không mang
+        // theo nội dung nào — tức là nút xác nhận bị bấm lại lần nữa. Dựng
+        // ticket từ input rỗng thì ra một ticket trắng, nên trả lại đúng cái
+        // vừa tạo. Telegram vẫn gửi callback cho nút cũ kể cả sau khi khoá,
+        // và bản thân cú khoá nút cũng có lúc hỏng.
+        const existing = getSharedBindingRepo(dbPath).getLatestBinding(
+          String(targetChatId),
+          undefined,
+          config.projectKey,
+        );
+        if (existing) {
+          clearPendingButtons(targetChatId);
+          return {
+            created: false,
+            alreadyCreated: true,
+            issue: { id: existing.issueId, identifier: existing.identifier, title: existing.title },
+            message: `Dạ yêu cầu này em đã gửi Product team rồi ạ — mã **${existing.identifier}**. Anh/chị không cần bấm lại nhé.`,
+          };
+        }
+      }
+    }
 
-          // Đóng IntakeDocument đang MỞ của chat (nếu có) — tin nhắn sau thuộc về
-          // ticket này hoặc một việc mới. Tài liệu đã đóng (huỷ, hết hạn, đã tạo
-          // ticket khác) thì để yên: đánh dấu nó "created" là gán nhầm ticket.
-          const intakeDocRepo = getSharedIntakeDocRepo(dbPath);
-          const activeDoc = intakeDocRepo.getLatestByChatId(String(targetChatId));
-          const nowIso = new Date().toISOString();
-          const fresh = activeDoc && Date.now() - Date.parse(activeDoc.updatedAt) <= INTAKE_DRAFT_TTL_MS;
-          if (activeDoc && fresh && !CLOSED_STATUSES.has(activeDoc.status)) {
-            intakeDocRepo.saveRevision({
-              ...activeDoc,
-              revision: activeDoc.revision + 1,
-              status: "created",
-              issueId: issue.id,
-              issueIdentifier: issue.identifier,
-              issueUrl: url,
-              issueCreatedAt: nowIso,
-              updatedAt: nowIso,
-            });
+    // Lưới cuối: không bản nháp, không nội dung, mà cũng không tra ra bản
+    // ghi cũ nào. Dựng tiếp thì ra một ticket trắng gửi lên tracker — thà
+    // xin lại thông tin còn hơn để team nhận một bản ghi rỗng. Đặt NGOÀI
+    // nhánh có chatId: PO-88 (24/09) model gọi xác nhận trần không kèm chatId
+    // và lọt qua lưới khi nó còn nằm trong nhánh đó.
+    if (input.userConfirmed && isBareConfirmation(effectiveInput)) {
+      return {
+        created: false,
+        needsConfirmation: true,
+        message:
+          "Dạ em xin lỗi, em bị mất phần thông tin vừa tóm tắt nên chưa gửi đi được ạ. " +
+          "Anh/chị nhắn lại giúp em nội dung chính một lần nữa nhé, em ghi lại ngay.",
+      };
+    }
+    const built = domain.build(effectiveInput);
+
+    // TECH-1148: Chặn tạo ticket có tiêu đề hoặc mô tả rỗng hoặc chỉ là token nội bộ (noop)
+    const candidateTitle = (built.title || effectiveInput.title || "").trim();
+    const candidateContent = String(
+      effectiveInput.rawText || effectiveInput.description || "",
+    ).trim();
+    const isInvalidTitle = !candidateTitle || isInternalCallbackToken(candidateTitle);
+    const isInvalidContent = !candidateContent || isInternalCallbackToken(candidateContent);
+    if (isInvalidTitle || isInvalidContent) {
+      return {
+        created: false,
+        needsConfirmation: true,
+        message:
+          "Dạ em chưa nhận được nội dung mô tả sự cố cụ thể nên chưa tạo ticket được ạ. " +
+          "Anh/chị nhắn lại giúp em nội dung sự cố nhé, em ghi lại ngay.",
+      };
+    }
+    // Bước xác nhận: nếu chưa có xác nhận từ người dùng, trả về tóm tắt và đính nút bấm Telegram
+    if (!input.userConfirmed) {
+      if (targetChatId) {
+        savePendingButtons(targetChatId, getConfirmationButtons(confirmButtonLabel));
+        if (dbPath) {
+          try {
+            getSharedDraftSessionRepo(dbPath).saveDraft(String(targetChatId), input);
+          } catch {
+            // Không để lỗi lưu bản nháp làm hỏng bước xác nhận
           }
-        } catch {
-          // Không để lỗi ghi binding làm hỏng kết quả tạo ticket
         }
       }
 
+      const details: string[] = [];
+      details.push(`- Tiêu đề: ${built.title}`);
+      if (built.product) details.push(`- Sản phẩm: ${built.product}`);
+      if (built.system) details.push(`- Hệ thống: ${built.system}`);
+      const isPhone = (val?: string) =>
+        Boolean(val && /^(?:\+84|0)[35789]\d{8}$/.test(val.replace(/[\s.-]+/g, "")));
+      const phoneOrAcc =
+        effectiveInput.studentId ??
+        (isPhone(effectiveInput.customerId) ? effectiveInput.customerId : undefined);
+      const validCustId =
+        effectiveInput.customerId &&
+        !isPhone(effectiveInput.customerId) &&
+        effectiveInput.customerId !== effectiveInput.studentId
+          ? effectiveInput.customerId
+          : undefined;
+
+      if (validCustId) details.push(`- Mã khách hàng: ${validCustId}`);
+      if (phoneOrAcc) details.push(`- Tài khoản HS / SĐT: ${phoneOrAcc}`);
+      if (effectiveInput.reportingDept) details.push(`- Bộ phận: ${effectiveInput.reportingDept}`);
+      if (built.errorCategory) details.push(`- Phân loại lỗi: ${built.errorCategory}`);
+      details.push(`- Mức ưu tiên: ${built.priority.toUpperCase()}`);
+
+      // Nội dung sẽ ghi vào mục "### Mô tả" trên ticket. ADR-0008: người báo
+      // phải thấy đúng thứ sẽ được ghi trước khi bấm xác nhận. Trước đây mô
+      // tả không có trong bản xem trước, nên người báo xác nhận mà không thấy
+      // lời của mình — TECH-1084 càng làm nặng vì mô tả giờ phải là NGUYÊN VĂN.
+      const previewText = String(effectiveInput.rawText || effectiveInput.description || "").trim();
+      // Khi model không đưa `rawText`, mô tả là bản nó viết lại — nói rõ để
+      // người báo biết mình đang xác nhận lời tóm tắt chứ không phải lời mình.
+      const isParaphrase = !effectiveInput.rawText;
+
       return {
-        created: true,
-        issue: { id: issue.id, identifier: issue.identifier, title: issue.title, url },
-        message: built.confirmation
-          .replaceAll("{identifier}", issue.identifier)
-          .replaceAll("{url}", url ?? ""),
+        created: false,
+        needsConfirmation: true,
+        draft: {
+          title: built.title,
+          product: built.product,
+          system: built.system,
+          errorCategory: built.errorCategory,
+          priority: built.priority,
+        },
+        message:
+          built.confirmationMessage ??
+          `**Em tóm tắt lại sự cố của anh/chị nhé ạ:**\n\n` +
+            details.join("\n") +
+            (previewText
+              ? `\n\n**Nội dung sẽ ghi vào ticket:**\n${quoteForPreview(previewText)}\n` +
+                (isParaphrase
+                  ? `_Em tự tóm lại phần này. Nếu anh/chị muốn giữ đúng lời mình nói, anh/chị nhắn lại giúp em nhé ạ._`
+                  : "")
+              : "") +
+            `\n\nAnh/chị vui lòng kiểm tra kỹ thông tin trước khi xác nhận. Nếu thông tin không chính xác, Tiểu Linh sẽ không thể phân loại đúng và đội Kỹ thuật sẽ gặp khó khăn trong việc xử lý.`,
       };
+    }
+
+    // Khi người dùng đã xác nhận, xóa nút chờ và bản nháp — đã sang bước ghi thật
+    if (targetChatId) {
+      let draftRepo: DraftSessionRepository | undefined;
+      try {
+        draftRepo = dbPath ? getSharedDraftSessionRepo(dbPath) : undefined;
+      } catch {}
+      clearConfirmationState(targetChatId, draftRepo);
+    }
+
+    const project = await resolveProject(client, config.projectKey);
+    const column = await resolveBacklogColumn(client, project);
+
+    // Phân loại lỗi -> Gán nhãn labelIds trên Itsaplan theo chuẩn Huly
+    const category = built.errorCategory || effectiveInput.errorCategory;
+    const additionalLabels = Array.isArray(effectiveInput.labels) ? effectiveInput.labels : [];
+    const labelIds = await resolveLabelsForIssue(client, project.key, category, additionalLabels);
+
+    // Tự động gán Issue Type mặc định (ví dụ Task)
+    const rawProject = project.raw;
+    const defaultType =
+      rawProject.issueTypes?.find((t) => t.isDefault) ?? rawProject.issueTypes?.[0];
+    const typeId = defaultType?.id ?? undefined;
+
+    const issue = await client.createIssue(project.key, {
+      title: built.title,
+      description: built.description,
+      columnId: column.id,
+      priority: built.priority,
+      typeId,
+      labelIds: labelIds.length > 0 ? labelIds : undefined,
+    });
+
+    // Không ghi Related Tickets / link từ mã do model tự đưa (ADR-0007): ticket
+    // tương tự chỉ đến từ cụm nguyên nhân người xác định trong KG, qua intake_step.
+
+    // Tải lên ảnh/video đính kèm nếu có mediaPaths hoặc nếu tin nhắn có đề cập đến ảnh/video
+    let mediaList: string[] = Array.isArray(effectiveInput.mediaPaths)
+      ? effectiveInput.mediaPaths
+      : Array.isArray(built.mediaPaths)
+        ? built.mediaPaths
+        : [];
+
+    // Fallback: nếu mediaList rỗng nhưng mô tả hoặc tiêu đề nhắc tới ảnh / video / chụp màn hình
+    if (mediaList.length === 0) {
+      // Cần `rawText` nữa: sau khi tách nó ra (TECH-1084), lời người báo nhắc
+      // "gửi ảnh giúp em" nằm ở tin nguyên văn, không còn trong `description`
+      // mà model viết tóm — bỏ nó thì ảnh không được đính kèm.
+      const textToCheck = [effectiveInput.title, effectiveInput.rawText, effectiveInput.description]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      if (
+        textToCheck.includes("ảnh") ||
+        textToCheck.includes("video") ||
+        textToCheck.includes("chụp màn hình") ||
+        textToCheck.includes("screenshot") ||
+        textToCheck.includes("hình ảnh") ||
+        textToCheck.includes("đính kèm")
+      ) {
+        const recent = findRecentInboundMedia(10, 3);
+        if (recent.length > 0) {
+          mediaList = recent;
+          getLogger().info(
+            `[create_issue] Đã tự động tìm thấy ${recent.length} file đính kèm gần đây trong inbound`,
+          );
+        }
+      }
+    }
+
+    await attachMediaToIssue(client, config.baseUrl, issue.id, built.description, mediaList);
+
+    // Suy luận kỹ thuật của bot nằm ở comment riêng, không lẫn vào mô tả
+    // (TECH-1084). Phải đánh dấu `markBotComment` — nếu không, bot sẽ bị tính là
+    // người thật: kg-sync/human-signals học gợi ý của bot thành "tri thức"
+    // (human-signals.ts:1), và duplicate-merger có thể tự huỷ ticket vì bản
+    // thân nó nhắc mã ticket đồng nghiệp. Best-effort: hỏng comment không được
+    // làm hỏng cả ticket.
+    const advice = buildAdviceComment(built.diagnosis, null);
+    if (advice) {
+      await client.addComment(issue.id, markBotComment(advice)).catch((err: any) => {
+        getLogger().warn(
+          `[create_issue] Không ghi được comment gợi ý cho ${issue.identifier}: ${err?.message ?? err}`,
+        );
+      });
+    }
+
+    const url = issueWebUrl(
+      config.webUrl,
+      project.key,
+      issue.identifier,
+      issue.sequenceNumber,
+      project.raw,
+    );
+
+    // Lưu binding vào SQLite để worker báo ngược Telegram khi IT phản hồi
+    if (targetChatId && dbPath) {
+      try {
+        bindIssueToChat(
+          getSharedBindingRepo(dbPath),
+          issue,
+          targetChatId,
+          effectiveInput.reporterUsername ?? effectiveInput.reporterNameCode,
+        );
+
+        // Đóng IntakeDocument đang MỞ của chat (nếu có) — tin nhắn sau thuộc về
+        // ticket này hoặc một việc mới. Tài liệu đã đóng (huỷ, hết hạn, đã tạo
+        // ticket khác) thì để yên: đánh dấu nó "created" là gán nhầm ticket.
+        const intakeDocRepo = getSharedIntakeDocRepo(dbPath);
+        const activeDoc = intakeDocRepo.getLatestByChatId(String(targetChatId));
+        const nowIso = new Date().toISOString();
+        const fresh =
+          activeDoc && Date.now() - Date.parse(activeDoc.updatedAt) <= INTAKE_DRAFT_TTL_MS;
+        if (activeDoc && fresh && !CLOSED_STATUSES.has(activeDoc.status)) {
+          intakeDocRepo.saveRevision({
+            ...activeDoc,
+            revision: activeDoc.revision + 1,
+            status: "created",
+            issueId: issue.id,
+            issueIdentifier: issue.identifier,
+            issueUrl: url,
+            issueCreatedAt: nowIso,
+            updatedAt: nowIso,
+          });
+        }
+      } catch {
+        // Không để lỗi ghi binding làm hỏng kết quả tạo ticket
+      }
+    }
+
+    return {
+      created: true,
+      issue: { id: issue.id, identifier: issue.identifier, title: issue.title, url },
+      message: built.confirmation
+        .replaceAll("{identifier}", issue.identifier)
+        .replaceAll("{url}", url ?? ""),
+    };
   }
 }
 
@@ -623,6 +671,12 @@ export const reporterShape = {
   reporterName: z.string().describe("Tên người báo, do khung chat cung cấp"),
   reporterUsername: z.string().optional().describe("Username trên kênh chat, nếu có"),
   reporterNameCode: z.string().optional().describe("Name code nội bộ đã được duyệt, nếu có"),
-  reporterChatId: z.string().optional().describe("Chat ID Telegram của người báo, do host cung cấp"),
-  telegramUserId: z.string().optional().describe("User ID Telegram của người báo, do host cung cấp"),
+  reporterChatId: z
+    .string()
+    .optional()
+    .describe("Chat ID Telegram của người báo, do host cung cấp"),
+  telegramUserId: z
+    .string()
+    .optional()
+    .describe("User ID Telegram của người báo, do host cung cấp"),
 };

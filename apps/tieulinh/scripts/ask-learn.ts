@@ -18,7 +18,12 @@
  */
 import * as fs from "node:fs";
 import { ItsaplanClient } from "../lib/itsaplan/client";
-import { isLlmConfigured, llmConfigFromEnv, complete as defaultComplete, type LlmConfig } from "../worker/llm";
+import {
+  isLlmConfigured,
+  llmConfigFromEnv,
+  complete as defaultComplete,
+  type LlmConfig,
+} from "../worker/llm";
 import { openAskLearnStore, type AskLearnStore } from "../lib/ask-learning/store";
 import { ingest, type IngestSummary } from "../lib/ask-learning/ingest";
 import { learnedReport } from "../lib/ask-learning/learned";
@@ -70,11 +75,15 @@ function readExcludeIds(file: string): Set<string> {
 }
 
 export function formatReport(report: ReturnType<typeof learnedReport>): string[] {
-  const lines = ["Hệ thống (intake) | ticket | trọng số ticket | nhãn gộp vào | mục học được (tỉ lệ)"];
+  const lines = [
+    "Hệ thống (intake) | ticket | trọng số ticket | nhãn gộp vào | mục học được (tỉ lệ)",
+  ];
   for (const r of report.systems) {
     const top = r.stats
       .slice(0, 6)
-      .map((s) => `${s.item}${r.learned.includes(s.item) ? "*" : ""} ${(s.share * 100).toFixed(1)}%`)
+      .map(
+        (s) => `${s.item}${r.learned.includes(s.item) ? "*" : ""} ${(s.share * 100).toFixed(1)}%`,
+      )
       .join(", ");
     lines.push(
       `${r.system} | ${r.tickets} | ${r.weightedTickets.toFixed(1)} | ${r.labels.join("; ") || "-"} | ${top || "-"}  [học: ${r.learned.join(", ") || "-"}]`,
@@ -84,7 +93,9 @@ export function formatReport(report: ReturnType<typeof learnedReport>): string[]
     lines.push("Nhãn chưa map sang hệ thống intake (không học được):");
     for (const u of report.unmapped) lines.push(`  ${u.label} | ${u.tickets} ticket`);
   }
-  lines.push("(* = qua ngưỡng, đưa vào checklist; App/Web chưa rõ được đếm cho cả DUO_Vuihoc và VH_Tự học)");
+  lines.push(
+    "(* = qua ngưỡng, đưa vào checklist; App/Web chưa rõ được đếm cho cả DUO_Vuihoc và VH_Tự học)",
+  );
   return lines;
 }
 
@@ -129,7 +140,8 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<number
   const concurrency = typeof flags.concurrency === "string" ? Number(flags.concurrency) : 8;
   const projectKey = (typeof flags.project === "string" ? flags.project : "TECH").toUpperCase();
   const llm: LlmConfig = llmConfigFromEnv(env);
-  const timeoutMs = typeof flags["timeout-ms"] === "string" ? Number(flags["timeout-ms"]) : undefined;
+  const timeoutMs =
+    typeof flags["timeout-ms"] === "string" ? Number(flags["timeout-ms"]) : undefined;
 
   let tickets: SourceTicket[];
   if (typeof flags["from-jsonl"] === "string") {
@@ -138,7 +150,8 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<number
   } else {
     const baseUrl = env.ITSAPLAN_BASE_URL ?? "";
     const apiKey = env.ITSAPLAN_AGENT_KEY || env.ITSAPLAN_API_KEY || "";
-    const client = deps.itsaplan ?? (baseUrl && apiKey ? new ItsaplanClient(baseUrl, apiKey) : undefined);
+    const client =
+      deps.itsaplan ?? (baseUrl && apiKey ? new ItsaplanClient(baseUrl, apiKey) : undefined);
     if (!client) {
       console.error("Thiếu ITSAPLAN_BASE_URL / ITSAPLAN_API_KEY (hoặc dùng --from-jsonl)");
       return 2;
@@ -155,7 +168,6 @@ export async function runCli(argv: string[], deps: CliDeps = {}): Promise<number
   }
   const withSystem = tickets.filter((t) => t.systemRaw.trim().length > 0).length;
   out(`[ask-learn] nguồn: ${tickets.length} ticket (${withSystem} có hệ thống)`);
-
 
   if (!dryRun && !isLlmConfigured(llm)) {
     console.error("Chưa cấu hình LLM (OPENAI_BASE_URL / OPENAI_MODEL)");

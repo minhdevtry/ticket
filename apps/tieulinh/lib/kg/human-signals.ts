@@ -28,12 +28,7 @@ export interface PinnedKnowledge {
 }
 
 const fold = (s: string) =>
-  s
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .replace(/đ/g, "d")
-    .replace(/Đ/g, "D")
-    .toLowerCase();
+  s.normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
 
 const decodeEntities = decodeHtmlEntities;
 
@@ -53,7 +48,9 @@ function section(body: string, label: SectionLabel): string | undefined {
       if (inside) break;
       if (hit === label) {
         inside = true;
-        const rest = stripMarkdown(line).replace(/^[^:]*:/, "").trim();
+        const rest = stripMarkdown(line)
+          .replace(/^[^:]*:/, "")
+          .trim();
         if (rest) parts.push(rest);
       }
       continue;
@@ -62,7 +59,12 @@ function section(body: string, label: SectionLabel): string | undefined {
   }
   if (!inside) return undefined;
   const text = parts
-    .map((p) => stripMarkdown(decodeEntities(p)).trim().replace(/^[-•]+\s*/, "").trim())
+    .map((p) =>
+      stripMarkdown(decodeEntities(p))
+        .trim()
+        .replace(/^[-•]+\s*/, "")
+        .trim(),
+    )
     .filter(Boolean)
     .join(" - ")
     .replace(/\s+/g, " ")
@@ -85,10 +87,23 @@ export function parsePinnedKnowledge(body: string, selfIdentifier?: string): Pin
 }
 
 /** Comment ghim mới nhất của người trên ticket; null khi không có. */
-export function pinnedKnowledgeOf(timeline: any[], selfIdentifier?: string): PinnedKnowledge | null {
+export function pinnedKnowledgeOf(
+  timeline: any[],
+  selfIdentifier?: string,
+): PinnedKnowledge | null {
   const pins = (timeline ?? [])
-    .filter((c) => c?.kind === "comment" && c.pinned && !isSystemActor(c.actorName) && typeof c.body === "string")
-    .sort((a, b) => String(a.pinnedAt ?? a.createdAt ?? "").localeCompare(String(b.pinnedAt ?? b.createdAt ?? "")));
+    .filter(
+      (c) =>
+        c?.kind === "comment" &&
+        c.pinned &&
+        !isSystemActor(c.actorName) &&
+        typeof c.body === "string",
+    )
+    .sort((a, b) =>
+      String(a.pinnedAt ?? a.createdAt ?? "").localeCompare(
+        String(b.pinnedAt ?? b.createdAt ?? ""),
+      ),
+    );
   const pin = pins.at(-1);
   return pin ? parsePinnedKnowledge(pin.body, selfIdentifier) : null;
 }
@@ -101,7 +116,14 @@ export interface HumanLinkSignals {
 }
 
 const TICKET_KEY = /\b([A-Z][A-Z0-9_]*-[A-Z0-9-]*\d)\b/g;
-const keysOf = (value: unknown) => new Set([...String(value ?? "").toUpperCase().matchAll(TICKET_KEY)].map((m) => m[1]));
+const keysOf = (value: unknown) =>
+  new Set(
+    [
+      ...String(value ?? "")
+        .toUpperCase()
+        .matchAll(TICKET_KEY),
+    ].map((m) => m[1]),
+  );
 
 /**
  * Với mỗi mã, hành động cuối cùng của NGƯỜI quyết định dương hay âm. Hành động
@@ -127,9 +149,14 @@ export function humanLinkSignals(timeline: any[], selfIdentifier: string): Human
   for (const e of events) {
     const human = !isSystemActor(e.actorName);
     if (e.action === "link_add" || e.action === "link_remove") {
-      const key = String(e.payload?.to?.value ?? "").trim().toUpperCase();
+      const key = String(e.payload?.to?.value ?? "")
+        .trim()
+        .toUpperCase();
       if (human) mark(key, e.action === "link_add" ? "add" : "remove");
-    } else if (e.action === "field" && /related.*ticket/i.test(String(e.payload?.subject?.value ?? ""))) {
+    } else if (
+      e.action === "field" &&
+      /related.*ticket/i.test(String(e.payload?.subject?.value ?? ""))
+    ) {
       const now = keysOf(e.payload?.to?.value);
       if (human) {
         for (const k of now) if (!fieldBefore.has(k)) mark(k, "add");
@@ -160,5 +187,10 @@ export function humanKnowledgeOf(timeline: any[], selfIdentifier: string): Human
   const negatives = new Set(links.negatives);
   const positives = new Set(links.positives);
   for (const id of pinned?.mentionedIds ?? []) if (!negatives.has(id)) positives.add(id);
-  return { cause: pinned?.cause, fix: pinned?.fix, positives: [...positives].sort(), negatives: [...negatives].sort() };
+  return {
+    cause: pinned?.cause,
+    fix: pinned?.fix,
+    positives: [...positives].sort(),
+    negatives: [...negatives].sort(),
+  };
 }

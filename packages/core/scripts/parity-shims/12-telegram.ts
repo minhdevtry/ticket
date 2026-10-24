@@ -39,7 +39,9 @@ export const shims: Shim[] = [
     from: TELEGRAM,
     preserveAs: "buttons.local.ts",
     note: "dropUnsendable rule from library (dropUnsendableButtons); getBranchButtons / getLastActiveChatId / savePendingButtons dir kept local",
-    body: (imp) => `// Shared safe-button rule from the library; bot-only parts kept in buttons.local.ts.
+    body: (
+      imp,
+    ) => `// Shared safe-button rule from the library; bot-only parts kept in buttons.local.ts.
 export {
   getBranchButtons,
   getConfirmationButtons,
@@ -75,7 +77,9 @@ export { alertAdmin, configureAlerts, type AlertConfig } from "./alert.local";
     from: TELEGRAM,
     preserveAs: "media.local.ts",
     note: "sniff / findRecentInboundMedia / resolve + CM traversal hardening from library; resolveMediaFilePath (Telegram getFile download) kept local",
-    body: (imp) => `// Bot-only Telegram download (resolveMediaFilePath) kept local; the rest is library.
+    body: (
+      imp,
+    ) => `// Bot-only Telegram download (resolveMediaFilePath) kept local; the rest is library.
 export { resolveMediaFilePath } from "./media.local";
 export { findLatestInboundImage, findRecentInboundMedia } from "./media.local";
 export { resolveMediaPath, readLocalMedia, sniffImageContentType, type LocalMediaFile } from "./media.local";

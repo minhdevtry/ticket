@@ -71,7 +71,10 @@ export interface EvalRun {
  * Một lượt ném lỗi thì transcript vẫn giữ các lượt trước + một lượt lỗi (reply
  * mang thông báo lỗi, meta.error=true) để check thấy được, thay vì mất cả run.
  */
-export async function runConversation(runner: ConversationRunner, scenario: EvalScenario): Promise<EvalRun> {
+export async function runConversation(
+  runner: ConversationRunner,
+  scenario: EvalScenario,
+): Promise<EvalRun> {
   const transcript: EvalTurn[] = [];
   for (const input of scenario.turns) {
     try {
@@ -80,7 +83,10 @@ export async function runConversation(runner: ConversationRunner, scenario: Eval
     } catch (err: any) {
       transcript.push({
         input,
-        output: { reply: "", meta: { error: true, message: err?.message ? String(err.message) : String(err) } },
+        output: {
+          reply: "",
+          meta: { error: true, message: err?.message ? String(err.message) : String(err) },
+        },
       });
       break; // một lượt vỡ thì các lượt sau vô nghĩa
     }
@@ -182,9 +188,14 @@ export function createdTicketWithPrefix(prefix: string, name?: string): Check {
   return {
     name: name ?? `có tạo ticket ${prefix}-*`,
     run(run) {
-      const created = run.transcript.filter((t) => t.output.createdTicket?.identifier?.toUpperCase().startsWith(`${prefix.toUpperCase()}-`));
+      const created = run.transcript.filter((t) =>
+        t.output.createdTicket?.identifier?.toUpperCase().startsWith(`${prefix.toUpperCase()}-`),
+      );
       if (created.length === 1) return { pass: true };
-      return { pass: false, reason: `số ticket ${prefix}-* tạo ra = ${created.length} (mong đợi 1)` };
+      return {
+        pass: false,
+        reason: `số ticket ${prefix}-* tạo ra = ${created.length} (mong đợi 1)`,
+      };
     },
   };
 }
@@ -207,7 +218,10 @@ export function turnHasButton(turnIndex: number, label: string, name?: string): 
     run(run) {
       const t = run.transcript[turnIndex];
       const has = !!t?.output.buttons?.some((b) => b.toLowerCase().includes(label.toLowerCase()));
-      return { pass: has, reason: has ? undefined : `nút: ${JSON.stringify(t?.output.buttons ?? [])}` };
+      return {
+        pass: has,
+        reason: has ? undefined : `nút: ${JSON.stringify(t?.output.buttons ?? [])}`,
+      };
     },
   };
 }

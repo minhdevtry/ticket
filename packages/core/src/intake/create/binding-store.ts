@@ -59,7 +59,10 @@ export class SqliteChannelBindingStore implements ChannelBindingStore {
       );
   }
 
-  getLatestBinding(chatId: string, identifierPrefix?: string): { issueId: number; identifier: string; title?: string } | null {
+  getLatestBinding(
+    chatId: string,
+    identifierPrefix?: string,
+  ): { issueId: number; identifier: string; title?: string } | null {
     const keys = chatIdVariants(chatId);
     const prefix = identifierPrefix ? `${identifierPrefix.trim().toUpperCase()}-` : "";
     const byProject = prefix ? "AND substr(UPPER(identifier), 1, ?) = ?" : "";
@@ -73,7 +76,9 @@ export class SqliteChannelBindingStore implements ChannelBindingStore {
          LIMIT 1`,
       )
       .get(...args) as { issue_id: number; identifier: string; title: string | null } | null;
-    return row ? { issueId: row.issue_id, identifier: row.identifier, title: row.title ?? undefined } : null;
+    return row
+      ? { issueId: row.issue_id, identifier: row.identifier, title: row.title ?? undefined }
+      : null;
   }
 
   /**
@@ -100,7 +105,9 @@ export class SqliteChannelBindingStore implements ChannelBindingStore {
          LIMIT 1`,
       )
       .get(...args) as { issue_id: number; identifier: string; title: string | null } | null;
-    return row ? { issueId: row.issue_id, identifier: row.identifier, title: row.title ?? undefined } : null;
+    return row
+      ? { issueId: row.issue_id, identifier: row.identifier, title: row.title ?? undefined }
+      : null;
   }
 
   /**

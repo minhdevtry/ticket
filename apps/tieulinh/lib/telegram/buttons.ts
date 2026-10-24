@@ -73,12 +73,9 @@ export function getBranchButtons(): TelegramButton[][] {
       { text: "📋 Order tính năng", callback_data: "Order tính năng" },
       { text: "💡 Đề xuất ý tưởng mới", callback_data: "Đề xuất ý tưởng mới" },
     ],
-    [
-      { text: "🔍 Kiểm tra trạng thái ticket", callback_data: "Kiểm tra trạng thái ticket" },
-    ],
+    [{ text: "🔍 Kiểm tra trạng thái ticket", callback_data: "Kiểm tra trạng thái ticket" }],
   ];
 }
-
 
 /**
  * Lưu bộ nút bấm tạm thời để plugin OpenClaw đính kèm vào tin nhắn outbound của Telegram.
@@ -96,11 +93,7 @@ export function savePendingButtons(
     const filePath = path.join(BUTTONS_DIR, `${tid}.json`);
     const sendable = buttons ? dropUnsendable(buttons) : null;
     if (sendable && sendable.length > 0) {
-      fs.writeFileSync(
-        filePath,
-        JSON.stringify({ buttons: sendable, ts: Date.now() }),
-        "utf-8",
-      );
+      fs.writeFileSync(filePath, JSON.stringify({ buttons: sendable, ts: Date.now() }), "utf-8");
     } else {
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);

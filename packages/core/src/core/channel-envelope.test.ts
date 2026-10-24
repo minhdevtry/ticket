@@ -60,7 +60,9 @@ callback_data: Sale
 // ── stripChannelEnvelope: case gốc intake (giữ nguyên) ───────────────────────
 describe("stripChannelEnvelope (intake cases)", () => {
   it("bỏ khối Conversation info / Sender / Conversation context, giữ lời người báo; callback_data rời dòng chỉ giữ nhãn nút", () => {
-    expect(stripChannelEnvelope(TECH_924).split("\n")[0]).toBe("hỗ trợ giúp mình zalo app của mình bị lag ạ");
+    expect(stripChannelEnvelope(TECH_924).split("\n")[0]).toBe(
+      "hỗ trợ giúp mình zalo app của mình bị lag ạ",
+    );
     expect(stripChannelEnvelope(TECH_924)).not.toMatch(/callback_data|chat_id|username/);
   });
 
@@ -73,7 +75,9 @@ Conversation info (untrusted metadata):
 }
 
 Quản lý lớp`;
-    expect(stripChannelEnvelope(text)).toBe("Mã học sinh: 100001 Học sinh này đang có 2 con trùng tên nên không lên đơn được\n\nQuản lý lớp");
+    expect(stripChannelEnvelope(text)).toBe(
+      "Mã học sinh: 100001 Học sinh này đang có 2 con trùng tên nên không lên đơn được\n\nQuản lý lớp",
+    );
   });
 
   it("tin thường không có phong bì → giữ nguyên", () => {
@@ -83,11 +87,13 @@ Quản lý lớp`;
 
   it("TECH-946: header tiền tố mốc giờ [..] + phong bì phẳng chung dòng + callback_data rời dòng → lời người báo + nhãn nút", () => {
     const out = stripChannelEnvelope(TECH_946);
-    expect(out.startsWith("0900000001 tk có 2 lần tên con nên không lên được đơn, hỗ trợ giúp mình")).toBe(true);
+    expect(
+      out.startsWith("0900000001 tk có 2 lần tên con nên không lên được đơn, hỗ trợ giúp mình"),
+    ).toBe(true);
     expect(out).not.toMatch(/callback_data|chat_id|username|untrusted/);
   });
 
-  it("TECH-946 nhưng mỗi dòng có tiền tố quote \"> \" → vẫn nhận diện và bỏ y hệt", () => {
+  it('TECH-946 nhưng mỗi dòng có tiền tố quote "> " → vẫn nhận diện và bỏ y hệt', () => {
     const quoted = TECH_946.split("\n")
       .map((line) => (line.length ? `> ${line}` : ">"))
       .join("\n");
@@ -120,7 +126,9 @@ Quản lý lớp`;
       "#session:4ba2570c Sat 2026-09-26 09:34:59 GMT+7 OpenClaw: Em tóm tắt lại sự cố nhé",
       "#10935 Sat 2026-09-26 09:35:03 GMT+7 Tiểu Linh VUIHOC: Em tóm tắt lại sự cố nhé",
     ].join("\n");
-    expect(stripChannelEnvelope(t)).toBe("Đơn hàng không có sản phẩm KHTN nhưng LMS mở Duo KHTN 6.");
+    expect(stripChannelEnvelope(t)).toBe(
+      "Đơn hàng không có sản phẩm KHTN nhưng LMS mở Duo KHTN 6.",
+    );
   });
 
   it("TECH-930/946: JSON phong bì một dòng hoặc dòng kết thúc \\ (markdown), dòng Sender phẳng → bỏ", () => {
@@ -159,12 +167,15 @@ Quản lý lớp`;
   });
 
   it("bấm nút khi model gửi kèm phong bì → còn lại đúng nhãn nút (28/09: 'Sự cố mới' bị xoá thành rỗng)", () => {
-    const t = '[Mon 2026-09-28 03:40 GMT+7] Conversation info (untrusted metadata):\n```json\n{ "chat_id": "telegram:1", "message_id": "2" }\n```\n\ncallback_data: Sự cố mới';
+    const t =
+      '[Mon 2026-09-28 03:40 GMT+7] Conversation info (untrusted metadata):\n```json\n{ "chat_id": "telegram:1", "message_id": "2" }\n```\n\ncallback_data: Sự cố mới';
     expect(stripChannelEnvelope(t)).toBe("Sự cố mới");
   });
 
   it("payload nút dạng mã máy (reporter_ok:481) bị bỏ, không thành lời người báo (TECH-940)", () => {
-    const out = stripChannelEnvelope("callback_data: reporter_ok:481\nTicket tech 722 đã ổn rồi nhé");
+    const out = stripChannelEnvelope(
+      "callback_data: reporter_ok:481\nTicket tech 722 đã ổn rồi nhé",
+    );
     expect(out).toBe("Ticket tech 722 đã ổn rồi nhé");
     expect(stripChannelEnvelope("callback_data: Sự cố mới")).toBe("Sự cố mới");
   });

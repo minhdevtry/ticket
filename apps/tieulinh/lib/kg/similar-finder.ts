@@ -94,7 +94,9 @@ const ABBR: Record<string, string> = {
   ng: "nguoi",
 };
 const STOP = new Set(
-  "va la cua cho khi thi da dang se co ben cac nhung duoc bi do nen em anh chi oi nhe voi tren trong mot nay lai vao ra thay giup".split(" "),
+  "va la cua cho khi thi da dang se co ben cac nhung duoc bi do nen em anh chi oi nhe voi tren trong mot nay lai vao ra thay giup".split(
+    " ",
+  ),
 );
 
 /** Từ đơn (bỏ dấu, mở viết tắt) + cặp từ đôi `a_b` — tiếng Việt nghĩa nằm ở cụm hai âm tiết. */
@@ -153,7 +155,9 @@ export class SimilarityIndex {
       // symptomsText đã cắt) + ghi chú xử lý của người — khớp đúng tài liệu
       // BM25 mà researcher A dùng (title×2 + description + human notes).
       const body = ticket.description ?? ticket.symptomsText ?? "";
-      const tokens = searchTokens(`${ticket.title ?? ""}\n${ticket.title ?? ""}\n${body}\n${ticket.humanNotes ?? ""}`);
+      const tokens = searchTokens(
+        `${ticket.title ?? ""}\n${ticket.title ?? ""}\n${body}\n${ticket.humanNotes ?? ""}`,
+      );
       const tf = new Map<string, number>();
       for (const tk of tokens) tf.set(tk, (tf.get(tk) ?? 0) + 1);
       for (const tk of tf.keys()) this.df.set(tk, (this.df.get(tk) ?? 0) + 1);
@@ -171,7 +175,10 @@ export class SimilarityIndex {
   }
 
   /** Top N ticket khớp chữ nhất (BM25), đã bỏ `excludeIds`. */
-  search(queryText: string, options: { excludeIds?: string[]; topN?: number } = {}): Array<{ ticket: CorpusTicket; score: number }> {
+  search(
+    queryText: string,
+    options: { excludeIds?: string[]; topN?: number } = {},
+  ): Array<{ ticket: CorpusTicket; score: number }> {
     const topN = options.topN ?? DEFAULT_TOP_N;
     const excluded = new Set((options.excludeIds ?? []).map((x) => x.toUpperCase()));
     const query = new Set(searchTokens(queryText));

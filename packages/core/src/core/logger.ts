@@ -66,19 +66,24 @@ export interface LogEntry {
  */
 export function redactSecrets(val: unknown): unknown {
   if (typeof val === "string") {
-    return val
-      // Telegram bot token (e.g. 123456789:ABCdefGHIjklMNOpqrSTUvwxYZ)
-      .replace(/\b(\d{8,10}:[A-Za-z0-9_-]{30,45})\b/g, "[REDACTED_TELEGRAM_TOKEN]")
-      // Bearer token
-      .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, "Bearer [REDACTED_BEARER_TOKEN]")
-      // OpenAI / Onyx API keys
-      .replace(/\b(sk-[A-Za-z0-9_-]{20,})\b/g, "[REDACTED_API_KEY]")
-      // GitHub tokens
-      .replace(/\b(gh[pousr]_[A-Za-z0-9_]{20,})\b/g, "[REDACTED_GITHUB_TOKEN]")
-      // Key-value passwords and secrets
-      .replace(/(["']?(?:password|mật\s*khẩu|secret|token|api[_-]?key)["']?\s*[:=]\s*["']?)([^"',\s\}]+)/gi, "$1[REDACTED]")
-      // Specific sensitive legacy passwords
-      .replace(new RegExp(["Vui", "hoc", "@", "123"].join(""), "g"), "[REDACTED_PASSWORD]");
+    return (
+      val
+        // Telegram bot token (e.g. 123456789:ABCdefGHIjklMNOpqrSTUvwxYZ)
+        .replace(/\b(\d{8,10}:[A-Za-z0-9_-]{30,45})\b/g, "[REDACTED_TELEGRAM_TOKEN]")
+        // Bearer token
+        .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, "Bearer [REDACTED_BEARER_TOKEN]")
+        // OpenAI / Onyx API keys
+        .replace(/\b(sk-[A-Za-z0-9_-]{20,})\b/g, "[REDACTED_API_KEY]")
+        // GitHub tokens
+        .replace(/\b(gh[pousr]_[A-Za-z0-9_]{20,})\b/g, "[REDACTED_GITHUB_TOKEN]")
+        // Key-value passwords and secrets
+        .replace(
+          /(["']?(?:password|mật\s*khẩu|secret|token|api[_-]?key)["']?\s*[:=]\s*["']?)([^"',\s}]+)/gi,
+          "$1[REDACTED]",
+        )
+        // Specific sensitive legacy passwords
+        .replace(new RegExp(["Vui", "hoc", "@", "123"].join(""), "g"), "[REDACTED_PASSWORD]")
+    );
   }
 
   if (val && typeof val === "object") {

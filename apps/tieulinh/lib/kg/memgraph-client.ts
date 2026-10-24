@@ -43,7 +43,8 @@ export class MemgraphClient {
     // Trong `bun test` không bao giờ tự rơi về Memgraph thật ở 7687: 25/09 một
     // lượt `bun test` trên server đã để lại 19 node TEST-KG-* trong KG TECH.
     // Test muốn chạm Memgraph phải đặt MEMGRAPH_TEST_URI (xem test-preload.ts).
-    const fallback = process.env.NODE_ENV === "test" ? "bolt://127.0.0.1:1" : "bolt://localhost:7687";
+    const fallback =
+      process.env.NODE_ENV === "test" ? "bolt://127.0.0.1:1" : "bolt://localhost:7687";
     const uri = config.uri || process.env.MEMGRAPH_URI || fallback;
     const user = config.username || process.env.MEMGRAPH_USER || "";
     const pass = config.password || process.env.MEMGRAPH_PASS || "";
@@ -310,7 +311,9 @@ export class MemgraphClient {
         );
       }
     } catch (err: any) {
-      getLogger().error(`[MemgraphClient] Lỗi khi upsertTicketNode ${ticket.identifier}: ${err.message}`);
+      getLogger().error(
+        `[MemgraphClient] Lỗi khi upsertTicketNode ${ticket.identifier}: ${err.message}`,
+      );
       throw err;
     } finally {
       await session.close();
@@ -320,7 +323,9 @@ export class MemgraphClient {
   /** Nạp/refresh nhãn + định nghĩa của bảng phân loại nguyên nhân canonical
    * (cause-taxonomy.json) vào Memgraph — tách riêng khỏi upsertTicketNode vì
    * đây là catalog tĩnh, không cần gửi lại full metadata mỗi lần sync 1 ticket. */
-  async syncCauseTaxonomyCatalog(entries: Array<{ id: string; label: string; definition: string }>): Promise<void> {
+  async syncCauseTaxonomyCatalog(
+    entries: Array<{ id: string; label: string; definition: string }>,
+  ): Promise<void> {
     const session = this.driver.session();
     try {
       for (const entry of entries) {
@@ -395,7 +400,9 @@ export class MemgraphClient {
   }): Promise<GraphQueryResult[]> {
     const session = this.driver.session();
     const limit = params.limit || 5;
-    const keywords = (params.keywords || []).filter((k) => typeof k === "string" && k.trim().length > 0);
+    const keywords = (params.keywords || []).filter(
+      (k) => typeof k === "string" && k.trim().length > 0,
+    );
     const hasKeywords = keywords.length > 0;
     const minScore = params.minScore ?? (hasKeywords ? 5 : 3);
     const requireKw = params.requireKeywordMatch ?? (hasKeywords ? true : false);
@@ -429,7 +436,13 @@ export class MemgraphClient {
     }
 
     // Bắt buộc phải có ít nhất 1 yếu tố đối sánh
-    if (!params.system && !params.product && !params.errorCategory && !params.causeTaxon && keywords.length === 0) {
+    if (
+      !params.system &&
+      !params.product &&
+      !params.errorCategory &&
+      !params.causeTaxon &&
+      keywords.length === 0
+    ) {
       return [];
     }
 
@@ -617,7 +630,10 @@ export class MemgraphClient {
         ),
         "recomputeCauseClusters:read",
       );
-      const byProject = new Map<string, Array<{ id: string; humanCause?: string; positives: string[]; negatives: string[] }>>();
+      const byProject = new Map<
+        string,
+        Array<{ id: string; humanCause?: string; positives: string[]; negatives: string[] }>
+      >();
       for (const r of nodes.records) {
         const id = String(r.get("id"));
         const project = id.replace(/-\d+$/, "");
@@ -635,7 +651,10 @@ export class MemgraphClient {
         for (const [id, c] of buildCauseClusters(list)) rows.push({ id, c });
       }
       await this.withQueryTimeout(
-        session.run(`UNWIND $rows AS r MATCH (t:Ticket {identifier: r.id}) SET t.causeCluster = r.c`, { rows }),
+        session.run(
+          `UNWIND $rows AS r MATCH (t:Ticket {identifier: r.id}) SET t.causeCluster = r.c`,
+          { rows },
+        ),
         "recomputeCauseClusters:write",
       );
       return { tickets: rows.length, clusters: new Set(rows.map((r) => r.c)).size };

@@ -123,7 +123,11 @@ export function renderTrackerToTelegram(
   body: string | null | undefined,
   options: RenderTrackerOptions = {},
 ): TrackerToTelegram {
-  const { parseMode = DEFAULT_PARSE_MODE, extraBotHandles = [], keepImageMarkdown = false } = options;
+  const {
+    parseMode = DEFAULT_PARSE_MODE,
+    extraBotHandles = [],
+    keepImageMarkdown = false,
+  } = options;
   const src = typeof body === "string" ? body : "";
 
   const videos = dedupe(matchAll(src, HTML_VIDEO_SRC));
@@ -172,7 +176,10 @@ export function renderTelegramToTracker(
 
   // Giữ xuống dòng; chỉ gộp 3+ dòng trống thành một dòng trống, cắt khoảng
   // trắng hai đầu. KHÔNG đụng tới nội dung giữa.
-  return out.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  return out
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 /**
@@ -183,7 +190,11 @@ export function renderTelegramToTracker(
  * escape để `_`/`*`/`[` trong nhãn không làm hỏng link, URL để nguyên. `"plain"`
  * trả `"label: url"`.
  */
-export function renderTicketLink(label: string, url: string, mode: ParseMode = DEFAULT_PARSE_MODE): string {
+export function renderTicketLink(
+  label: string,
+  url: string,
+  mode: ParseMode = DEFAULT_PARSE_MODE,
+): string {
   const safeLabel = escapeForParseMode(label, mode);
   if (mode === "plain") return `${label}: ${url}`;
   return `[${safeLabel}](${url})`;

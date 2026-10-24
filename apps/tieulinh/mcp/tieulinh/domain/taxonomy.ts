@@ -57,12 +57,7 @@ export const VALID_ERROR_CATEGORIES = [
 ] as const;
 export type ValidErrorCategory = (typeof VALID_ERROR_CATEGORIES)[number];
 
-export const VALID_DEVICE_TYPES = [
-  "Điện thoại",
-  "Máy tính bảng",
-  "PC",
-  "Laptop",
-] as const;
+export const VALID_DEVICE_TYPES = ["Điện thoại", "Máy tính bảng", "PC", "Laptop"] as const;
 export type ValidDeviceType = (typeof VALID_DEVICE_TYPES)[number];
 
 export const FIELD_LABELS: Record<string, string> = {
@@ -89,8 +84,10 @@ export function getProductCategory(
   system?: string,
 ): "mobile-app" | "web" | "payment" | "tutor" | "crm" | "default" {
   const combined = `${product || ""} ${system || ""}`.toLowerCase();
-  if (combined.includes("crm") || combined.includes("lên đơn") || combined.includes("hóa đơn")) return "crm";
-  if (combined.includes("tutor") || combined.includes("gia sư") || combined.includes("classin")) return "tutor";
+  if (combined.includes("crm") || combined.includes("lên đơn") || combined.includes("hóa đơn"))
+    return "crm";
+  if (combined.includes("tutor") || combined.includes("gia sư") || combined.includes("classin"))
+    return "tutor";
   if (
     combined.includes("tự học") ||
     combined.includes("duo") ||
@@ -109,7 +106,11 @@ export function getProductCategory(
   ) {
     return "web";
   }
-  if (combined.includes("payment") || combined.includes("thanh toán") || combined.includes("giao dịch")) {
+  if (
+    combined.includes("payment") ||
+    combined.includes("thanh toán") ||
+    combined.includes("giao dịch")
+  ) {
     return "payment";
   }
   return "default";

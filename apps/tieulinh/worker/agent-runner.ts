@@ -1,7 +1,12 @@
 import type { TicketBindingRepository } from "../lib/storage/binding-repository";
 import type { Notifier } from "./notifier";
 import { getLogger } from "../lib/logger";
-import { stripBotMentions, stripCommentHtml, isCommentRecentlyForwarded, decodeHtmlEntities } from "../lib/formatting";
+import {
+  stripBotMentions,
+  stripCommentHtml,
+  isCommentRecentlyForwarded,
+  decodeHtmlEntities,
+} from "../lib/formatting";
 import { identifierInProject, normalizeProjectKey } from "./project-lock";
 
 export interface AgentRunnerOptions {
@@ -54,7 +59,9 @@ export class AgentRunnerService {
   start() {
     if (this.running) return;
     this.running = true;
-    getLogger().info(`[AgentRunner] Bắt đầu runner với URL ${this.baseUrl} (chu kỳ: ${this.pollIntervalMs}ms)`);
+    getLogger().info(
+      `[AgentRunner] Bắt đầu runner với URL ${this.baseUrl} (chu kỳ: ${this.pollIntervalMs}ms)`,
+    );
     this.scheduleNext(100);
   }
 
@@ -81,7 +88,9 @@ export class AgentRunnerService {
       const run = await this.claimRun();
       if (run) {
         hasMore = true;
-        getLogger().info(`[AgentRunner] Đã nhận run #${run.id} (${run.issueIdentifier ?? run.issueId}) - trigger: ${run.trigger}`);
+        getLogger().info(
+          `[AgentRunner] Đã nhận run #${run.id} (${run.issueIdentifier ?? run.issueId}) - trigger: ${run.trigger}`,
+        );
         await this.handleRun(run);
       }
     } catch (err: any) {
@@ -126,7 +135,9 @@ export class AgentRunnerService {
 
     if (!res.ok) {
       const text = await res.text();
-      getLogger().warn(`[AgentRunner] reportResult cho run #${runId} thất bại: HTTP ${res.status} ${text}`);
+      getLogger().warn(
+        `[AgentRunner] reportResult cho run #${runId} thất bại: HTTP ${res.status} ${text}`,
+      );
     }
   }
 
@@ -188,7 +199,9 @@ export class AgentRunnerService {
       (run.issueIdentifier ? this.bindingRepo.getBindingByIdentifier(run.issueIdentifier) : null);
 
     if (!binding) {
-      getLogger().info(`[AgentRunner] Không tìm thấy binding Telegram cho ${run.issueIdentifier ?? run.issueId}, hoàn tất run`);
+      getLogger().info(
+        `[AgentRunner] Không tìm thấy binding Telegram cho ${run.issueIdentifier ?? run.issueId}, hoàn tất run`,
+      );
       await this.reportResult(run.id, {
         status: "success",
         output: `Ticket ${run.issueIdentifier} không có binding Telegram (tạo nội bộ trên Itsaplan)`,
@@ -199,8 +212,13 @@ export class AgentRunnerService {
     // Hai worker chung file binding: run nhắc tới ticket dự án khác mà gửi đi
     // thì người báo nhận tin bằng nhầm bot. Không rõ dự án cũng không gửi.
     const runIdentifier = run.issueIdentifier || binding.identifier;
-    if (!identifierInProject(runIdentifier, this.projectKey) || !identifierInProject(binding.identifier, this.projectKey)) {
-      getLogger().info(`[AgentRunner] Run #${run.id} (${runIdentifier}) không thuộc dự án ${this.projectKey}, bỏ qua.`);
+    if (
+      !identifierInProject(runIdentifier, this.projectKey) ||
+      !identifierInProject(binding.identifier, this.projectKey)
+    ) {
+      getLogger().info(
+        `[AgentRunner] Run #${run.id} (${runIdentifier}) không thuộc dự án ${this.projectKey}, bỏ qua.`,
+      );
       await this.reportResult(run.id, {
         status: "success",
         output: `Bỏ qua: ${runIdentifier} không thuộc dự án ${this.projectKey}`,
@@ -264,7 +282,9 @@ export class AgentRunnerService {
         status: "success",
         output: `Đã gửi thông báo tới ${binding.channelType}:${binding.chatId}`,
       });
-      getLogger().info(`[AgentRunner] Đã gửi thông báo thành công cho run #${run.id} (${binding.identifier})`);
+      getLogger().info(
+        `[AgentRunner] Đã gửi thông báo thành công cho run #${run.id} (${binding.identifier})`,
+      );
     } catch (err: any) {
       getLogger().error(`[AgentRunner] Lỗi khi gửi thông báo tới Telegram: ${err.message}`);
       await this.reportResult(run.id, {

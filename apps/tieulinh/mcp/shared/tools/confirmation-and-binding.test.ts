@@ -141,17 +141,15 @@ describe("Confirmation Step, Binding & Latest Ticket Context", () => {
       }
       if (url.includes("/issues/888/timeline")) {
         return new Response(
-          JSON.stringify([
-            { kind: "comment", author: "IT Support", body: "Đang kiểm tra log" },
-          ]),
+          JSON.stringify([{ kind: "comment", author: "IT Support", body: "Đang kiểm tra log" }]),
           { status: 200, headers: { "content-type": "application/json" } },
         );
       }
       if (url.endsWith("/issues/888/comments") && init?.method === "POST") {
-        return new Response(
-          JSON.stringify({ id: 12, issueId: 888, body: "Comment added" }),
-          { status: 201, headers: { "content-type": "application/json" } },
-        );
+        return new Response(JSON.stringify({ id: 12, issueId: 888, body: "Comment added" }), {
+          status: 201,
+          headers: { "content-type": "application/json" },
+        });
       }
       if (url.endsWith("/issues/888") && init?.method === "PATCH") {
         return new Response(
@@ -161,7 +159,11 @@ describe("Confirmation Step, Binding & Latest Ticket Context", () => {
       }
       if (url.endsWith("/issues/888/attachments") && init?.method === "POST") {
         return new Response(
-          JSON.stringify({ id: `att-${attachmentUploadCount++}`, url: "/attachments/fake/raw", filename: "fake.jpg" }),
+          JSON.stringify({
+            id: `att-${attachmentUploadCount++}`,
+            url: "/attachments/fake/raw",
+            filename: "fake.jpg",
+          }),
           { status: 201, headers: { "content-type": "application/json" } },
         );
       }
@@ -465,9 +467,14 @@ describe("Confirmation Step, Binding & Latest Ticket Context", () => {
       messageId: "0",
       identifier: "TECH-889",
     });
-    const staleTimestamp = new Date(Date.now() - 45 * 60 * 1000).toISOString().replace("T", " ").slice(0, 19);
+    const staleTimestamp = new Date(Date.now() - 45 * 60 * 1000)
+      .toISOString()
+      .replace("T", " ")
+      .slice(0, 19);
     const raw = (repo as any).db as Database;
-    raw.prepare(`UPDATE ticket_bindings SET updated_at = ? WHERE issue_id = ?`).run(staleTimestamp, 889);
+    raw
+      .prepare(`UPDATE ticket_bindings SET updated_at = ? WHERE issue_id = ?`)
+      .run(staleTimestamp, 889);
 
     const identityTool = checkIdentity({ dbPath: testDbPath });
     const result = (await identityTool.handler({
@@ -532,7 +539,13 @@ describe("Confirmation Step, Binding & Latest Ticket Context", () => {
       const url = String(input);
       if (url.endsWith("/issues/888") && (!init || !init.method)) {
         return new Response(
-          JSON.stringify({ id: 888, identifier: "TECH-888", title: "Lỗi thanh toán", priority: "medium", columnId: 10 }),
+          JSON.stringify({
+            id: 888,
+            identifier: "TECH-888",
+            title: "Lỗi thanh toán",
+            priority: "medium",
+            columnId: 10,
+          }),
           { status: 200, headers: { "content-type": "application/json" } },
         );
       }

@@ -53,8 +53,16 @@ function argVal(flag: string): string | undefined {
 const LIB = resolve(argVal("--lib") || resolve(dirname(new URL(import.meta.url).pathname), ".."));
 const RUN_BASELINE = !process.argv.includes("--no-baseline");
 
-const REPORT_PATH = resolve(dirname(new URL(import.meta.url).pathname), "..", "docs/parity/REPORT.md");
-const ENGINE_REPORT_PATH = resolve(dirname(new URL(import.meta.url).pathname), "..", "docs/parity/ENGINE.md");
+const REPORT_PATH = resolve(
+  dirname(new URL(import.meta.url).pathname),
+  "..",
+  "docs/parity/REPORT.md",
+);
+const ENGINE_REPORT_PATH = resolve(
+  dirname(new URL(import.meta.url).pathname),
+  "..",
+  "docs/parity/ENGINE.md",
+);
 
 /**
  * Opt-in engine-parity mode (ticket 09 stretch): `--engine`.
@@ -82,35 +90,125 @@ const ENGINE_REPORT_PATH = resolve(dirname(new URL(import.meta.url).pathname), "
 const RUN_ENGINE = process.argv.includes("--engine");
 
 /** Map of pipeline.flow scenario → the library engine test that stands in for it. */
-const ENGINE_SCENARIO_MAP: Array<{ scenario: string; incident: string; engineTest: string; reproduced: boolean; why?: string }> = [
-  { scenario: "model self-clicks confirm in the same turn", incident: "gemini 1.1s", reproduced: true, engineTest: "MIN_CONFIRM_DELAY_MS: a confirm <5s after the summary is rejected" },
-  { scenario: "double-confirm / re-sent confirm returns one ticket", incident: "idempotent create", reproduced: true, engineTest: "idempotent create: a second confirm returns the same ticket" },
-  { scenario: "OpenClaw envelope must not reach the ticket description", incident: "TECH-924", reproduced: true, engineTest: "channel envelope never enters the ticket description" },
-  { scenario: "conflicting identifier parks instead of silent merge", incident: "TECH-928", reproduced: true, engineTest: "identifier-conflict parks and asks new-incident-or-append" },
-  { scenario: "shortened / area-code number is the same number", incident: "TECH-928", reproduced: true, engineTest: "same number shortened/with area code is NOT a conflict" },
-  { scenario: "complete report while a draft is open parks", incident: "E2E 28/09", reproduced: true, engineTest: "full report while another draft is mid-collection parks" },
-  { scenario: "follow-up never overwrites a created ticket's identifiers", incident: "TECH-956", reproduced: true, engineTest: "follow-up never overwrites a created ticket's identifiers" },
-  { scenario: "every existing-ticket write needs a preview + button", incident: "ADR-0008 / TECH-795", reproduced: true, engineTest: "append to own ticket shows a preview + button, writes nothing yet" },
-  { scenario: "write executes only on exact button match", incident: "TECH-975/1013", reproduced: true, engineTest: "append executes only on an exact button match" },
-  { scenario: "others' tickets: status only, no edits", incident: "ADR-0008 §6", reproduced: true, engineTest: "own-ticket-only edits; someone else's ticket gets status only" },
-  { scenario: "one-round tech review, any answer proceeds", incident: "TECH-759/722", reproduced: true, engineTest: "tech review asks once, any answer proceeds to summary" },
-  { scenario: "expired draft closes, later message starts fresh", incident: "draft TTL", reproduced: true, engineTest: "an expired draft closes and a later message starts fresh" },
-  { scenario: "/new parks the current draft", incident: "force_new flag", reproduced: true, engineTest: "forceNew parks the open draft and opens a new one" },
+const ENGINE_SCENARIO_MAP: Array<{
+  scenario: string;
+  incident: string;
+  engineTest: string;
+  reproduced: boolean;
+  why?: string;
+}> = [
+  {
+    scenario: "model self-clicks confirm in the same turn",
+    incident: "gemini 1.1s",
+    reproduced: true,
+    engineTest: "MIN_CONFIRM_DELAY_MS: a confirm <5s after the summary is rejected",
+  },
+  {
+    scenario: "double-confirm / re-sent confirm returns one ticket",
+    incident: "idempotent create",
+    reproduced: true,
+    engineTest: "idempotent create: a second confirm returns the same ticket",
+  },
+  {
+    scenario: "OpenClaw envelope must not reach the ticket description",
+    incident: "TECH-924",
+    reproduced: true,
+    engineTest: "channel envelope never enters the ticket description",
+  },
+  {
+    scenario: "conflicting identifier parks instead of silent merge",
+    incident: "TECH-928",
+    reproduced: true,
+    engineTest: "identifier-conflict parks and asks new-incident-or-append",
+  },
+  {
+    scenario: "shortened / area-code number is the same number",
+    incident: "TECH-928",
+    reproduced: true,
+    engineTest: "same number shortened/with area code is NOT a conflict",
+  },
+  {
+    scenario: "complete report while a draft is open parks",
+    incident: "E2E 28/09",
+    reproduced: true,
+    engineTest: "full report while another draft is mid-collection parks",
+  },
+  {
+    scenario: "follow-up never overwrites a created ticket's identifiers",
+    incident: "TECH-956",
+    reproduced: true,
+    engineTest: "follow-up never overwrites a created ticket's identifiers",
+  },
+  {
+    scenario: "every existing-ticket write needs a preview + button",
+    incident: "ADR-0008 / TECH-795",
+    reproduced: true,
+    engineTest: "append to own ticket shows a preview + button, writes nothing yet",
+  },
+  {
+    scenario: "write executes only on exact button match",
+    incident: "TECH-975/1013",
+    reproduced: true,
+    engineTest: "append executes only on an exact button match",
+  },
+  {
+    scenario: "others' tickets: status only, no edits",
+    incident: "ADR-0008 §6",
+    reproduced: true,
+    engineTest: "own-ticket-only edits; someone else's ticket gets status only",
+  },
+  {
+    scenario: "one-round tech review, any answer proceeds",
+    incident: "TECH-759/722",
+    reproduced: true,
+    engineTest: "tech review asks once, any answer proceeds to summary",
+  },
+  {
+    scenario: "expired draft closes, later message starts fresh",
+    incident: "draft TTL",
+    reproduced: true,
+    engineTest: "an expired draft closes and a later message starts fresh",
+  },
+  {
+    scenario: "/new parks the current draft",
+    incident: "force_new flag",
+    reproduced: true,
+    engineTest: "forceNew parks the open draft and opens a new one",
+  },
   // Not reproducible in the library test harness — documented, never faked:
-  { scenario: "LLM field extraction accuracy (extractor prompts/schema)", incident: "extractor.*.test", reproduced: false, why: "Needs the real LLM + Tiểu Linh prompts; the library injects a FieldExtractorPort, so faking it would assert against our own fake, not Tiểu Linh. Covered in the bot, not the library." },
-  { scenario: "similar-ticket / KG advice at summary time", incident: "ADR-0007", reproduced: false, why: "KG/Onyx is an optional post-create hook port with NO implementation in src (ADR-0002/0003/0007 are Tiểu Linh-only). Nothing to reproduce in-library." },
-  { scenario: "background realtime-gate ping to 127.0.0.1:8140", incident: "sidecar", reproduced: false, why: "A bot sidecar side-effect, outside the engine's responsibility; the engine exposes afterCreate() for the bot to wire it." },
+  {
+    scenario: "LLM field extraction accuracy (extractor prompts/schema)",
+    incident: "extractor.*.test",
+    reproduced: false,
+    why: "Needs the real LLM + Tiểu Linh prompts; the library injects a FieldExtractorPort, so faking it would assert against our own fake, not Tiểu Linh. Covered in the bot, not the library.",
+  },
+  {
+    scenario: "similar-ticket / KG advice at summary time",
+    incident: "ADR-0007",
+    reproduced: false,
+    why: "KG/Onyx is an optional post-create hook port with NO implementation in src (ADR-0002/0003/0007 are Tiểu Linh-only). Nothing to reproduce in-library.",
+  },
+  {
+    scenario: "background realtime-gate ping to 127.0.0.1:8140",
+    incident: "sidecar",
+    reproduced: false,
+    why: "A bot sidecar side-effect, outside the engine's responsibility; the engine exposes afterCreate() for the bot to wire it.",
+  },
 ];
 
 // Directories excluded from the copy (keep whatever the tests need).
 const EXCLUDE_DIRS = new Set([
-  "node_modules", ".git", "downloads", "graphify-out", ".tgrep", ".claude",
-  ".codex", ".agents",
+  "node_modules",
+  ".git",
+  "downloads",
+  "graphify-out",
+  ".tgrep",
+  ".claude",
+  ".codex",
+  ".agents",
 ]);
 // Paths (relative to SRC) dropped after copy — big/irrelevant for tests.
-const DROP_AFTER = [
-  "intake/dist", "intake/dist-live", "intake/graphify-out", "intake/.tgrep",
-];
+const DROP_AFTER = ["intake/dist", "intake/dist-live", "intake/graphify-out", "intake/.tgrep"];
 
 // ── shim table ─────────────────────────────────────────────────────────────
 // Each entry: the intake module (relative to intake/) replaced by a shim that
@@ -259,7 +357,13 @@ const SHIMS: Shim[] = [
 
 // itsaplan modules: thin re-export shims, same names.
 const ITSAPLAN_MODULES = [
-  "client", "project", "status", "attachments", "ticket-state", "sync-labels", "ensure-webhook",
+  "client",
+  "project",
+  "status",
+  "attachments",
+  "ticket-state",
+  "sync-labels",
+  "ensure-webhook",
 ];
 for (const m of ITSAPLAN_MODULES) {
   SHIMS.push({
@@ -272,7 +376,14 @@ for (const m of ITSAPLAN_MODULES) {
 
 // gate modules: all except from-validation-rules.ts
 const GATE_MODULES = [
-  "types", "catalog", "gate", "normalize", "recap", "schema", "buttons", "validate",
+  "types",
+  "catalog",
+  "gate",
+  "normalize",
+  "recap",
+  "schema",
+  "buttons",
+  "validate",
 ];
 for (const m of GATE_MODULES) {
   SHIMS.push({
@@ -290,7 +401,9 @@ for (const m of GATE_MODULES) {
   const dir = resolve(dirname(new URL(import.meta.url).pathname), "parity-shims");
   let files: string[] = [];
   try {
-    files = readdirSync(dir).filter((f) => f.endsWith(".ts") && f !== "types.ts").sort();
+    files = readdirSync(dir)
+      .filter((f) => f.endsWith(".ts") && f !== "types.ts")
+      .sort();
   } catch {
     files = [];
   }
@@ -402,7 +515,10 @@ async function main() {
   const skipped: Array<{ file: string; why: string }> = [];
   for (const shim of SHIMS) {
     const abs = join(shadowIntake, shim.file);
-    if (!existsSync(abs)) { skipped.push({ file: shim.file, why: "not present in copy" }); continue; }
+    if (!existsSync(abs)) {
+      skipped.push({ file: shim.file, why: "not present in copy" });
+      continue;
+    }
     // formatting: split intake-only helpers into formatting.local.ts first
     if (shim.file === "lib/formatting.ts") {
       const orig = await readFile(abs, "utf8");
@@ -449,20 +565,31 @@ async function main() {
   if (othersDrifted.length > 0) {
     log(
       `note: ${othersDrifted.join(", ")} drifted during the run (external live-bot writes). ` +
-      `This harness never reads or writes them — it only hashes them.`,
+        `This harness never reads or writes them — it only hashes them.`,
     );
   }
   const untouched = sourceUntouched; // report invariant = copy source untouched
   log(
     `status hashes AFTER: ${JSON.stringify(after)} — source(${SOURCE}) untouched=${sourceUntouched}` +
-    (othersDrifted.length ? `, external drift: ${othersDrifted.join(",")}` : ``),
+      (othersDrifted.length ? `, external drift: ${othersDrifted.join(",")}` : ``),
   );
 
   // 8. write report
   await mkdir(dirname(REPORT_PATH), { recursive: true });
-  await writeFile(REPORT_PATH, buildReport({
-    before, after, untouched, baselineShadow, shadow, replaced, skipped, fails, out,
-  }));
+  await writeFile(
+    REPORT_PATH,
+    buildReport({
+      before,
+      after,
+      untouched,
+      baselineShadow,
+      shadow,
+      replaced,
+      skipped,
+      fails,
+      out,
+    }),
+  );
   log(`report → ${REPORT_PATH}`);
 
   // save raw log under scratch for debugging
@@ -487,8 +614,12 @@ function extractIntakeOnlyFormatting(orig: string): string {
 
 function buildReport(d: any): string {
   const { before, after, untouched, baselineShadow, shadow, replaced, skipped, fails } = d;
-  const okBaseline = baselineShadow.pass === BASELINE.pass && baselineShadow.skip === BASELINE.skip && baselineShadow.fail === BASELINE.fail;
-  const match = shadow.pass === BASELINE.pass && shadow.skip === BASELINE.skip && shadow.fail === BASELINE.fail;
+  const okBaseline =
+    baselineShadow.pass === BASELINE.pass &&
+    baselineShadow.skip === BASELINE.skip &&
+    baselineShadow.fail === BASELINE.fail;
+  const match =
+    shadow.pass === BASELINE.pass && shadow.skip === BASELINE.skip && shadow.fail === BASELINE.fail;
   const L: string[] = [];
   L.push(`# Shadow Parity Report — @vuihoc/bot-core (Ticket 10)\n`);
   L.push(`_Generated by \`scripts/shadow-parity.ts\`. Library: \`${basename(LIB)}\`._\n`);
@@ -496,8 +627,12 @@ function buildReport(d: any): string {
   L.push(`| run | pass | skip | fail |`);
   L.push(`|---|---|---|---|`);
   L.push(`| baseline (recorded) | ${BASELINE.pass} | ${BASELINE.skip} | ${BASELINE.fail} |`);
-  L.push(`| baseline (shadow, unmodified) | ${baselineShadow.pass} | ${baselineShadow.skip} | ${baselineShadow.fail} | ${okBaseline ? "✅ reproduces" : "⚠️ differs"}`);
-  L.push(`| shadow (with library shims) | ${shadow.pass} | ${shadow.skip} | ${shadow.fail} | ${match ? "✅ parity" : "❌ differs"}`);
+  L.push(
+    `| baseline (shadow, unmodified) | ${baselineShadow.pass} | ${baselineShadow.skip} | ${baselineShadow.fail} | ${okBaseline ? "✅ reproduces" : "⚠️ differs"}`,
+  );
+  L.push(
+    `| shadow (with library shims) | ${shadow.pass} | ${shadow.skip} | ${shadow.fail} | ${match ? "✅ parity" : "❌ differs"}`,
+  );
   L.push(``);
   L.push(`## Live source repos — read-only proof\n`);
   L.push(`\`intake-agents\` is the only repo READ INTO the copy; its before==after is the`);
@@ -506,14 +641,22 @@ function buildReport(d: any): string {
   L.push(`| repo | role | before | after | our writes? |`);
   L.push(`|---|---|---|---|---|`);
   for (const k of Object.keys(before)) {
-    const role = k === "intake-agents" ? "copy source (enforced)" : "hashed only (external writers OK)";
+    const role =
+      k === "intake-agents" ? "copy source (enforced)" : "hashed only (external writers OK)";
     const same = before[k] === after[k];
-    const verdict = k === "intake-agents"
-      ? (same ? "✅ untouched" : "❌ CONTAMINATED")
-      : (same ? "✅ none" : "✅ none (drift is external)");
+    const verdict =
+      k === "intake-agents"
+        ? same
+          ? "✅ untouched"
+          : "❌ CONTAMINATED"
+        : same
+          ? "✅ none"
+          : "✅ none (drift is external)";
     L.push(`| ${k} | ${role} | \`${before[k]}\` | \`${after[k]}\` | ${verdict} |`);
   }
-  L.push(`\nCopy source \`intake-agents\` untouched by this harness: **${untouched ? "YES" : "NO"}**\n`);
+  L.push(
+    `\nCopy source \`intake-agents\` untouched by this harness: **${untouched ? "YES" : "NO"}**\n`,
+  );
   L.push(`## Modules replaced (${replaced.length})\n`);
   for (const r of replaced) L.push(`- \`intake/${r.file}\`${r.note ? ` — ${r.note}` : ""}`);
   L.push(``);
@@ -559,7 +702,10 @@ async function runEngineParity(): Promise<void> {
   log(`engine report → ${ENGINE_REPORT_PATH}`);
 }
 
-function buildEngineReport(result: { pass: number; skip: number; fail: number }, fails: Array<{ name: string; file: string }>): string {
+function buildEngineReport(
+  result: { pass: number; skip: number; fail: number },
+  fails: Array<{ name: string; file: string }>,
+): string {
   const reproduced = ENGINE_SCENARIO_MAP.filter((s) => s.reproduced);
   const notReproduced = ENGINE_SCENARIO_MAP.filter((s) => !s.reproduced);
   const L: string[] = [];
@@ -572,7 +718,9 @@ function buildEngineReport(result: { pass: number; skip: number; fail: number },
   L.push(`## Engine suite result\n`);
   L.push(`| pass | skip | fail |`);
   L.push(`|---|---|---|`);
-  L.push(`| ${result.pass} | ${result.skip} | ${result.fail} | ${result.fail === 0 ? "✅" : "❌"}\n`);
+  L.push(
+    `| ${result.pass} | ${result.skip} | ${result.fail} | ${result.fail === 0 ? "✅" : "❌"}\n`,
+  );
   L.push(`## Scenarios reproduced in-library (${reproduced.length})\n`);
   L.push(`| pipeline.flow scenario | incident | engine test |`);
   L.push(`|---|---|---|`);

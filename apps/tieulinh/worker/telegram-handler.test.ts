@@ -22,12 +22,19 @@ describe("TelegramWebhookHandler", () => {
     } as unknown as ItsaplanClient;
 
     mockClosure = {
-      recordReporterOk: mock(async () => ({ outcome: "recorded" as const, replyText: "Dạ em đã ghi nhận" })),
+      recordReporterOk: mock(async () => ({
+        outcome: "recorded" as const,
+        replyText: "Dạ em đã ghi nhận",
+      })),
     };
   });
 
   test("nút Đã ổn (và nút confirm_done cũ): ghi phản hồi qua closure, trả lời đúng chat", async () => {
-    const handler = new TelegramWebhookHandler({ itsaplan: mockItsaplan, closure: mockClosure, bindings });
+    const handler = new TelegramWebhookHandler({
+      itsaplan: mockItsaplan,
+      closure: mockClosure,
+      bindings,
+    });
     const calls: Array<{ method: string; payload: any }> = [];
     (handler as any).callApi = async (method: string, payload: any) => {
       calls.push({ method, payload });
@@ -47,8 +54,15 @@ describe("TelegramWebhookHandler", () => {
     }
 
     expect(mockClosure.recordReporterOk).toHaveBeenCalledTimes(2);
-    expect((mockClosure.recordReporterOk as any).mock.calls[0][0]).toEqual({ issueId: 42, chatId: 12345, userName: "Test" });
-    expect(calls.find((c) => c.method === "sendMessage")?.payload).toEqual({ chat_id: 12345, text: "Dạ em đã ghi nhận" });
+    expect((mockClosure.recordReporterOk as any).mock.calls[0][0]).toEqual({
+      issueId: 42,
+      chatId: 12345,
+      userName: "Test",
+    });
+    expect(calls.find((c) => c.method === "sendMessage")?.payload).toEqual({
+      chat_id: 12345,
+      text: "Dạ em đã ghi nhận",
+    });
     // Nút không bao giờ đóng ticket (ADR-0006): không có lời gọi nào sửa ticket.
     expect(mockItsaplan.addComment).not.toHaveBeenCalled();
   });
@@ -109,7 +123,11 @@ describe("TelegramWebhookHandler", () => {
   // message_id Telegram chỉ duy nhất trong một chat: hai chat có thể cùng có
   // tin nhắn số 500 của bot. Reply ở chat B không được ghi vào ticket của chat A.
   test("reply cùng message_id ở hai chat khác nhau đi đúng ticket của từng chat", async () => {
-    const handler = new TelegramWebhookHandler({ itsaplan: mockItsaplan, closure: mockClosure, bindings });
+    const handler = new TelegramWebhookHandler({
+      itsaplan: mockItsaplan,
+      closure: mockClosure,
+      bindings,
+    });
     bindings.saveMessageRoute(500, "telegram", 1, "TECH-1", "111");
     bindings.saveMessageRoute(500, "telegram", 2, "TECH-2", "222");
 
@@ -158,7 +176,10 @@ describe("TelegramWebhookHandler", () => {
 
   test("bấm từ chat không có liên kết chat: trả lời nhưng không gỡ nút", async () => {
     const closure = {
-      recordReporterOk: mock(async () => ({ outcome: "not_bound" as const, replyText: "không thuộc cuộc trò chuyện" })),
+      recordReporterOk: mock(async () => ({
+        outcome: "not_bound" as const,
+        replyText: "không thuộc cuộc trò chuyện",
+      })),
     };
     const handler = new TelegramWebhookHandler({ itsaplan: mockItsaplan, closure, bindings });
     const calls: Array<{ method: string; payload: any }> = [];
@@ -169,7 +190,12 @@ describe("TelegramWebhookHandler", () => {
 
     await handler.handleUpdate({
       update_id: 12,
-      callback_query: { id: "cb_x", from: { id: 1, first_name: "Lạ" }, data: "reporter_ok:42", message: { message_id: 100, chat: { id: 1 } } },
+      callback_query: {
+        id: "cb_x",
+        from: { id: 1, first_name: "Lạ" },
+        data: "reporter_ok:42",
+        message: { message_id: 100, chat: { id: 1 } },
+      },
     });
 
     expect(calls.some((c) => c.method === "editMessageReplyMarkup")).toBe(false);
@@ -177,8 +203,14 @@ describe("TelegramWebhookHandler", () => {
   });
 
   test("ghi phản hồi lỗi: vẫn dừng vòng quay và báo bấm lại, chỉ một câu trả lời", async () => {
-    const closure = { recordReporterOk: mock(async () => Promise.reject(new Error("Itsaplan 500"))) };
-    const handler = new TelegramWebhookHandler({ itsaplan: mockItsaplan, closure: closure as any, bindings });
+    const closure = {
+      recordReporterOk: mock(async () => Promise.reject(new Error("Itsaplan 500"))),
+    };
+    const handler = new TelegramWebhookHandler({
+      itsaplan: mockItsaplan,
+      closure: closure as any,
+      bindings,
+    });
     const calls: Array<{ method: string; payload: any }> = [];
     (handler as any).callApi = async (method: string, payload: any) => {
       calls.push({ method, payload });
@@ -187,7 +219,12 @@ describe("TelegramWebhookHandler", () => {
 
     await handler.handleUpdate({
       update_id: 13,
-      callback_query: { id: "cb_e", from: { id: 1, first_name: "Test" }, data: "reporter_ok:42", message: { message_id: 100, chat: { id: 1 } } },
+      callback_query: {
+        id: "cb_e",
+        from: { id: 1, first_name: "Test" },
+        data: "reporter_ok:42",
+        message: { message_id: 100, chat: { id: 1 } },
+      },
     });
 
     expect(calls.filter((c) => c.method === "answerCallbackQuery")).toHaveLength(1);
@@ -218,7 +255,11 @@ describe("TelegramWebhookHandler", () => {
     });
 
     const calls: Array<{ method: string; payload: Record<string, unknown> }> = [];
-    (handler as unknown as { callApi: (method: string, payload: Record<string, unknown>) => Promise<unknown> }).callApi = async (method, payload) => {
+    (
+      handler as unknown as {
+        callApi: (method: string, payload: Record<string, unknown>) => Promise<unknown>;
+      }
+    ).callApi = async (method, payload) => {
       calls.push({ method, payload });
       return {};
     };

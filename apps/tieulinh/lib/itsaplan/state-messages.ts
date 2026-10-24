@@ -13,12 +13,21 @@ export interface StateMessage {
 }
 
 function fold(text: string): string {
-  return text.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/gi, "d").toLowerCase().replace(/\s+/g, " ").trim();
+  return text
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/đ/gi, "d")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 const PO_STATES: Record<string, StateMessage> = {
   backlog: { name: "Backlog", description: "tính năng mới được order" },
-  discussion: { name: "Discussion", description: "PO nhặt ticket và bắt đầu trao đổi cùng các bên" },
+  discussion: {
+    name: "Discussion",
+    description: "PO nhặt ticket và bắt đầu trao đổi cùng các bên",
+  },
   "po inprogress": { name: "PO inprogress", description: "PO bắt đầu làm giải pháp" },
   "po done": { name: "PO done", description: "đã làm xong giải pháp" },
   "sent to dev": { name: "Sent to dev", description: "đã gửi ticket sang Tech team" },
@@ -31,13 +40,19 @@ const PO_STATES: Record<string, StateMessage> = {
 const BY_PROJECT: Record<string, Record<string, StateMessage>> = { PO: PO_STATES };
 
 /** Lời giải thích cho cột này, `null` nếu dự án chưa khai (giữ cách báo cũ). */
-export function stateMessageFor(projectKey: string | undefined, columnName: string | undefined): StateMessage | null {
+export function stateMessageFor(
+  projectKey: string | undefined,
+  columnName: string | undefined,
+): StateMessage | null {
   if (!projectKey || !columnName) return null;
   return BY_PROJECT[projectKey.toUpperCase()]?.[fold(columnName)] ?? null;
 }
 
 /** "Discussion (PO nhặt ticket và bắt đầu trao đổi cùng các bên)". */
-export function describeState(projectKey: string | undefined, columnName: string | undefined): string | null {
+export function describeState(
+  projectKey: string | undefined,
+  columnName: string | undefined,
+): string | null {
   const m = stateMessageFor(projectKey, columnName);
   return m ? `${m.name} (${m.description})` : null;
 }

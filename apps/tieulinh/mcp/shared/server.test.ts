@@ -15,10 +15,13 @@ const echoTool = defineTool({
 const API_KEY = "test-secret";
 
 // Server chạy 1 lần cho cả file, đóng ở afterAll.
-const httpServer = runOnHttp(() => createIntakeMcpServer({ name: "test-http-mcp", version: "1.0.0", tools: [echoTool] }), {
-  port: 0, // cổng ngẫu nhiên — không đụng test khác chạy song song
-  apiKey: API_KEY,
-});
+const httpServer = runOnHttp(
+  () => createIntakeMcpServer({ name: "test-http-mcp", version: "1.0.0", tools: [echoTool] }),
+  {
+    port: 0, // cổng ngẫu nhiên — không đụng test khác chạy song song
+    apiKey: API_KEY,
+  },
+);
 
 const base = `http://127.0.0.1:${httpServer.port}`;
 const mcpHeaders = (withAuth: boolean) => ({
@@ -31,7 +34,12 @@ const callTool = async (name: string, args: unknown, id: number) =>
   fetch(`${base}/mcp`, {
     method: "POST",
     headers: mcpHeaders(true),
-    body: JSON.stringify({ jsonrpc: "2.0", id, method: "tools/call", params: { name, arguments: args } }),
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id,
+      method: "tools/call",
+      params: { name, arguments: args },
+    }),
   });
 
 describe("runOnHttp — MCP qua HTTP (Bug đã gặp thật: thiếu auth lọt qua, và 'Already connected to a transport')", () => {
@@ -75,7 +83,11 @@ describe("runOnHttp — MCP qua HTTP (Bug đã gặp thật: thiếu auth lọt 
         jsonrpc: "2.0",
         id: 1,
         method: "initialize",
-        params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "test", version: "1.0" } },
+        params: {
+          protocolVersion: "2024-11-05",
+          capabilities: {},
+          clientInfo: { name: "test", version: "1.0" },
+        },
       }),
     });
     expect(initRes.status).toBe(200);

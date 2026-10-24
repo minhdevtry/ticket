@@ -115,7 +115,7 @@ export class TelegramApiError extends Error {
  * italic. Source: intake `worker/notifier.ts` (commit 40f7062, PO-91 01/10).
  */
 export function isEntityParseError(err: unknown): boolean {
-  const desc = err instanceof TelegramApiError ? err.description ?? "" : "";
+  const desc = err instanceof TelegramApiError ? (err.description ?? "") : "";
   const msg = String((err as { message?: unknown })?.message ?? err ?? "");
   return /can'?t parse entities/i.test(desc) || /can'?t parse entities/i.test(msg);
 }
@@ -218,10 +218,7 @@ export class TelegramTransport {
   }
 
   /** Like `call` but logs and returns null on failure — never breaks the caller. */
-  async tryCall<T = unknown>(
-    method: string,
-    payload: Record<string, unknown>,
-  ): Promise<T | null> {
+  async tryCall<T = unknown>(method: string, payload: Record<string, unknown>): Promise<T | null> {
     try {
       return await this.call<T>(method, payload);
     } catch (err) {

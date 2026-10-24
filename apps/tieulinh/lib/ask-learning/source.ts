@@ -46,7 +46,9 @@ export function ticketsFromJsonl(lines: string[]): SourceTicket[] {
     const r = JSON.parse(line) as Record<string, unknown>;
     const issueKey = String(r.ticket_id);
     const description = String(r.description ?? "");
-    const humanComments = Array.isArray(r.human_comments) ? (r.human_comments as Array<Record<string, unknown>>) : [];
+    const humanComments = Array.isArray(r.human_comments)
+      ? (r.human_comments as Array<Record<string, unknown>>)
+      : [];
     out.push({
       issueKey,
       createdAt: String(r.created_at ?? ""),
@@ -93,9 +95,35 @@ export interface ItsaplanIssueItem {
 
 /** Đọc ticket từ ItsaplanClient (chỉ đọc). */
 export interface ItsaplanReadSource {
-  listProjectIssues(projectKey: string, options?: { limit?: number; page?: number }): Promise<Array<{ id: number; description?: string; createdAt?: string; identifier?: string; sequenceNumber?: number; title?: string; archivedAt?: string | null }>>;
-  getIssue?(issueId: number): Promise<{ id: number; description?: string; createdAt?: string; identifier?: string; sequenceNumber?: number; title?: string }>;
-  listComments?(issueId: number): Promise<Array<{ id: number; body: string; author?: { name?: string; id?: string }; createdAt?: string }>>;
+  listProjectIssues(
+    projectKey: string,
+    options?: { limit?: number; page?: number },
+  ): Promise<
+    Array<{
+      id: number;
+      description?: string;
+      createdAt?: string;
+      identifier?: string;
+      sequenceNumber?: number;
+      title?: string;
+      archivedAt?: string | null;
+    }>
+  >;
+  getIssue?(
+    issueId: number,
+  ): Promise<{
+    id: number;
+    description?: string;
+    createdAt?: string;
+    identifier?: string;
+    sequenceNumber?: number;
+    title?: string;
+  }>;
+  listComments?(
+    issueId: number,
+  ): Promise<
+    Array<{ id: number; body: string; author?: { name?: string; id?: string }; createdAt?: string }>
+  >;
   getIssueTimeline?(issueId: number): Promise<unknown[]>;
 }
 
@@ -121,8 +149,12 @@ export async function ticketsFromItsaplan(
   projectKey: string,
   limitOrOptions: number | TicketsFromItsaplanOptions = 1000,
 ): Promise<SourceTicket[]> {
-  const limit = typeof limitOrOptions === "number" ? limitOrOptions : (limitOrOptions.limit ?? 1000);
-  const concurrency = Math.max(1, typeof limitOrOptions === "number" ? 4 : (limitOrOptions.concurrency ?? 4));
+  const limit =
+    typeof limitOrOptions === "number" ? limitOrOptions : (limitOrOptions.limit ?? 1000);
+  const concurrency = Math.max(
+    1,
+    typeof limitOrOptions === "number" ? 4 : (limitOrOptions.concurrency ?? 4),
+  );
 
   // 1. Quét toàn bộ issue qua phân trang (mỗi trang tối đa 500)
   const allIssues: ItsaplanIssueItem[] = [];
@@ -159,7 +191,10 @@ export async function ticketsFromItsaplan(
     let createdAt = issue.createdAt;
     let title = issue.title ?? "";
 
-    if ((description === undefined || createdAt === undefined) && typeof client.getIssue === "function") {
+    if (
+      (description === undefined || createdAt === undefined) &&
+      typeof client.getIssue === "function"
+    ) {
       let detail = detailCache.get(issue.id);
       if (!detail) {
         detail = await retryWithBackoff(() => client.getIssue!(issue.id));
@@ -194,7 +229,9 @@ export async function ticketsFromItsaplan(
         }));
     }
 
-    const issueKey = String(issue.identifier ?? `${projectKey}-${issue.sequenceNumber ?? issue.id}`);
+    const issueKey = String(
+      issue.identifier ?? `${projectKey}-${issue.sequenceNumber ?? issue.id}`,
+    );
     return {
       issueKey,
       createdAt: String(createdAt ?? ""),

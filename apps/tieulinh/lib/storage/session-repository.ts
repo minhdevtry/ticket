@@ -36,11 +36,17 @@ export class DraftSessionRepository {
 
   getDraft(chatId: string): DraftSession | null {
     const row = this.db
-      .prepare(`SELECT session_id, state_json, updated_at FROM intake_sessions WHERE session_id = ?`)
+      .prepare(
+        `SELECT session_id, state_json, updated_at FROM intake_sessions WHERE session_id = ?`,
+      )
       .get(chatId) as any;
     if (!row) return null;
     try {
-      return { chatId: row.session_id, state: JSON.parse(row.state_json), updatedAt: row.updated_at };
+      return {
+        chatId: row.session_id,
+        state: JSON.parse(row.state_json),
+        updatedAt: row.updated_at,
+      };
     } catch {
       return null;
     }

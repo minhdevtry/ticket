@@ -58,8 +58,7 @@ export const shims: Shim[] = [
   {
     file: "lib/storage/identity-repository.ts",
     from: IDENTITY,
-    note:
-      "ADAPTER: wraps library SqliteIdentityRepository (keyed on userId) and translates telegramUserId⇄userId on every method; schema is the library's IDENTITY_SCHEMA (== intake user_identities/approved_prefixes columns verbatim)",
+    note: "ADAPTER: wraps library SqliteIdentityRepository (keyed on userId) and translates telegramUserId⇄userId on every method; schema is the library's IDENTITY_SCHEMA (== intake user_identities/approved_prefixes columns verbatim)",
     body: (imp) =>
       `// SHIM → ${imp} (field-name adapter: telegramUserId ⇄ userId). Logic unchanged.\n` +
       `import {\n` +

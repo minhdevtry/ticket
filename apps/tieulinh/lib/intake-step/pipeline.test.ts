@@ -24,7 +24,9 @@ describe("IntakeStepPipeline", () => {
       addComment: [] as Array<{ issueId: number; body: string }>,
     };
     const client: Partial<ItsaplanClient> = {
-      listProjectColumns: async () => [{ id: 1, name: "Todo", stateType: "unstarted", position: 1 }],
+      listProjectColumns: async () => [
+        { id: 1, name: "Todo", stateType: "unstarted", position: 1 },
+      ],
       listCustomFields: async () => [{ id: 42, name: "Related Tickets", fieldType: "markdown" }],
       setCustomFieldValue: async (issueId, fieldId, value) => {
         calls.setCustomFieldValue.push({ issueId, fieldId, value: String(value) });
@@ -136,7 +138,10 @@ describe("IntakeStepPipeline", () => {
       searchClient: searchClient as any,
     });
 
-    await p2.run({ chatId: "chat_related_1", message: "Lỗi app Duo hệ thống Vuihoc học sinh 0900000005 không làm bài được" });
+    await p2.run({
+      chatId: "chat_related_1",
+      message: "Lỗi app Duo hệ thống Vuihoc học sinh 0900000005 không làm bài được",
+    });
     await p2.run({ chatId: "chat_related_1", message: "Em bên Vận hành nhé" });
     await p2.run({ chatId: "chat_related_1", message: "Chuẩn rồi em tạo đi" });
 
@@ -149,12 +154,24 @@ describe("IntakeStepPipeline", () => {
     // nhưng khác nguyên nhân hẳn — đều bị ghi vào ticket.
     const searchClient = {
       searchSimilar: async () => [
-        { identifier: "TECH-456", title: "Tồn tại nhưng khác nguyên nhân", verifiedOnTracker: true, source: "onyx", score: 10 },
+        {
+          identifier: "TECH-456",
+          title: "Tồn tại nhưng khác nguyên nhân",
+          verifiedOnTracker: true,
+          source: "onyx",
+          score: 10,
+        },
       ],
     };
-    const p2 = new IntakeStepPipeline({ ...(pipeline as any).options, searchClient: searchClient as any });
+    const p2 = new IntakeStepPipeline({
+      ...(pipeline as any).options,
+      searchClient: searchClient as any,
+    });
 
-    await p2.run({ chatId: "chat_related_2", message: "Lỗi app Duo hệ thống Vuihoc học sinh 0900000005 không làm bài được" });
+    await p2.run({
+      chatId: "chat_related_2",
+      message: "Lỗi app Duo hệ thống Vuihoc học sinh 0900000005 không làm bài được",
+    });
     await p2.run({ chatId: "chat_related_2", message: "Em bên Vận hành nhé" });
     await p2.run({ chatId: "chat_related_2", message: "Chuẩn rồi em tạo đi" });
 
@@ -163,7 +180,9 @@ describe("IntakeStepPipeline", () => {
   });
 
   // ADR-0007: ghi ĐỦ cụm cùng nguyên nhân người đã xác định, kèm gợi ý người viết.
-  const clusterSource = (members: Array<{ identifier: string; humanCause?: string; humanFix?: string }>) => {
+  const clusterSource = (
+    members: Array<{ identifier: string; humanCause?: string; humanFix?: string }>,
+  ) => {
     const calls: Array<{ text: string; excludeIds?: string[] }> = [];
     return {
       calls,
@@ -175,7 +194,11 @@ describe("IntakeStepPipeline", () => {
               share: 0.8,
               members: members.map((m) => ({ title: `Ticket ${m.identifier}`, ...m })),
               advice: members[0].humanCause
-                ? { cause: members[0].humanCause!, fix: members[0].humanFix!, from: members[0].identifier }
+                ? {
+                    cause: members[0].humanCause!,
+                    fix: members[0].humanFix!,
+                    from: members[0].identifier,
+                  }
                 : undefined,
             }
           : null;
@@ -185,13 +208,23 @@ describe("IntakeStepPipeline", () => {
 
   it("ticket_created: cụm nguyên nhân từ KG được ghi đủ vào Related Tickets + link, gợi ý là chữ người viết (chạy NỀN sau khi tạo)", async () => {
     const source = clusterSource([
-      { identifier: "TECH-769", humanCause: "Bị gắn trùng tk học do cùng tên", humanFix: "Gỡ tk học 1 con bị trùng & thêm chữ BỎ" },
+      {
+        identifier: "TECH-769",
+        humanCause: "Bị gắn trùng tk học do cùng tên",
+        humanFix: "Gỡ tk học 1 con bị trùng & thêm chữ BỎ",
+      },
       { identifier: "TECH-775" },
       { identifier: "TECH-909" },
     ]);
-    const p2 = new IntakeStepPipeline({ ...(pipeline as any).options, similarTickets: source as any });
+    const p2 = new IntakeStepPipeline({
+      ...(pipeline as any).options,
+      similarTickets: source as any,
+    });
 
-    await p2.run({ chatId: "chat_kg_1", message: "Lỗi app Duo hệ thống Vuihoc học sinh 0900000005 không làm bài được" });
+    await p2.run({
+      chatId: "chat_kg_1",
+      message: "Lỗi app Duo hệ thống Vuihoc học sinh 0900000005 không làm bài được",
+    });
     await p2.run({ chatId: "chat_kg_1", message: "Em bên Vận hành nhé" });
     // Chưa tạo ticket -> chưa tra KG (kiến trúc mới chạy nền SAU khi tạo).
     expect(source.calls).toHaveLength(0);
@@ -210,7 +243,9 @@ describe("IntakeStepPipeline", () => {
 
   it("KG không đủ tự tin (null) → không ghi gì, kể cả khi Onyx có kết quả", async () => {
     const searchClient = {
-      searchSimilar: async () => [{ identifier: "TECH-111", title: "Onyx", verifiedOnTracker: true, source: "onyx" }],
+      searchSimilar: async () => [
+        { identifier: "TECH-111", title: "Onyx", verifiedOnTracker: true, source: "onyx" },
+      ],
     };
     const p2 = new IntakeStepPipeline({
       ...(pipeline as any).options,
@@ -218,7 +253,10 @@ describe("IntakeStepPipeline", () => {
       similarTickets: clusterSource([]) as any,
     });
 
-    await p2.run({ chatId: "chat_kg_2", message: "Lỗi app Duo hệ thống Vuihoc học sinh 0900000005 không làm bài được" });
+    await p2.run({
+      chatId: "chat_kg_2",
+      message: "Lỗi app Duo hệ thống Vuihoc học sinh 0900000005 không làm bài được",
+    });
     await p2.run({ chatId: "chat_kg_2", message: "Em bên Vận hành nhé" });
     await p2.run({ chatId: "chat_kg_2", message: "Chuẩn rồi em tạo đi" });
     await p2.flushBackgroundForTests();
@@ -241,10 +279,19 @@ describe("IntakeStepPipeline", () => {
     const p2 = new IntakeStepPipeline({
       ...(pipeline as any).options,
       searchClient: searchClient as any,
-      similarTickets: clusterSource([{ identifier: "TECH-769", humanCause: "Nguyên nhân người viết", humanFix: "Cách khắc phục người viết" }]) as any,
+      similarTickets: clusterSource([
+        {
+          identifier: "TECH-769",
+          humanCause: "Nguyên nhân người viết",
+          humanFix: "Cách khắc phục người viết",
+        },
+      ]) as any,
     });
 
-    await p2.run({ chatId: "chat_kg_3", message: "Lỗi app Duo hệ thống Vuihoc học sinh 0900000005 không làm bài được" });
+    await p2.run({
+      chatId: "chat_kg_3",
+      message: "Lỗi app Duo hệ thống Vuihoc học sinh 0900000005 không làm bài được",
+    });
     await p2.run({ chatId: "chat_kg_3", message: "Em bên Vận hành nhé" });
     await p2.run({ chatId: "chat_kg_3", message: "Chuẩn rồi em tạo đi" });
     await p2.flushBackgroundForTests();
@@ -252,7 +299,11 @@ describe("IntakeStepPipeline", () => {
     const saved = repo.getLatestByChatId("chat_kg_3");
     const tickets = saved?.similarTickets ?? [];
     expect(tickets.map((t) => t.identifier)).toEqual(["TECH-769", "TECH-ONYX"]);
-    expect(tickets[0]).toMatchObject({ source: "kg", rootCause: "Nguyên nhân người viết", resolution: "Cách khắc phục người viết" });
+    expect(tickets[0]).toMatchObject({
+      source: "kg",
+      rootCause: "Nguyên nhân người viết",
+      resolution: "Cách khắc phục người viết",
+    });
     expect(saved?.kgAdvice).toContain("Nguyên nhân người viết");
     expect(it$.calls.addComment[0]?.body).toContain("Nguyên nhân người viết");
   });

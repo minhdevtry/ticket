@@ -12,7 +12,14 @@
  * `lib/telegram/buttons.ts` — `callback_data` xác nhận luôn là "đúng rồi" cho mọi
  * bot — thay vì các heuristic gắn cứng riêng của IRIS (mã `PO-`, `dong_gop:chot:`).
  */
-import { existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync, appendFileSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  writeFileSync,
+  unlinkSync,
+  mkdirSync,
+  appendFileSync,
+} from "node:fs";
 import { join, dirname } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -94,7 +101,9 @@ export function layBotToken(accountId = null, env = process.env, duongJson = nul
     }
   }
 
-  ghi(`KHÔNG tìm ra TELEGRAM_BOT_TOKEN (account=${accountId}, cấu hình=${fileJson}) — nút sẽ không khoá được`);
+  ghi(
+    `KHÔNG tìm ra TELEGRAM_BOT_TOKEN (account=${accountId}, cấu hình=${fileJson}) — nút sẽ không khoá được`,
+  );
   return null;
 }
 
@@ -108,7 +117,7 @@ function laySenderId(ctx, event) {
     ctx?.conversationId,
     ctx?.sessionKey,
     event?.sessionKey,
-    ctx?.peerId
+    ctx?.peerId,
   ];
   for (const n of cacNguon) {
     if (!n) continue;
@@ -148,16 +157,25 @@ export function locSuyNghiVaBanNhap(text) {
   let cleaned = text;
 
   // 1. Thẻ XML thinking chuẩn: <think>...</think>, <thought>...</thought>, <antthinking>...</antthinking>
-  cleaned = cleaned.replace(/<\s*(?:think(?:ing)?|thought|antthinking)\b[^>]*>[\s\S]*?<\/\s*(?:think(?:ing)?|thought|antthinking)\b[^>]*>/gi, "");
+  cleaned = cleaned.replace(
+    /<\s*(?:think(?:ing)?|thought|antthinking)\b[^>]*>[\s\S]*?<\/\s*(?:think(?:ing)?|thought|antthinking)\b[^>]*>/gi,
+    "",
+  );
 
   // 2. Chặn các đoạn "Final answer:", "Final draft:", "Câu trả lời cuối cùng:", "Câu trả lời:"
-  const finalMatch = cleaned.match(/(?:^|\n)(?:Final\s*(?:answer|response|draft)|Câu\s*trả\s*lời(?:\s*cuối\s*cùng)?):\s*([\s\S]+)$/i);
+  const finalMatch = cleaned.match(
+    /(?:^|\n)(?:Final\s*(?:answer|response|draft)|Câu\s*trả\s*lời(?:\s*cuối\s*cùng)?):\s*([\s\S]+)$/i,
+  );
   if (finalMatch) {
     return finalMatch[1].trim();
   }
 
   // 3. MiniMax scratchpad mở đầu bằng tiếng Anh: "The user (...) just said...", "I already called the tools..."
-  if (/^\s*(?:The\s+user|I\s+already\s+called|Now\s+I\s+need|Wait,\s+I\s+sent|Let\s+me\s+draft|The\s+câu\s+hỏi\s+context|According\s+to|In\s+this\s+turn)\b/i.test(cleaned)) {
+  if (
+    /^\s*(?:The\s+user|I\s+already\s+called|Now\s+I\s+need|Wait,\s+I\s+sent|Let\s+me\s+draft|The\s+câu\s+hỏi\s+context|According\s+to|In\s+this\s+turn)\b/i.test(
+      cleaned,
+    )
+  ) {
     // Tìm đoạn tiếng Việt đàm thoại thật sự của IRIS (Em ghi nhận..., Dạ..., Chào..., Vâng...)
     const viMatch = cleaned.match(/(?:^|\n\n+)((?:Em|Dạ|Chào|Vâng|Cảm ơn)[\s\S]+)$/);
     if (viMatch) {
@@ -177,24 +195,35 @@ export function donDepVanBanKhiCoNut(text, buttons) {
   }
 
   // 1. Xóa các đoạn nhắc danh mục dạng (chọn một: ...) hoặc (chọn nhiều: ...)
-  let cleaned = text.replace(/\s*\((?:chọn một|chọn nhiều|chọn một trong|chọn một hoặc nhiều):[^\)]+\)/gi, "");
+  const cleaned = text.replace(
+    /\s*\((?:chọn một|chọn nhiều|chọn một trong|chọn một hoặc nhiều):[^)]+\)/gi,
+    "",
+  );
 
   // 2. Lọc bỏ các dòng gạch đầu dòng liệt kê lại các nút bấm
-  const danhSachNhan = buttons.flat().map(b => chuanHoa(b.text || b.callback_data)).filter(Boolean);
+  const danhSachNhan = buttons
+    .flat()
+    .map((b) => chuanHoa(b.text || b.callback_data))
+    .filter(Boolean);
 
   const cacDong = cleaned.split("\n");
-  const cacDongMoi = cacDong.filter(dong => {
+  const cacDongMoi = cacDong.filter((dong) => {
     const dongClean = chuanHoa(dong);
     if (!dongClean) return true;
 
-    const laDongLietKeNut = danhSachNhan.some(nhan => 
-      nhan.length >= 3 && (dongClean === nhan || dongClean.startsWith(nhan) || nhan.startsWith(dongClean))
+    const laDongLietKeNut = danhSachNhan.some(
+      (nhan) =>
+        nhan.length >= 3 &&
+        (dongClean === nhan || dongClean.startsWith(nhan) || nhan.startsWith(dongClean)),
     );
 
     return !laDongLietKeNut;
   });
 
-  return cacDongMoi.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  return cacDongMoi
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 /**
@@ -212,10 +241,10 @@ async function khoaNutTinNhanCu(chatId, messageId, nutDaChon, accountId = null) 
           [
             {
               text: `${nutDaChon} ✓`,
-              callback_data: "noop"
-            }
-          ]
-        ]
+              callback_data: "noop",
+            },
+          ],
+        ],
       }
     : { inline_keyboard: [] };
 
@@ -227,14 +256,16 @@ async function khoaNutTinNhanCu(chatId, messageId, nutDaChon, accountId = null) 
       body: JSON.stringify({
         chat_id: chatId,
         message_id: messageId,
-        reply_markup: replyMarkup
-      })
+        reply_markup: replyMarkup,
+      }),
     });
     // Telegram trả 200 kèm `ok:false` khi token sai hoặc tin quá cũ. Không đọc
     // thân trả lời thì hỏng cũng y như chạy được.
     const kq = await res.json().catch(() => null);
     if (!kq?.ok) {
-      ghi(`khoá nút hỏng chat=${chatId} msg=${messageId}: ${kq?.description || `HTTP ${res.status}`}`);
+      ghi(
+        `khoá nút hỏng chat=${chatId} msg=${messageId}: ${kq?.description || `HTTP ${res.status}`}`,
+      );
     }
   } catch (e) {
     // Không làm gián đoạn luồng chính nếu Telegram API lỗi, nhưng phải để lại vết.
@@ -252,12 +283,15 @@ async function khoaNutTinNhanCu(chatId, messageId, nutDaChon, accountId = null) 
  */
 export function choPhepNutTrenTinCoMa(text, buttons) {
   const coMa =
-    /(?:Mã theo dõi|Mã yêu cầu|Mã ticket)\s*[:：]\s*[A-Z]{2,8}-\d+/i.test(text) || /\b[A-Z]{2,8}-\d+\b/.test(text);
+    /(?:Mã theo dõi|Mã yêu cầu|Mã ticket)\s*[:：]\s*[A-Z]{2,8}-\d+/i.test(text) ||
+    /\b[A-Z]{2,8}-\d+\b/.test(text);
   if (!coMa) return true;
   const nut = (buttons || []).flat().filter(Boolean);
   // Nút của câu hỏi về ticket vừa nhắc (không phải nút cũ còn sót): "Tiếp tục sự cố đang chờ",
   // "Sự cố mới" / "Bổ sung sự cố đang chờ" ("tin này có mã khác TECH-994 vừa tạo…" — 29/09).
-  const nutHoiVeTicket = ["Tiếp tục sự cố đang chờ", "Sự cố mới", "Bổ sung sự cố đang chờ"].map(chuanHoa);
+  const nutHoiVeTicket = ["Tiếp tục sự cố đang chờ", "Sự cố mới", "Bổ sung sự cố đang chờ"].map(
+    chuanHoa,
+  );
   if (nut.some((b) => nutHoiVeTicket.includes(chuanHoa(b.callback_data)))) return true;
   const maTrongTin = text.match(/\b[A-Z]{2,8}-\d+\b/g) || [];
   return nut.some((b) => maTrongTin.some((ma) => String(b.callback_data || "").includes(ma)));
@@ -304,7 +338,6 @@ async function ackCallbackQuery(ctx, event, accountId, customFetch = fetch) {
   }
 }
 
-
 const DEBOUNCE_CALLBACK_MS = 10_000;
 const daThayCallbacks = new Map();
 
@@ -338,7 +371,8 @@ export function xuLyDebounceCallback(body, sessionKey, senderId, daThay = daThay
 export default {
   id: "iris-tuong-tac",
   name: "Tương Tác Nút Bấm (Tiểu Linh + IRIS)",
-  description: "Tự động đính kèm Telegram Inline Buttons, khóa nút và lọc bỏ suy nghĩ nội tâm — dùng chung cho mọi agent Telegram của gateway.",
+  description:
+    "Tự động đính kèm Telegram Inline Buttons, khóa nút và lọc bỏ suy nghĩ nội tâm — dùng chung cho mọi agent Telegram của gateway.",
   register(api) {
     // Hook 0: Trước khi dispatch tin nhắn -> Chặn callback nội bộ (noop) và loại bỏ các cú bấm callback_data trùng lặp
     api.on("before_dispatch", async (event, ctx, deps = {}) => {
@@ -397,7 +431,10 @@ export default {
             for (const btn of dataTinCu.buttons.flat()) {
               const btnNorm = chuanHoa(btn.text || btn.callback_data);
               const valNorm = chuanHoa(btn.callback_data);
-              if (bodyNorm && (bodyNorm === btnNorm || bodyNorm === valNorm || btnNorm.includes(bodyNorm))) {
+              if (
+                bodyNorm &&
+                (bodyNorm === btnNorm || bodyNorm === valNorm || btnNorm.includes(bodyNorm))
+              ) {
                 nutDuocChon = btn.text || btn.callback_data;
                 break;
               }
@@ -416,9 +453,11 @@ export default {
             senderId,
             dataTinCu.messageId,
             nutDuocChon,
-            layAccountId(ctx, event)
+            layAccountId(ctx, event),
           );
-          try { unlinkSync(fileTinCu); } catch {}
+          try {
+            unlinkSync(fileTinCu);
+          } catch {}
         }
       } catch (e) {
         // ignore
@@ -463,7 +502,9 @@ export default {
           // TECH-xx, PO-xx...) -> Tuyệt đối không đính nút, không có gì để xác nhận nữa.
           const laTinDaXongViec = !choPhepNutTrenTinCoMa(payload.text || "", buttons);
           if (laTinDaXongViec) {
-            try { unlinkSync(fileNut); } catch {}
+            try {
+              unlinkSync(fileNut);
+            } catch {}
             return { payload };
           }
 
@@ -471,19 +512,24 @@ export default {
           // rồi" — hợp đồng dùng chung ở `getConfirmationButtons`, xem buttons.ts)
           // nhưng tin nhắn KHÔNG PHẢI là tin tóm tắt xác nhận -> Không được đính
           // nhầm vào một câu hỏi làm rõ thông thường.
-          const laNutXacNhan = buttons.some(row =>
-            Array.isArray(row) && row.some(b => chuanHoa(b.callback_data) === chuanHoa("đúng rồi"))
+          const laNutXacNhan = buttons.some(
+            (row) =>
+              Array.isArray(row) &&
+              row.some((b) => chuanHoa(b.callback_data) === chuanHoa("đúng rồi")),
           );
           if (laNutXacNhan) {
-            const laTinTomTat = /(?:tóm tắt|kiểm tra (?:kỹ )?(?:lại )?thông tin|trước khi xác nhận|gửi Product team|thông tin đóng góp|bản ghi|Ý tưởng:|Quan sát:|Góp ý:)/i.test(
-              payload.text || "",
-            );
+            const laTinTomTat =
+              /(?:tóm tắt|kiểm tra (?:kỹ )?(?:lại )?thông tin|trước khi xác nhận|gửi Product team|thông tin đóng góp|bản ghi|Ý tưởng:|Quan sát:|Góp ý:)/i.test(
+                payload.text || "",
+              );
             if (!laTinTomTat) {
               return { payload };
             }
           }
 
-          try { unlinkSync(fileNut); } catch {}
+          try {
+            unlinkSync(fileNut);
+          } catch {}
 
           // 1. Dọn dẹp văn bản: loại bỏ các dòng liệt kê thừa và phần (chọn một: ...)
           if (payload.text) {
@@ -495,8 +541,8 @@ export default {
             ...payload.channelData,
             telegram: {
               ...payload.channelData?.telegram,
-              buttons: buttons
-            }
+              buttons: buttons,
+            },
           };
 
           // 3. Xóa presentation/interactive để tránh bị nhân đôi văn bản
@@ -537,5 +583,5 @@ export default {
         // ignore
       }
     });
-  }
+  },
 };

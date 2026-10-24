@@ -100,13 +100,28 @@ describe.skipIf(!memgraphUp)("KnowledgeGraphQueries", () => {
     const b = `TEST-KGQ-PB-${stamp}`;
     const cause = `TESTCAUSE${stamp} hàng đợi đồng bộ bị kẹt`;
     try {
-      const common = { status: "Done", priority: "low", createdAt: new Date().toISOString(), rootCause: cause };
-      await memgraph.upsertTicketNode({ ...common, identifier: a, title: "A", resolution: `TEST sửa A ${stamp}` });
-      await memgraph.upsertTicketNode({ ...common, identifier: b, title: "B", resolution: `TEST sửa B ${stamp}` });
+      const common = {
+        status: "Done",
+        priority: "low",
+        createdAt: new Date().toISOString(),
+        rootCause: cause,
+      };
+      await memgraph.upsertTicketNode({
+        ...common,
+        identifier: a,
+        title: "A",
+        resolution: `TEST sửa A ${stamp}`,
+      });
+      await memgraph.upsertTicketNode({
+        ...common,
+        identifier: b,
+        title: "B",
+        resolution: `TEST sửa B ${stamp}`,
+      });
 
-      const rows = (await queries.suggestResolutions({ keywords: [`TESTCAUSE${stamp}`], limit: 10 })).filter(
-        (r) => r.identifier === a || r.identifier === b,
-      );
+      const rows = (
+        await queries.suggestResolutions({ keywords: [`TESTCAUSE${stamp}`], limit: 10 })
+      ).filter((r) => r.identifier === a || r.identifier === b);
       expect(rows.map((r) => `${r.identifier}=${r.resolution}`).sort()).toEqual([
         `${a}=TEST sửa A ${stamp}`,
         `${b}=TEST sửa B ${stamp}`,
@@ -145,7 +160,9 @@ describe.skipIf(!memgraphUp)("KnowledgeGraphQueries", () => {
       expect(top.some((r) => r.rootCause.includes("CRM_Vuihoc (test fixture)"))).toBe(true);
 
       const wrongSystem = await queries.topRootCauses("LMS_Vuihoc", 200);
-      expect(wrongSystem.some((r) => r.rootCause.includes("CRM_Vuihoc (test fixture)"))).toBe(false);
+      expect(wrongSystem.some((r) => r.rootCause.includes("CRM_Vuihoc (test fixture)"))).toBe(
+        false,
+      );
     } finally {
       await wipeTestTicket(memgraph, testKey);
       await memgraph.close();

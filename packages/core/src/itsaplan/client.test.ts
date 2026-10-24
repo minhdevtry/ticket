@@ -87,7 +87,11 @@ describe("ItsaplanClient (merged)", () => {
 
   test("creates issues and moves them (updateIssue columnId)", async () => {
     const client = new ItsaplanClient("http://mock-itsaplan:3100", "k");
-    const created = await client.createIssue("TECH", { title: "Test Ticket", columnId: 10, priority: "high" });
+    const created = await client.createIssue("TECH", {
+      title: "Test Ticket",
+      columnId: 10,
+      priority: "high",
+    });
     expect(created.identifier).toBe("TECH-101");
     const moved = await client.updateIssue(created.id, { columnId: 14 });
     expect(moved.columnId).toBe(14);
@@ -95,7 +99,10 @@ describe("ItsaplanClient (merged)", () => {
 
   test("creates columns (CM method)", async () => {
     const client = new ItsaplanClient("http://mock-itsaplan:3100", "k");
-    const col = await client.createColumn("CMSUPPORT", { name: "Chờ GV bổ sung", stateType: "started" });
+    const col = await client.createColumn("CMSUPPORT", {
+      name: "Chờ GV bổ sung",
+      stateType: "started",
+    });
     expect(col.name).toBe("Chờ GV bổ sung");
   });
 

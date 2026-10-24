@@ -17,8 +17,15 @@
  * nằm ở đây; đổi hành vi thì đổi ở đây, các bot import lại.
  */
 import type { ItsaplanClient } from "../itsaplan/client";
-import { ItsaplanWebhookServer, type ItsaplanWebhookServerOptions } from "../itsaplan/webhook/server";
-import { deriveWebhookUrl, ensureItsaplanWebhook, pruneForeignWebhooks } from "../itsaplan/ensure-webhook";
+import {
+  ItsaplanWebhookServer,
+  type ItsaplanWebhookServerOptions,
+} from "../itsaplan/webhook/server";
+import {
+  deriveWebhookUrl,
+  ensureItsaplanWebhook,
+  pruneForeignWebhooks,
+} from "../itsaplan/ensure-webhook";
 import {
   NotificationDispatcher,
   type NotificationDispatcherOptions,
@@ -84,7 +91,10 @@ export async function startIntakeWorker(config: IntakeWorkerConfig): Promise<Int
   // một worker đọc nhầm DB rỗng không "webhook 200 mà chat im" trong câm lặng.
   if (config.dbPath) inspectBindingDb(config.dbPath);
 
-  const dispatcher = new NotificationDispatcher({ ...config.dispatcher, projectKey: config.projectKey });
+  const dispatcher = new NotificationDispatcher({
+    ...config.dispatcher,
+    projectKey: config.projectKey,
+  });
   const replyRouter = new ReplyRouter({ ...config.reply, projectKey: config.projectKey });
 
   const server = new ItsaplanWebhookServer(config.server ?? {});

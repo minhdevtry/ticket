@@ -2,7 +2,11 @@ import { describe, expect, it } from "bun:test";
 import { LlmTechReviewer } from "./tech-review";
 
 const llm = { baseUrl: "", apiKey: "", model: "m" };
-const input = { description: "Hạn tự học Toán 3 cập nhật sai", attachments: 0, known: { "Tài khoản HS / SĐT": "0900000006" } };
+const input = {
+  description: "Hạn tự học Toán 3 cập nhật sai",
+  attachments: 0,
+  known: { "Tài khoản HS / SĐT": "0900000006" },
+};
 
 describe("LlmTechReviewer", () => {
   it("đọc JSON LLM: tối đa 3 dữ kiện + câu hỏi; hướng dẫn và lời báo đều vào prompt", async () => {

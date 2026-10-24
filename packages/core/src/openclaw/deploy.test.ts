@@ -42,7 +42,7 @@ describe("planWorkspaceSync (idempotent)", () => {
 
 describe("spliceConfigBlock (idempotent, không nhân đôi)", () => {
   it("file trống → chèn khối", () => {
-    const out = spliceConfigBlock("", "provider = \"openai-http\"");
+    const out = spliceConfigBlock("", 'provider = "openai-http"');
     expect(out).toContain("bot-core BEGIN");
     expect(out).toContain('provider = "openai-http"');
     expect(out).toContain("bot-core END");
@@ -93,8 +93,23 @@ describe("mergeJsonConfig (idempotent cho JSON)", () => {
 
 describe("buildBinaryCommand", () => {
   it("dựng argv đúng, có target + minify", () => {
-    const argv = buildBinaryCommand({ entrypoint: "mcp/op/index.ts", outfile: "dist/op", target: "bun-linux-x64", minify: true });
-    expect(argv).toEqual(["bun", "build", "mcp/op/index.ts", "--compile", "--outfile", "dist/op", "--target", "bun-linux-x64", "--minify"]);
+    const argv = buildBinaryCommand({
+      entrypoint: "mcp/op/index.ts",
+      outfile: "dist/op",
+      target: "bun-linux-x64",
+      minify: true,
+    });
+    expect(argv).toEqual([
+      "bun",
+      "build",
+      "mcp/op/index.ts",
+      "--compile",
+      "--outfile",
+      "dist/op",
+      "--target",
+      "bun-linux-x64",
+      "--minify",
+    ]);
   });
   it("mặc định không target/minify, bunBin đổi được", () => {
     const argv = buildBinaryCommand({ entrypoint: "e.ts", outfile: "o", bunBin: "/opt/bun" });
@@ -112,19 +127,26 @@ describe("checkCompileReadiness (hai luật chống phình nhị phân)", () => 
   it("readFileSync lookup → block (không sống sót --compile)", () => {
     const src = `const t = readFileSync("./table.json");`;
     const issues = checkCompileReadiness({ entrypointSource: src });
-    expect(issues.some((i) => i.code === "readfile-in-compile" && i.severity === "block")).toBe(true);
+    expect(issues.some((i) => i.code === "readfile-in-compile" && i.severity === "block")).toBe(
+      true,
+    );
     expect(isCompileReady({ entrypointSource: src })).toBe(false);
   });
 
   it("import runtime nặng trong entrypoint → warn (không block)", () => {
     const src = `import { Bot } from "telegraf";`;
     const issues = checkCompileReadiness({ entrypointSource: src });
-    expect(issues.some((i) => i.code === "heavy-runtime-import" && i.severity === "warn")).toBe(true);
+    expect(issues.some((i) => i.code === "heavy-runtime-import" && i.severity === "warn")).toBe(
+      true,
+    );
     expect(isCompileReady({ entrypointSource: src })).toBe(true); // warn không chặn
   });
 
   it("quét cả extraSources", () => {
-    const issues = checkCompileReadiness({ entrypointSource: "ok", extraSources: ['readFile("x")'] });
+    const issues = checkCompileReadiness({
+      entrypointSource: "ok",
+      extraSources: ['readFile("x")'],
+    });
     expect(issues.some((i) => i.code === "readfile-in-compile")).toBe(true);
   });
 });

@@ -7,7 +7,7 @@
  * NGUỒN: intake `mcp/shared/tool.ts` (nguyên văn). Giữ tên `defineTool`/`McpTool`
  * để Tiểu Linh cắm vào không phải đổi call site.
  */
-import { z } from "zod";
+import type { z } from "zod";
 
 export interface McpTool<TShape extends z.ZodRawShape = z.ZodRawShape> {
   /** Định danh model gọi. snake_case tiếng Anh. */

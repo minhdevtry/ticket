@@ -3,13 +3,38 @@ import type { ItsaplanClient, ProjectColumn } from "./client";
 import { classifyColumn, ProjectColumnStates } from "./ticket-state";
 
 // Cột THẬT tra từ Itsaplan ngày 24/09/2026.
-const col = (id: number, name: string, stateType: ProjectColumn["stateType"]): ProjectColumn => ({ id, name, stateType, position: id });
-const TECH = [col(1, "Backlog", "backlog"), col(2, "Todo", "unstarted"), col(3, "In Progress", "started"), col(6, "Resolved", "completed"), col(4, "Done", "completed"), col(5, "Canceled", "canceled")];
-const PO = [col(7, "Backlog", "backlog"), col(8, "Todo", "unstarted"), col(9, "In Progress", "started"), col(10, "Done", "completed"), col(11, "Canceled", "canceled")];
+const col = (id: number, name: string, stateType: ProjectColumn["stateType"]): ProjectColumn => ({
+  id,
+  name,
+  stateType,
+  position: id,
+});
+const TECH = [
+  col(1, "Backlog", "backlog"),
+  col(2, "Todo", "unstarted"),
+  col(3, "In Progress", "started"),
+  col(6, "Resolved", "completed"),
+  col(4, "Done", "completed"),
+  col(5, "Canceled", "canceled"),
+];
+const PO = [
+  col(7, "Backlog", "backlog"),
+  col(8, "Todo", "unstarted"),
+  col(9, "In Progress", "started"),
+  col(10, "Done", "completed"),
+  col(11, "Canceled", "canceled"),
+];
 
 describe("classifyColumn", () => {
   it("TECH: Resolved nằm nhóm completed nhưng vẫn là đã xử lý, không phải hoàn tất", () => {
-    expect(TECH.map(classifyColumn)).toEqual(["open", "open", "open", "resolved", "done", "canceled"]);
+    expect(TECH.map(classifyColumn)).toEqual([
+      "open",
+      "open",
+      "open",
+      "resolved",
+      "done",
+      "canceled",
+    ]);
   });
 
   it("PO (chưa có Resolved): Done là hoàn tất", () => {
@@ -31,7 +56,11 @@ function fakeClient(columnsByProject: Record<string, ProjectColumn[]>) {
       return columnsByProject[key] ?? [];
     },
   } as unknown as ItsaplanClient;
-  return { client, calls: () => calls, set: (key: string, cols: ProjectColumn[]) => (columnsByProject[key] = cols) };
+  return {
+    client,
+    calls: () => calls,
+    set: (key: string, cols: ProjectColumn[]) => (columnsByProject[key] = cols),
+  };
 }
 
 describe("ProjectColumnStates", () => {
@@ -42,7 +71,7 @@ describe("ProjectColumnStates", () => {
     expect((await states.stateOf("TECH", 4))?.state).toBe("done");
     expect((await states.stateOf("TECH", 6))?.state).toBe("resolved");
     expect((await states.stateOf("PO", 10))?.state).toBe("done");
-    expect((await states.stateOf("PO", 4))).toBeNull(); // id 4 của TECH không có nghĩa gì ở PO
+    expect(await states.stateOf("PO", 4)).toBeNull(); // id 4 của TECH không có nghĩa gì ở PO
   });
 
   it("cache theo dự án; gặp columnId lạ (vừa thêm cột) thì tải lại một lần", async () => {

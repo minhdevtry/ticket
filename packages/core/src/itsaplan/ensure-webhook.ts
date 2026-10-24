@@ -73,7 +73,11 @@ export async function ensureItsaplanWebhook(
     const sameHostStale = canon
       ? hooks.find((h) => {
           const u = safeUrl(h.url);
-          return !!u && u.hostname === canon.hostname && h.url.trim().toLowerCase() !== webhookUrl.trim().toLowerCase();
+          return (
+            !!u &&
+            u.hostname === canon.hostname &&
+            h.url.trim().toLowerCase() !== webhookUrl.trim().toLowerCase()
+          );
         })
       : undefined;
     if (sameHostStale) {
@@ -159,7 +163,9 @@ export async function pruneForeignWebhooks(
           `[pruneWebhooks] [${projectKey}] xoá webhook #${h.id} lệch cổng/host: ${h.url}`,
         );
       } catch (err: any) {
-        getLogger().warn(`[pruneWebhooks] [${projectKey}] không xoá được #${h.id}: ${err?.message || err}`);
+        getLogger().warn(
+          `[pruneWebhooks] [${projectKey}] không xoá được #${h.id}: ${err?.message || err}`,
+        );
       }
     }
   } catch (err: any) {

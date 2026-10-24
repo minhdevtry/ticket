@@ -88,9 +88,12 @@ describe("OnyxClient.searchSimilarTickets — searchViaMcp regex phải đọc �
       }
       if (body.method === "tools/call") {
         sentDocumentSets = body.params.arguments.document_set_names;
-        return new Response(`data: ${JSON.stringify({ result: { structuredContent: { results: [] } } })}\n\n`, {
-          status: 200,
-        });
+        return new Response(
+          `data: ${JSON.stringify({ result: { structuredContent: { results: [] } } })}\n\n`,
+          {
+            status: 200,
+          },
+        );
       }
       throw new Error("unexpected");
     }) as any;

@@ -11,11 +11,7 @@
  */
 import { Database } from "bun:sqlite";
 import { beforeEach, describe, expect, test } from "bun:test";
-import {
-  intakeApplySchema,
-  SqliteDraftRepository,
-  type DraftRepository,
-} from "../draft";
+import { intakeApplySchema, SqliteDraftRepository, type DraftRepository } from "../draft";
 import { SqliteChannelBindingStore } from "../create";
 import { makeCopyCatalog } from "../copy-catalog";
 import { MIN_CONFIRM_DELAY_MS } from "../confirm";
@@ -198,10 +194,12 @@ describe("IntakeEngine.step — collection → summary → create", () => {
 
   test("channel envelope never enters the ticket description (TECH-924)", async () => {
     const enveloped = [
-      'Sender: Minh (telegram:555), username: minh (untrusted metadata)',
+      "Sender: Minh (telegram:555), username: minh (untrusted metadata)",
       "the app crashes on open",
     ].join("\n");
-    h.extractor.push(report(["the app crashes on open"], { values: { van_de: "the app crashes on open" } }));
+    h.extractor.push(
+      report(["the app crashes on open"], { values: { van_de: "the app crashes on open" } }),
+    );
     await h.engine.step({ chatId: CHAT, message: enveloped });
     // the extractor must have seen the STRIPPED text, not the envelope
     expect(h.extractor.calls[0].text).not.toContain("untrusted");
@@ -221,7 +219,12 @@ describe("IntakeEngine.step — collection → summary → create", () => {
 describe("IntakeEngine.step — priority (floor/ceiling + requested)", () => {
   test("blocksPayment floor raises the created ticket to Urgent", async () => {
     const h = makeHarness();
-    h.extractor.push(report(["cannot pay"], { values: { van_de: "cannot pay" }, evidence: { blocksPayment: true } }));
+    h.extractor.push(
+      report(["cannot pay"], {
+        values: { van_de: "cannot pay" },
+        evidence: { blocksPayment: true },
+      }),
+    );
     await h.engine.step({ chatId: CHAT, message: "payment fails" });
     h.extractor.push({ userIntent: "confirm" });
     h.clock.advance(MIN_CONFIRM_DELAY_MS + 1);
@@ -232,9 +235,16 @@ describe("IntakeEngine.step — priority (floor/ceiling + requested)", () => {
   test("requested priority honoured only with a reason (29/09 decision)", async () => {
     const h = makeHarness();
     h.extractor.push(
-      report(["slow page"], { values: { van_de: "slow page" }, requestedPriority: "high", requestedPriorityReason: "PH complaining all week" }),
+      report(["slow page"], {
+        values: { van_de: "slow page" },
+        requestedPriority: "high",
+        requestedPriorityReason: "PH complaining all week",
+      }),
     );
-    await h.engine.step({ chatId: CHAT, message: "slow, please prioritise, PH complaining all week" });
+    await h.engine.step({
+      chatId: CHAT,
+      message: "slow, please prioritise, PH complaining all week",
+    });
     h.extractor.push({ userIntent: "confirm" });
     h.clock.advance(MIN_CONFIRM_DELAY_MS + 1);
     await h.engine.step({ chatId: CHAT, message: "yes" });
@@ -243,7 +253,13 @@ describe("IntakeEngine.step — priority (floor/ceiling + requested)", () => {
 
   test("requested priority with NO reason is ignored", async () => {
     const h = makeHarness();
-    h.extractor.push(report(["slow page"], { values: { van_de: "slow page" }, requestedPriority: "urgent", requestedPriorityReason: null }));
+    h.extractor.push(
+      report(["slow page"], {
+        values: { van_de: "slow page" },
+        requestedPriority: "urgent",
+        requestedPriorityReason: null,
+      }),
+    );
     await h.engine.step({ chatId: CHAT, message: "make it urgent" });
     h.extractor.push({ userIntent: "confirm" });
     h.clock.advance(MIN_CONFIRM_DELAY_MS + 1);
@@ -256,7 +272,12 @@ describe("IntakeEngine.step — parking", () => {
   test("identifier-conflict parks and asks new-incident-or-append (TECH-928)", async () => {
     const h = makeHarness();
     // incident A: order with student account 0900000003
-    h.extractor.push(report(["order DH000001 wrong"], { values: { van_de: "order wrong" }, identifiers: { studentAccount: "0900000003" } }));
+    h.extractor.push(
+      report(["order DH000001 wrong"], {
+        values: { van_de: "order wrong" },
+        identifiers: { studentAccount: "0900000003" },
+      }),
+    );
     await h.engine.step({ chatId: CHAT, message: "order DH000001 wrong, account 0900000003" });
     // incident B arrives with a CONFLICTING student account
     h.extractor.push(report(["another order"], { identifiers: { studentAccount: "0900000004" } }));
@@ -270,10 +291,19 @@ describe("IntakeEngine.step — parking", () => {
 
   test("same number shortened/with area code is NOT a conflict (TECH-928 digit-subset)", async () => {
     const h = makeHarness();
-    h.extractor.push(report(["issue"], { values: { van_de: "issue" }, identifiers: { studentAccount: "84900000003" } }));
+    h.extractor.push(
+      report(["issue"], {
+        values: { van_de: "issue" },
+        identifiers: { studentAccount: "84900000003" },
+      }),
+    );
     await h.engine.step({ chatId: CHAT, message: "account 84900000003" });
     // "900000003" is a digit-subset of "84900000003" — same number, not a conflict
-    h.extractor.push({ userIntent: "provide_info", symptoms: [], identifiers: { studentAccount: "900000003" } });
+    h.extractor.push({
+      userIntent: "provide_info",
+      symptoms: [],
+      identifiers: { studentAccount: "900000003" },
+    });
     const out = await h.engine.step({ chatId: CHAT, message: "it's 900000003" });
     expect(out.outcome).not.toBe("parked");
   });
@@ -281,7 +311,11 @@ describe("IntakeEngine.step — parking", () => {
   test("full report while another draft is mid-collection parks (E2E 28/09)", async () => {
     const h = makeHarness();
     // draft A still collecting (incomplete)
-    h.extractor.push({ userIntent: "report_issue", symptoms: ["homework missing"], title: "homework" });
+    h.extractor.push({
+      userIntent: "report_issue",
+      symptoms: ["homework missing"],
+      title: "homework",
+    });
     await h.engine.step({ chatId: CHAT, message: "homework is missing" });
     // a COMPLETE new report arrives
     h.extractor.push(report(["CRM cannot call out"], { values: { van_de: "CRM broken" } }));
@@ -291,12 +325,27 @@ describe("IntakeEngine.step — parking", () => {
 
   test("pressing New incident starts a fresh draft from the held message (TECH-928)", async () => {
     const h = makeHarness();
-    h.extractor.push(report(["order A"], { values: { van_de: "order A" }, identifiers: { studentAccount: "0900000003" } }));
+    h.extractor.push(
+      report(["order A"], {
+        values: { van_de: "order A" },
+        identifiers: { studentAccount: "0900000003" },
+      }),
+    );
     await h.engine.step({ chatId: CHAT, message: "order A, 0900000003" });
-    h.extractor.push(report(["order B"], { values: { van_de: "order B" }, identifiers: { studentAccount: "0900000004" } }));
+    h.extractor.push(
+      report(["order B"], {
+        values: { van_de: "order B" },
+        identifiers: { studentAccount: "0900000004" },
+      }),
+    );
     await h.engine.step({ chatId: CHAT, message: "order B, 0900000004" });
     // The park replay re-extracts the held payload:
-    h.extractor.push(report(["order B"], { values: { van_de: "order B" }, identifiers: { studentAccount: "0900000004" } }));
+    h.extractor.push(
+      report(["order B"], {
+        values: { van_de: "order B" },
+        identifiers: { studentAccount: "0900000004" },
+      }),
+    );
     const out = await h.engine.step({ chatId: CHAT, message: "New incident" });
     expect(out.outcome).toBe("summary");
     const latest = h.drafts.getLatestByChatId(CHAT)!;
@@ -334,7 +383,9 @@ describe("IntakeEngine.step — existing-ticket writes (ADR-0008)", () => {
   test("append to own ticket shows a preview + button, writes nothing yet (ADR-0008, TECH-795)", async () => {
     const executed: TicketAction[] = [];
     const h = makeHarness({
-      commands: commandPort([{ action: "append", identifier: "TECH-1", content: "order is DH000002" }]),
+      commands: commandPort([
+        { action: "append", identifier: "TECH-1", content: "order is DH000002" },
+      ]),
       actions: actionPort(executed),
     });
     await createOne(h);
@@ -347,7 +398,9 @@ describe("IntakeEngine.step — existing-ticket writes (ADR-0008)", () => {
   test("append executes only on an exact button match (ADR-0008, TECH-975/1013)", async () => {
     const executed: TicketAction[] = [];
     const h = makeHarness({
-      commands: commandPort([{ action: "append", identifier: "TECH-1", content: "order is DH000002" }]),
+      commands: commandPort([
+        { action: "append", identifier: "TECH-1", content: "order is DH000002" },
+      ]),
       actions: actionPort(executed),
     });
     await createOne(h);
@@ -367,12 +420,17 @@ describe("IntakeEngine.step — existing-ticket writes (ADR-0008)", () => {
   test("cancel button clears the pending action, writes nothing", async () => {
     const executed: TicketAction[] = [];
     const h = makeHarness({
-      commands: commandPort([{ action: "edit", identifier: "TECH-1", instruction: "fix the phone number" }]),
+      commands: commandPort([
+        { action: "edit", identifier: "TECH-1", instruction: "fix the phone number" },
+      ]),
       actions: actionPort(executed),
     });
     await createOne(h);
     await h.engine.step({ chatId: CHAT, message: "edit TECH-1 phone is wrong" });
-    const out = await h.engine.step({ chatId: CHAT, message: h.deps.copy.text("button.cancel_action") });
+    const out = await h.engine.step({
+      chatId: CHAT,
+      message: h.deps.copy.text("button.cancel_action"),
+    });
     expect(out.outcome).toBe("action_canceled");
     expect(executed).toHaveLength(0);
     expect(h.drafts.getLatestByChatId(CHAT)!.pendingTicketAction).toBeUndefined();
@@ -382,7 +440,9 @@ describe("IntakeEngine.step — existing-ticket writes (ADR-0008)", () => {
     const executed: TicketAction[] = [];
     const notOwner: OwnershipPort = { isOwnTicket: () => false };
     const h = makeHarness({
-      commands: commandPort([{ action: "edit", identifier: "TECH-9", instruction: "change title" }]),
+      commands: commandPort([
+        { action: "edit", identifier: "TECH-9", instruction: "change title" },
+      ]),
       actions: actionPort(executed),
       ownership: notOwner,
     });
@@ -420,7 +480,10 @@ describe("IntakeEngine.step — tech review (one round)", () => {
   test("tech review asks once, any answer proceeds to summary", async () => {
     const reviewer: TechReviewerPort = {
       async review() {
-        return { missing: ["order code"], question: "Which order code? Reply 'none' and I'll file it." };
+        return {
+          missing: ["order code"],
+          question: "Which order code? Reply 'none' and I'll file it.",
+        };
       },
     };
     const h = makeHarness({ techReviewer: reviewer });
@@ -468,7 +531,11 @@ describe("IntakeEngine.step — /new flag parks the current draft", () => {
     h.extractor.push({ userIntent: "report_issue", symptoms: ["first"], title: "first" });
     await h.engine.step({ chatId: CHAT, message: "first problem" });
     h.extractor.push(report(["second"], { values: { van_de: "second" } }));
-    const out = await h.engine.step({ chatId: CHAT, message: "second problem", forceNew: true } as StepInput);
+    const out = await h.engine.step({
+      chatId: CHAT,
+      message: "second problem",
+      forceNew: true,
+    } as StepInput);
     expect(out.outcome).toBe("summary");
     const latest = h.drafts.getLatestByChatId(CHAT)!;
     expect(latest.parkedDocId).toBe("doc-1");

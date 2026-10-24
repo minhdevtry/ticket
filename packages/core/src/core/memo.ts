@@ -10,10 +10,7 @@
  */
 
 /** Nhớ theo một khoá tự rút ra từ tham số. Dùng khi tham số không phải chính khoá. */
-export function memoByKey<A, T>(
-  keyOf: (arg: A) => string,
-  create: (arg: A) => T,
-): (arg: A) => T {
+export function memoByKey<A, T>(keyOf: (arg: A) => string, create: (arg: A) => T): (arg: A) => T {
   const instances = new Map<string, T>();
   return (arg: A): T => {
     const key = keyOf(arg);

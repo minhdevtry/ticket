@@ -8,9 +8,7 @@
  * the library service with this renderer) reproduces intake's asserted messages
  * byte-for-byte. Another bot writes its own renderer (or its own language).
  */
-import type {
-  IdentityCopyRenderer,
-} from "../../src/identity";
+import type { IdentityCopyRenderer } from "../../src/identity";
 import type {
   IdentityCheckResult,
   RegistrationResult,

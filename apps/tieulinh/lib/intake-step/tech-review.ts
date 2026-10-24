@@ -37,7 +37,9 @@ export interface TechReviewer {
 
 type CompleteFn = (config: LlmConfig, system: string, user: string) => Promise<string>;
 
-const SYSTEM_PROMPT = (guide: string) => `Bạn là kỹ thuật viên TECH sẽ nhận ticket này. Trước khi ticket được tạo, bạn soát xem lời báo đã đủ DỮ KIỆN để bắt tay kiểm tra ngay chưa, theo hướng dẫn dưới đây (chắt từ những lần kỹ thuật phải hỏi lại người báo).
+const SYSTEM_PROMPT = (
+  guide: string,
+) => `Bạn là kỹ thuật viên TECH sẽ nhận ticket này. Trước khi ticket được tạo, bạn soát xem lời báo đã đủ DỮ KIỆN để bắt tay kiểm tra ngay chưa, theo hướng dẫn dưới đây (chắt từ những lần kỹ thuật phải hỏi lại người báo).
 
 ${guide}
 
@@ -83,9 +85,14 @@ export class LlmTechReviewer implements TechReviewer {
     const raw = await Promise.race([call, timeout]).finally(() => clearTimeout(timer));
     const parsed = extractJson<{ missing?: unknown; question?: unknown }>(raw);
     const missing = Array.isArray(parsed?.missing)
-      ? parsed!.missing.filter((m): m is string => typeof m === "string" && m.trim() !== "").slice(0, 3)
+      ? parsed!.missing
+          .filter((m): m is string => typeof m === "string" && m.trim() !== "")
+          .slice(0, 3)
       : [];
-    const question = typeof parsed?.question === "string" && parsed.question.trim() ? parsed.question.trim() : undefined;
+    const question =
+      typeof parsed?.question === "string" && parsed.question.trim()
+        ? parsed.question.trim()
+        : undefined;
     return missing.length > 0 && question ? { missing, question } : { missing: [] };
   }
 }

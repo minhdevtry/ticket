@@ -132,7 +132,9 @@ export async function resolveBacklogColumn(
 }
 
 /** Splits `TECH-42` into its project key and sequence number (project keys may contain digits). */
-export function parseIdentifier(identifier: string): { projectKey: string; sequence: number } | null {
+export function parseIdentifier(
+  identifier: string,
+): { projectKey: string; sequence: number } | null {
   const match = /^([A-Za-z][A-Za-z0-9]*)-(\d+)$/.exec(identifier.trim());
   if (!match) return null;
   return { projectKey: match[1].toUpperCase(), sequence: Number(match[2]) };
@@ -232,8 +234,7 @@ export async function resolveLabelsForIssue(
   additionalLabels: string[] = [],
 ): Promise<number[]> {
   const category = (errorCategory ?? "").trim();
-  const primaryLabelName =
-    category && category !== "Lỗi chưa xác định" ? category : undefined;
+  const primaryLabelName = category && category !== "Lỗi chưa xác định" ? category : undefined;
 
   const targetNames = new Set<string>();
   if (primaryLabelName) {

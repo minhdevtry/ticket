@@ -230,7 +230,13 @@ export class IdentityService {
       fullName: params.fullName,
       username: params.username,
       status: shouldAutoApprove ? "approved" : "pending",
-      approvedBy: shouldAutoApprove ? (isAdmin ? "admin" : prefixApproved ? "prefix_rule" : "open") : undefined,
+      approvedBy: shouldAutoApprove
+        ? isAdmin
+          ? "admin"
+          : prefixApproved
+            ? "prefix_rule"
+            : "open"
+        : undefined,
       pendingReport: params.pendingReport,
     });
 

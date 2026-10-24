@@ -5,7 +5,9 @@ import * as os from "node:os";
 import { uploadAttachments, spliceAttachmentsIntoDescription } from "./attachments";
 import type { ItsaplanClient } from "./client";
 
-function fakeClient(uploadImpl: (filename: string) => { id: string; url: string; filename: string }) {
+function fakeClient(
+  uploadImpl: (filename: string) => { id: string; url: string; filename: string },
+) {
   return {
     uploadAttachment: async (_issueId: number, filename: string) => uploadImpl(filename),
   } as unknown as ItsaplanClient;
@@ -31,7 +33,9 @@ describe("uploadAttachments", () => {
 
   test("bỏ qua đường dẫn không tồn tại, không ném lỗi", async () => {
     const client = fakeClient(() => ({ id: "1", url: "/files/1", filename: "a.png" }));
-    const result = await uploadAttachments(client, 1, "https://tracker.test", ["/khong-ton-tai.png"]);
+    const result = await uploadAttachments(client, 1, "https://tracker.test", [
+      "/khong-ton-tai.png",
+    ]);
     expect(result).toEqual([]);
   });
 
@@ -53,7 +57,11 @@ describe("uploadAttachments", () => {
 
   test("giữ nguyên url đã là tuyệt đối", async () => {
     const file = writeTmpFile("a.png");
-    const client = fakeClient((filename) => ({ id: "1", url: "https://cdn.test/files/1", filename }));
+    const client = fakeClient((filename) => ({
+      id: "1",
+      url: "https://cdn.test/files/1",
+      filename,
+    }));
     const result = await uploadAttachments(client, 1, "https://tracker.test", [file]);
     expect(result[0].url).toBe("https://cdn.test/files/1");
   });
@@ -66,7 +74,10 @@ describe("uploadAttachments", () => {
         throw new Error("boom");
       },
     } as unknown as ItsaplanClient;
-    const result = await uploadAttachments(client, 1, "https://tracker.test", [good, "/khong-ton-tai.png"]);
+    const result = await uploadAttachments(client, 1, "https://tracker.test", [
+      good,
+      "/khong-ton-tai.png",
+    ]);
     expect(result).toHaveLength(1);
   });
 
@@ -77,7 +88,6 @@ describe("uploadAttachments", () => {
     expect(result).toHaveLength(1);
     expect(result[0].filename).toContain("inbound_photo.jpg");
   });
-
 });
 
 describe("spliceAttachmentsIntoDescription", () => {
@@ -87,7 +97,9 @@ describe("spliceAttachmentsIntoDescription", () => {
 
   test("chèn mục ảnh mới trước footer khi mô tả có ---", () => {
     const desc = "Nội dung chính\n\n---\n\n*Nguồn: test*";
-    const out = spliceAttachmentsIntoDescription(desc, [{ id: "1", url: "https://x/1.png", filename: "1.png" }]);
+    const out = spliceAttachmentsIntoDescription(desc, [
+      { id: "1", url: "https://x/1.png", filename: "1.png" },
+    ]);
     expect(out).toContain("### 📸 Ảnh đính kèm");
     expect(out).toContain("![1.png](https://x/1.png)");
     expect(out.indexOf("### 📸 Ảnh đính kèm")).toBeLessThan(out.indexOf("*Nguồn: test*"));
@@ -95,7 +107,9 @@ describe("spliceAttachmentsIntoDescription", () => {
 
   test("gộp vào mục ảnh đã có sẵn thay vì tạo mục thứ hai", () => {
     const desc = "### 📸 Ảnh đính kèm\n\n![cu.png](https://x/cu.png)\n\n---\n*Nguồn*";
-    const out = spliceAttachmentsIntoDescription(desc, [{ id: "2", url: "https://x/moi.png", filename: "moi.png" }]);
+    const out = spliceAttachmentsIntoDescription(desc, [
+      { id: "2", url: "https://x/moi.png", filename: "moi.png" },
+    ]);
     expect(out.match(/### 📸 Ảnh đính kèm/g)).toHaveLength(1);
     expect(out).toContain("cu.png");
     expect(out).toContain("moi.png");
@@ -118,4 +132,3 @@ describe("spliceAttachmentsIntoDescription", () => {
     expect(out).toContain("![screen.png](https://x/screen.png)");
   });
 });
-

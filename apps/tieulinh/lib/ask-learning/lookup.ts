@@ -22,7 +22,9 @@ export function createAskLearnedLookup(
   try {
     store = openAskLearnStore(dbPath);
   } catch (err) {
-    getLogger().warn(`[ask-learn] Không mở được kho ${dbPath}, checklist chạy như cũ — ${String(err)}`);
+    getLogger().warn(
+      `[ask-learn] Không mở được kho ${dbPath}, checklist chạy như cũ — ${String(err)}`,
+    );
     return undefined;
   }
   return (system: string): AskLearnedLookupResult => {
@@ -33,7 +35,10 @@ export function createAskLearnedLookup(
       return Object.assign([...items], { items, shares });
     } catch (err) {
       getLogger().warn(`[ask-learn] Tra mục học được lỗi, bỏ qua — ${String(err)}`);
-      return Object.assign([] as CanonItem[], { items: [] as CanonItem[], shares: {} as Partial<Record<CanonItem, number>> });
+      return Object.assign([] as CanonItem[], {
+        items: [] as CanonItem[],
+        shares: {} as Partial<Record<CanonItem, number>>,
+      });
     }
   };
 }

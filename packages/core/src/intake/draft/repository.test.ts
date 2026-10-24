@@ -30,8 +30,16 @@ describe("SqliteDraftRepository", () => {
 
   test("getLatestByChatId orders by write time, not revision number", () => {
     // An old doc abandoned at a high revision must not beat a new doc at rev 1.
-    repo.saveRevision({ ...newDraft("old", "c1", new Date().toISOString()), revision: 5, status: "canceled" });
-    repo.saveRevision({ ...newDraft("new", "c1", new Date().toISOString()), revision: 1, status: "collecting" });
+    repo.saveRevision({
+      ...newDraft("old", "c1", new Date().toISOString()),
+      revision: 5,
+      status: "canceled",
+    });
+    repo.saveRevision({
+      ...newDraft("new", "c1", new Date().toISOString()),
+      revision: 1,
+      status: "collecting",
+    });
     expect(repo.getLatestByChatId("c1")?.docId).toBe("new");
   });
 

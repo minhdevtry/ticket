@@ -1,7 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
 import { fixtureCatalog } from "./catalog.fixture";
-import { buildFieldSchema, buildWorkingMemorySchema, collectFillableFields, readRecordFromInput } from "./schema";
+import {
+  buildFieldSchema,
+  buildWorkingMemorySchema,
+  collectFillableFields,
+  readRecordFromInput,
+} from "./schema";
 
 describe("collectFillableFields", () => {
   test("gathers fields from every variant, not just the first", () => {

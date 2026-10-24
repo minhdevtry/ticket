@@ -24,8 +24,13 @@ const evidenceShape = {
   scope: z
     .enum(["single_user", "group", "entire_system"])
     .optional()
-    .describe("Lỗi đang ảnh hưởng một người, một nhóm, hay cả hệ thống? (single_user | group | entire_system)"),
-  blocksPayment: z.boolean().optional().describe("Có ai đang KHÔNG hoàn tất được giao dịch ngay lúc này không?"),
+    .describe(
+      "Lỗi đang ảnh hưởng một người, một nhóm, hay cả hệ thống? (single_user | group | entire_system)",
+    ),
+  blocksPayment: z
+    .boolean()
+    .optional()
+    .describe("Có ai đang KHÔNG hoàn tất được giao dịch ngay lúc này không?"),
   reconciliationMismatch: z.boolean().optional().describe("Có lệch đối soát tiền không?"),
   blocksLearning: z.boolean().optional().describe("Học sinh đã trả tiền mà không học được?"),
   dataLoss: z.boolean().optional().describe("Có mất dữ liệu không lùi lại được không?"),
@@ -89,7 +94,9 @@ export function assessPriority(rules: UrgencyRules): AnyMcpTool {
       "DÙNG THẲNG `allowedLevel` làm mức của ticket — KHÔNG dừng lại hỏi người dùng. " +
       "`differsFromProposed: true` chỉ nghĩa là mức bạn đề xuất lệch với bằng chứng, không phải lệnh dừng.",
     inputSchema: {
-      proposedLevel: z.enum(levels as [string, ...string[]]).describe("Mức bạn định gán sau khi đọc mô tả"),
+      proposedLevel: z
+        .enum(levels as [string, ...string[]])
+        .describe("Mức bạn định gán sau khi đọc mô tả"),
       ...evidenceShape,
     },
     handler: (input) => {

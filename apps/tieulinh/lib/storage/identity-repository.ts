@@ -1,4 +1,4 @@
-import { Database } from "bun:sqlite";
+import type { Database } from "bun:sqlite";
 
 export type IdentityStatus = "pending" | "approved" | "rejected";
 
@@ -122,7 +122,6 @@ export class IdentityRepository {
     `);
     stmt.run(approvedBy, telegramUserId);
   }
-
 
   rejectUserIdentity(telegramUserId: string): void {
     const stmt = this.db.prepare(`

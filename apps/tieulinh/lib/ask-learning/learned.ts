@@ -51,7 +51,9 @@ const labelKey = (s: string): string => s.trim().replace(/\s+/g, " ").toLowerCas
  * system-taxonomy.json). Theo quyết định W25: đếm cho CẢ HAI hệ thống.
  */
 const AMBIGUOUS_APP_WEB = new Set(
-  ["Vuihoc (App/Web_Vuihoc + ERP_DUO)", "App/Web_Vuihoc", "Web_Vuihoc", "APP/WEB/CARE_Vuihoc"].map(labelKey),
+  ["Vuihoc (App/Web_Vuihoc + ERP_DUO)", "App/Web_Vuihoc", "Web_Vuihoc", "APP/WEB/CARE_Vuihoc"].map(
+    labelKey,
+  ),
 );
 
 /**
@@ -108,8 +110,12 @@ export function systemReport(
     for (const [item, w] of perItem) sums.set(item, (sums.get(item) ?? 0) + w);
   }
   const stats: ItemStat[] = [...sums.entries()]
-    .map(([item, weightedTickets]) => ({ item, weightedTickets, share: total > 0 ? weightedTickets / total : 0 }))
-    .sort((a, b) => b.share - a.share || (CANON_ITEMS.indexOf(a.item) - CANON_ITEMS.indexOf(b.item)));
+    .map(([item, weightedTickets]) => ({
+      item,
+      weightedTickets,
+      share: total > 0 ? weightedTickets / total : 0,
+    }))
+    .sort((a, b) => b.share - a.share || CANON_ITEMS.indexOf(a.item) - CANON_ITEMS.indexOf(b.item));
   const learned = stats
     .filter((s) => s.weightedTickets >= o.minTickets && s.share >= o.minShare)
     .map((s) => s.item);

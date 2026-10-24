@@ -5,12 +5,7 @@ import {
   escapeHtml,
 } from "./html-entities";
 
-export {
-  decodeHtmlEntities,
-  escapeItsaplanMarkdown,
-  escapeTelegramHtml,
-  escapeHtml,
-};
+export { decodeHtmlEntities, escapeItsaplanMarkdown, escapeTelegramHtml, escapeHtml };
 
 /**
  * Shared string and date formatting utilities for intake bots.
@@ -124,7 +119,10 @@ export function appendTicketUpdateDescription(
     if (/- Tài khoản HS/i.test(desc)) {
       desc = desc.replace(/- Tài khoản HS.*:.*$/im, `- Tài khoản HS / SĐT: ${studentAccount}`);
     } else if (desc.includes("## Thông tin sự cố")) {
-      desc = desc.replace("## Thông tin sự cố\n", `## Thông tin sự cố\n\n- Tài khoản HS / SĐT: ${studentAccount}\n`);
+      desc = desc.replace(
+        "## Thông tin sự cố\n",
+        `## Thông tin sự cố\n\n- Tài khoản HS / SĐT: ${studentAccount}\n`,
+      );
     }
   }
 
@@ -132,7 +130,10 @@ export function appendTicketUpdateDescription(
     if (/- Thiết bị:/i.test(desc)) {
       desc = desc.replace(/- Thiết bị:.*$/im, `- Thiết bị: ${update.device}`);
     } else if (desc.includes("## Thông tin sự cố")) {
-      desc = desc.replace("## Thông tin sự cố\n", `## Thông tin sự cố\n\n- Thiết bị: ${update.device}\n`);
+      desc = desc.replace(
+        "## Thông tin sự cố\n",
+        `## Thông tin sự cố\n\n- Thiết bị: ${update.device}\n`,
+      );
     }
   }
 
@@ -140,7 +141,10 @@ export function appendTicketUpdateDescription(
     if (/- Phiên bản app:/i.test(desc)) {
       desc = desc.replace(/- Phiên bản app:.*$/im, `- Phiên bản app: ${update.appVersion}`);
     } else if (desc.includes("## Thông tin sự cố")) {
-      desc = desc.replace("## Thông tin sự cố\n", `## Thông tin sự cố\n\n- Phiên bản app: ${update.appVersion}\n`);
+      desc = desc.replace(
+        "## Thông tin sự cố\n",
+        `## Thông tin sự cố\n\n- Phiên bản app: ${update.appVersion}\n`,
+      );
     }
   }
 
@@ -148,14 +152,17 @@ export function appendTicketUpdateDescription(
     if (/- Phòng học \/ Lớp:/i.test(desc)) {
       desc = desc.replace(/- Phòng học \/ Lớp:.*$/im, `- Phòng học / Lớp: ${update.roomId}`);
     } else if (desc.includes("## Thông tin sự cố")) {
-      desc = desc.replace("## Thông tin sự cố\n", `## Thông tin sự cố\n\n- Phòng học / Lớp: ${update.roomId}\n`);
+      desc = desc.replace(
+        "## Thông tin sự cố\n",
+        `## Thông tin sự cố\n\n- Phòng học / Lớp: ${update.roomId}\n`,
+      );
     }
   }
 
   // 3b. Làm sạch nếu có đính chính SĐT không phải mã khách hàng, hoặc nếu customerId trùng với studentAccount
   const isCustIdCorrection =
     /không phải mã khách hàng|ko phải mã kh|không phải mã kh|chưa có mã khách hàng|ko check đc mã kh|không check được mã kh/i.test(
-      update.additionalNotes || ""
+      update.additionalNotes || "",
     ) || Boolean(studentAccount && desc.includes(`- Mã khách hàng: ${studentAccount}`));
 
   if (isCustIdCorrection) {
@@ -187,7 +194,9 @@ export function appendTicketUpdateDescription(
     logLines.push(`- **${timeStr}:** ${escapeItsaplanMarkdown(update.additionalNotes)}`);
   }
   if (studentAccount) {
-    logLines.push(`- **${timeStr} · Tài khoản HS / SĐT:** ${escapeItsaplanMarkdown(studentAccount)}`);
+    logLines.push(
+      `- **${timeStr} · Tài khoản HS / SĐT:** ${escapeItsaplanMarkdown(studentAccount)}`,
+    );
   }
   if (update.device) {
     logLines.push(`- **${timeStr} · Thiết bị:** ${escapeItsaplanMarkdown(update.device)}`);
@@ -202,7 +211,9 @@ export function appendTicketUpdateDescription(
   if (logLines.length === 0) return desc.trim();
 
   const logContent = logLines.join("\n");
-  const supplementaryHeaderMatch = desc.match(/###\s*(?:➕\s*)?Bổ sung|###\s*📝\s*Thông tin bổ sung/i);
+  const supplementaryHeaderMatch = desc.match(
+    /###\s*(?:➕\s*)?Bổ sung|###\s*📝\s*Thông tin bổ sung/i,
+  );
 
   if (supplementaryHeaderMatch) {
     // Already has a "Bổ sung" section: append log lines before footer ---
@@ -263,11 +274,7 @@ export function stripBotMentions(text?: string | null, extraHandles: string[] = 
  */
 const recentCommentForwards = new Map<string, number>();
 
-export function isCommentRecentlyForwarded(
-  issueId: number,
-  text: string,
-  ttlMs = 60_000,
-): boolean {
+export function isCommentRecentlyForwarded(issueId: number, text: string, ttlMs = 60_000): boolean {
   const normalized = text.trim().toLowerCase().replace(/\s+/g, " ");
   const key = `${issueId}:${normalized}`;
   const now = Date.now();
@@ -283,4 +290,3 @@ export function isCommentRecentlyForwarded(
   }
   return false;
 }
-

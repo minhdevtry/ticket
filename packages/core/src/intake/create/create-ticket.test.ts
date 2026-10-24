@@ -12,7 +12,14 @@ import { SqliteChannelBindingStore, createTicket } from "../create";
 import { markSummaryShown, MIN_CONFIRM_DELAY_MS, CONFIRM_STALE_MS } from "../confirm";
 import { makeCopyCatalog } from "../copy-catalog";
 import { TEST_COPY } from "../engine/test-copy.fixture";
-import type { Clock, CopyKey, CreateIssueInput, MediaResolver, TrackerIssue, TrackerPort } from "../ports";
+import type {
+  Clock,
+  CopyKey,
+  CreateIssueInput,
+  MediaResolver,
+  TrackerIssue,
+  TrackerPort,
+} from "../ports";
 
 // ── fakes ────────────────────────────────────────────────────────────────────
 
@@ -101,10 +108,20 @@ function harness(startTime = 1_000_000): Harness {
 }
 
 /** Put a chat into "summary shown now" with a ready ticket. */
-function seedReadyDraft(h: Harness, chatId: string, overrides: Partial<IntakeDraft["ticket"]> = {}): IntakeDraft {
+function seedReadyDraft(
+  h: Harness,
+  chatId: string,
+  overrides: Partial<IntakeDraft["ticket"]> = {},
+): IntakeDraft {
   const nowIso = new Date(h.clock.now()).toISOString();
   const base = newDraft(`doc_${chatId}`, chatId, nowIso);
-  base.ticket = { title: "Không vào được Classin", rawText: "Em không vào được Classin để dạy.", priority: "high", mediaPaths: [], ...overrides };
+  base.ticket = {
+    title: "Không vào được Classin",
+    rawText: "Em không vào được Classin để dạy.",
+    priority: "high",
+    mediaPaths: [],
+    ...overrides,
+  };
   const shown = markSummaryShown(base, h.clock);
   h.drafts.saveRevision(shown);
   return shown;
@@ -149,7 +166,13 @@ describe("confirmation protocol", () => {
     const seeded = seedReadyDraft(h, "c1");
     // A stuck `confirmed` claim from a turn that never finished.
     const stuckIso = new Date(h.clock.now()).toISOString();
-    h.drafts.saveRevision({ ...seeded, revision: seeded.revision + 1, status: "confirmed", confirmingSince: stuckIso, updatedAt: stuckIso });
+    h.drafts.saveRevision({
+      ...seeded,
+      revision: seeded.revision + 1,
+      status: "confirmed",
+      confirmingSince: stuckIso,
+      updatedAt: stuckIso,
+    });
 
     // Still inside the window → in progress, no new ticket.
     h.clock.advance(CONFIRM_STALE_MS - 1_000);
@@ -181,10 +204,17 @@ describe("safe ticket creation", () => {
   });
 
   test("REAL INCIDENT PO-79: bare re-confirm never blanks the ticket — draft wins", async () => {
-    seedReadyDraft(h, "c1", { title: "Order tính năng X", rawText: "Mô tả đầy đủ của người báo.", priority: "high" });
+    seedReadyDraft(h, "c1", {
+      title: "Order tính năng X",
+      rawText: "Mô tả đầy đủ của người báo.",
+      priority: "high",
+    });
     h.clock.advance(MIN_CONFIRM_DELAY_MS);
     // The confirm turn re-sends an EMPTY payload plus a self-filled priority.
-    const res = await createTicket(h.deps, { chatId: "c1", input: { priority: "medium", title: "", rawText: "" } });
+    const res = await createTicket(h.deps, {
+      chatId: "c1",
+      input: { priority: "medium", title: "", rawText: "" },
+    });
     expect(res.kind).toBe("created");
     expect(h.tracker.created[0].title).toBe("Order tính năng X");
     expect(h.tracker.created[0].description).toBe("Mô tả đầy đủ của người báo.");
@@ -195,7 +225,10 @@ describe("safe ticket creation", () => {
     seedReadyDraft(h, "c1", { mediaPaths: ["/a.png", "/b.png"] });
     h.clock.advance(MIN_CONFIRM_DELAY_MS);
     // Confirm turn only remembers one of the paths.
-    const res = await createTicket(h.deps, { chatId: "c1", input: { mediaPaths: ["/b.png", "/c.png"] } });
+    const res = await createTicket(h.deps, {
+      chatId: "c1",
+      input: { mediaPaths: ["/b.png", "/c.png"] },
+    });
     expect(res.kind).toBe("created");
     const attach = h.tracker.attached[0];
     expect(attach.mediaPaths.sort()).toEqual(["/a.png", "/b.png", "/c.png"]);
@@ -215,7 +248,10 @@ describe("safe ticket creation", () => {
   });
 
   test("description = reporter verbatim; diagnosis goes to a marked bot comment", async () => {
-    seedReadyDraft(h, "c1", { rawText: "lời nguyên văn của người báo", diagnosis: "suy luận của bot" });
+    seedReadyDraft(h, "c1", {
+      rawText: "lời nguyên văn của người báo",
+      diagnosis: "suy luận của bot",
+    });
     h.clock.advance(MIN_CONFIRM_DELAY_MS);
     const res = await createTicket(h.deps, { chatId: "c1" });
     expect(res.kind).toBe("created");

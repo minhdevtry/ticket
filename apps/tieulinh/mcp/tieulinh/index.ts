@@ -64,7 +64,10 @@ const knowledge: KnowledgeConfig = {
 const identity: IdentityConfig = {
   dbPath: process.env.INTAKE_DB_PATH ?? "data/tieulinh.db",
   projectKey: tracker.projectKey,
-  adminIds: (process.env.ADMIN_IDS ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+  adminIds: (process.env.ADMIN_IDS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
   requireApproval: false, // Ticket sự cố không cần duyệt
 };
 
@@ -80,7 +83,12 @@ const searchClient = knowledge.apiKey
         // được tìm lại (search chỉ đọc "ticket-history"/"tech-done-tickets").
         // "kg-cause-taxonomy" là dữ liệu KG (rootCause/resolution + nhãn
         // CauseTaxon canonical) đẩy từ Memgraph sang, xem apps/tieulinh/scripts/push-kg-to-onyx.ts.
-        documentSets: ["ticket-history", "tech-done-tickets", "intake-test-done", "kg-cause-taxonomy"],
+        documentSets: [
+          "ticket-history",
+          "tech-done-tickets",
+          "intake-test-done",
+          "kg-cause-taxonomy",
+        ],
       },
       itsaplanClient,
     )
@@ -132,8 +140,8 @@ const intakeStepTool = intakeStep({
   ticketCommands: llmConfig ? new LlmTicketCommandInterpreter(llmConfig) : undefined,
   techReviewer:
     process.env.TECH_INFO_REVIEW === "checklist"
-      // Tự học (W25): ASK_LEARN_DB trỏ tới kho do scripts/ask-learn.ts ingest; không có thì như cũ.
-      ? new ChecklistTechReviewer(createAskLearnedLookup(process.env.ASK_LEARN_DB))
+      ? // Tự học (W25): ASK_LEARN_DB trỏ tới kho do scripts/ask-learn.ts ingest; không có thì như cũ.
+        new ChecklistTechReviewer(createAskLearnedLookup(process.env.ASK_LEARN_DB))
       : llmConfig && process.env.TECH_INFO_REVIEW !== "off"
         ? new LlmTechReviewer(llmConfig, techInfoGuide)
         : undefined,

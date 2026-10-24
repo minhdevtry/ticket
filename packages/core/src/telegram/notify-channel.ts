@@ -16,11 +16,7 @@
  * (`StateChangeCopyMap` cho state, comment là lời người xử lý). Nhãn nút "Đã ổn"
  * và payload callback do nơi gọi TIÊM vào — không literal tiếng Việt trong logic.
  */
-import type {
-  ChannelPort,
-  NotifyBinding,
-  TicketLifecycleState,
-} from "../intake/ports";
+import type { ChannelPort, NotifyBinding, TicketLifecycleState } from "../intake/ports";
 import { getLogger } from "../core/logger";
 import { sendMessage, type ParseMode, type TelegramButton } from "./send";
 import type { TelegramTransport } from "./transport";
@@ -56,7 +52,9 @@ export interface TelegramNotifyChannelOptions {
 
 /** Bóc chat id trần từ binding (cột có thể mang tiền tố "telegram:"). */
 function rawChatId(binding: NotifyBinding): string {
-  return String(binding.chatId).replace(/^telegram:/i, "").trim();
+  return String(binding.chatId)
+    .replace(/^telegram:/i, "")
+    .trim();
 }
 
 /**

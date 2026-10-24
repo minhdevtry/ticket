@@ -196,7 +196,10 @@ export function verifyIdentityToken(
   },
 ): IdentityTokenPayload {
   if (typeof raw !== "string" || !raw.trim()) {
-    throw new IdentityTokenFailure("E_IDENTITY_TOKEN_MISSING", "Tham số _identity không có giá trị.");
+    throw new IdentityTokenFailure(
+      "E_IDENTITY_TOKEN_MISSING",
+      "Tham số _identity không có giá trị.",
+    );
   }
 
   const dot = raw.indexOf(".");

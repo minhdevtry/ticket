@@ -162,7 +162,7 @@ export function loadEnvDefaults(
 
   for (const [key, value] of Object.entries(parseEnvFile(readFileSync(envFilePath, "utf-8")))) {
     if (prefix && !key.startsWith(prefix)) continue;
-    if (Object.prototype.hasOwnProperty.call(env, key)) {
+    if (Object.hasOwn(env, key)) {
       result.kept.push(key);
       continue;
     }

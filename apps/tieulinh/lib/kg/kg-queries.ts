@@ -1,5 +1,5 @@
 import neo4j from "neo4j-driver";
-import { MemgraphClient, OWN_RESOLUTION_MATCH } from "./memgraph-client";
+import { type MemgraphClient, OWN_RESOLUTION_MATCH } from "./memgraph-client";
 import type { GraphQueryResult } from "./types";
 import { getLogger } from "../logger";
 
@@ -14,7 +14,10 @@ export class KnowledgeGraphQueries {
    * Top N nguyên nhân gốc rễ hay gặp nhất theo hệ thống.
    * Dùng khi cần tổng quan "vấn đề lặp lại" của một hệ thống.
    */
-  async topRootCauses(system?: string, limit = 5): Promise<Array<{ rootCause: string; count: number; sampleTicket: string }>> {
+  async topRootCauses(
+    system?: string,
+    limit = 5,
+  ): Promise<Array<{ rootCause: string; count: number; sampleTicket: string }>> {
     const session = this.memgraph["driver"].session();
     try {
       const cypher = system
@@ -104,7 +107,9 @@ export class KnowledgeGraphQueries {
   async statsByLabel(): Promise<Array<{ label: string; count: number }>> {
     const session = this.memgraph["driver"].session();
     try {
-      const res = await session.run(`MATCH (n) RETURN labels(n)[0] AS label, count(*) AS count ORDER BY count DESC`);
+      const res = await session.run(
+        `MATCH (n) RETURN labels(n)[0] AS label, count(*) AS count ORDER BY count DESC`,
+      );
       return res.records.map((r) => ({
         label: r.get("label") || "Unknown",
         count: r.get("count").toNumber?.() ?? Number(r.get("count")),
@@ -117,7 +122,9 @@ export class KnowledgeGraphQueries {
   /**
    * Ticket có nhiều liên kết RELATES_TO nhất — "tâm chấn" sự cố.
    */
-  async mostRelatedTickets(limit = 5): Promise<Array<{ identifier: string; title: string; related: number }>> {
+  async mostRelatedTickets(
+    limit = 5,
+  ): Promise<Array<{ identifier: string; title: string; related: number }>> {
     const session = this.memgraph["driver"].session();
     try {
       const res = await session.run(

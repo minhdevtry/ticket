@@ -62,7 +62,12 @@ export type IntakeDocumentStatus =
   | "expired";
 
 /** Tài liệu đã đóng: không nhận thêm trường, tin nhắn sau thuộc về việc khác. */
-export const CLOSED_STATUSES: ReadonlySet<IntakeDocumentStatus> = new Set(["created", "updated", "canceled", "expired"]);
+export const CLOSED_STATUSES: ReadonlySet<IntakeDocumentStatus> = new Set([
+  "created",
+  "updated",
+  "canceled",
+  "expired",
+]);
 
 export interface IntakeFields {
   title?: FieldValue<string>;

@@ -33,7 +33,11 @@ describe("evaluatePriorityRules", () => {
   });
 
   test("sàn thắng trần: chặn giao dịch thì có cách làm tạm cũng vẫn Urgent", () => {
-    const r = evaluatePriorityRules(rules, "Low", { ...noEvidence, blocksPayment: true, hasWorkaround: true });
+    const r = evaluatePriorityRules(rules, "Low", {
+      ...noEvidence,
+      blocksPayment: true,
+      hasWorkaround: true,
+    });
     expect(r.allowedLevel).toBe("Urgent");
     expect(r.floorOverrodeCeiling).toBe(true);
   });
@@ -58,7 +62,11 @@ describe("evaluatePriorityRules", () => {
   });
 
   test("học sinh đơn lẻ gián đoạn học tập thì sàn là High, không ép lên Urgent", () => {
-    const r = evaluatePriorityRules(rules, "High", { ...noEvidence, scope: "single_user", blocksLearning: true });
+    const r = evaluatePriorityRules(rules, "High", {
+      ...noEvidence,
+      scope: "single_user",
+      blocksLearning: true,
+    });
     expect(r.allowedLevel).toBe("High");
     expect(r.direction).toBe("kept");
   });
@@ -73,7 +81,10 @@ describe("resolveRequestedPriority", () => {
   const levels = rules.levels;
 
   test("có lý do và cao hơn mức bằng chứng thì cho đúng mức xin", () => {
-    const r = resolveRequestedPriority(levels, "Medium", { level: "Urgent", reason: "sếp đang chờ gấp" });
+    const r = resolveRequestedPriority(levels, "Medium", {
+      level: "Urgent",
+      reason: "sếp đang chờ gấp",
+    });
     expect(r.level).toBe("Urgent");
     expect(r.grantedByRequest).toBe(true);
   });
@@ -85,7 +96,10 @@ describe("resolveRequestedPriority", () => {
   });
 
   test("không bao giờ hạ mức bằng chứng đã cao hơn", () => {
-    const r = resolveRequestedPriority(levels, "Urgent", { level: "Low", reason: "em thấy không gấp lắm" });
+    const r = resolveRequestedPriority(levels, "Urgent", {
+      level: "Low",
+      reason: "em thấy không gấp lắm",
+    });
     expect(r.level).toBe("Urgent");
     expect(r.grantedByRequest).toBe(false);
   });
@@ -103,7 +117,10 @@ describe("resolveRequestedPriority", () => {
   });
 
   test("mức xin lạ (không trong bảng) không thể nâng mức", () => {
-    const r = resolveRequestedPriority(levels, "Medium", { level: "SuperUrgent", reason: "gấp lắm" });
+    const r = resolveRequestedPriority(levels, "Medium", {
+      level: "SuperUrgent",
+      reason: "gấp lắm",
+    });
     expect(r.level).toBe("Medium");
     expect(r.grantedByRequest).toBe(false);
   });

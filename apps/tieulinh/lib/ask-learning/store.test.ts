@@ -6,8 +6,16 @@ describe("AskLearnStore", () => {
   it("upsert idempotent và hasComment", () => {
     const store = new AskLearnStore(new Database(":memory:"));
     const row = {
-      commentId: "c1", issueKey: "TECH-1", system: "CRM_Vuihoc", createdAt: 1000, needsInfo: true,
-      kind: "ask", items: ["TIME" as const], alreadyInReport: false, model: "m", classifiedAt: 2000,
+      commentId: "c1",
+      issueKey: "TECH-1",
+      system: "CRM_Vuihoc",
+      createdAt: 1000,
+      needsInfo: true,
+      kind: "ask",
+      items: ["TIME" as const],
+      alreadyInReport: false,
+      model: "m",
+      classifiedAt: 2000,
     };
     expect(store.hasComment("c1")).toBe(false);
     store.upsertComment(row);
@@ -20,9 +28,21 @@ describe("AskLearnStore", () => {
 
   it("ticket upsert và liệt kê theo hệ thống", () => {
     const store = new AskLearnStore(new Database(":memory:"));
-    store.upsertTicket({ issueKey: "TECH-1", system: "LMS_Vuihoc", createdAt: 5, lastScannedAt: 6 });
-    store.upsertTicket({ issueKey: "TECH-1", system: "LMS_Vuihoc", createdAt: 5, lastScannedAt: 7 });
-    expect(store.ticketsOf("LMS_Vuihoc")).toEqual([{ issueKey: "TECH-1", system: "LMS_Vuihoc", createdAt: 5, lastScannedAt: 7 }]);
+    store.upsertTicket({
+      issueKey: "TECH-1",
+      system: "LMS_Vuihoc",
+      createdAt: 5,
+      lastScannedAt: 6,
+    });
+    store.upsertTicket({
+      issueKey: "TECH-1",
+      system: "LMS_Vuihoc",
+      createdAt: 5,
+      lastScannedAt: 7,
+    });
+    expect(store.ticketsOf("LMS_Vuihoc")).toEqual([
+      { issueKey: "TECH-1", system: "LMS_Vuihoc", createdAt: 5, lastScannedAt: 7 },
+    ]);
     expect(store.systems()).toEqual(["LMS_Vuihoc"]);
   });
 });

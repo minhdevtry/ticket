@@ -116,7 +116,9 @@ describe("nhãn nút ngắn (`_nhan_nut`)", () => {
 
   test("bấm nút gửi về nhãn ngắn, và nhãn ngắn chuẩn hoá lại đúng giá trị đầy đủ", () => {
     const field = labelledCatalog.variants["1"].fields.muc_khan_cap;
-    const sent = fieldButtons(labelledCatalog, field)!.flat().map((b) => b.callbackData);
+    const sent = fieldButtons(labelledCatalog, field)!
+      .flat()
+      .map((b) => b.callbackData);
     expect(sent).toEqual(["Không gấp"]);
     expect(sent.map((s) => normalizeValue(labelledCatalog, field, s))).toEqual([LONG_VALUE]);
   });
@@ -135,7 +137,9 @@ describe("nhãn nút ngắn (`_nhan_nut`)", () => {
           nhanh: {
             "1": {
               ten: "Thử",
-              truong: { muc_khan_cap: { bat_buoc: true, kieu: "enum:muc_khan_cap", duoc_hoi: true } },
+              truong: {
+                muc_khan_cap: { bat_buoc: true, kieu: "enum:muc_khan_cap", duoc_hoi: true },
+              },
             },
           },
         },

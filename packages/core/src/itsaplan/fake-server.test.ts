@@ -1,9 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import {
-  ItsaplanClient,
-  ItsaplanApiError,
-  ItsaplanMalformedResponseError,
-} from "./client";
+import { ItsaplanClient, ItsaplanApiError, ItsaplanMalformedResponseError } from "./client";
 
 /**
  * Integration test against a real HTTP server (Bun.serve on 127.0.0.1:0).
@@ -76,7 +72,9 @@ afterAll(() => {
 
 function client() {
   // Fast retry so the test is quick, bounded to 2 retries.
-  return new ItsaplanClient(baseUrl, "k", { retryOptions: { maxRetries: 2, baseDelayMs: 1, maxDelayMs: 2 } });
+  return new ItsaplanClient(baseUrl, "k", {
+    retryOptions: { maxRetries: 2, baseDelayMs: 1, maxDelayMs: 2 },
+  });
 }
 
 describe("ItsaplanClient against a fake HTTP server", () => {
@@ -133,11 +131,15 @@ describe("ItsaplanClient against a fake HTTP server", () => {
   });
 
   test("2xx with empty body throws ItsaplanMalformedResponseError", async () => {
-    await expect(client().getProject("EMPTY")).rejects.toBeInstanceOf(ItsaplanMalformedResponseError);
+    await expect(client().getProject("EMPTY")).rejects.toBeInstanceOf(
+      ItsaplanMalformedResponseError,
+    );
   });
 
   test("2xx with non-JSON (HTML) body throws ItsaplanMalformedResponseError", async () => {
-    await expect(client().getProject("HTML")).rejects.toBeInstanceOf(ItsaplanMalformedResponseError);
+    await expect(client().getProject("HTML")).rejects.toBeInstanceOf(
+      ItsaplanMalformedResponseError,
+    );
   });
 
   test("204 No Content is a valid empty response", async () => {

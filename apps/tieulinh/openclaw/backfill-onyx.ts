@@ -37,7 +37,11 @@ async function openMcpSession(): Promise<string> {
       jsonrpc: "2.0",
       id: 1,
       method: "initialize",
-      params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "backfill-onyx", version: "0.1" } },
+      params: {
+        protocolVersion: "2024-11-05",
+        capabilities: {},
+        clientInfo: { name: "backfill-onyx", version: "0.1" },
+      },
     }),
   });
   const sessionId = res.headers.get("mcp-session-id");
@@ -54,7 +58,10 @@ async function openMcpSession(): Promise<string> {
   return sessionId;
 }
 
-async function mcpSearchIndexedDocuments(sessionId: string, query: string): Promise<Array<{ title: string; content: string }>> {
+async function mcpSearchIndexedDocuments(
+  sessionId: string,
+  query: string,
+): Promise<Array<{ title: string; content: string }>> {
   const res = await fetch(`${process.env.ONYX_BASE_URL}/mcp`, {
     method: "POST",
     headers: {
@@ -129,7 +136,11 @@ async function main() {
       headers: { "x-api-key": ITSAPLAN_API_KEY, Authorization: `Bearer ${ITSAPLAN_API_KEY}` },
     });
     if (!res.ok) throw new Error(`List issues (columnId=${columnId}) failed: HTTP ${res.status}`);
-    const rows = (await res.json()) as Array<{ id: number; sequenceNumber: number; identifier: string }>;
+    const rows = (await res.json()) as Array<{
+      id: number;
+      sequenceNumber: number;
+      identifier: string;
+    }>;
     for (const r of rows) {
       if (r.sequenceNumber >= CUTOFF_SEQ) {
         seen.set(r.sequenceNumber, { id: r.id, identifier: r.identifier });

@@ -137,7 +137,10 @@ export interface BindingDbReport {
  */
 export function inspectBindingDb(dbPath: string, base?: string): BindingDbReport {
   const resolvedPath = resolveDbPath(dbPath, base);
-  const isMemory = resolvedPath === ":memory:" || resolvedPath.includes("mode=memory") || resolvedPath.startsWith("file:");
+  const isMemory =
+    resolvedPath === ":memory:" ||
+    resolvedPath.includes("mode=memory") ||
+    resolvedPath.startsWith("file:");
   if (isMemory) {
     return { resolvedPath, bindingCount: null, opened: false };
   }

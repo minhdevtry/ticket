@@ -2,8 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { validateOne, type ValidationRules } from "../shared/index";
 import rules from "./domain/validation-rules.json";
 
-const check = (field: string, value: string) =>
-  validateOne(rules as ValidationRules, field, value);
+const check = (field: string, value: string) => validateOne(rules as ValidationRules, field, value);
 
 describe("validate_fields", () => {
   test("mã người liên quan để chung chung, không gán là mã KH", () => {

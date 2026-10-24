@@ -52,7 +52,9 @@ export function notifyApplySchema(db: Database, opts: { wal: boolean } = { wal: 
   }
   if (cols.length > 0 && !cols.some((c) => c.name === "reporter_user_id")) {
     db.run(`ALTER TABLE ticket_bindings ADD COLUMN reporter_user_id TEXT`);
-    db.run(`CREATE INDEX IF NOT EXISTS idx_bindings_user ON ticket_bindings (reporter_user_id, updated_at DESC)`);
+    db.run(
+      `CREATE INDEX IF NOT EXISTS idx_bindings_user ON ticket_bindings (reporter_user_id, updated_at DESC)`,
+    );
   }
 }
 
@@ -72,7 +74,14 @@ export class SqliteMessageRouteStore implements MessageRouteStore {
         `INSERT OR REPLACE INTO message_routes (message_id, channel_type, chat_id, issue_id, identifier, kind)
          VALUES (?, ?, ?, ?, ?, ?)`,
       )
-      .run(route.messageId, route.channelType, route.chatId ?? "", route.issueId, route.identifier, route.kind ?? "");
+      .run(
+        route.messageId,
+        route.channelType,
+        route.chatId ?? "",
+        route.issueId,
+        route.identifier,
+        route.kind ?? "",
+      );
   }
 
   /**
@@ -120,17 +129,15 @@ export class SqliteNotifyBindingReader implements NotifyBindingReader {
                 COALESCE(channel_type, 'telegram') AS channel_type
          FROM ticket_bindings WHERE issue_id = ?`,
       )
-      .get(issueId) as
-      | {
-          issue_id: number;
-          chat_id: string;
-          identifier: string;
-          title: string | null;
-          reporter_username: string | null;
-          reporter_user_id: string | null;
-          channel_type: string;
-        }
-      | null;
+      .get(issueId) as {
+      issue_id: number;
+      chat_id: string;
+      identifier: string;
+      title: string | null;
+      reporter_username: string | null;
+      reporter_user_id: string | null;
+      channel_type: string;
+    } | null;
     if (!row) return null;
     return {
       issueId: row.issue_id,

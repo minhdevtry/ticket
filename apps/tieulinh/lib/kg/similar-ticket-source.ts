@@ -20,9 +20,22 @@ import { getLogger } from "../logger";
 import type { LlmConfig } from "../../worker/llm";
 import type { MemgraphClient } from "./memgraph-client";
 import type { OnyxRestSearchClient } from "../onyx/rest-search";
-import { SimilarityIndex, type CorpusTicket, type PossibleCluster, type SimilarMatch, type SimilarMember } from "./similar-finder";
+import {
+  SimilarityIndex,
+  type CorpusTicket,
+  type PossibleCluster,
+  type SimilarMatch,
+  type SimilarMember,
+} from "./similar-finder";
 import { extractQuotedErrors, quoteGate } from "./quote-gate";
-import { askDiscriminatingQuestion, candidateQuotesOf, verifyCandidate, type ClusterCard, type JudgeMode, type OnyxSnippet } from "./similar-judge";
+import {
+  askDiscriminatingQuestion,
+  candidateQuotesOf,
+  verifyCandidate,
+  type ClusterCard,
+  type JudgeMode,
+  type OnyxSnippet,
+} from "./similar-judge";
 
 export interface FindOptions {
   excludeIds?: string[];
@@ -59,7 +72,11 @@ export interface LlmSimilarTicketsOptions {
   judgeMode?: JudgeMode;
 }
 
-async function mapWithConcurrency<T, R>(items: T[], concurrency: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
   const results: R[] = new Array(items.length);
   let idx = 0;
   async function worker() {
@@ -68,7 +85,9 @@ async function mapWithConcurrency<T, R>(items: T[], concurrency: number, fn: (it
       results[i] = await fn(items[i]);
     }
   }
-  await Promise.all(Array.from({ length: Math.max(1, Math.min(concurrency, items.length)) }, worker));
+  await Promise.all(
+    Array.from({ length: Math.max(1, Math.min(concurrency, items.length)) }, worker),
+  );
   return results;
 }
 
@@ -92,9 +111,17 @@ async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | typeof TIM
  * trong corpus, xem memgraph-client.ts::loadSimilarityCorpus) — đúng "giãn cụm
  * qua KG, minus negatives, minus self" theo thiết kế.
  */
-function membersOfCluster(corpus: CorpusTicket[], clusterId: string, excludeIds: Set<string>, negatives: Set<string>): SimilarMember[] {
+function membersOfCluster(
+  corpus: CorpusTicket[],
+  clusterId: string,
+  excludeIds: Set<string>,
+  negatives: Set<string>,
+): SimilarMember[] {
   return corpus.filter(
-    (t) => t.causeCluster === clusterId && !excludeIds.has(t.identifier.toUpperCase()) && !negatives.has(t.identifier.toUpperCase()),
+    (t) =>
+      t.causeCluster === clusterId &&
+      !excludeIds.has(t.identifier.toUpperCase()) &&
+      !negatives.has(t.identifier.toUpperCase()),
   );
 }
 
@@ -105,7 +132,13 @@ function clusterSize(corpus: CorpusTicket[], clusterId: string): number {
 
 function bestAdvice(members: SimilarMember[]): SimilarMatch["advice"] {
   const withAdvice = members.find((m) => m.humanCause?.trim() && m.humanFix?.trim());
-  return withAdvice ? { cause: withAdvice.humanCause!.trim(), fix: withAdvice.humanFix!.trim(), from: withAdvice.identifier } : undefined;
+  return withAdvice
+    ? {
+        cause: withAdvice.humanCause!.trim(),
+        fix: withAdvice.humanFix!.trim(),
+        from: withAdvice.identifier,
+      }
+    : undefined;
 }
 
 interface ClusterGroup {
@@ -116,7 +149,9 @@ interface ClusterGroup {
 }
 
 /** Gộp các ứng viên (đã accepted, hoặc đã "possible") theo `causeCluster` — dùng chung cho cả hai đường. */
-function groupByCluster(entries: Array<{ id: string; cand: CorpusTicket }>): Map<string, ClusterGroup> {
+function groupByCluster(
+  entries: Array<{ id: string; cand: CorpusTicket }>,
+): Map<string, ClusterGroup> {
   const groups = new Map<string, ClusterGroup>();
   for (const { id, cand } of entries) {
     const key = cand.causeCluster ?? `SELF:${id}`;
@@ -125,7 +160,12 @@ function groupByCluster(entries: Array<{ id: string; cand: CorpusTicket }>): Map
       g.ids.push(id);
       for (const n of cand.negatives ?? []) g.negatives.add(n.toUpperCase());
     } else {
-      groups.set(key, { key, ids: [id], sample: cand, negatives: new Set((cand.negatives ?? []).map((n) => n.toUpperCase())) });
+      groups.set(key, {
+        key,
+        ids: [id],
+        sample: cand,
+        negatives: new Set((cand.negatives ?? []).map((n) => n.toUpperCase())),
+      });
     }
   }
   return groups;
@@ -133,8 +173,17 @@ function groupByCluster(entries: Array<{ id: string; cand: CorpusTicket }>): Map
 
 /** Thẻ hiển thị cho 1 cụm — tối đa 3 ticket ví dụ (đủ cho cả UI "chưa chắc" lẫn prompt câu hỏi phân biệt). */
 function cardOf(corpus: CorpusTicket[], g: ClusterGroup): ClusterCard {
-  const ids = g.sample.causeCluster ? membersOfCluster(corpus, g.sample.causeCluster, new Set(), g.negatives).map((m) => m.identifier) : g.ids;
-  return { clusterId: g.key, cause: g.sample.humanCause, fix: g.sample.humanFix, sampleIds: ids.slice(0, 3) };
+  const ids = g.sample.causeCluster
+    ? membersOfCluster(corpus, g.sample.causeCluster, new Set(), g.negatives).map(
+        (m) => m.identifier,
+      )
+    : g.ids;
+  return {
+    clusterId: g.key,
+    cause: g.sample.humanCause,
+    fix: g.sample.humanFix,
+    sampleIds: ids.slice(0, 3),
+  };
 }
 
 /**
@@ -175,7 +224,9 @@ export class LlmSimilarTickets implements SimilarTicketSource {
     try {
       ({ corpus, index } = await this.getCorpus());
     } catch (err: any) {
-      log.warn(`[LlmSimilarTickets] Không nạp được kho KG (${this.options.projectKey}): ${err?.message ?? err}`);
+      log.warn(
+        `[LlmSimilarTickets] Không nạp được kho KG (${this.options.projectKey}): ${err?.message ?? err}`,
+      );
       return null;
     }
     if (!corpus.length) return null;
@@ -186,7 +237,7 @@ export class LlmSimilarTickets implements SimilarTicketSource {
     //    ngữ cảnh giàu hơn corpus KG thuần (chỉ có symptomsText/humanCause/
     //    humanFix), giúp LLM đủ căn cứ báo confidence "high" hơn khi có.
     const localHits = index.search(text, { excludeIds: [...excludeIds], topN: maxCandidates });
-    let onyxIds: string[] = [];
+    const onyxIds: string[] = [];
     const onyxSnippets = new Map<string, OnyxSnippet>();
     if (this.options.onyx) {
       try {
@@ -227,12 +278,21 @@ export class LlmSimilarTickets implements SimilarTicketSource {
     const newQuotes = extractQuotedErrors(text);
     const verifyAll = mapWithConcurrency(candidateIds, concurrency, async (id) => {
       const cand = byId.get(id)!;
-      const result = await verifyCandidate(this.options.llm, text, cand, onyxSnippets.get(id), 1, judgeMode);
+      const result = await verifyCandidate(
+        this.options.llm,
+        text,
+        cand,
+        onyxSnippets.get(id),
+        1,
+        judgeMode,
+      );
       return { id, cand, result };
     });
     const verified = await withTimeout(verifyAll, timeoutMs);
     if (verified === TIMED_OUT) {
-      log.warn(`[LlmSimilarTickets] Hết giờ (${timeoutMs}ms) xác minh ${candidateIds.length} ứng viên — không gợi ý.`);
+      log.warn(
+        `[LlmSimilarTickets] Hết giờ (${timeoutMs}ms) xác minh ${candidateIds.length} ứng viên — không gợi ý.`,
+      );
       return null;
     }
 
@@ -259,7 +319,11 @@ export class LlmSimilarTickets implements SimilarTicketSource {
         continue;
       }
       if (!result || !result.sameRootCause) continue;
-      if (result.confidence === "high" && cand.causeCluster && clusterSize(corpus, cand.causeCluster) >= 2) {
+      if (
+        result.confidence === "high" &&
+        cand.causeCluster &&
+        clusterSize(corpus, cand.causeCluster) >= 2
+      ) {
         stable.push({ id, cand });
       } else {
         maybeCandidates.push({ id, cand });
@@ -269,19 +333,29 @@ export class LlmSimilarTickets implements SimilarTicketSource {
       const rechecked = await withTimeout(
         Promise.all(
           stable.map(async ({ id, cand }) => {
-            const again = await Promise.all([2, 3].map((n) => verifyCandidate(this.options.llm, text, cand, onyxSnippets.get(id), n, judgeMode)));
+            const again = await Promise.all(
+              [2, 3].map((n) =>
+                verifyCandidate(this.options.llm, text, cand, onyxSnippets.get(id), n, judgeMode),
+              ),
+            );
             return { id, cand, ok: again.every((r) => r?.sameRootCause) };
           }),
         ),
         timeoutMs,
       );
       if (rechecked === TIMED_OUT) {
-        log.warn(`[LlmSimilarTickets] Hết giờ khi kiểm lại ${stable.length} ứng viên — không ghi, chỉ hiển thị.`);
+        log.warn(
+          `[LlmSimilarTickets] Hết giờ khi kiểm lại ${stable.length} ứng viên — không ghi, chỉ hiển thị.`,
+        );
         maybeCandidates.push(...stable);
       } else {
-        for (const r of rechecked) (r.ok ? accepted : maybeCandidates).push({ id: r.id, cand: r.cand });
+        for (const r of rechecked)
+          (r.ok ? accepted : maybeCandidates).push({ id: r.id, cand: r.cand });
         const flipped = rechecked.filter((r) => !r.ok).map((r) => r.id);
-        if (flipped.length) log.info(`[LlmSimilarTickets] Hạ xuống "chưa chắc" vì kiểm lại không ổn định: ${flipped.join(", ")}`);
+        if (flipped.length)
+          log.info(
+            `[LlmSimilarTickets] Hạ xuống "chưa chắc" vì kiểm lại không ổn định: ${flipped.join(", ")}`,
+          );
       }
     }
 
@@ -291,7 +365,9 @@ export class LlmSimilarTickets implements SimilarTicketSource {
 
     if (groups.size === 1) {
       const [{ key, sample, negatives }] = groups.values();
-      const members = sample.causeCluster ? membersOfCluster(corpus, sample.causeCluster, excludeIds, negatives) : [sample];
+      const members = sample.causeCluster
+        ? membersOfCluster(corpus, sample.causeCluster, excludeIds, negatives)
+        : [sample];
       return { clusterId: key, share: 1, members, advice: bestAdvice(members) };
     }
 
@@ -331,12 +407,22 @@ export class LlmSimilarTickets implements SimilarTicketSource {
     }
     if (questionCards.length < 2) return null;
 
-    const questionResult = await withTimeout(askDiscriminatingQuestion(this.options.llm, text, questionCards), timeoutMs);
+    const questionResult = await withTimeout(
+      askDiscriminatingQuestion(this.options.llm, text, questionCards),
+      timeoutMs,
+    );
     if (questionResult === TIMED_OUT) {
-      log.warn(`[LlmSimilarTickets] Hết giờ khi hỏi câu phân biệt (${questionCards.length} thẻ) — không gợi ý.`);
+      log.warn(
+        `[LlmSimilarTickets] Hết giờ khi hỏi câu phân biệt (${questionCards.length} thẻ) — không gợi ý.`,
+      );
       return null;
     }
-    const possible: PossibleCluster[] = possibleCards.map((c) => ({ clusterId: c.clusterId, cause: c.cause, fix: c.fix, sampleIds: c.sampleIds }));
+    const possible: PossibleCluster[] = possibleCards.map((c) => ({
+      clusterId: c.clusterId,
+      cause: c.cause,
+      fix: c.fix,
+      sampleIds: c.sampleIds,
+    }));
     return { clusterId: null, share: 0, members: [], question: questionResult, possible };
   }
 }

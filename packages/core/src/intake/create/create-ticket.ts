@@ -19,7 +19,14 @@
  * `lib/intake-step/pipeline.ts::createTicket` (atomic claim, write-created-first).
  */
 import { markBotComment } from "../../core";
-import type { Clock, CopyCatalog, ChannelBindingStore, MediaResolver, TrackerPort, TrackerIssue } from "../ports";
+import type {
+  Clock,
+  CopyCatalog,
+  ChannelBindingStore,
+  MediaResolver,
+  TrackerPort,
+  TrackerIssue,
+} from "../ports";
 import type { DraftRepository } from "../draft/repository";
 import type { IntakeDraft } from "../draft/types";
 import { evaluateConfirmation, type ConfirmOptions } from "../confirm/protocol";
@@ -65,7 +72,10 @@ export type CreateTicketResult =
  * Attempt to create the ticket for `chatId` from its latest draft. Serialized
  * per chat; honours the confirmation protocol; idempotent.
  */
-export function createTicket(deps: CreateTicketDeps, req: CreateTicketRequest): Promise<CreateTicketResult> {
+export function createTicket(
+  deps: CreateTicketDeps,
+  req: CreateTicketRequest,
+): Promise<CreateTicketResult> {
   return withChatLock(req.chatId, () => run(deps, req));
 }
 
@@ -81,7 +91,12 @@ async function run(deps: CreateTicketDeps, req: CreateTicketRequest): Promise<Cr
   if (existing) {
     return {
       kind: "already_created",
-      issue: { id: existing.issueId!, identifier: existing.issueIdentifier!, title: existing.ticket.title, url: existing.issueUrl },
+      issue: {
+        id: existing.issueId!,
+        identifier: existing.issueIdentifier!,
+        title: existing.ticket.title,
+        url: existing.issueUrl,
+      },
       message: copy.text("ticket.already_created", { identifier: existing.issueIdentifier! }),
     };
   }
@@ -95,8 +110,10 @@ async function run(deps: CreateTicketDeps, req: CreateTicketRequest): Promise<Cr
 
   // Honour the confirmation protocol (delay / stale / summary-shown).
   const decision = evaluateConfirmation(draft, clock, deps.confirm);
-  if (decision.kind === "too_soon") return { kind: "too_soon", message: copy.text("confirm.too_soon") };
-  if (decision.kind === "in_progress") return { kind: "in_progress", message: copy.text("confirm.in_progress") };
+  if (decision.kind === "too_soon")
+    return { kind: "too_soon", message: copy.text("confirm.too_soon") };
+  if (decision.kind === "in_progress")
+    return { kind: "in_progress", message: copy.text("confirm.in_progress") };
   if (decision.kind === "no_summary") {
     // Draft exists but no summary was shown — bare confirm cannot create.
     if (isBareConfirmation(input)) return bareFallback(deps, req, now);
@@ -132,7 +149,12 @@ async function run(deps: CreateTicketDeps, req: CreateTicketRequest): Promise<Cr
     if (latest?.status === "created" && latest.issueId && latest.issueIdentifier) {
       return {
         kind: "already_created",
-        issue: { id: latest.issueId, identifier: latest.issueIdentifier, title: latest.ticket.title, url: latest.issueUrl },
+        issue: {
+          id: latest.issueId,
+          identifier: latest.issueIdentifier,
+          title: latest.ticket.title,
+          url: latest.issueUrl,
+        },
         message: copy.text("ticket.already_created", { identifier: latest.issueIdentifier }),
       };
     }
@@ -192,7 +214,9 @@ async function run(deps: CreateTicketDeps, req: CreateTicketRequest): Promise<Cr
 
   // Media via injected resolver; per-file failures are swallowed by the port.
   const resolver = deps.media;
-  const mediaPaths = resolver ? resolver.resolve(ticket.mediaPaths, [ticket.title, ticket.rawText]) : ticket.mediaPaths;
+  const mediaPaths = resolver
+    ? resolver.resolve(ticket.mediaPaths, [ticket.title, ticket.rawText])
+    : ticket.mediaPaths;
   if (mediaPaths.length > 0) {
     await tracker.attach(issue.id, ticket.rawText, mediaPaths).catch(() => 0);
   }
@@ -222,7 +246,11 @@ function findCreatedTicket(draft: IntakeDraft | null, now: number): IntakeDraft 
  * (a re-clicked old confirm button), else ask the reporter to resend. Never a
  * blank ticket. (PO-88 lived outside the chatId branch; here it is unconditional.)
  */
-function bareFallback(deps: CreateTicketDeps, req: CreateTicketRequest, _now: number): CreateTicketResult {
+function bareFallback(
+  deps: CreateTicketDeps,
+  req: CreateTicketRequest,
+  _now: number,
+): CreateTicketResult {
   const binding = deps.bindings.getLatestBinding(req.chatId, deps.identifierPrefix);
   if (binding) {
     return {

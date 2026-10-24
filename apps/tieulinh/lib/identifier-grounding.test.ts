@@ -24,7 +24,9 @@ describe("isGroundedInDigits", () => {
   });
 
   test("giá trị không nằm trong nguồn thì KHÔNG grounded", () => {
-    expect(isGroundedInDigits("0900000004", normalizeDigits("90000003 - 0900000003 DH900003"))).toBe(false);
+    expect(
+      isGroundedInDigits("0900000004", normalizeDigits("90000003 - 0900000003 DH900003")),
+    ).toBe(false);
   });
 });
 

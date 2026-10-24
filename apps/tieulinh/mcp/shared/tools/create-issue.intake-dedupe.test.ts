@@ -67,9 +67,20 @@ describe("create_issue ↔ IntakeDocument: chống tạo trùng", () => {
     mockFetch = mock(async (input: any, init?: any) => {
       const url = String(input);
       const json = (body: unknown, status = 200) =>
-        new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+        new Response(JSON.stringify(body), {
+          status,
+          headers: { "content-type": "application/json" },
+        });
       if (url.endsWith("/projects/TECH")) {
-        return json({ id: 1, key: "TECH", name: "Tech", columns: [{ id: 10, name: "Backlog", stateType: "backlog" }], issueTypes: [], labels: [], customFields: [] });
+        return json({
+          id: 1,
+          key: "TECH",
+          name: "Tech",
+          columns: [{ id: 10, name: "Backlog", stateType: "backlog" }],
+          issueTypes: [],
+          labels: [],
+          customFields: [],
+        });
       }
       if (url.endsWith("/projects/TECH/issues") && init?.method === "POST") {
         createCalls++;
@@ -123,9 +134,22 @@ describe("create_issue ↔ IntakeDocument: chống tạo trùng", () => {
 
   test("create_issue tạo ticket → chỉ đóng tài liệu intake đang MỞ, ghi issueCreatedAt", async () => {
     const repo = getSharedIntakeDocRepo(dbPath);
-    repo.saveRevision(doc({ status: "collecting", issueId: undefined, issueIdentifier: undefined, issueCreatedAt: undefined }));
+    repo.saveRevision(
+      doc({
+        status: "collecting",
+        issueId: undefined,
+        issueIdentifier: undefined,
+        issueCreatedAt: undefined,
+      }),
+    );
     const tool = createIssue(tracker, domain, dbPath);
-    await tool.handler({ title: "CRM lỗi", description: "CRM lỗi 500", reporterName: "Khách A", reporterChatId: CHAT, userConfirmed: true });
+    await tool.handler({
+      title: "CRM lỗi",
+      description: "CRM lỗi 500",
+      reporterName: "Khách A",
+      reporterChatId: CHAT,
+      userConfirmed: true,
+    });
 
     const latest = repo.getLatestByChatId(CHAT)!;
     expect(latest.status).toBe("created");
@@ -136,9 +160,22 @@ describe("create_issue ↔ IntakeDocument: chống tạo trùng", () => {
 
   test("create_issue KHÔNG đánh dấu tài liệu đã huỷ thành created", async () => {
     const repo = getSharedIntakeDocRepo(dbPath);
-    repo.saveRevision(doc({ status: "canceled", issueId: undefined, issueIdentifier: undefined, issueCreatedAt: undefined }));
+    repo.saveRevision(
+      doc({
+        status: "canceled",
+        issueId: undefined,
+        issueIdentifier: undefined,
+        issueCreatedAt: undefined,
+      }),
+    );
     const tool = createIssue(tracker, domain, dbPath);
-    await tool.handler({ title: "CRM lỗi", description: "CRM lỗi 500", reporterName: "Khách A", reporterChatId: CHAT, userConfirmed: true });
+    await tool.handler({
+      title: "CRM lỗi",
+      description: "CRM lỗi 500",
+      reporterName: "Khách A",
+      reporterChatId: CHAT,
+      userConfirmed: true,
+    });
     expect(repo.getLatestByChatId(CHAT)!.status).toBe("canceled");
   });
 

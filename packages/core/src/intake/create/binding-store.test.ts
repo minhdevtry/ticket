@@ -67,8 +67,20 @@ describe("SqliteChannelBindingStore — lưu người báo theo user id", () => 
 
   it("username KHÔNG phải khóa: hai binding cùng user id, username đổi → vẫn tra ra theo id", () => {
     const store = new SqliteChannelBindingStore(freshDb());
-    store.saveBinding({ issueId: 10, chatId: "c1", identifier: "OP-10", reporterUserId: "u9", reporterUsername: "old_name" });
-    store.saveBinding({ issueId: 11, chatId: "c2", identifier: "OP-11", reporterUserId: "u9", reporterUsername: "new_name" });
+    store.saveBinding({
+      issueId: 10,
+      chatId: "c1",
+      identifier: "OP-10",
+      reporterUserId: "u9",
+      reporterUsername: "old_name",
+    });
+    store.saveBinding({
+      issueId: 11,
+      chatId: "c2",
+      identifier: "OP-11",
+      reporterUserId: "u9",
+      reporterUsername: "new_name",
+    });
     // mới nhất theo id, bất kể username/chat
     expect(store.getLatestBindingByUserId("u9")?.identifier).toBe("OP-11");
   });
@@ -109,11 +121,15 @@ describe("tương thích DB cũ (bảng ticket_bindings thiếu reporter_user_id
       title TEXT, reporter_username TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
-    db.run(`INSERT INTO ticket_bindings (issue_id, chat_id, identifier, reporter_username) VALUES (99, 'c', 'OP-99', 'old')`);
+    db.run(
+      `INSERT INTO ticket_bindings (issue_id, chat_id, identifier, reporter_username) VALUES (99, 'c', 'OP-99', 'old')`,
+    );
 
     // Áp schema mới → ALTER bù cột, không mất dòng cũ
     intakeApplySchema(db, { wal: false });
-    const cols = (db.query(`PRAGMA table_info(ticket_bindings)`).all() as Array<{ name: string }>).map((c) => c.name);
+    const cols = (
+      db.query(`PRAGMA table_info(ticket_bindings)`).all() as Array<{ name: string }>
+    ).map((c) => c.name);
     expect(cols).toContain("reporter_user_id");
 
     const store = new SqliteChannelBindingStore(db);

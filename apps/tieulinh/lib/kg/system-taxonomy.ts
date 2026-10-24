@@ -24,7 +24,7 @@ const EXACT_ALIASES: Record<string, CanonicalSystem> = {
   duo: "DUO_Vuihoc",
   tutor_vuihoc: "TUTOR_Vuihoc",
   "vh_tự học": "VH_Tự học",
-  "vh_tự_học": "VH_Tự học",
+  vh_tự_học: "VH_Tự học",
   lms_vuihoc: "LMS_Vuihoc",
   care_vuihoc: "CARE_Vuihoc",
   classin: "ClassIn",
@@ -47,16 +47,19 @@ const EXACT_ALIASES: Record<string, CanonicalSystem> = {
   "k12 viettel": "Khác_Hạ tầng_IT",
   bizfly_vuihoc: "Khác_Hạ tầng_IT",
   "thi thử đgnl": "Khác_Hạ tầng_IT",
-  "app_thpt": "VH_Tự học",
+  app_thpt: "VH_Tự học",
   "survery platform": "Khác_Hạ tầng_IT",
   invoice: "CRM_Vuihoc",
 };
 
 /** Từ khóa nhận diện theo definition — dùng khi alias không khớp. */
-const KEYWORD_RULES: Array<{ system: CanonicalSystem; patterns: RegExp[] }> = taxonomyData.systems.map((s) => ({
-  system: s.id as CanonicalSystem,
-  patterns: (s.keywords ?? []).map((k) => new RegExp(k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i")),
-}));
+const KEYWORD_RULES: Array<{ system: CanonicalSystem; patterns: RegExp[] }> =
+  taxonomyData.systems.map((s) => ({
+    system: s.id as CanonicalSystem,
+    patterns: (s.keywords ?? []).map(
+      (k) => new RegExp(k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+    ),
+  }));
 
 // CRM phải thắng DUO/VH_Tự học khi cả hai cùng xuất hiện (ví dụ "không lên được
 // đơn lớp Duo" là lỗi đơn — CRM), theo rule nghiệp vụ tech lead.
@@ -108,7 +111,8 @@ export function normalizeSystemName(raw: string | null | undefined): NormalizeSy
     for (const re of rule.patterns) {
       if (re.test(original)) {
         // Bucket chưa chốt: VH_Tự học vs DUO trên app vuihoc.vn
-        const ambiguous = (system === "VH_Tự học" || system === "DUO_Vuihoc") &&
+        const ambiguous =
+          (system === "VH_Tự học" || system === "DUO_Vuihoc") &&
           /app vuihoc|web vuihoc|vuihoc\.vn/i.test(original) &&
           !/duo/i.test(original) === (system === "DUO_Vuihoc");
         return { value: system, via: "keyword", needsReview: ambiguous, original };

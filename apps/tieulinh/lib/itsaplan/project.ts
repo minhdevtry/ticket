@@ -116,7 +116,8 @@ export async function resolveBacklogColumn(
 ): Promise<ProjectColumn> {
   const byState = (state: string) =>
     project.columns.find(
-      (column) => column.stateType === state || (column as { category?: string }).category === state,
+      (column) =>
+        column.stateType === state || (column as { category?: string }).category === state,
     );
 
   const target = byState("backlog") ?? byState("unstarted") ?? project.columns[0];
@@ -127,7 +128,9 @@ export async function resolveBacklogColumn(
 }
 
 /** Splits `TECH-42` into its project key and sequence number. */
-export function parseIdentifier(identifier: string): { projectKey: string; sequence: number } | null {
+export function parseIdentifier(
+  identifier: string,
+): { projectKey: string; sequence: number } | null {
   const match = /^([A-Za-z][A-Za-z0-9]*)-(\d+)$/.exec(identifier.trim());
   if (!match) return null;
   return { projectKey: match[1].toUpperCase(), sequence: Number(match[2]) };
@@ -235,8 +238,7 @@ export async function resolveLabelsForIssue(
   additionalLabels: string[] = [],
 ): Promise<number[]> {
   const category = (errorCategory ?? "").trim();
-  const primaryLabelName =
-    category && category !== "Lỗi chưa xác định" ? category : undefined;
+  const primaryLabelName = category && category !== "Lỗi chưa xác định" ? category : undefined;
 
   const targetNames = new Set<string>();
   if (primaryLabelName) {
@@ -257,4 +259,3 @@ export async function resolveLabelsForIssue(
 
   return labelIds;
 }
-

@@ -22,10 +22,13 @@ export function intakeStep(options: IntakePipelineOptions): AnyMcpTool {
       "Tool tự trích xuất, lưu tờ khai IntakeDocument, hỏi trường còn thiếu (nút bấm tự hiện trên Telegram), " +
       "xin xác nhận, TỰ TẠO ticket khi người dùng xác nhận và tự ghi phần bổ sung vào ticket đã tạo. " +
       "Gửi nguyên văn `voiceText` cho người dùng. KHÔNG gọi create_issue sau khi tool này đã tạo ticket. " +
-        "`message` phải là đúng tin người dùng vừa gửi — TUYỆT ĐỐI không tự gửi lời xác nhận (vd callbackData của nút) thay người dùng; " +
-        "sau action confirm_summary thì kết thúc lượt, chờ người dùng bấm nút.",
+      "`message` phải là đúng tin người dùng vừa gửi — TUYỆT ĐỐI không tự gửi lời xác nhận (vd callbackData của nút) thay người dùng; " +
+      "sau action confirm_summary thì kết thúc lượt, chờ người dùng bấm nút.",
     inputSchema: {
-      message: z.string().optional().describe("Nội dung tin nhắn văn bản người dùng vừa gửi (có thể rỗng nếu chỉ gửi ảnh)"),
+      message: z
+        .string()
+        .optional()
+        .describe("Nội dung tin nhắn văn bản người dùng vừa gửi (có thể rỗng nếu chỉ gửi ảnh)"),
       mediaPaths: z
         .array(z.string())
         .optional()

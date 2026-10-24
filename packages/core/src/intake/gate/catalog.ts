@@ -40,8 +40,22 @@ export interface RawField {
   dinh_dang?: string;
   mau?: string;
   pattern?: string;
-  ngu_nghia?: { chan?: string[]; mau_nhan_dien?: string; mo_ta?: string; blacklist?: string[]; whitelist_pattern?: string; whitelistPattern?: string };
-  semantic?: { chan?: string[]; mau_nhan_dien?: string; mo_ta?: string; blacklist?: string[]; whitelist_pattern?: string; whitelistPattern?: string };
+  ngu_nghia?: {
+    chan?: string[];
+    mau_nhan_dien?: string;
+    mo_ta?: string;
+    blacklist?: string[];
+    whitelist_pattern?: string;
+    whitelistPattern?: string;
+  };
+  semantic?: {
+    chan?: string[];
+    mau_nhan_dien?: string;
+    mo_ta?: string;
+    blacklist?: string[];
+    whitelist_pattern?: string;
+    whitelistPattern?: string;
+  };
   [key: string]: unknown;
 }
 
@@ -158,7 +172,9 @@ export function createCatalog(input: CatalogInput): FieldCatalog {
   }
 
   const buttonLabels = pickStringValues(
-    (rawEnums as Record<string, unknown> | undefined)?._nhan_nut as Record<string, unknown> | undefined,
+    (rawEnums as Record<string, unknown> | undefined)?._nhan_nut as
+      | Record<string, unknown>
+      | undefined,
   );
 
   // Authored files carry `_comment` keys alongside the data; keep only the lists.
@@ -208,29 +224,39 @@ export function assertCatalogIntegrity(catalog: FieldCatalog): void {
       if (field.type.startsWith("enum:")) {
         const enumKey = field.type.slice("enum:".length);
         if (!catalog.enums[enumKey]) {
-          problems.push(`${variant.key}.${field.name}: type "enum:${enumKey}" but no such vocabulary`);
+          problems.push(
+            `${variant.key}.${field.name}: type "enum:${enumKey}" but no such vocabulary`,
+          );
         }
       }
       if (field.requiredIf) {
         const match = REQUIRED_IF_RULE.exec(field.requiredIf.trim());
         if (!match) {
-          problems.push(`${variant.key}.${field.name}: cannot parse requiredIf "${field.requiredIf}"`);
+          problems.push(
+            `${variant.key}.${field.name}: cannot parse requiredIf "${field.requiredIf}"`,
+          );
         } else if (!catalog.enums[match[3]]) {
-          problems.push(`${variant.key}.${field.name}: requiredIf references missing vocabulary "${match[3]}"`);
+          problems.push(
+            `${variant.key}.${field.name}: requiredIf references missing vocabulary "${match[3]}"`,
+          );
         }
       }
       if (field.pattern) {
         try {
           new RegExp(field.pattern);
         } catch (err: any) {
-          problems.push(`${variant.key}.${field.name}: invalid regex pattern "${field.pattern}": ${err.message}`);
+          problems.push(
+            `${variant.key}.${field.name}: invalid regex pattern "${field.pattern}": ${err.message}`,
+          );
         }
       }
       if (field.semantic?.whitelistPattern) {
         try {
           new RegExp(field.semantic.whitelistPattern);
         } catch (err: any) {
-          problems.push(`${variant.key}.${field.name}: invalid whitelist pattern "${field.semantic.whitelistPattern}": ${err.message}`);
+          problems.push(
+            `${variant.key}.${field.name}: invalid whitelist pattern "${field.semantic.whitelistPattern}": ${err.message}`,
+          );
         }
       }
     }
@@ -250,7 +276,9 @@ export function assertCatalogIntegrity(catalog: FieldCatalog): void {
     }
     for (const name of variant.recapFields) {
       if (!variant.fields[name] && !catalog.autoLabels[name]) {
-        problems.push(`${variant.key}: recap lists "${name}" which is neither a field nor an auto label`);
+        problems.push(
+          `${variant.key}: recap lists "${name}" which is neither a field nor an auto label`,
+        );
       }
     }
     for (const name of variant.oneOf ?? []) {
@@ -274,7 +302,9 @@ export function assertCatalogIntegrity(catalog: FieldCatalog): void {
 
 function pickStringValues(source: Record<string, unknown> | undefined): Record<string, string> {
   return Object.fromEntries(
-    Object.entries(source ?? {}).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+    Object.entries(source ?? {}).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
   );
 }
 

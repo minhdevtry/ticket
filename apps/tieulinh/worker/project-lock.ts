@@ -9,13 +9,17 @@
 
 /** Chuẩn hoá mã dự án: bỏ khoảng trắng, viết hoa; rỗng → null (không khoá). */
 export function normalizeProjectKey(projectKey?: string | null): string | null {
-  const key = String(projectKey ?? "").trim().toUpperCase();
+  const key = String(projectKey ?? "")
+    .trim()
+    .toUpperCase();
   return key.length > 0 ? key : null;
 }
 
 /** Tiền tố dự án của một identifier "TECH-12" → "TECH"; không đọc được → null. */
 export function projectOfIdentifier(identifier?: string | null): string | null {
-  const match = String(identifier ?? "").trim().match(/^([A-Za-z][A-Za-z0-9_]*)-(\d+)$/);
+  const match = String(identifier ?? "")
+    .trim()
+    .match(/^([A-Za-z][A-Za-z0-9_]*)-(\d+)$/);
   return match ? match[1].toUpperCase() : null;
 }
 
@@ -26,7 +30,10 @@ export function projectOfIdentifier(identifier?: string | null): string | null {
  * - Không đọc được dự án từ identifier → KHÔNG nhận: không biết là của ai thì
  *   không được đụng vào (trước đây tiền tố rỗng lại lọt qua).
  */
-export function identifierInProject(identifier: string | null | undefined, projectKey?: string | null): boolean {
+export function identifierInProject(
+  identifier: string | null | undefined,
+  projectKey?: string | null,
+): boolean {
   const own = normalizeProjectKey(projectKey);
   if (!own) return true;
   return projectOfIdentifier(identifier) === own;
@@ -37,7 +44,10 @@ export function identifierInProject(identifier: string | null | undefined, proje
  * Các quy tắc W29 (chặn ticket đã đóng, cc @assignee) chỉ áp dụng cho Tiểu Linh/TECH,
  * tuyệt đối không áp dụng cho Iris/PO.
  */
-export function isTieuLinhProject(projectKeyOrIdentifier?: string | null, configuredProject?: string | null): boolean {
+export function isTieuLinhProject(
+  projectKeyOrIdentifier?: string | null,
+  configuredProject?: string | null,
+): boolean {
   const raw = normalizeProjectKey(projectKeyOrIdentifier);
   const target = raw ? (projectOfIdentifier(raw) ?? raw) : null;
   const configured = normalizeProjectKey(configuredProject);

@@ -43,7 +43,9 @@ describe("normalizeSystemName — danh mục đóng 9 giá trị (2026-09-23)", 
   });
 
   it("keyword: ticket tạo đơn/chuyển phí → CRM kể cả khi nhắc Duo (thắng theo priority)", () => {
-    expect(normalizeSystemName("Không lên được đơn lớp Duo do trùng tài khoản")!.value).toBe("CRM_Vuihoc");
+    expect(normalizeSystemName("Không lên được đơn lớp Duo do trùng tài khoản")!.value).toBe(
+      "CRM_Vuihoc",
+    );
     expect(normalizeSystemName("Chuyển phí khóa gia sư sai số buổi")!.value).toBe("CRM_Vuihoc");
     expect(normalizeSystemName("CTS chưa được đối soát do lỗi")!.value).toBe("CRM_Vuihoc");
   });

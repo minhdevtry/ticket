@@ -43,8 +43,7 @@ export const shims: Shim[] = [
     file: "worker/webhook-server.ts",
     from: ITSAPLAN,
     preserveAs: "webhook-server.local.ts",
-    note:
-      "pure helpers (verifyItsaplanSignature, webhookDedupeKey, isLoopback) + envelope/actor types delegated to the library; the bot-coupled ItsaplanWebhookServer class + handler/options types kept in webhook-server.local.ts (OpenClaw endpoints + ticket-closure handler shapes + in-RAM dedupe are intake-only)",
+    note: "pure helpers (verifyItsaplanSignature, webhookDedupeKey, isLoopback) + envelope/actor types delegated to the library; the bot-coupled ItsaplanWebhookServer class + handler/options types kept in webhook-server.local.ts (OpenClaw endpoints + ticket-closure handler shapes + in-RAM dedupe are intake-only)",
     body: (imp) =>
       `// SHIM → ${imp} for the PURE webhook helpers; bot-coupled server kept local.\n` +
       `export {\n` +

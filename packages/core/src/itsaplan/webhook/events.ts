@@ -99,8 +99,8 @@ export function webhookDedupeKey(envelope: ItsaplanWebhookEnvelope): string | nu
   if (!envelope?.webhookTimestamp) return null;
   const data = envelope.data ?? {};
   const isComment = envelope.event === "comment.created" || envelope.event === "comment.updated";
-  const issueId = isComment ? data.issueId : data.id ?? data.issueId;
-  const commentId = isComment ? data.id ?? "" : "";
+  const issueId = isComment ? data.issueId : (data.id ?? data.issueId);
+  const commentId = isComment ? (data.id ?? "") : "";
   return `${envelope.event}|${issueId ?? ""}|${commentId}|${envelope.webhookTimestamp}`;
 }
 

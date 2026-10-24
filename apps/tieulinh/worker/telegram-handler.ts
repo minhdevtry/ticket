@@ -1,11 +1,14 @@
-import { ItsaplanClient } from "../lib/itsaplan/client";
+import type { ItsaplanClient } from "../lib/itsaplan/client";
 import type { TicketClosure } from "./ticket-closure";
 import { REPORTER_OK_CALLBACK } from "./notifier";
 import type { TicketBindingRepository } from "../lib/storage/binding-repository";
 import { getLogger } from "../lib/logger";
 import { markBotComment, escapeItsaplanMarkdown } from "../lib/formatting";
 import { classifyColumn } from "../lib/itsaplan/ticket-state";
-import { closedTicketRefusalMessage, resolveSupplementMentionTarget } from "../lib/itsaplan/supplement-notifier";
+import {
+  closedTicketRefusalMessage,
+  resolveSupplementMentionTarget,
+} from "../lib/itsaplan/supplement-notifier";
 import { TelegramTransport } from "../lib/telegram/transport";
 import { identifierInProject, isTieuLinhProject, projectOfIdentifier } from "./project-lock";
 
@@ -54,14 +57,22 @@ export class TelegramWebhookHandler {
         const result = await this.options.closure
           .recordReporterOk({ issueId: Number(match[1]), chatId: chatId ?? "", userName })
           .catch((err: any) => {
-            getLogger().error(`[TelegramWebhookHandler] Ghi phản hồi đã ổn #${match[1]} lỗi: ${err.message}`);
-            return { outcome: "error" as const, replyText: "Dạ em chưa ghi nhận được, anh/chị bấm lại giúp em sau ít phút nhé." };
+            getLogger().error(
+              `[TelegramWebhookHandler] Ghi phản hồi đã ổn #${match[1]} lỗi: ${err.message}`,
+            );
+            return {
+              outcome: "error" as const,
+              replyText: "Dạ em chưa ghi nhận được, anh/chị bấm lại giúp em sau ít phút nhé.",
+            };
           });
 
         // Dừng vòng quay của nút; câu trả lời đi một lần, bằng tin nhắn.
         await this.callApi("answerCallbackQuery", { callback_query_id: cb.id });
         if (chatId) {
-          if ((result.outcome === "recorded" || result.outcome === "already_recorded") && cb.message?.message_id) {
+          if (
+            (result.outcome === "recorded" || result.outcome === "already_recorded") &&
+            cb.message?.message_id
+          ) {
             await this.callApi("editMessageReplyMarkup", {
               chat_id: chatId,
               message_id: cb.message.message_id,
@@ -88,7 +99,8 @@ export class TelegramWebhookHandler {
 
       if (route) {
         const isTieuLinh = isTieuLinhProject(route.identifier, this.options.projectKey);
-        const targetProject = projectOfIdentifier(route.identifier) ?? this.options.projectKey ?? "TECH";
+        const targetProject =
+          projectOfIdentifier(route.identifier) ?? this.options.projectKey ?? "TECH";
 
         // W29-NOTIFY (06/10/2026): Kiểm tra ticket đã đóng chưa (chỉ cho Tiểu Linh/TECH; Iris/PO giữ nguyên)
         if (isTieuLinh) {
@@ -146,12 +158,18 @@ export class TelegramWebhookHandler {
         }
 
         if (msg.text) {
-          const header = mentionSuffix ? `**${userName} (Telegram)**${mentionSuffix}:` : `**${userName} (Telegram):**`;
+          const header = mentionSuffix
+            ? `**${userName} (Telegram)**${mentionSuffix}:`
+            : `**${userName} (Telegram):**`;
           const commentBody = `${header}\n${escapeItsaplanMarkdown(msg.text)}`;
-          await this.options.itsaplan.addComment(route.issueId, markBotComment(commentBody)).catch((err: unknown) => {
-            const message = err instanceof Error ? err.message : String(err);
-            getLogger().error(`[TelegramWebhookHandler] Lỗi addComment cho #${route.issueId}: ${message}`);
-          });
+          await this.options.itsaplan
+            .addComment(route.issueId, markBotComment(commentBody))
+            .catch((err: unknown) => {
+              const message = err instanceof Error ? err.message : String(err);
+              getLogger().error(
+                `[TelegramWebhookHandler] Lỗi addComment cho #${route.issueId}: ${message}`,
+              );
+            });
 
           if (msg.chat?.id) {
             await this.callApi("sendMessage", {
@@ -243,13 +261,16 @@ export class TelegramWebhookHandler {
                 embedMarkdown = `[${uploadRes.filename}](${uploadRes.url})`;
               }
 
-              const typeLabel = mediaType === "video" ? "video" : mediaType === "photo" ? "ảnh" : "tệp đính kèm";
+              const typeLabel =
+                mediaType === "video" ? "video" : mediaType === "photo" ? "ảnh" : "tệp đính kèm";
               const header = mentionSuffix
                 ? `**${userName} (Telegram đính kèm ${typeLabel})**${mentionSuffix}:`
                 : `**${userName} (Telegram đính kèm ${typeLabel}):**`;
               const commentBody = `${header}\n${captionText}${embedMarkdown}`;
 
-              await this.options.itsaplan.addComment(route.issueId, markBotComment(commentBody)).catch(() => {});
+              await this.options.itsaplan
+                .addComment(route.issueId, markBotComment(commentBody))
+                .catch(() => {});
 
               if (msg.chat?.id) {
                 await this.callApi("sendMessage", {

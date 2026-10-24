@@ -62,7 +62,10 @@ export function normalizeValue(
   if (single) return single;
 
   if (field.isMultiValue) {
-    const parts = trimmed.split(MULTI_VALUE_SPLIT).map((p) => p.trim()).filter(Boolean);
+    const parts = trimmed
+      .split(MULTI_VALUE_SPLIT)
+      .map((p) => p.trim())
+      .filter(Boolean);
     if (parts.length > 1) {
       const mapped = parts.map((part) => matchOne(catalog, allowed, part));
       if (mapped.every((v): v is string => v !== null)) {

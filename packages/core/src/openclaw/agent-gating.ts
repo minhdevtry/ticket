@@ -38,7 +38,9 @@ export function parseAgentIdFromSessionKey(sessionKey: unknown): string | null {
  * Agent id của lượt: ưu tiên `ctx.agentId` (OpenClaw đặt sẵn cho hook), rồi mới
  * parse sessionKey. Giống `thuocPhamVi`: đường vào khác nhau phải cho cùng kết luận.
  */
-export function resolveAgentId(ctx: { agentId?: unknown; sessionKey?: unknown } = {}): string | null {
+export function resolveAgentId(
+  ctx: { agentId?: unknown; sessionKey?: unknown } = {},
+): string | null {
   const direct = typeof ctx.agentId === "string" ? ctx.agentId.trim() : "";
   if (direct) return direct;
   return parseAgentIdFromSessionKey(ctx.sessionKey);

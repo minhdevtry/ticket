@@ -53,10 +53,7 @@ export class TelegramTransport {
   }
 
   /** Như `call` nhưng hỏng thì ghi log rồi trả `null`, không làm gãy luồng gọi. */
-  async tryCall<T = unknown>(
-    method: string,
-    payload: Record<string, unknown>,
-  ): Promise<T | null> {
+  async tryCall<T = unknown>(method: string, payload: Record<string, unknown>): Promise<T | null> {
     try {
       return await this.call<T>(method, payload);
     } catch (err: any) {
@@ -88,7 +85,6 @@ export class TelegramTransport {
       return null;
     }
   }
-
 
   /** Tải file theo `file_path` mà `getFile` trả về. */
   async downloadFile(filePath: string): Promise<Buffer> {

@@ -36,16 +36,19 @@ export const ASK_LINE: Record<Exclude<CanonItem, "OTHER">, string> = {
   SCREENSHOT: "Ảnh chụp màn hình lỗi (thấy rõ màn hình/thông báo đang hiện)",
   ERROR_TEXT: "Nội dung thông báo lỗi hiện trên màn hình (chép nguyên văn nếu được)",
   STEPS: "Anh/chị bấm/thao tác những bước nào, ở màn hình nào thì ra lỗi",
-  EXPECTED_VS_ACTUAL: "Đang hiện gì và đúng ra phải hiện gì (ví dụ hạn đang hiện / hạn đúng mong muốn)",
+  EXPECTED_VS_ACTUAL:
+    "Đang hiện gì và đúng ra phải hiện gì (ví dụ hạn đang hiện / hạn đúng mong muốn)",
   TIME: "Thời điểm xảy ra lỗi (ngày/giờ, mới bị hay bị từ lâu)",
   DEVICE_APP: "Thiết bị và phiên bản app/trình duyệt đang dùng",
   STUDENT_ID: "Mã/tài khoản học sinh (UID/CID/SID) hoặc SĐT",
   CARE_STUDENT_LINK:
     "Link chi tiết học sinh trên se-care (dạng https://se-care.example.com/student-care/student-detail/…)",
   CRM_CONTACT_LINK: "Link chi tiết contact trên se-crm (không cần gửi SĐT)",
-  LMS_UID_LINK: "UID học sinh hoặc link LMS (dạng https://se-lms.example.com/module/ctvcskh/user/update?id=…)",
+  LMS_UID_LINK:
+    "UID học sinh hoặc link LMS (dạng https://se-lms.example.com/module/ctvcskh/user/update?id=…)",
   ORDER_CODE: "Mã đơn hàng (DHxxxxxx)",
-  COURSE_CLASS_SCOPE: "Học sinh nào, khoá học/lớp/buổi học nào bị ảnh hưởng (nhiều học sinh thì ghi rõ từng em)",
+  COURSE_CLASS_SCOPE:
+    "Học sinh nào, khoá học/lớp/buổi học nào bị ảnh hưởng (nhiều học sinh thì ghi rõ từng em)",
   OTHER_LINK: "Link trang/bài/đề đang bị lỗi",
   EXTENT: "Một người bị hay nhiều người/tất cả đều bị",
 };

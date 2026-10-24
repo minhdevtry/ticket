@@ -28,7 +28,14 @@ function sign(secret: string, body: string, ts = Math.floor(Date.now() / 1000)):
 }
 
 function envelope(event: string, data: Record<string, unknown>, webhookTimestamp?: number): string {
-  return JSON.stringify({ action: "update", type: "Issue", event, data, createdAt: "", webhookTimestamp });
+  return JSON.stringify({
+    action: "update",
+    type: "Issue",
+    event,
+    data,
+    createdAt: "",
+    webhookTimestamp,
+  });
 }
 
 describe("ItsaplanWebhookServer — giới hạn body", () => {
@@ -51,7 +58,10 @@ describe("ItsaplanWebhookServer — chữ ký Itsaplan", () => {
 
   test("có cấu hình secret: thiếu chữ ký → 401", async () => {
     const { base, onEvent } = await startServer({ itsaplanSecrets: [secret] });
-    const res = await fetch(`${base}/webhook`, { method: "POST", body: envelope("issue.updated", { id: 1 }) });
+    const res = await fetch(`${base}/webhook`, {
+      method: "POST",
+      body: envelope("issue.updated", { id: 1 }),
+    });
     expect(res.status).toBe(401);
     expect(onEvent).not.toHaveBeenCalled();
   });
@@ -84,7 +94,10 @@ describe("ItsaplanWebhookServer — chữ ký Itsaplan", () => {
 
   test("không cấu hình secret: giữ hành vi cũ (nhận không cần chữ ký)", async () => {
     const { base, onEvent } = await startServer();
-    const res = await fetch(`${base}/webhook`, { method: "POST", body: envelope("issue.updated", { id: 1 }) });
+    const res = await fetch(`${base}/webhook`, {
+      method: "POST",
+      body: envelope("issue.updated", { id: 1 }),
+    });
     expect(res.status).toBe(200);
     expect(onEvent).toHaveBeenCalledTimes(1);
   });
@@ -154,16 +167,25 @@ describe("ItsaplanWebhookServer — /internal/reporter-ok (plugin OpenClaw xac-n
   test("đường cũ /internal/confirm-done (plugin bản trước) vẫn nhận", async () => {
     const { server, base } = await startServer();
     server.onReporterOk(async () => ({ outcome: "done" as const, replyText: "đã hoàn tất rồi" }));
-    const res = await fetch(`${base}/internal/confirm-done`, { method: "POST", body: JSON.stringify({ issueId: 7 }) });
+    const res = await fetch(`${base}/internal/confirm-done`, {
+      method: "POST",
+      body: JSON.stringify({ issueId: 7 }),
+    });
     expect(((await res.json()) as any).outcome).toBe("done");
   });
 
   test("issueId không hợp lệ → 400; chưa gắn handler → 404", async () => {
     const { server, base } = await startServer();
-    const noHandler = await fetch(`${base}/internal/reporter-ok`, { method: "POST", body: '{"issueId":1}' });
+    const noHandler = await fetch(`${base}/internal/reporter-ok`, {
+      method: "POST",
+      body: '{"issueId":1}',
+    });
     expect(noHandler.status).toBe(404);
     server.onReporterOk(async () => ({ outcome: "recorded" as const, replyText: "" }));
-    const bad = await fetch(`${base}/internal/reporter-ok`, { method: "POST", body: '{"issueId":"abc"}' });
+    const bad = await fetch(`${base}/internal/reporter-ok`, {
+      method: "POST",
+      body: '{"issueId":"abc"}',
+    });
     expect(bad.status).toBe(400);
   });
 });
@@ -174,19 +196,34 @@ describe("ItsaplanWebhookServer — /internal/reporter-reply (plugin OpenClaw xa
   // mode). Plugin bắt reply_to_id trong phong bì rồi gọi endpoint này.
   test("chuyển chatId + replyToMessageId + text + senderName cho handler, trả nguyên kết quả", async () => {
     const { server, base } = await startServer();
-    const onReply = mock(async (_req: { chatId: string; messageId: string; text: string; userName: string }) => ({
-      handled: true as const,
-      replyText: "Dạ em đã chuyển phản hồi của anh/chị vào TECH-961 cho đội Kỹ thuật ạ.",
-    }));
+    const onReply = mock(
+      async (_req: { chatId: string; messageId: string; text: string; userName: string }) => ({
+        handled: true as const,
+        replyText: "Dạ em đã chuyển phản hồi của anh/chị vào TECH-961 cho đội Kỹ thuật ạ.",
+      }),
+    );
     server.onReporterReply(onReply);
 
     const res = await fetch(`${base}/internal/reporter-reply`, {
       method: "POST",
-      body: JSON.stringify({ chatId: 5551234, replyToMessageId: 900, text: "vẫn chưa được ạ", senderName: "Chị A" }),
+      body: JSON.stringify({
+        chatId: 5551234,
+        replyToMessageId: 900,
+        text: "vẫn chưa được ạ",
+        senderName: "Chị A",
+      }),
     });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ handled: true, replyText: "Dạ em đã chuyển phản hồi của anh/chị vào TECH-961 cho đội Kỹ thuật ạ." });
-    expect(onReply).toHaveBeenCalledWith({ chatId: "5551234", messageId: "900", text: "vẫn chưa được ạ", userName: "Chị A" });
+    expect(await res.json()).toEqual({
+      handled: true,
+      replyText: "Dạ em đã chuyển phản hồi của anh/chị vào TECH-961 cho đội Kỹ thuật ạ.",
+    });
+    expect(onReply).toHaveBeenCalledWith({
+      chatId: "5551234",
+      messageId: "900",
+      text: "vẫn chưa được ạ",
+      userName: "Chị A",
+    });
   });
 
   test("route không khớp → handler trả handled:false, giữ nguyên", async () => {
@@ -208,15 +245,26 @@ describe("ItsaplanWebhookServer — /internal/reporter-reply (plugin OpenClaw xa
       method: "POST",
       body: JSON.stringify({ chatId: 1, replyToMessageId: 2, text: "chưa ổn ạ" }),
     });
-    expect(onReply).toHaveBeenCalledWith({ chatId: "1", messageId: "2", text: "chưa ổn ạ", userName: "Người báo" });
+    expect(onReply).toHaveBeenCalledWith({
+      chatId: "1",
+      messageId: "2",
+      text: "chưa ổn ạ",
+      userName: "Người báo",
+    });
   });
 
   test("thiếu chatId/replyToMessageId/text → 400; chưa gắn handler → 404", async () => {
     const { server, base } = await startServer();
-    const noHandler = await fetch(`${base}/internal/reporter-reply`, { method: "POST", body: '{"chatId":1,"replyToMessageId":2,"text":"a"}' });
+    const noHandler = await fetch(`${base}/internal/reporter-reply`, {
+      method: "POST",
+      body: '{"chatId":1,"replyToMessageId":2,"text":"a"}',
+    });
     expect(noHandler.status).toBe(404);
     server.onReporterReply(async () => ({ handled: false }));
-    const bad = await fetch(`${base}/internal/reporter-reply`, { method: "POST", body: '{"chatId":1,"replyToMessageId":2}' });
+    const bad = await fetch(`${base}/internal/reporter-reply`, {
+      method: "POST",
+      body: '{"chatId":1,"replyToMessageId":2}',
+    });
     expect(bad.status).toBe(400);
   });
 
@@ -234,7 +282,7 @@ describe("ItsaplanWebhookServer — /internal/reporter-reply (plugin OpenClaw xa
   });
 });
 
-describe("ItsaplanWebhookServer — /internal/force-new (plugin OpenClaw xac-nhan-xong gọi khi bắt \"/new\")", () => {
+describe('ItsaplanWebhookServer — /internal/force-new (plugin OpenClaw xac-nhan-xong gọi khi bắt "/new")', () => {
   // "/new" bị OpenClaw nuốt trước khi tới agent (ADR-0008) — plugin bắt ở
   // before_dispatch rồi gọi endpoint này (chỉ localhost) để đặt cờ ép sự cố mới.
   test("chuyển chatId cho handler, trả {ok:true}", async () => {
@@ -265,7 +313,10 @@ describe("ItsaplanWebhookServer — /internal/force-new (plugin OpenClaw xac-nha
     server.onForceNew(async () => {
       throw new Error("DB hỏng");
     });
-    const res = await fetch(`${base}/internal/force-new`, { method: "POST", body: JSON.stringify({ chatId: 1 }) });
+    const res = await fetch(`${base}/internal/force-new`, {
+      method: "POST",
+      body: JSON.stringify({ chatId: 1 }),
+    });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: false });
   });

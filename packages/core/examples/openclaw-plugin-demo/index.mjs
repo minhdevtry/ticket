@@ -21,7 +21,8 @@ const IDENTITY_PARAM = "_identity";
 export default {
   id: "openclaw-plugin-demo",
   name: "Demo — bot-core openclaw kit",
-  description: "Ký _identity bằng helper của @vuihoc/bot-core/openclaw. Plugin mẫu, không phải production.",
+  description:
+    "Ký _identity bằng helper của @vuihoc/bot-core/openclaw. Plugin mẫu, không phải production.",
   register(api) {
     const allowedAgentIds = parseAllowedAgentIds(process.env.DEMO_AGENT_IDS, ["demo-agent"]);
     const secret = (process.env.DEMO_IDENTITY_SECRET ?? "").trim();

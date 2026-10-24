@@ -120,7 +120,9 @@ export class SqliteOutboxStore {
 
   /** Số việc còn chờ (pending), hữu ích cho test/giám sát. */
   pendingCount(): number {
-    const row = this.db.query(`SELECT COUNT(*) AS n FROM notify_outbox WHERE status = 'pending'`).get() as { n: number };
+    const row = this.db
+      .query(`SELECT COUNT(*) AS n FROM notify_outbox WHERE status = 'pending'`)
+      .get() as { n: number };
     return Number(row?.n ?? 0);
   }
 
@@ -192,7 +194,9 @@ export class SqliteOutboxStore {
 
   private markFailed(id: number, reason: string): void {
     this.db
-      .query(`UPDATE notify_outbox SET status = 'failed', last_error = ?, updated_at = ? WHERE id = ?`)
+      .query(
+        `UPDATE notify_outbox SET status = 'failed', last_error = ?, updated_at = ? WHERE id = ?`,
+      )
       .run(reason, new Date(this.clock.now()).toISOString(), id);
   }
 }
@@ -222,8 +226,14 @@ export class OutboxChannelPort implements ChannelPort {
       const r = await this.inner.sendComment(input);
       return r ?? null;
     } catch (err: any) {
-      const id = this.store.enqueue("comment", input, err?.message ? String(err.message) : String(err));
-      getLogger().warn(`[outbox] sendComment ${input.binding.identifier} lỗi, xếp outbox #${id} để gửi lại.`);
+      const id = this.store.enqueue(
+        "comment",
+        input,
+        err?.message ? String(err.message) : String(err),
+      );
+      getLogger().warn(
+        `[outbox] sendComment ${input.binding.identifier} lỗi, xếp outbox #${id} để gửi lại.`,
+      );
       return null;
     }
   }
@@ -233,8 +243,14 @@ export class OutboxChannelPort implements ChannelPort {
       const r = await this.inner.sendStateChange(input);
       return r ?? null;
     } catch (err: any) {
-      const id = this.store.enqueue("state", input, err?.message ? String(err.message) : String(err));
-      getLogger().warn(`[outbox] sendStateChange ${input.binding.identifier} lỗi, xếp outbox #${id} để gửi lại.`);
+      const id = this.store.enqueue(
+        "state",
+        input,
+        err?.message ? String(err.message) : String(err),
+      );
+      getLogger().warn(
+        `[outbox] sendStateChange ${input.binding.identifier} lỗi, xếp outbox #${id} để gửi lại.`,
+      );
       return null;
     }
   }

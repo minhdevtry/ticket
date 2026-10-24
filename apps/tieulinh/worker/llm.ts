@@ -70,13 +70,19 @@ export async function complete(
     } catch (err: any) {
       lastError = err;
       if (err instanceof LlmClientError || i === models.length - 1) break;
-      getLogger().warn(`[llm] Model ${model} lỗi (${err.message.slice(0, 120)}) — thử ${models[i + 1]}`);
+      getLogger().warn(
+        `[llm] Model ${model} lỗi (${err.message.slice(0, 120)}) — thử ${models[i + 1]}`,
+      );
     }
   }
   throw lastError;
 }
 
-async function completeOpenAi(config: LlmConfig, systemPrompt: string, userPrompt: string): Promise<string> {
+async function completeOpenAi(
+  config: LlmConfig,
+  systemPrompt: string,
+  userPrompt: string,
+): Promise<string> {
   const url = `${config.baseUrl.replace(/\/+$/, "")}/chat/completions`;
   const res = await fetch(url, {
     method: "POST",
@@ -99,13 +105,19 @@ async function completeOpenAi(config: LlmConfig, systemPrompt: string, userPromp
 
   if (!res.ok) {
     const msg = `LLM trả HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`;
-    throw res.status >= 400 && res.status < 500 && res.status !== 429 ? new LlmClientError(msg) : new Error(msg);
+    throw res.status >= 400 && res.status < 500 && res.status !== 429
+      ? new LlmClientError(msg)
+      : new Error(msg);
   }
   const body = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
   return body.choices?.[0]?.message?.content ?? "";
 }
 
-async function completeAnthropic(config: LlmConfig, systemPrompt: string, userPrompt: string): Promise<string> {
+async function completeAnthropic(
+  config: LlmConfig,
+  systemPrompt: string,
+  userPrompt: string,
+): Promise<string> {
   const url = `${config.baseUrl.replace(/\/+$/, "")}/v1/messages`;
   const res = await fetch(url, {
     method: "POST",
@@ -126,17 +138,33 @@ async function completeAnthropic(config: LlmConfig, systemPrompt: string, userPr
 
   if (!res.ok) {
     const msg = `LLM trả HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`;
-    throw res.status >= 400 && res.status < 500 && res.status !== 429 ? new LlmClientError(msg) : new Error(msg);
+    throw res.status >= 400 && res.status < 500 && res.status !== 429
+      ? new LlmClientError(msg)
+      : new Error(msg);
   }
   const body = (await res.json()) as { content?: Array<{ type?: string; text?: string }> };
   return body.content?.find((c) => c.type === "text")?.text ?? "";
 }
 
-async function completeOpenclaw(config: LlmConfig, systemPrompt: string, userPrompt: string): Promise<string> {
+async function completeOpenclaw(
+  config: LlmConfig,
+  systemPrompt: string,
+  userPrompt: string,
+): Promise<string> {
   const legacyBin = "/usr/local/bin/openclaw";
   const bin = process.env.OPENCLAW_BIN || (existsSync(legacyBin) ? legacyBin : "openclaw");
   const proc = Bun.spawn(
-    [bin, "infer", "model", "run", "--model", config.model, "--prompt", `${systemPrompt}\n\n${userPrompt}`, "--json"],
+    [
+      bin,
+      "infer",
+      "model",
+      "run",
+      "--model",
+      config.model,
+      "--prompt",
+      `${systemPrompt}\n\n${userPrompt}`,
+      "--json",
+    ],
     { stdout: "pipe", stderr: "pipe" },
   );
   const timer = setTimeout(() => proc.kill(), 60_000);
@@ -152,13 +180,17 @@ async function completeOpenclaw(config: LlmConfig, systemPrompt: string, userPro
   return body.outputs?.[0]?.text ?? "";
 }
 
-async function completeOnce(config: LlmConfig, systemPrompt: string, userPrompt: string): Promise<string> {
+async function completeOnce(
+  config: LlmConfig,
+  systemPrompt: string,
+  userPrompt: string,
+): Promise<string> {
   const text =
     config.api === "anthropic"
       ? await completeAnthropic(config, systemPrompt, userPrompt)
       : config.api === "openclaw"
-      ? await completeOpenclaw(config, systemPrompt, userPrompt)
-      : await completeOpenAi(config, systemPrompt, userPrompt);
+        ? await completeOpenclaw(config, systemPrompt, userPrompt)
+        : await completeOpenAi(config, systemPrompt, userPrompt);
   if (!text) getLogger().warn(`[llm] Model trả về rỗng.`);
   return text;
 }

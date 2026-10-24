@@ -5,12 +5,7 @@
  * Used by Tiểu Linh in Phase 1 to migrate to lib/gate without rewriting JSON.
  */
 import { assertCatalogIntegrity } from "./catalog";
-import type {
-  FieldCatalog,
-  FieldSpec,
-  VariantKey,
-  VariantSpec,
-} from "./types";
+import type { FieldCatalog, FieldSpec, VariantKey, VariantSpec } from "./types";
 
 export type ValidationRule =
   | { type: "regex"; pattern: string; description?: string }
@@ -92,9 +87,7 @@ export function catalogFromValidationRules(
   }
 
   // 3. Build variants
-  const variantKeys = fieldRequirements
-    ? Object.keys(fieldRequirements)
-    : ["default"];
+  const variantKeys = fieldRequirements ? Object.keys(fieldRequirements) : ["default"];
 
   if (!variantKeys.includes("default")) {
     variantKeys.push("default");

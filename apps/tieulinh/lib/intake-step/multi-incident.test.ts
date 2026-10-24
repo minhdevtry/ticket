@@ -6,7 +6,11 @@ import { IntakeDocumentRepository } from "../intake-document/repository";
 import { TicketBindingRepository } from "../storage/binding-repository";
 import { DraftSessionRepository } from "../storage/session-repository";
 import { FieldExtractor } from "./extractor";
-import { IntakeStepPipeline, type IntakePipelineOptions, type PendingButtonsSink } from "./pipeline";
+import {
+  IntakeStepPipeline,
+  type IntakePipelineOptions,
+  type PendingButtonsSink,
+} from "./pipeline";
 import type { ItsaplanClient, ItsaplanIssue } from "../itsaplan/client";
 import type { InlineButton } from "../gate/types";
 import type { UrgencyRules } from "../../mcp/shared/index";
@@ -49,16 +53,20 @@ function fakeItsaplan(): FakeItsaplan {
   };
   let seq = 1200;
   const client = {
-    listProjectColumns: async () =>
-      [
-        { id: 1, name: "Todo", stateType: "unstarted", position: 1 },
-        { id: 9, name: "Canceled", stateType: "canceled", position: 9 },
-      ],
+    listProjectColumns: async () => [
+      { id: 1, name: "Todo", stateType: "unstarted", position: 1 },
+      { id: 9, name: "Canceled", stateType: "canceled", position: 9 },
+    ],
     listCustomFields: async () => [],
     createIssue: async (_projectKey: string, payload: { title?: string; description?: string }) => {
       calls.createIssue.push(payload);
       seq++;
-      return { id: seq, identifier: `TECH-${seq}`, title: payload.title, sequenceNumber: seq } as unknown as ItsaplanIssue;
+      return {
+        id: seq,
+        identifier: `TECH-${seq}`,
+        title: payload.title,
+        sequenceNumber: seq,
+      } as unknown as ItsaplanIssue;
     },
     updateIssue: async (issueId: number, patch: unknown) => {
       calls.updateIssue.push({ issueId, patch });
@@ -145,7 +153,10 @@ HS trước đó có 2 khóa học 48 buổi và 24 buổi đã học hết. Nay
 
   it("extractBlockInfo bỏ qua tham số URL, SĐT, TK/MK, mã phiếu thu; chỉ lấy định danh có nhãn", () => {
     // FP-06: cid=… trong link LMS không phải Mã khách hàng
-    expect(extractBlockInfo("- Link: https://se-lms.example.com/module/lms/index?cid=670&id=90107").customerId).toBeUndefined();
+    expect(
+      extractBlockInfo("- Link: https://se-lms.example.com/module/lms/index?cid=670&id=90107")
+        .customerId,
+    ).toBeUndefined();
     // FP-05: mã học sinh thật vẫn lấy được, nhưng TK/MK không bị bóc thành định danh
     expect(extractBlockInfo("Code: 90000007\nMã học sinh: 900102").studentAccount).toBe("900102");
     const loginBlock = extractBlockInfo("tài khoản:\nTK: 0900000009\nMK: 0900000009");
@@ -154,7 +165,9 @@ HS trước đó có 2 khóa học 48 buổi và 24 buổi đã học hết. Nay
     // FP-10: mã phiếu thu (TNX…) không thành định danh
     expect(extractBlockInfo("mã phiếu thu: TNX0123456789").customerId).toBeUndefined();
     // Mã CRM 7-10 số đứng riêng một dòng (dữ liệu thật TECH-1248/1249)
-    expect(extractBlockInfo("90000002\nBộ phận QLL\ncon không hiện bài tập").customerId).toBe("90000002");
+    expect(extractBlockInfo("90000002\nBộ phận QLL\ncon không hiện bài tập").customerId).toBe(
+      "90000002",
+    );
   });
 
   it("identityConflict chỉ so CÙNG LỚP định danh, và chỉ khi cả hai bên đều có", () => {
@@ -444,7 +457,10 @@ app gia sư vui học`;
     // Bug 10 Vòng 2: KHÔNG chia ảnh mù theo số khối — cả hai ảnh đi cùng cả hai ticket
     // và cờ mediaAmbiguous bật lên để mô tả nói rõ "ảnh đính kèm chung".
     expect(res2.document.mediaAmbiguous).toBe(true);
-    expect(res2.document.fields.mediaPaths?.value).toEqual(["/tmp/student-nhi.png", "/tmp/student-chi.png"]);
+    expect(res2.document.fields.mediaPaths?.value).toEqual([
+      "/tmp/student-nhi.png",
+      "/tmp/student-chi.png",
+    ]);
     expect(res2.document.fields.rawText?.value).toContain("Lê Văn Anh C");
     expect(res2.document.fields.rawText?.value).not.toContain("Trần Thị B");
 
@@ -471,7 +487,10 @@ app gia sư vui học`;
     expect(res3.document.fields.title?.value).toContain("Số buổi đúng");
     expect(res3.document.fields.customerId?.value).toBe("9100003");
     expect(res3.document.fields.studentAccount?.value).toBe("90106");
-    expect(res3.document.fields.mediaPaths?.value).toEqual(["/tmp/student-nhi.png", "/tmp/student-chi.png"]);
+    expect(res3.document.fields.mediaPaths?.value).toEqual([
+      "/tmp/student-nhi.png",
+      "/tmp/student-chi.png",
+    ]);
     expect(res3.document.fields.rawText?.value).toContain("Trần Thị B");
     expect(res3.document.fields.rawText?.value).not.toContain("Lê Văn Anh C");
 

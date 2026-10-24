@@ -58,7 +58,11 @@ export class TicketLifecycleService {
     this.client = client;
     this.botAdapters = options.botAdapters || new Map();
     this.slaThresholds = { ...DEFAULT_SLA_THRESHOLDS, ...(options.slaThresholds || {}) };
-    this.itsaplanWebUrl = (options.itsaplanWebUrl || process.env.ITSAPLAN_WEB_URL || "https://itsaplan.example.com").replace(/\/+$/, "");
+    this.itsaplanWebUrl = (
+      options.itsaplanWebUrl ||
+      process.env.ITSAPLAN_WEB_URL ||
+      "https://itsaplan.example.com"
+    ).replace(/\/+$/, "");
     this.projectKey = normalizeProjectKey(options.projectKey);
   }
 
@@ -80,21 +84,23 @@ export class TicketLifecycleService {
     const priorityKey = params.priority.toLowerCase();
     const slaHours = this.slaThresholds[priorityKey] ?? this.slaThresholds.medium ?? 4;
 
-    this.db.query(`
+    this.db
+      .query(`
       INSERT INTO sla_trackers (
         issue_id, identifier, priority, project_key, created_at, sla_hours, status
       ) VALUES (?, ?, ?, ?, ?, ?, 'open')
       ON CONFLICT(issue_id) DO UPDATE SET
         priority = excluded.priority,
         sla_hours = excluded.sla_hours
-    `).run(
-      params.issueId,
-      params.identifier,
-      params.priority,
-      params.projectKey,
-      createdAt,
-      slaHours,
-    );
+    `)
+      .run(
+        params.issueId,
+        params.identifier,
+        params.priority,
+        params.projectKey,
+        createdAt,
+        slaHours,
+      );
 
     getLogger().info(
       `[TicketLifecycleService] Đăng ký theo dõi SLA cho #${params.issueId} (${params.identifier}): Priority=${params.priority}, SLA=${slaHours}h`,
@@ -102,20 +108,24 @@ export class TicketLifecycleService {
   }
 
   markSlaProgress(issueId: number, status: "in_progress" | "done"): void {
-    this.db.query(`
+    this.db
+      .query(`
       UPDATE sla_trackers SET status = ? WHERE issue_id = ?
-    `).run(status, issueId);
+    `)
+      .run(status, issueId);
   }
 
   /**
    * Scans open tickets for SLA breaches and alerts on-call channel.
    */
   async runSlaCheck(now: number = Date.now()): Promise<number> {
-    const breached = this.db.query<SlaTrackerRecord, [number, string | null, string | null]>(`
+    const breached = this.db
+      .query<SlaTrackerRecord, [number, string | null, string | null]>(`
       SELECT * FROM sla_trackers
       WHERE status = 'open' AND alerted_at IS NULL AND (? - created_at) >= (sla_hours * 3600000)
         AND (? IS NULL OR UPPER(project_key) = ?)
-    `).all(now, this.projectKey, this.projectKey);
+    `)
+      .all(now, this.projectKey, this.projectKey);
 
     if (breached.length === 0) return 0;
 
@@ -153,7 +163,14 @@ export class TicketLifecycleService {
 
         const elapsedHours = ((now - record.created_at) / 3600000).toFixed(1);
         const teamRef = await resolveProjectTeamRef(this.client, record.project_key);
-        const issueUrl = issueWebUrl(this.itsaplanWebUrl, record.project_key, record.identifier, undefined, teamRef) ?? "";
+        const issueUrl =
+          issueWebUrl(
+            this.itsaplanWebUrl,
+            record.project_key,
+            record.identifier,
+            undefined,
+            teamRef,
+          ) ?? "";
         const alertMsg =
           `🚨 **[CẢNH BÁO SLA QUÁ HẠN]**\n\n` +
           `• **Ticket:** [${record.identifier}](${issueUrl})\n` +
@@ -169,9 +186,11 @@ export class TicketLifecycleService {
           }
         }
 
-        this.db.query(`
+        this.db
+          .query(`
           UPDATE sla_trackers SET alerted_at = ?, status = 'breached' WHERE issue_id = ?
-        `).run(now, record.issue_id);
+        `)
+          .run(now, record.issue_id);
 
         alertCount++;
       } catch (err: any) {

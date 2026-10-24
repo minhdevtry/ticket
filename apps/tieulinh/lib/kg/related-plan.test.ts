@@ -1,14 +1,44 @@
 import { describe, expect, it } from "bun:test";
-import { DIFFERENT_CAUSE_SIMILARITY, planRelatedTickets, planSuggestedTickets, type RelatedTarget } from "./related-plan";
+import {
+  DIFFERENT_CAUSE_SIMILARITY,
+  planRelatedTickets,
+  planSuggestedTickets,
+  type RelatedTarget,
+} from "./related-plan";
 import type { CorpusTicket } from "./similar-finder";
 
 // KG: cụm A "trùng tk học do cùng tên", cụm B "đối tượng liên hệ = Con", cụm C "id đơn > 1 triệu".
 const KG: CorpusTicket[] = [
-  { identifier: "TECH-337", title: "", causeCluster: "A", humanCause: "Bị gắn trùng tk học do cùng tên" },
-  { identifier: "TECH-769", title: "", causeCluster: "A", humanCause: "Bị gắn trùng tk học do cùng tên" },
-  { identifier: "TECH-616", title: "", causeCluster: "A", humanCause: "Bị gắn trùng tk học cho con cùng tên" },
-  { identifier: "TECH-868", title: "", causeCluster: "B", humanCause: "Do HS đăng ký qua App Vuihoc chọn là Học sinh nên đối tượng liên hệ = Con" },
-  { identifier: "TECH-840", title: "", causeCluster: "C", humanCause: "Do id đơn hàng bị > 1 triệu" },
+  {
+    identifier: "TECH-337",
+    title: "",
+    causeCluster: "A",
+    humanCause: "Bị gắn trùng tk học do cùng tên",
+  },
+  {
+    identifier: "TECH-769",
+    title: "",
+    causeCluster: "A",
+    humanCause: "Bị gắn trùng tk học do cùng tên",
+  },
+  {
+    identifier: "TECH-616",
+    title: "",
+    causeCluster: "A",
+    humanCause: "Bị gắn trùng tk học cho con cùng tên",
+  },
+  {
+    identifier: "TECH-868",
+    title: "",
+    causeCluster: "B",
+    humanCause: "Do HS đăng ký qua App Vuihoc chọn là Học sinh nên đối tượng liên hệ = Con",
+  },
+  {
+    identifier: "TECH-840",
+    title: "",
+    causeCluster: "C",
+    humanCause: "Do id đơn hàng bị > 1 triệu",
+  },
   { identifier: "TECH-728", title: "", causeCluster: "TECH-728" }, // chưa có nguyên nhân người viết
 ];
 
@@ -80,7 +110,11 @@ describe("planRelatedTickets", () => {
     const p = planRelatedTickets(
       target({
         fieldKeys: ["TECH-920", "TECH-769", "TECH-616", "TECH-337"],
-        links: ["TECH-337", "TECH-616", "TECH-769"].map((identifier, i) => ({ identifier, linkId: i, addedByHuman: false })),
+        links: ["TECH-337", "TECH-616", "TECH-769"].map((identifier, i) => ({
+          identifier,
+          linkId: i,
+          addedByHuman: false,
+        })),
       }),
       KG,
     );
@@ -92,7 +126,12 @@ describe("planRelatedTickets", () => {
   it("khác cụm nhưng câu nguyên nhân giống (như TECH-909) → không thêm vào desired nhưng KHÔNG gỡ link/trường", () => {
     const kgWith909: CorpusTicket[] = [
       ...KG,
-      { identifier: "TECH-909", title: "", causeCluster: "D", humanCause: "Bị gắn trùng tk học do cùng tên" },
+      {
+        identifier: "TECH-909",
+        title: "",
+        causeCluster: "D",
+        humanCause: "Bị gắn trùng tk học do cùng tên",
+      },
     ];
     const p = planRelatedTickets(
       target({
@@ -109,11 +148,36 @@ describe("planRelatedTickets", () => {
 
   it("target TECH-920 có trong corpus cụm A (3 ticket), thêm cụm D 1 ticket câu y hệt → chọn A", () => {
     const corpusWithSelfInA: CorpusTicket[] = [
-      { identifier: "TECH-909", title: "", causeCluster: "D", humanCause: "Bị gắn trùng tk học do cùng tên" },
-      { identifier: "TECH-920", title: "", causeCluster: "A", humanCause: "Bị gắn trùng tk học do cùng tên" },
-      { identifier: "TECH-337", title: "", causeCluster: "A", humanCause: "Bị gắn trùng tk học do cùng tên" },
-      { identifier: "TECH-769", title: "", causeCluster: "A", humanCause: "Bị gắn trùng tk học do cùng tên" },
-      { identifier: "TECH-616", title: "", causeCluster: "A", humanCause: "Bị gắn trùng tk học cho con cùng tên" },
+      {
+        identifier: "TECH-909",
+        title: "",
+        causeCluster: "D",
+        humanCause: "Bị gắn trùng tk học do cùng tên",
+      },
+      {
+        identifier: "TECH-920",
+        title: "",
+        causeCluster: "A",
+        humanCause: "Bị gắn trùng tk học do cùng tên",
+      },
+      {
+        identifier: "TECH-337",
+        title: "",
+        causeCluster: "A",
+        humanCause: "Bị gắn trùng tk học do cùng tên",
+      },
+      {
+        identifier: "TECH-769",
+        title: "",
+        causeCluster: "A",
+        humanCause: "Bị gắn trùng tk học do cùng tên",
+      },
+      {
+        identifier: "TECH-616",
+        title: "",
+        causeCluster: "A",
+        humanCause: "Bị gắn trùng tk học cho con cùng tên",
+      },
     ];
     const p = planRelatedTickets(target({ identifier: "TECH-920" }), corpusWithSelfInA);
     expect(p.clusterId).toBe("A");
@@ -123,10 +187,30 @@ describe("planRelatedTickets", () => {
   it("hoà điểm khi self không có trong corpus → chọn cụm đông hơn", () => {
     // Cụm D 1 ticket đứng trước trong corpus, cụm A 3 ticket đứng sau, câu y hệt
     const corpusWithoutSelf: CorpusTicket[] = [
-      { identifier: "TECH-909", title: "", causeCluster: "D", humanCause: "Bị gắn trùng tk học do cùng tên" },
-      { identifier: "TECH-337", title: "", causeCluster: "A", humanCause: "Bị gắn trùng tk học do cùng tên" },
-      { identifier: "TECH-769", title: "", causeCluster: "A", humanCause: "Bị gắn trùng tk học do cùng tên" },
-      { identifier: "TECH-616", title: "", causeCluster: "A", humanCause: "Bị gắn trùng tk học do cùng tên" },
+      {
+        identifier: "TECH-909",
+        title: "",
+        causeCluster: "D",
+        humanCause: "Bị gắn trùng tk học do cùng tên",
+      },
+      {
+        identifier: "TECH-337",
+        title: "",
+        causeCluster: "A",
+        humanCause: "Bị gắn trùng tk học do cùng tên",
+      },
+      {
+        identifier: "TECH-769",
+        title: "",
+        causeCluster: "A",
+        humanCause: "Bị gắn trùng tk học do cùng tên",
+      },
+      {
+        identifier: "TECH-616",
+        title: "",
+        causeCluster: "A",
+        humanCause: "Bị gắn trùng tk học do cùng tên",
+      },
     ];
     const p = planRelatedTickets(target({ identifier: "TECH-920" }), corpusWithoutSelf);
     expect(p.clusterId).toBe("A");
@@ -158,8 +242,18 @@ describe("planRelatedTickets", () => {
 
   it("cùng cụm KG của self: self có trong corpus với cụm S, ticket Y cụm S câu khác hẳn, link bot sang Y → không gỡ", () => {
     const corpusWithSelfAndY: CorpusTicket[] = [
-      { identifier: "TECH-728", title: "", causeCluster: "S", humanCause: "Lỗi đồng bộ danh sách học sinh" },
-      { identifier: "TECH-454", title: "", causeCluster: "S", humanCause: "Lỗi phân quyền giảng viên CMS hoàn toàn khác" },
+      {
+        identifier: "TECH-728",
+        title: "",
+        causeCluster: "S",
+        humanCause: "Lỗi đồng bộ danh sách học sinh",
+      },
+      {
+        identifier: "TECH-454",
+        title: "",
+        causeCluster: "S",
+        humanCause: "Lỗi phân quyền giảng viên CMS hoàn toàn khác",
+      },
     ];
     const p = planRelatedTickets(
       target({
@@ -175,9 +269,24 @@ describe("planRelatedTickets", () => {
 
   it("câu lệch nhẹ: target câu 'Bị gắn trùng tk học do cts có nhiều con trùng tên' thuộc cụm A (A có câu 'Bị gắn trùng tk học do cùng tên'); Z cụm D câu 'Bị gắn trùng tk học do cùng tên'; link bot sang Z → không gỡ", () => {
     const corpusForFuzzy: CorpusTicket[] = [
-      { identifier: "TECH-489", title: "", causeCluster: "A", humanCause: "Bị gắn trùng tk học do cts có nhiều con trùng tên" },
-      { identifier: "TECH-337", title: "", causeCluster: "A", humanCause: "Bị gắn trùng tk học do cùng tên" },
-      { identifier: "TECH-909", title: "", causeCluster: "D", humanCause: "Bị gắn trùng tk học do cùng tên" },
+      {
+        identifier: "TECH-489",
+        title: "",
+        causeCluster: "A",
+        humanCause: "Bị gắn trùng tk học do cts có nhiều con trùng tên",
+      },
+      {
+        identifier: "TECH-337",
+        title: "",
+        causeCluster: "A",
+        humanCause: "Bị gắn trùng tk học do cùng tên",
+      },
+      {
+        identifier: "TECH-909",
+        title: "",
+        causeCluster: "D",
+        humanCause: "Bị gắn trùng tk học do cùng tên",
+      },
     ];
     const p = planRelatedTickets(
       target({
@@ -357,16 +466,16 @@ describe("planRelatedTickets", () => {
 describe("planSuggestedTickets", () => {
   it("(1) rác bot 30 mã + link bot, gợi ý = cụm A 3 mã → trường = A + self, gỡ link bot ngoài A, giữ link người gắn", () => {
     const botKeys = Array.from({ length: 30 }, (_, i) => `TECH-${1001 + i}`);
-    const botLinks = botKeys.map((id, i) => ({ identifier: id, linkId: i + 1, addedByHuman: false }));
+    const botLinks = botKeys.map((id, i) => ({
+      identifier: id,
+      linkId: i + 1,
+      addedByHuman: false,
+    }));
     const humanLink = { identifier: "TECH-337", linkId: 999, addedByHuman: true };
 
     const suggestedA = {
       clusterId: "A",
-      members: [
-        { identifier: "TECH-337" },
-        { identifier: "TECH-616" },
-        { identifier: "TECH-769" },
-      ],
+      members: [{ identifier: "TECH-337" }, { identifier: "TECH-616" }, { identifier: "TECH-769" }],
     };
 
     const p = planSuggestedTickets(
@@ -385,16 +494,22 @@ describe("planSuggestedTickets", () => {
     expect(p.fieldValue).toBe("TECH-337, TECH-616, TECH-769, TECH-920");
     // Gỡ 30 link bot ngoài A
     expect(p.removeLinks).toHaveLength(30);
-    expect(p.removeLinks).toEqual(botLinks.map((l) => ({ identifier: l.identifier, linkId: l.linkId })));
+    expect(p.removeLinks).toEqual(
+      botLinks.map((l) => ({ identifier: l.identifier, linkId: l.linkId })),
+    );
     // Giữ link người gắn TECH-337
     expect(p.removeLinks.some((l) => l.identifier === "TECH-337")).toBe(false);
     // Thêm link thiếu trong desired (616 và 769, 337 đã có)
     expect(p.addLinks).toEqual(["TECH-616", "TECH-769"]);
   });
 
-  it("(2) gợi ý null → trường chỉ còn mã người (hoặc \"\"), gỡ hết link bot, giữ link người", () => {
+  it('(2) gợi ý null → trường chỉ còn mã người (hoặc ""), gỡ hết link bot, giữ link người', () => {
     const botKeys = Array.from({ length: 30 }, (_, i) => `TECH-${1001 + i}`);
-    const botLinks = botKeys.map((id, i) => ({ identifier: id, linkId: i + 1, addedByHuman: false }));
+    const botLinks = botKeys.map((id, i) => ({
+      identifier: id,
+      linkId: i + 1,
+      addedByHuman: false,
+    }));
 
     // Trường hợp 2a: không có mã người → trường rỗng "", gỡ hết link bot
     const pNoHuman = planSuggestedTickets(
@@ -410,7 +525,9 @@ describe("planSuggestedTickets", () => {
     expect(pNoHuman.clusterId).toBeNull();
     expect(pNoHuman.desired).toEqual([]);
     expect(pNoHuman.fieldValue).toBe("");
-    expect(pNoHuman.removeLinks).toEqual(botLinks.map((l) => ({ identifier: l.identifier, linkId: l.linkId })));
+    expect(pNoHuman.removeLinks).toEqual(
+      botLinks.map((l) => ({ identifier: l.identifier, linkId: l.linkId })),
+    );
     expect(pNoHuman.addLinks).toEqual([]);
 
     // Trường hợp 2b: có mã người và link người → trường chỉ còn mã người + self, giữ link người
@@ -428,7 +545,9 @@ describe("planSuggestedTickets", () => {
     expect(pHuman.clusterId).toBeNull();
     expect(pHuman.desired).toEqual(["TECH-868"]);
     expect(pHuman.fieldValue).toBe("TECH-868, TECH-920");
-    expect(pHuman.removeLinks).toEqual(botLinks.map((l) => ({ identifier: l.identifier, linkId: l.linkId })));
+    expect(pHuman.removeLinks).toEqual(
+      botLinks.map((l) => ({ identifier: l.identifier, linkId: l.linkId })),
+    );
     expect(pHuman.removeLinks.some((l) => l.identifier === "TECH-868")).toBe(false);
     expect(pHuman.addLinks).toEqual([]);
   });
@@ -447,11 +566,7 @@ describe("planSuggestedTickets", () => {
 
     const suggestedA = {
       clusterId: "A",
-      members: [
-        { identifier: "TECH-337" },
-        { identifier: "TECH-616" },
-        { identifier: "TECH-769" },
-      ],
+      members: [{ identifier: "TECH-337" }, { identifier: "TECH-616" }, { identifier: "TECH-769" }],
     };
 
     const p = planSuggestedTickets(
@@ -481,17 +596,17 @@ describe("planSuggestedTickets", () => {
 
   it("(4) ticket Done chưa ghim có 30 mã bot, gợi ý cụm A (3 mã, 1 mã trong đó đang có) → trường = mã đó + self, addLinks rỗng, gỡ link bot còn lại; ticket mở → như cũ (thêm đủ)", () => {
     const botKeys = Array.from({ length: 30 }, (_, i) => `TECH-${1001 + i}`);
-    const botLinks = botKeys.map((id, i) => ({ identifier: id, linkId: i + 1, addedByHuman: false }));
+    const botLinks = botKeys.map((id, i) => ({
+      identifier: id,
+      linkId: i + 1,
+      addedByHuman: false,
+    }));
     const existingMember = "TECH-337";
     const existingLink = { identifier: existingMember, linkId: 999, addedByHuman: false };
 
     const suggestedA = {
       clusterId: "A",
-      members: [
-        { identifier: "TECH-337" },
-        { identifier: "TECH-616" },
-        { identifier: "TECH-769" },
-      ],
+      members: [{ identifier: "TECH-337" }, { identifier: "TECH-616" }, { identifier: "TECH-769" }],
     };
 
     // 4a: ticket Done chưa ghim (cleanupOnly: true)

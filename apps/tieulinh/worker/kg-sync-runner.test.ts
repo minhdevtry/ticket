@@ -6,23 +6,34 @@ import { KgSyncRunner, resolveKgSyncGate } from "./kg-sync-runner";
 
 describe("resolveKgSyncGate — KG chỉ bật khi được mời rõ ràng", () => {
   test("có MEMGRAPH_URI nhưng dự án không nằm trong KG_SYNC_PROJECTS → tắt (Iris/PO)", () => {
-    const gate = resolveKgSyncGate({ MEMGRAPH_URI: "bolt://x:7687", ITSAPLAN_PROJECT_KEY: "PO", KG_SYNC_PROJECTS: "TECHTEST" });
+    const gate = resolveKgSyncGate({
+      MEMGRAPH_URI: "bolt://x:7687",
+      ITSAPLAN_PROJECT_KEY: "PO",
+      KG_SYNC_PROJECTS: "TECHTEST",
+    });
     expect(gate.enabled).toBe(false);
     expect(gate.reason).toContain("PO");
   });
 
   test("KG_SYNC_PROJECTS rỗng (mặc định) → tắt dù có MEMGRAPH_URI", () => {
-    expect(resolveKgSyncGate({ MEMGRAPH_URI: "bolt://x:7687", ITSAPLAN_PROJECT_KEY: "TECH" }).enabled).toBe(false);
+    expect(
+      resolveKgSyncGate({ MEMGRAPH_URI: "bolt://x:7687", ITSAPLAN_PROJECT_KEY: "TECH" }).enabled,
+    ).toBe(false);
   });
 
   test("thiếu MEMGRAPH_URI → tắt", () => {
-    const gate = resolveKgSyncGate({ ITSAPLAN_PROJECT_KEY: "TECHTEST", KG_SYNC_PROJECTS: "TECHTEST" });
+    const gate = resolveKgSyncGate({
+      ITSAPLAN_PROJECT_KEY: "TECHTEST",
+      KG_SYNC_PROJECTS: "TECHTEST",
+    });
     expect(gate.enabled).toBe(false);
     expect(gate.reason).toContain("MEMGRAPH_URI");
   });
 
   test("thiếu ITSAPLAN_PROJECT_KEY → tắt (không biết mình là ai)", () => {
-    expect(resolveKgSyncGate({ MEMGRAPH_URI: "bolt://x", KG_SYNC_PROJECTS: "TECHTEST" }).enabled).toBe(false);
+    expect(
+      resolveKgSyncGate({ MEMGRAPH_URI: "bolt://x", KG_SYNC_PROJECTS: "TECHTEST" }).enabled,
+    ).toBe(false);
   });
 
   test("có MEMGRAPH_URI và dự án được liệt kê (không phân biệt hoa thường, có khoảng trắng) → bật", () => {
@@ -36,7 +47,12 @@ describe("resolveKgSyncGate — KG chỉ bật khi được mời rõ ràng", ()
   });
 });
 
-function setup(syncImpl: (issueId: number, identifier: string) => Promise<{ success: boolean; skipped?: boolean; error?: string }>) {
+function setup(
+  syncImpl: (
+    issueId: number,
+    identifier: string,
+  ) => Promise<{ success: boolean; skipped?: boolean; error?: string }>,
+) {
   const db = new Database(":memory:");
   applySchema(db);
   const repo = new KgSyncRepository(db);
@@ -84,11 +100,18 @@ describe("KgSyncRunner — chống chạy trùng", () => {
 describe("KgSyncRunner — hàng đợi thử lại bền vững", () => {
   test("sync lỗi → vào kg_sync_queue với backoff; tới hạn thì thử lại; thành công thì xoá", async () => {
     let fail = true;
-    const t = setup(async () => (fail ? { success: false, error: "bolt down" } : { success: true }));
+    const t = setup(async () =>
+      fail ? { success: false, error: "bolt down" } : { success: true },
+    );
 
     await t.runner.handle(5, "TECHTEST-5");
     const [row] = t.repo.listQueue();
-    expect(row).toMatchObject({ identifier: "TECHTEST-5", issue_id: 5, attempts: 1, last_error: "bolt down" });
+    expect(row).toMatchObject({
+      identifier: "TECHTEST-5",
+      issue_id: 5,
+      attempts: 1,
+      last_error: "bolt down",
+    });
     expect(row.next_attempt_at).toBe(t.now() + 1000);
 
     // Chưa tới hạn → không thử.
@@ -143,7 +166,14 @@ describe("KgSyncRunner — hàng đợi thử lại bền vững", () => {
 
   test("mục của dự án khác trong DB dùng chung không bị worker này xử lý", async () => {
     const t = setup(async () => ({ success: true }));
-    t.repo.enqueueFailure({ identifier: "PO-9", issueId: 9, projectKey: "PO", error: "x", nextAttemptAt: 0, now: 0 });
+    t.repo.enqueueFailure({
+      identifier: "PO-9",
+      issueId: 9,
+      projectKey: "PO",
+      error: "x",
+      nextAttemptAt: 0,
+      now: 0,
+    });
     await t.runner.processDue();
     expect(t.sync).not.toHaveBeenCalled();
     expect(t.repo.listQueue()).toHaveLength(1);
@@ -156,7 +186,14 @@ describe("KgSyncRunner — hàng đợi thử lại bền vững", () => {
       await gate;
       return { success: true };
     });
-    t.repo.enqueueFailure({ identifier: "TECHTEST-10", issueId: 10, projectKey: "TECHTEST", error: "x", nextAttemptAt: 0, now: 0 });
+    t.repo.enqueueFailure({
+      identifier: "TECHTEST-10",
+      issueId: 10,
+      projectKey: "TECHTEST",
+      error: "x",
+      nextAttemptAt: 0,
+      now: 0,
+    });
     const first = t.runner.processDue();
     await t.runner.processDue();
     release();
@@ -191,17 +228,36 @@ describe("resolveOnyxSyncGate — Iris/PO không bao giờ nạp Onyx (ADR-0002)
   const { resolveOnyxSyncGate } = require("./kg-sync-runner");
 
   test("PO có ONYX_BASE_URL (đọc chung apps/tieulinh/.env) vẫn tắt", () => {
-    expect(resolveOnyxSyncGate({ ONYX_BASE_URL: "https://onyx", ITSAPLAN_PROJECT_KEY: "PO" }).enabled).toBe(false);
+    expect(
+      resolveOnyxSyncGate({ ONYX_BASE_URL: "https://onyx", ITSAPLAN_PROJECT_KEY: "PO" }).enabled,
+    ).toBe(false);
   });
 
   test("mặc định chỉ TECH được nạp", () => {
-    expect(resolveOnyxSyncGate({ ONYX_BASE_URL: "https://onyx", ITSAPLAN_PROJECT_KEY: "TECH" }).enabled).toBe(true);
-    expect(resolveOnyxSyncGate({ ONYX_BASE_URL: "https://onyx", ITSAPLAN_PROJECT_KEY: "TECHTEST" }).enabled).toBe(false);
+    expect(
+      resolveOnyxSyncGate({ ONYX_BASE_URL: "https://onyx", ITSAPLAN_PROJECT_KEY: "TECH" }).enabled,
+    ).toBe(true);
+    expect(
+      resolveOnyxSyncGate({ ONYX_BASE_URL: "https://onyx", ITSAPLAN_PROJECT_KEY: "TECHTEST" })
+        .enabled,
+    ).toBe(false);
   });
 
   test("ONYX_SYNC_PROJECTS mở cho dự án khác, nhưng PO vẫn bị chặn cứng", () => {
-    expect(resolveOnyxSyncGate({ ONYX_BASE_URL: "x", ITSAPLAN_PROJECT_KEY: "TECHTEST", ONYX_SYNC_PROJECTS: "TECH,TECHTEST" }).enabled).toBe(true);
-    expect(resolveOnyxSyncGate({ ONYX_BASE_URL: "x", ITSAPLAN_PROJECT_KEY: "PO", ONYX_SYNC_PROJECTS: "PO" }).enabled).toBe(false);
+    expect(
+      resolveOnyxSyncGate({
+        ONYX_BASE_URL: "x",
+        ITSAPLAN_PROJECT_KEY: "TECHTEST",
+        ONYX_SYNC_PROJECTS: "TECH,TECHTEST",
+      }).enabled,
+    ).toBe(true);
+    expect(
+      resolveOnyxSyncGate({
+        ONYX_BASE_URL: "x",
+        ITSAPLAN_PROJECT_KEY: "PO",
+        ONYX_SYNC_PROJECTS: "PO",
+      }).enabled,
+    ).toBe(false);
   });
 
   test("thiếu ONYX_BASE_URL → tắt", () => {

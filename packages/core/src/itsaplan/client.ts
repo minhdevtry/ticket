@@ -486,7 +486,7 @@ export class ItsaplanClient {
     const res = await this.request<ItsaplanIssue[] | { issues?: ItsaplanIssue[] }>(
       `/projects/${encodeURIComponent(projectKey)}/issues${query ? `?${query}` : ""}`,
     );
-    return Array.isArray(res) ? res : res?.issues ?? [];
+    return Array.isArray(res) ? res : (res?.issues ?? []);
   }
 
   async searchIssues(query: string, projectKey: string): Promise<ItsaplanIssue[]> {
@@ -521,10 +521,7 @@ export class ItsaplanClient {
     await this.request<void>(`/issues/${issueId}/links/${linkId}`, { method: "DELETE" });
   }
 
-  async listCustomFields(
-    projectKey: string,
-    issueTypeId?: number,
-  ): Promise<ItsaplanCustomField[]> {
+  async listCustomFields(projectKey: string, issueTypeId?: number): Promise<ItsaplanCustomField[]> {
     const q = issueTypeId != null ? `?issueTypeId=${encodeURIComponent(issueTypeId)}` : "";
     return this.request<ItsaplanCustomField[]>(
       `/projects/${encodeURIComponent(projectKey)}/custom-fields${q}`,

@@ -59,7 +59,11 @@ describe("isAgentInScope", () => {
 
 describe("parseAllowedAgentIds", () => {
   test("chuỗi phân tách dấu phẩy ⇒ mảng đã trim", () => {
-    expect(parseAllowedAgentIds("cm-support, iris-agent ,sales")).toEqual(["cm-support", "iris-agent", "sales"]);
+    expect(parseAllowedAgentIds("cm-support, iris-agent ,sales")).toEqual([
+      "cm-support",
+      "iris-agent",
+      "sales",
+    ]);
   });
   test("rỗng ⇒ fallback (mặc định rỗng = fail-closed)", () => {
     expect(parseAllowedAgentIds(undefined)).toEqual([]);

@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { cleanMediaTags, formatIctTimestamp, stripBotMentions, isCommentRecentlyForwarded } from "./formatting";
+import {
+  cleanMediaTags,
+  formatIctTimestamp,
+  stripBotMentions,
+  isCommentRecentlyForwarded,
+} from "./formatting";
 
 describe("cleanMediaTags", () => {
   test("removes telegram media attachment tags", () => {
@@ -69,4 +74,3 @@ describe("isCommentRecentlyForwarded", () => {
     expect(isCommentRecentlyForwarded(issueId, "Nội dung khác", 5000)).toBe(false);
   });
 });
-

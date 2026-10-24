@@ -18,8 +18,21 @@ export const engineTestCatalog: FieldCatalog = createCatalog({
         truong_mo_dau: "van_de",
         recap: ["van_de", "bo_phan"],
         truong: {
-          van_de: { bat_buoc: true, kieu: "text", duoc_hoi: true, nhan: "Problem", hoi: "What's the problem?" },
-          bo_phan: { bat_buoc: false, nen_hoi: false, kieu: "text", duoc_hoi: true, nhan: "Department", hoi: "Which team?" },
+          van_de: {
+            bat_buoc: true,
+            kieu: "text",
+            duoc_hoi: true,
+            nhan: "Problem",
+            hoi: "What's the problem?",
+          },
+          bo_phan: {
+            bat_buoc: false,
+            nen_hoi: false,
+            kieu: "text",
+            duoc_hoi: true,
+            nhan: "Department",
+            hoi: "Which team?",
+          },
         },
       },
     },

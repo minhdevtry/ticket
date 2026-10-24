@@ -111,14 +111,23 @@ try {
   await session.close();
 }
 
-console.log(`Tìm thấy ${ghostIds.length} ghost Ticket node trong Memgraph${apply ? "" : " (DRY RUN)"}`);
+console.log(
+  `Tìm thấy ${ghostIds.length} ghost Ticket node trong Memgraph${apply ? "" : " (DRY RUN)"}`,
+);
 if (ghostIds.length === 0) {
   await memgraph.close();
   process.exit(0);
 }
 
 type Decision =
-  | { kind: "reify"; identifier: string; columnId: number; columnName: string; title: string; status: string }
+  | {
+      kind: "reify";
+      identifier: string;
+      columnId: number;
+      columnName: string;
+      title: string;
+      status: string;
+    }
   | { kind: "delete"; identifier: string; columnId: number; columnName: string; reason: string }
   | { kind: "skip"; identifier: string; reason: string };
 
@@ -131,7 +140,11 @@ for (const identifier of ghostIds) {
   const seqMatch = identifier.match(/(\d+)$/);
   const seq = seqMatch ? Number(seqMatch[1]) : NaN;
   if (!seq || Number.isNaN(seq)) {
-    decisions.push({ kind: "skip", identifier, reason: `identifier không có sequence number hợp lệ` });
+    decisions.push({
+      kind: "skip",
+      identifier,
+      reason: `identifier không có sequence number hợp lệ`,
+    });
     continue;
   }
   try {
@@ -180,8 +193,12 @@ for (const identifier of ghostIds) {
 }
 
 // 3. In decision table
-const reify = decisions.filter((d): d is Extract<Decision, { kind: "reify" }> => d.kind === "reify");
-const del = decisions.filter((d): d is Extract<Decision, { kind: "delete" }> => d.kind === "delete");
+const reify = decisions.filter(
+  (d): d is Extract<Decision, { kind: "reify" }> => d.kind === "reify",
+);
+const del = decisions.filter(
+  (d): d is Extract<Decision, { kind: "delete" }> => d.kind === "delete",
+);
 const skip = decisions.filter((d): d is Extract<Decision, { kind: "skip" }> => d.kind === "skip");
 
 console.log("\n========================================");
@@ -189,7 +206,9 @@ console.log(`DECISION TABLE (${projectKey})`);
 console.log("========================================");
 console.log(`REIFY  (Done/Resolved, cập nhật title+status): ${reify.length}`);
 for (const d of reify) {
-  console.log(`  ${d.identifier}  [col ${d.columnId} ${d.columnName}] -> "${d.title.slice(0, 60)}"`);
+  console.log(
+    `  ${d.identifier}  [col ${d.columnId} ${d.columnName}] -> "${d.title.slice(0, 60)}"`,
+  );
 }
 console.log(`DELETE (Canceled/Backlog/... hoặc mất tích Itsaplan): ${del.length}`);
 for (const d of del) {
@@ -200,11 +219,15 @@ for (const d of skip) {
   console.log(`  ${d.identifier}  ${d.reason.slice(0, 140)}`);
 }
 console.log("----------------------------------------");
-console.log(`Tổng: ${decisions.length} ghost (reify=${reify.length}, delete=${del.length}, skip=${skip.length})`);
+console.log(
+  `Tổng: ${decisions.length} ghost (reify=${reify.length}, delete=${del.length}, skip=${skip.length})`,
+);
 
 if (!apply) {
   console.log("\nDRY RUN — không mutate. Chạy với --apply để thật sự thực thi:");
-  console.log(`  bun run apps/tieulinh/scripts/reconcile-kg-ghosts.ts --project ${projectKey} --apply`);
+  console.log(
+    `  bun run apps/tieulinh/scripts/reconcile-kg-ghosts.ts --project ${projectKey} --apply`,
+  );
   await memgraph.close();
   process.exit(0);
 }
@@ -242,7 +265,9 @@ try {
       }
     } else if (d.kind === "delete") {
       try {
-        await session2.run(`MATCH (g:Ticket {identifier: $id}) DETACH DELETE g`, { id: d.identifier });
+        await session2.run(`MATCH (g:Ticket {identifier: $id}) DETACH DELETE g`, {
+          id: d.identifier,
+        });
         deleted++;
         console.log(`  🗑️  DELETE ${d.identifier}`);
       } catch (err: any) {

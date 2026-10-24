@@ -70,7 +70,9 @@ export class Alerter {
     getLogger().error(`[alert] ${text}`);
 
     if (!this.transport || this.adminChatIds.length === 0) {
-      getLogger().warn("[alert] Chưa cấu hình transport/adminChatIds — báo động chỉ nằm trong log.");
+      getLogger().warn(
+        "[alert] Chưa cấu hình transport/adminChatIds — báo động chỉ nằm trong log.",
+      );
       return false;
     }
 

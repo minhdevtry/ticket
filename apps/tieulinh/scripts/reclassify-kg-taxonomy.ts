@@ -62,7 +62,9 @@ if (dryRun) {
   process.exit(0);
 }
 
-const taxonomyList = CAUSE_TAXONOMY.map((t) => `- ${t.id}: ${t.label} — ${t.definition}`).join("\n");
+const taxonomyList = CAUSE_TAXONOMY.map((t) => `- ${t.id}: ${t.label} — ${t.definition}`).join(
+  "\n",
+);
 const systemPrompt = `Bạn phân loại Root Cause kỹ thuật vào ĐÚNG MỘT nhóm canonical dưới đây, theo CƠ CHẾ lỗi
 (không phải theo hệ thống/sản phẩm bề mặt). Nếu không khớp nhóm nào, dùng "OTHER_NEW_PATTERN".
 
@@ -88,7 +90,9 @@ for (let i = 0; i < targets.length; i += BATCH_SIZE) {
 
   try {
     const text = await complete(llmConfig, systemPrompt, userPrompt);
-    const parsed = extractJson<{ classifications: Array<{ index: number; cause_taxon: string }> }>(text);
+    const parsed = extractJson<{ classifications: Array<{ index: number; cause_taxon: string }> }>(
+      text,
+    );
     if (!parsed?.classifications) {
       throw new Error(`LLM trả về không đúng schema classifications. Raw: ${text.slice(0, 200)}`);
     }
@@ -96,7 +100,9 @@ for (let i = 0; i < targets.length; i += BATCH_SIZE) {
 
     for (let j = 0; j < batch.length; j++) {
       const t = batch[j];
-      const raw = String(byIndex.get(j + 1) || "").trim().toUpperCase();
+      const raw = String(byIndex.get(j + 1) || "")
+        .trim()
+        .toUpperCase();
       const taxonId = CAUSE_TAXONOMY_IDS.has(raw) ? raw : OTHER_NEW_PATTERN;
       if (taxonId === OTHER_NEW_PATTERN) otherCount++;
       await memgraph.setCauseTaxon(t.id, taxonId);

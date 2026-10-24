@@ -62,19 +62,22 @@ const ITEMS: Item[] = [
   {
     key: "UID/link LMS",
     ask: ASK_LINE.LMS_UID_LINK,
-    have: (c) => /se-lms\.[\w.-]+/i.test(c.text) || /\b(uid|cid|sid)\s*[:=]?\s*\d{4,}/i.test(c.text),
+    have: (c) =>
+      /se-lms\.[\w.-]+/i.test(c.text) || /\b(uid|cid|sid)\s*[:=]?\s*\d{4,}/i.test(c.text),
     when: (c) => /lms|duo|tự học|khoá|khóa|hạn học|hết hạn/i.test(c.system + " " + c.low),
   },
   {
     key: "mã đơn hàng",
     ask: ASK_LINE.ORDER_CODE,
     have: (c) => /\bDH\d{4,}/i.test(c.text) || hasKnown(c, "Mã giao dịch", "Mã đơn hàng"),
-    when: (c) => /đơn|hạn|gia hạn|thanh toán|chuyển phí|chuyển nhượng|gói|khoá|khóa|hoàn/i.test(c.low),
+    when: (c) =>
+      /đơn|hạn|gia hạn|thanh toán|chuyển phí|chuyển nhượng|gói|khoá|khóa|hoàn/i.test(c.low),
   },
   {
     key: "học sinh/khoá/lớp",
     ask: ASK_LINE.COURSE_CLASS_SCOPE,
-    have: (c) => hasKnown(c, "Tài khoản HS / SĐT", "Mã khách hàng") && /khoá|khóa|lớp|buổi|môn/i.test(c.low),
+    have: (c) =>
+      hasKnown(c, "Tài khoản HS / SĐT", "Mã khách hàng") && /khoá|khóa|lớp|buổi|môn/i.test(c.low),
   },
   {
     key: "bước thao tác",
@@ -89,24 +92,36 @@ const ITEMS: Item[] = [
   {
     key: "thời điểm",
     ask: ASK_LINE.TIME,
-    have: (c) => /\d{1,2}[h:]\d{0,2}|\d{1,2}\/\d{1,2}|hôm (nay|qua)|sáng nay|chiều nay|tối qua|ngày \d/i.test(c.low),
+    have: (c) =>
+      /\d{1,2}[h:]\d{0,2}|\d{1,2}\/\d{1,2}|hôm (nay|qua)|sáng nay|chiều nay|tối qua|ngày \d/i.test(
+        c.low,
+      ),
   },
   {
     key: "thiết bị/app",
     ask: ASK_LINE.DEVICE_APP,
-    have: (c) => hasKnown(c, "Thiết bị") || /android|ios|iphone|ipad|chrome|safari|firefox|edge|phiên bản/i.test(c.low),
-    when: (c) => /app|mobile|web|trình duyệt|điện thoại|máy tính bảng|video|đăng nhập|zalo|máy tính/i.test(c.system + " " + c.low),
+    have: (c) =>
+      hasKnown(c, "Thiết bị") ||
+      /android|ios|iphone|ipad|chrome|safari|firefox|edge|phiên bản/i.test(c.low),
+    when: (c) =>
+      /app|mobile|web|trình duyệt|điện thoại|máy tính bảng|video|đăng nhập|zalo|máy tính/i.test(
+        c.system + " " + c.low,
+      ),
   },
 ];
 
-export const CHECKLIST_CLOSING = 'Cái nào không có thì anh/chị nhắn "không có", em tạo ticket luôn ạ.';
+export const CHECKLIST_CLOSING =
+  'Cái nào không có thì anh/chị nhắn "không có", em tạo ticket luôn ạ.';
 
 /**
  * Mục học được (canonical) cần thêm vào tin. Mỗi dòng cố định đang áp dụng cho sự cố
  * này thì hoặc đã được hỏi, hoặc đã có sẵn trong lời báo — cả hai đều được tính là
  * "đã phủ", nên bỏ các mục đó; bỏ thêm OTHER và trùng lặp.
  */
-function learnedAsks(ctx: Ctx, learned: readonly string[]): Array<{ item: CanonItem; ask: string }> {
+function learnedAsks(
+  ctx: Ctx,
+  learned: readonly string[],
+): Array<{ item: CanonItem; ask: string }> {
   const covered = new Set<CanonItem>();
   for (const it of ITEMS) {
     if (it.when && !it.when(ctx)) continue;
@@ -143,13 +158,20 @@ export function buildChecklist(
     : ((learnedOrOptions as ChecklistLearnedResult).shares ?? sharesParam);
 
   const text = `${input.title ?? ""}\n${input.description}`;
-  const ctx: Ctx = { text, low: text.toLowerCase(), system: `${input.system ?? ""} ${input.product ?? ""}`, input };
+  const ctx: Ctx = {
+    text,
+    low: text.toLowerCase(),
+    system: `${input.system ?? ""} ${input.product ?? ""}`,
+    input,
+  };
   if (NOT_TECH.test(text)) return { missing: [] };
   const todo = ITEMS.filter((it) => (it.when ? it.when(ctx) : true) && !it.have(ctx));
   const extra = learnedAsks(ctx, learned);
   if (todo.length === 0 && extra.length === 0) return { missing: [] };
 
-  const hasShares = Boolean(shares && Object.values(shares).some((v) => typeof v === "number" && v > 0));
+  const hasShares = Boolean(
+    shares && Object.values(shares).some((v) => typeof v === "number" && v > 0),
+  );
 
   let ordered: Array<{ key: string; ask: string }>;
   if (!hasShares) {
@@ -225,7 +247,8 @@ export class ChecklistTechReviewer implements TechReviewer {
       const res = this.learned?.(input.system ?? "");
       if (res && "shares" in res && res.shares) {
         shares = res.shares;
-        learned = "items" in res && Array.isArray(res.items) ? res.items : (Array.isArray(res) ? res : []);
+        learned =
+          "items" in res && Array.isArray(res.items) ? res.items : Array.isArray(res) ? res : [];
       } else if (Array.isArray(res)) {
         learned = res;
       } else if (res && "items" in res && Array.isArray(res.items)) {

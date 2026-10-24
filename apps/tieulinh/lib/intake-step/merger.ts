@@ -67,7 +67,8 @@ export function mergeExtractedFields(
   // viễn (28/09: TECH-941 "Vũ Thị Bảo G", TECH-943 "hỗ trợ em với ạ"). Tiêu đề người
   // dùng tự đặt ("sửa tiêu đề thành …") thì giữ, chỉ lệnh sửa tiêu đề mới đổi được.
   // TECH-1148: Bỏ qua symptoms chỉ là token nội bộ (như "noop")
-  const validSymptomsCount = (extracted.symptoms?.filter((s) => !isInternalCallbackToken(s)).length ?? 0);
+  const validSymptomsCount =
+    extracted.symptoms?.filter((s) => !isInternalCallbackToken(s)).length ?? 0;
   const hasNewContent = validSymptomsCount > 0;
   const titleLocked = nextFields.title?.explicit === true;
   if (
@@ -93,13 +94,15 @@ export function mergeExtractedFields(
     const v = (extracted as Record<string, unknown>)[k];
     return typeof v === "string" && v.trim() !== "";
   });
-  const carriesText = (!structuredOnly && (hasNewContent || givesIdentifier)) || options.appendRawText === true;
+  const carriesText =
+    (!structuredOnly && (hasNewContent || givesIdentifier)) || options.appendRawText === true;
   const message = rawMessage.trim();
   // TECH-1148: Không đưa tin nhắn chỉ là token nội bộ ("noop") vào rawText
   if (carriesText && message && !isInternalCallbackToken(message)) {
     const prev = nextFields.rawText?.value;
     if (!prev) setField("rawText", rawMessage);
-    else if (!prev.includes(message)) setField("rawText", cap(`${prev}\n${rawMessage}`, MAX_RAW_TEXT_TOTAL_CHARS));
+    else if (!prev.includes(message))
+      setField("rawText", cap(`${prev}\n${rawMessage}`, MAX_RAW_TEXT_TOTAL_CHARS));
   }
 
   setField("product", extracted.product);
@@ -117,7 +120,9 @@ export function mergeExtractedFields(
   setField("assignmentId", extracted.assignmentId);
 
   // Symptoms gộp không trùng lặp; bỏ những ý người dùng bảo gỡ
-  const removals = (extracted.removeSymptoms ?? []).map((r) => r.trim().toLowerCase()).filter(Boolean);
+  const removals = (extracted.removeSymptoms ?? [])
+    .map((r) => r.trim().toLowerCase())
+    .filter(Boolean);
   const existingSymptoms = (nextFields.symptoms?.value || []).filter(
     (s) => !removals.some((r) => s.toLowerCase().includes(r)),
   );
@@ -127,7 +132,9 @@ export function mergeExtractedFields(
     : (extracted.symptoms || [])
         .map((s) => cap(s.trim(), MAX_SYMPTOM_CHARS))
         .filter((s) => !isInternalCallbackToken(s));
-  const mergedSymptoms = Array.from(new Set([...existingSymptoms, ...incomingSymptoms].filter(Boolean))).slice(-MAX_SYMPTOMS);
+  const mergedSymptoms = Array.from(
+    new Set([...existingSymptoms, ...incomingSymptoms].filter(Boolean)),
+  ).slice(-MAX_SYMPTOMS);
   const symptomsChanged =
     mergedSymptoms.length !== (nextFields.symptoms?.value?.length ?? 0) ||
     mergedSymptoms.some((s, i) => s !== nextFields.symptoms?.value?.[i]);

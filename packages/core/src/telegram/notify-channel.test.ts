@@ -11,7 +11,10 @@ import type { NotifyBinding } from "../intake/ports";
  * message_id trả về để dispatcher ghi route.
  */
 
-function fakeTransport(): { transport: TelegramTransport; calls: Array<{ method: string; payload: any }> } {
+function fakeTransport(): {
+  transport: TelegramTransport;
+  calls: Array<{ method: string; payload: any }>;
+} {
   const calls: Array<{ method: string; payload: any }> = [];
   let nextId = 100;
   const fetch: FetchLike = async (url, init) => {
@@ -54,7 +57,12 @@ describe("TelegramNotifyChannel (ChannelPort cho Telegram)", () => {
   it("sendComment nối ảnh vào cuối dưới dạng markdown", async () => {
     const { transport, calls } = fakeTransport();
     const ch = new TelegramNotifyChannel({ transport });
-    await ch.sendComment({ binding, authorName: "KTV", text: "Xem ảnh", images: ["https://x/a.png"] });
+    await ch.sendComment({
+      binding,
+      authorName: "KTV",
+      text: "Xem ảnh",
+      images: ["https://x/a.png"],
+    });
     expect(calls[0]!.payload.text).toContain("![](https://x/a.png)");
   });
 
@@ -72,7 +80,12 @@ describe("TelegramNotifyChannel (ChannelPort cho Telegram)", () => {
       transport,
       reporterOkButton: { label: "👍 Đã ổn", callbackData: (id) => `reporter_ok:${id}` },
     });
-    await ch.sendStateChange({ binding, message: "Ticket đã xử lý xong.", state: "resolved", withReporterOkButton: true });
+    await ch.sendStateChange({
+      binding,
+      message: "Ticket đã xử lý xong.",
+      state: "resolved",
+      withReporterOkButton: true,
+    });
     const markup = calls[0]!.payload.reply_markup;
     expect(markup.inline_keyboard[0][0].text).toBe("👍 Đã ổn");
     expect(markup.inline_keyboard[0][0].callback_data).toBe("reporter_ok:1168");
@@ -81,7 +94,12 @@ describe("TelegramNotifyChannel (ChannelPort cho Telegram)", () => {
   it("sendStateChange resolved nhưng CHƯA cấu hình nút → vẫn gửi, không nút", async () => {
     const { transport, calls } = fakeTransport();
     const ch = new TelegramNotifyChannel({ transport });
-    const id = await ch.sendStateChange({ binding, message: "Đã xong.", state: "resolved", withReporterOkButton: true });
+    const id = await ch.sendStateChange({
+      binding,
+      message: "Đã xong.",
+      state: "resolved",
+      withReporterOkButton: true,
+    });
     expect(id).toBe(100);
     expect(calls[0]!.payload.reply_markup).toBeUndefined();
   });
@@ -92,7 +110,12 @@ describe("TelegramNotifyChannel (ChannelPort cho Telegram)", () => {
       transport,
       reporterOkButton: { label: "OK", callbackData: (id) => `reporter_ok:${id}` },
     });
-    await ch.sendStateChange({ binding, message: "Đang xử lý.", state: "open", withReporterOkButton: false });
+    await ch.sendStateChange({
+      binding,
+      message: "Đang xử lý.",
+      state: "open",
+      withReporterOkButton: false,
+    });
     expect(calls[0]!.payload.reply_markup).toBeUndefined();
   });
 

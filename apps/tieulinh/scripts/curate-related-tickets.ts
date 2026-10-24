@@ -15,7 +15,11 @@ import { MemgraphClient } from "../lib/kg/memgraph-client";
 import { LlmSimilarTickets } from "../lib/kg/similar-ticket-source";
 import { OnyxRestSearchClient } from "../lib/onyx/rest-search";
 import { classifyColumn } from "../lib/itsaplan/ticket-state";
-import { RelatedTicketsCurator, type CuratorResult, type CuratorStatus } from "../worker/related-curator";
+import {
+  RelatedTicketsCurator,
+  type CuratorResult,
+  type CuratorStatus,
+} from "../worker/related-curator";
 import { isLlmConfigured, llmConfigFromEnv } from "../worker/llm";
 
 const args = process.argv.slice(2);
@@ -70,7 +74,10 @@ const similarSource =
   process.env.ONYX_BASE_URL && process.env.ONYX_API_KEY && isLlmConfigured(llm)
     ? new LlmSimilarTickets({
         memgraph,
-        onyx: new OnyxRestSearchClient({ baseUrl: process.env.ONYX_BASE_URL, apiKey: process.env.ONYX_API_KEY }, itsaplan),
+        onyx: new OnyxRestSearchClient(
+          { baseUrl: process.env.ONYX_BASE_URL, apiKey: process.env.ONYX_API_KEY },
+          itsaplan,
+        ),
         llm,
         projectKey,
       })
@@ -135,7 +142,9 @@ try {
     issues = issues.slice(0, limit);
   }
 
-  console.log(`Bắt đầu xử lý ${issues.length} ticket (${projectKey})${!apply ? " [CHẠY THỬ]" : " [GHI THẬT]"}`);
+  console.log(
+    `Bắt đầu xử lý ${issues.length} ticket (${projectKey})${!apply ? " [CHẠY THỬ]" : " [GHI THẬT]"}`,
+  );
 
   const statusCounts: Record<CuratorStatus, number> = {
     applied: 0,
@@ -202,7 +211,8 @@ try {
     const res = await runCuratorWithRetry(issue.id);
 
     statusCounts[res.status] = (statusCounts[res.status] ?? 0) + 1;
-    const mKey: "pinned" | "suggested" | "other" = res.mode === "pinned" ? "pinned" : res.mode === "suggested" ? "suggested" : "other";
+    const mKey: "pinned" | "suggested" | "other" =
+      res.mode === "pinned" ? "pinned" : res.mode === "suggested" ? "suggested" : "other";
     modeStats[mKey][res.status] = (modeStats[mKey][res.status] ?? 0) + 1;
 
     const rawBefore = res.fieldBefore ?? "";
@@ -267,9 +277,10 @@ try {
           } else {
             const rawBefore = r.fieldBefore ?? "";
             const kBefore = String(rawBefore).toUpperCase().match(KEY_REGEX) ?? [];
-            const kAfter = r.plan?.fieldValue !== null && r.plan?.fieldValue !== undefined
-              ? (String(r.plan.fieldValue).toUpperCase().match(KEY_REGEX) ?? []).length
-              : kBefore.length;
+            const kAfter =
+              r.plan?.fieldValue !== null && r.plan?.fieldValue !== undefined
+                ? (String(r.plan.fieldValue).toUpperCase().match(KEY_REGEX) ?? []).length
+                : kBefore.length;
             const remLinks = r.plan?.removeLinks?.length ?? 0;
             const adLinks = r.plan?.addLinks?.length ?? 0;
             const modeStr = r.mode ?? "none";
@@ -289,7 +300,9 @@ try {
       `unchanged=${statusCounts.unchanged}, no_human_cause=${statusCounts.no_human_cause}, ` +
       `error=${statusCounts.error}`,
   );
-  console.log(`[Toàn bộ] Tổng +link: ${totalAddLinks} | Tổng gỡ link: ${totalRemoveLinks} | Tổng trường đổi: ${totalFieldChanges} | Tổng thêm vào ticket cũ: ${totalPropagate}`);
+  console.log(
+    `[Toàn bộ] Tổng +link: ${totalAddLinks} | Tổng gỡ link: ${totalRemoveLinks} | Tổng trường đổi: ${totalFieldChanges} | Tổng thêm vào ticket cũ: ${totalPropagate}`,
+  );
 
   console.log("\n--- Tách theo Mode ---");
   console.log(

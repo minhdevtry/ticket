@@ -59,7 +59,9 @@ describe("TelegramTransport.call", () => {
 
 describe("TelegramTransport.tryCall", () => {
   test("thành công thì trả `result` y như call", async () => {
-    globalThis.fetch = mock(async () => jsonResponse({ ok: true, result: { file_path: "a/b.jpg" } })) as any;
+    globalThis.fetch = mock(async () =>
+      jsonResponse({ ok: true, result: { file_path: "a/b.jpg" } }),
+    ) as any;
 
     const result = await transport.tryCall<{ file_path: string }>("getFile", { file_id: "x" });
 
@@ -141,4 +143,3 @@ describe("TelegramTransport.sendFormData", () => {
     expect(res).toBeNull();
   });
 });
-

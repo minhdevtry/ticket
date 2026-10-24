@@ -12,8 +12,14 @@ describe("resolveKgHttpConfig", () => {
   });
 
   it("mặc định cổng 8933, host 127.0.0.1; đọc được override", () => {
-    expect(resolveKgHttpConfig({ KG_MCP_API_KEY: "k" })).toEqual({ port: 8933, hostname: "127.0.0.1", apiKey: "k" });
-    expect(resolveKgHttpConfig({ KG_MCP_API_KEY: "k", KG_MCP_PORT: "8998", KG_MCP_HOST: "0.0.0.0" })).toEqual({
+    expect(resolveKgHttpConfig({ KG_MCP_API_KEY: "k" })).toEqual({
+      port: 8933,
+      hostname: "127.0.0.1",
+      apiKey: "k",
+    });
+    expect(
+      resolveKgHttpConfig({ KG_MCP_API_KEY: "k", KG_MCP_PORT: "8998", KG_MCP_HOST: "0.0.0.0" }),
+    ).toEqual({
       port: 8998,
       hostname: "0.0.0.0",
       apiKey: "k",

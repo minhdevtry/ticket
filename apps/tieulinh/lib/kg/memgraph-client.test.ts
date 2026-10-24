@@ -289,10 +289,9 @@ describe.skipIf(!memgraphUp)("MemgraphClient Cypher Tests", () => {
       const session = (client as any).driver.session();
       try {
         // 1. Không được sinh node Ticket cho mã chưa tồn tại
-        const ghost = await session.run(
-          `MATCH (t:Ticket {identifier: $id}) RETURN count(t) AS c`,
-          { id: ghostKey },
-        );
+        const ghost = await session.run(`MATCH (t:Ticket {identifier: $id}) RETURN count(t) AS c`, {
+          id: ghostKey,
+        });
         expect(ghost.records[0].get("c").toNumber()).toBe(0);
 
         // 2. Và không được có cạnh RELATES_TO trỏ tới hư không
@@ -656,11 +655,28 @@ describe.skipIf(!memgraphUp)("MemgraphClient Cypher Tests (tiếp)", () => {
     const b = `TEST-KG-EXPB-${stamp}`;
     const sharedCause = `TEST nguyên nhân dùng chung ${stamp}`;
     try {
-      const common = { status: "Done", priority: "low", createdAt: new Date().toISOString(), rootCause: sharedCause };
-      await client.upsertTicketNode({ ...common, identifier: a, title: "A", resolution: `TEST giải pháp A ${stamp}` });
-      await client.upsertTicketNode({ ...common, identifier: b, title: "B", resolution: `TEST giải pháp B ${stamp}` });
+      const common = {
+        status: "Done",
+        priority: "low",
+        createdAt: new Date().toISOString(),
+        rootCause: sharedCause,
+      };
+      await client.upsertTicketNode({
+        ...common,
+        identifier: a,
+        title: "A",
+        resolution: `TEST giải pháp A ${stamp}`,
+      });
+      await client.upsertTicketNode({
+        ...common,
+        identifier: b,
+        title: "B",
+        resolution: `TEST giải pháp B ${stamp}`,
+      });
 
-      const rows = (await client.listResolvedTicketsForExport()).filter((r) => r.identifier === a || r.identifier === b);
+      const rows = (await client.listResolvedTicketsForExport()).filter(
+        (r) => r.identifier === a || r.identifier === b,
+      );
       expect(rows.map((r) => `${r.identifier}=${r.resolution}`).sort()).toEqual([
         `${a}=TEST giải pháp A ${stamp}`,
         `${b}=TEST giải pháp B ${stamp}`,
@@ -730,8 +746,18 @@ describe.skipIf(!memgraphUp)("MemgraphClient Cypher Tests (tiếp)", () => {
     const id = (n: number) => `${project}-${n}`;
     const base = { status: "Done", priority: "medium", createdAt: new Date().toISOString() };
     try {
-      await client.upsertTicketNode({ ...base, identifier: id(1), title: "Trùng tài khoản con", humanCause: "Bị gắn trùng tk học do cùng tên" });
-      await client.upsertTicketNode({ ...base, identifier: id(2), title: "Không lên được đơn", humanCause: "Bị gắn trùng tk học cho con cùng tên" });
+      await client.upsertTicketNode({
+        ...base,
+        identifier: id(1),
+        title: "Trùng tài khoản con",
+        humanCause: "Bị gắn trùng tk học do cùng tên",
+      });
+      await client.upsertTicketNode({
+        ...base,
+        identifier: id(2),
+        title: "Không lên được đơn",
+        humanCause: "Bị gắn trùng tk học cho con cùng tên",
+      });
       await client.upsertTicketNode({
         ...base,
         identifier: id(3),
@@ -739,9 +765,26 @@ describe.skipIf(!memgraphUp)("MemgraphClient Cypher Tests (tiếp)", () => {
         humanCause: "Bị gắn trùng tk học do cùng tên",
         negativeTickets: [id(1)],
       });
-      await client.upsertTicketNode({ ...base, identifier: id(4), title: "Chưa ghim", relatedTickets: [id(2)] });
-      await client.upsertTicketNode({ ...base, identifier: id(5), title: "Đã huỷ", status: "Canceled", humanCause: "Bị gắn trùng tk học do cùng tên" });
-      await client.upsertTicketNode({ ...base, identifier: id(6), title: "Zalo lag", itSupport: true, humanCause: "Máy tính yếu" });
+      await client.upsertTicketNode({
+        ...base,
+        identifier: id(4),
+        title: "Chưa ghim",
+        relatedTickets: [id(2)],
+      });
+      await client.upsertTicketNode({
+        ...base,
+        identifier: id(5),
+        title: "Đã huỷ",
+        status: "Canceled",
+        humanCause: "Bị gắn trùng tk học do cùng tên",
+      });
+      await client.upsertTicketNode({
+        ...base,
+        identifier: id(6),
+        title: "Zalo lag",
+        itSupport: true,
+        humanCause: "Máy tính yếu",
+      });
 
       await client.recomputeCauseClusters();
       const corpus = await client.loadSimilarityCorpus(project);
@@ -751,7 +794,9 @@ describe.skipIf(!memgraphUp)("MemgraphClient Cypher Tests (tiếp)", () => {
       expect(cluster.get(id(2))).toBe(cluster.get(id(1)));
       expect(cluster.get(id(4))).toBe(cluster.get(id(1))); // link người gắn
       expect(cluster.get(id(3))).not.toBe(cluster.get(id(1))); // người đã gỡ 3↔1
-      expect(corpus.find((t) => t.identifier === id(1))?.humanCause).toBe("Bị gắn trùng tk học do cùng tên");
+      expect(corpus.find((t) => t.identifier === id(1))?.humanCause).toBe(
+        "Bị gắn trùng tk học do cùng tên",
+      );
     } finally {
       for (let n = 1; n <= 6; n++) await wipeTestTicket(client, id(n));
       await client.close();
@@ -794,7 +839,12 @@ describe.skipIf(!memgraphUp)("MemgraphClient Cypher Tests (tiếp)", () => {
     try {
       await client.upsertTicketNode({ ...base, identifier: a, title: "A" });
       await client.upsertTicketNode({ ...base, identifier: b, title: "B", relatedTickets: [a] });
-      await client.upsertTicketNode({ ...base, identifier: a, title: "A nạp lại", relatedTickets: [] });
+      await client.upsertTicketNode({
+        ...base,
+        identifier: a,
+        title: "A nạp lại",
+        relatedTickets: [],
+      });
       const s = (client as any).driver.session();
       const res = await s.run(
         `MATCH (:Ticket {identifier: $a})-[r:RELATES_TO]-(:Ticket {identifier: $b}) RETURN count(r) AS c`,
@@ -873,7 +923,9 @@ describe("MemgraphClient connection-timeout regression (audit P1)", () => {
           const elapsed = Date.now() - started;
           // In ra để debug khi timing race xảy ra trên máy chậm.
           // eslint-disable-next-line no-console
-          console.log(`[blackhole] elapsed=${elapsed}ms err=${(err as Error)?.message ?? "<none>"}`);
+          console.log(
+            `[blackhole] elapsed=${elapsed}ms err=${(err as Error)?.message ?? "<none>"}`,
+          );
           expect(err).toBeDefined();
           expect(elapsed).toBeLessThan(6000);
         } finally {

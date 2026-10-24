@@ -11,7 +11,7 @@
  * `lib/itsaplan/*`.
  */
 import {
-  ItsaplanClient,
+  type ItsaplanClient,
   resolveProject,
   resolveBacklogColumn,
   resolveLabelsForIssue,
@@ -46,7 +46,8 @@ export function itsaplanTrackerPort(opts: ItsaplanTrackerOptions): TrackerPort {
         input.labels ?? [],
       ).catch(() => [] as number[]);
       const rawProject = project.raw;
-      const defaultType = rawProject.issueTypes?.find((t) => t.isDefault) ?? rawProject.issueTypes?.[0];
+      const defaultType =
+        rawProject.issueTypes?.find((t) => t.isDefault) ?? rawProject.issueTypes?.[0];
 
       const issue = await client.createIssue(project.key, {
         title: input.title,
@@ -56,7 +57,13 @@ export function itsaplanTrackerPort(opts: ItsaplanTrackerOptions): TrackerPort {
         typeId: defaultType?.id ?? undefined,
         labelIds: labelIds.length > 0 ? labelIds : undefined,
       });
-      const url = issueWebUrl(webUrl, project.key, issue.identifier, issue.sequenceNumber, project.raw);
+      const url = issueWebUrl(
+        webUrl,
+        project.key,
+        issue.identifier,
+        issue.sequenceNumber,
+        project.raw,
+      );
       return { id: issue.id, identifier: issue.identifier, title: issue.title, url };
     },
 
@@ -71,7 +78,9 @@ export function itsaplanTrackerPort(opts: ItsaplanTrackerOptions): TrackerPort {
 
     async attach(issueId: number, description: string, mediaPaths: string[]): Promise<number> {
       if (mediaPaths.length === 0) return 0;
-      const uploaded = await uploadAttachments(client, issueId, baseUrl, mediaPaths).catch(() => []);
+      const uploaded = await uploadAttachments(client, issueId, baseUrl, mediaPaths).catch(
+        () => [],
+      );
       if (uploaded.length > 0) {
         const desc = spliceAttachmentsIntoDescription(description, uploaded);
         await client.updateIssue(issueId, { description: desc }).catch(() => {});

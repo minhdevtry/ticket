@@ -89,9 +89,7 @@ describe("Ticket Knowledge Synthesizer — Edge cases đầy đủ", () => {
     const r = await synthesizeTicketKnowledge(
       "Lỗi không nộp bài",
       "Học sinh làm đến câu 15 thì dừng",
-      [
-        "@tieulinh Kỹ thuật kiểm tra: nguyên nhân phiên thi bị timeout. Giải pháp: đã reset phiên.",
-      ],
+      ["@tieulinh Kỹ thuật kiểm tra: nguyên nhân phiên thi bị timeout. Giải pháp: đã reset phiên."],
     );
     expect(r.rootCause).toContain("timeout");
     expect(r.resolution).toContain("reset");
@@ -183,9 +181,7 @@ describe("synthesizeTicketKnowledge — KHÔNG được âm thầm rơi xuống 
         ),
     ) as any;
 
-    await expect(
-      synthesizeTicketKnowledge("Lỗi X", "Mô tả", [], cfg),
-    ).rejects.toThrow();
+    await expect(synthesizeTicketKnowledge("Lỗi X", "Mô tả", [], cfg)).rejects.toThrow();
   });
 
   it("LLM trả đúng schema => dùng thẳng kết quả LLM, không đụng tới regex", async () => {
@@ -199,17 +195,20 @@ describe("synthesizeTicketKnowledge — KHÔNG được âm thầm rơi xuống 
         ),
     ) as any;
 
-    const r = await synthesizeTicketKnowledge("Lỗi X", "Mô tả không có marker regex nào cả", [], cfg);
+    const r = await synthesizeTicketKnowledge(
+      "Lỗi X",
+      "Mô tả không có marker regex nào cả",
+      [],
+      cfg,
+    );
     expect(r.rootCause).toBe("do X");
     expect(r.resolution).toBe("đã fix Y");
   });
 
   it("Không truyền llmConfig (chế độ nhẹ có chủ đích) vẫn dùng regex bình thường", async () => {
-    const r = await synthesizeTicketKnowledge(
-      "Lỗi X",
-      "Học sinh làm đến câu 15 thì dừng",
-      ["@tieulinh Kỹ thuật kiểm tra: nguyên nhân phiên thi bị timeout. Giải pháp: đã reset phiên."],
-    );
+    const r = await synthesizeTicketKnowledge("Lỗi X", "Học sinh làm đến câu 15 thì dừng", [
+      "@tieulinh Kỹ thuật kiểm tra: nguyên nhân phiên thi bị timeout. Giải pháp: đã reset phiên.",
+    ]);
     expect(r.rootCause).toContain("timeout");
   });
 });
@@ -223,7 +222,8 @@ describe("synthesizeTicketKnowledge — phân loại cause_taxon theo cause-taxo
 
   const mockLlmContent = (content: string) => {
     globalThis.fetch = mock(
-      async () => new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
+      async () =>
+        new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
     ) as any;
   };
 
@@ -289,7 +289,11 @@ describe("classifySymptomTaxon — phân loại real-time cho ticket MỚI (best
   it("LLM trả taxon hợp lệ => trả về đúng id", async () => {
     globalThis.fetch = mock(
       async () =>
-        new Response(JSON.stringify({ choices: [{ message: { content: '{"cause_taxon":"TIMEOUT_OVERLOAD_PERF"}' } }] })),
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: '{"cause_taxon":"TIMEOUT_OVERLOAD_PERF"}' } }],
+          }),
+        ),
     ) as any;
     const r = await classifySymptomTaxon("CRM lỗi", "Trang bị treo, load rất lâu", cfg);
     expect(r).toBe("TIMEOUT_OVERLOAD_PERF");
@@ -298,7 +302,11 @@ describe("classifySymptomTaxon — phân loại real-time cho ticket MỚI (best
   it('LLM trả "OTHER_NEW_PATTERN" (nghĩa là không đoán được) => trả undefined, KHÔNG dùng làm điểm đối sánh', async () => {
     globalThis.fetch = mock(
       async () =>
-        new Response(JSON.stringify({ choices: [{ message: { content: '{"cause_taxon":"OTHER_NEW_PATTERN"}' } }] })),
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: '{"cause_taxon":"OTHER_NEW_PATTERN"}' } }],
+          }),
+        ),
     ) as any;
     const r = await classifySymptomTaxon("Lỗi lạ", "Không rõ triệu chứng gì", cfg);
     expect(r).toBeUndefined();
@@ -307,7 +315,11 @@ describe("classifySymptomTaxon — phân loại real-time cho ticket MỚI (best
   it('LLM trả "INSUFFICIENT_INFO" (trạng thái thiếu dữ kiện, không phải cơ chế lỗi) => trả undefined', async () => {
     globalThis.fetch = mock(
       async () =>
-        new Response(JSON.stringify({ choices: [{ message: { content: '{"cause_taxon":"INSUFFICIENT_INFO"}' } }] })),
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: '{"cause_taxon":"INSUFFICIENT_INFO"}' } }],
+          }),
+        ),
     ) as any;
     const r = await classifySymptomTaxon("Lỗi gì đó", "Không có log", cfg);
     expect(r).toBeUndefined();
@@ -316,7 +328,11 @@ describe("classifySymptomTaxon — phân loại real-time cho ticket MỚI (best
   it("LLM trả id bịa (ngoài taxonomy) => trả undefined, không throw", async () => {
     globalThis.fetch = mock(
       async () =>
-        new Response(JSON.stringify({ choices: [{ message: { content: '{"cause_taxon":"KHONG_TON_TAI"}' } }] })),
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: '{"cause_taxon":"KHONG_TON_TAI"}' } }],
+          }),
+        ),
     ) as any;
     const r = await classifySymptomTaxon("Lỗi X", "Triệu chứng Y", cfg);
     expect(r).toBeUndefined();
@@ -346,7 +362,7 @@ describe("parseIncidentMeta — bóc tách System/Product/Category từ descript
       "",
       "- Sản phẩm: Duo",
       "",
-      "<!-- vuihoc-meta: {\"product\":\"Tutor\",\"system\":\"CRM_Vuihoc\"} -->",
+      '<!-- vuihoc-meta: {"product":"Tutor","system":"CRM_Vuihoc"} -->',
     ].join("\n");
     const meta = parseIncidentMeta(description);
     // JSON thắng Markdown khi cả hai đều có field product
@@ -396,7 +412,7 @@ describe("parseIncidentMeta — bóc tách System/Product/Category từ descript
       "- Sản phẩm: Duo",
       "- Hệ thống: Vuihoc (App/Web_Vuihoc + ERP_DUO)",
       "",
-      "<!-- vuihoc-meta: {\"product\":\"Duo\"} -->",
+      '<!-- vuihoc-meta: {"product":"Duo"} -->',
     ].join("\n");
     const meta = parseIncidentMeta(description);
     expect(meta.product).toBe("Duo");
@@ -436,8 +452,18 @@ describe("syncDoneTicketToKnowledgeGraph — loại self-loop và fallback rỗn
     };
 
     const humanLinks = [
-      { kind: "activity", action: "link_add", actorName: "TechLead_A", payload: { to: { value: "TECH-999" } } },
-      { kind: "activity", action: "link_add", actorName: "TechLead_A", payload: { to: { value: "TECH-800" } } },
+      {
+        kind: "activity",
+        action: "link_add",
+        actorName: "TechLead_A",
+        payload: { to: { value: "TECH-999" } },
+      },
+      {
+        kind: "activity",
+        action: "link_add",
+        actorName: "TechLead_A",
+        payload: { to: { value: "TECH-800" } },
+      },
     ];
     const result = await syncDoneTicketToKnowledgeGraph(
       makeMockItsaplan(issue, humanLinks),
@@ -470,18 +496,34 @@ describe("syncDoneTicketToKnowledgeGraph — loại self-loop và fallback rỗn
       fields: [],
     };
     const timeline = [
-      { kind: "comment", actorName: "TechUser_B", body: "Đã kiểm tra CRM, đúng là trùng contact.", pinned: false },
+      {
+        kind: "comment",
+        actorName: "TechUser_B",
+        body: "Đã kiểm tra CRM, đúng là trùng contact.",
+        pinned: false,
+      },
       { kind: "comment", actorName: "Tiểu Linh", body: "Đã ghi nhận.", pinned: false },
-      { kind: "comment", actorName: "TechLead_A", body: "**Nguyên nhân:** Trùng tài khoản do cùng tên.", pinned: true },
+      {
+        kind: "comment",
+        actorName: "TechLead_A",
+        body: "**Nguyên nhân:** Trùng tài khoản do cùng tên.",
+        pinned: true,
+      },
     ];
 
-    const result = await syncDoneTicketToKnowledgeGraph(makeMockItsaplan(issue, timeline), mockMemgraph, 1);
+    const result = await syncDoneTicketToKnowledgeGraph(
+      makeMockItsaplan(issue, timeline),
+      mockMemgraph,
+      1,
+    );
 
     expect(result.success).toBe(true);
     expect(captured?.description).toContain("Không lên được đơn do trùng tài khoản");
     expect(captured?.description).not.toContain("Chẩn đoán");
     expect(captured?.description).not.toContain("Tương đồng với TECH-1");
-    expect(captured?.humanNotes?.startsWith("**Nguyên nhân:** Trùng tài khoản do cùng tên.")).toBe(true);
+    expect(captured?.humanNotes?.startsWith("**Nguyên nhân:** Trùng tài khoản do cùng tên.")).toBe(
+      true,
+    );
     expect(captured?.humanNotes).toContain("Đã kiểm tra CRM, đúng là trùng contact.");
     expect(captured?.humanNotes).not.toContain("Đã ghi nhận.");
   });
@@ -504,7 +546,8 @@ describe("syncDoneTicketToKnowledgeGraph — loại self-loop và fallback rỗn
     const store = new Map<string, { fingerprint: string; syncedAt: number }>();
     const ledger = {
       get: (id: string) => store.get(id) ?? null,
-      record: (id: string, fingerprint: string, syncedAt: number) => void store.set(id, { fingerprint, syncedAt }),
+      record: (id: string, fingerprint: string, syncedAt: number) =>
+        void store.set(id, { fingerprint, syncedAt }),
     };
     const opts = { projectKey: "TECH", ledger, now: () => 1_000 };
     const client = makeMockItsaplan(issue, timeline);
@@ -555,7 +598,11 @@ describe("syncDoneTicketToKnowledgeGraph — loại self-loop và fallback rỗn
 });
 
 describe("syncDoneTicketToKnowledgeGraph — status thật lấy từ cột, không hardcode Done", () => {
-  function setup(issue: any, timeline: any[] = [], columnState?: "open" | "resolved" | "done" | "canceled") {
+  function setup(
+    issue: any,
+    timeline: any[] = [],
+    columnState?: "open" | "resolved" | "done" | "canceled",
+  ) {
     let captured: TicketGraphNode | undefined;
     const client = {
       getIssue: async () => issue,
@@ -571,7 +618,12 @@ describe("syncDoneTicketToKnowledgeGraph — status thật lấy từ cột, kh�
     // CONTEXT.md. null = dự án không có cột đó (API không trả được).
     const columnStates = {
       stateOf: async (_pk: string, _col: number) =>
-        columnState ? ({ state: columnState, column: { id: _col, name: "x", stateType: "started", position: 1 } } as any) : null,
+        columnState
+          ? ({
+              state: columnState,
+              column: { id: _col, name: "x", stateType: "started", position: 1 },
+            } as any)
+          : null,
     };
     return { client, memgraph, columnStates, node: () => captured };
   }
@@ -638,14 +690,17 @@ describe("syncDoneTicketToKnowledgeGraph — khoá dự án & chống nạp lạ
     const store = new Map<string, { fingerprint: string; syncedAt: number }>();
     const ledger = {
       get: (id: string) => store.get(id) ?? null,
-      record: (id: string, fingerprint: string, syncedAt: number) => void store.set(id, { fingerprint, syncedAt }),
+      record: (id: string, fingerprint: string, syncedAt: number) =>
+        void store.set(id, { fingerprint, syncedAt }),
     };
     return { issue, timeline, client, memgraph, ledger, upserts: () => upserts };
   }
 
   it("ticket không thuộc dự án worker thì bỏ qua, không nạp", async () => {
     const t = setup("PO-5");
-    const result = await syncDoneTicketToKnowledgeGraph(t.client, t.memgraph, 5, undefined, { projectKey: "TECH" });
+    const result = await syncDoneTicketToKnowledgeGraph(t.client, t.memgraph, 5, undefined, {
+      projectKey: "TECH",
+    });
     expect(result).toMatchObject({ success: true, skipped: true });
     expect(t.upserts()).toBe(0);
   });
@@ -665,7 +720,11 @@ describe("syncDoneTicketToKnowledgeGraph — khoá dự án & chống nạp lạ
     await syncDoneTicketToKnowledgeGraph(t.client, t.memgraph, 1, undefined, opts);
     expect(t.upserts()).toBe(1);
 
-    t.timeline.push({ kind: "comment", actorName: "Kỹ thuật viên", body: "Bổ sung: đã tăng timeout." });
+    t.timeline.push({
+      kind: "comment",
+      actorName: "Kỹ thuật viên",
+      body: "Bổ sung: đã tăng timeout.",
+    });
     const third = await syncDoneTicketToKnowledgeGraph(t.client, t.memgraph, 1, undefined, opts);
     expect(third.skipped).toBeFalsy();
     expect(t.upserts()).toBe(2);
@@ -686,7 +745,9 @@ describe("syncDoneTicketToKnowledgeGraph — khoá dự án & chống nạp lạ
     (t.memgraph as any).upsertTicketNode = async () => {
       throw new Error("bolt down");
     };
-    const result = await syncDoneTicketToKnowledgeGraph(t.client, t.memgraph, 1, undefined, { ledger: t.ledger });
+    const result = await syncDoneTicketToKnowledgeGraph(t.client, t.memgraph, 1, undefined, {
+      ledger: t.ledger,
+    });
     expect(result.success).toBe(false);
     expect(t.ledger.get("TECH-1")).toBeNull();
   });
@@ -739,7 +800,12 @@ describe("syncDoneTicketToKnowledgeGraph — resolvedAt không lấy từ update
     const t = setup(makeIssue(), [
       { kind: "activity", action: "status", createdAt: "2026-09-03T00:00:00Z" },
       { kind: "activity", action: "status", createdAt: "2026-09-04T00:00:00Z" },
-      { kind: "comment", actorName: "Kỹ thuật viên", body: "đã sửa", createdAt: "2026-09-05T00:00:00Z" },
+      {
+        kind: "comment",
+        actorName: "Kỹ thuật viên",
+        body: "đã sửa",
+        createdAt: "2026-09-05T00:00:00Z",
+      },
     ]);
     const result = await syncDoneTicketToKnowledgeGraph(t.client, t.memgraph, 1);
     expect(result.success).toBe(true);
@@ -784,7 +850,8 @@ describe("syncDoneTicketToKnowledgeGraph — resolvedAt không lấy từ update
 
 // ADR-0007 (26/09, TECH-920): ticket tương tự chỉ học từ tín hiệu người.
 describe("syncDoneTicketToKnowledgeGraph — học từ comment ghim và tín hiệu người", () => {
-  const PIN = "Anh @TechUser_B\n\n- **Nguyên nhân:** Bị gắn trùng tk học do cùng tên\n\n- **Cách khắc phục:** Gỡ tk học 1 con bị trùng & thêm chữ BỎ";
+  const PIN =
+    "Anh @TechUser_B\n\n- **Nguyên nhân:** Bị gắn trùng tk học do cùng tên\n\n- **Cách khắc phục:** Gỡ tk học 1 con bị trùng & thêm chữ BỎ";
   const baseIssue = (over: any = {}) => ({
     id: 793,
     identifier: "TECH-920",
@@ -794,18 +861,69 @@ describe("syncDoneTicketToKnowledgeGraph — học từ comment ghim và tín hi
     createdAt: "2026-09-26T01:38:59Z",
     updatedAt: "2026-09-26T01:54:15Z",
     statusSince: "2026-09-26T05:00:00Z",
-    links: [{ issue: { identifier: "TECH-775" } }, { issue: { identifier: "TECH-840" } }, { issue: { identifier: "TECH-769" } }],
-    fields: [{ fieldId: 3, name: "Related Tickets", value: "TECH-775, TECH-840, TEST-KG-TAXON-A-1" }],
+    links: [
+      { issue: { identifier: "TECH-775" } },
+      { issue: { identifier: "TECH-840" } },
+      { issue: { identifier: "TECH-769" } },
+    ],
+    fields: [
+      { fieldId: 3, name: "Related Tickets", value: "TECH-775, TECH-840, TEST-KG-TAXON-A-1" },
+    ],
     ...over,
   });
   const timeline = [
-    { kind: "activity", action: "field", actorName: "Tiểu Linh", createdAt: "2026-09-26T01:39:00Z", payload: { subject: { value: "Related Tickets", id: 3 }, to: { value: "TECH-775, TECH-840, TEST-KG-TAXON-A-1" } } },
-    { kind: "activity", action: "link_add", actorName: "Tiểu Linh", createdAt: "2026-09-26T01:39:01Z", payload: { to: { value: "TECH-775" } } },
-    { kind: "activity", action: "link_add", actorName: "Tiểu Linh", createdAt: "2026-09-26T01:39:01Z", payload: { to: { value: "TECH-840" } } },
-    { kind: "activity", action: "link_add", actorName: "TechLead_A", createdAt: "2026-09-26T01:50:00Z", payload: { to: { value: "TECH-769" } } },
-    { kind: "activity", action: "link_remove", actorName: "TechLead_A", createdAt: "2026-09-26T02:02:00Z", payload: { to: { value: "TECH-840" } } },
-    { kind: "comment", pinned: true, actorName: "TechLead_A", body: PIN, createdAt: "2026-09-26T01:54:10Z" },
-    { kind: "comment", pinned: false, actorName: "admin", body: "🚨 **Người báo giục gấp.** Anh cần xử lý gấp", createdAt: "2026-09-26T01:55:00Z" },
+    {
+      kind: "activity",
+      action: "field",
+      actorName: "Tiểu Linh",
+      createdAt: "2026-09-26T01:39:00Z",
+      payload: {
+        subject: { value: "Related Tickets", id: 3 },
+        to: { value: "TECH-775, TECH-840, TEST-KG-TAXON-A-1" },
+      },
+    },
+    {
+      kind: "activity",
+      action: "link_add",
+      actorName: "Tiểu Linh",
+      createdAt: "2026-09-26T01:39:01Z",
+      payload: { to: { value: "TECH-775" } },
+    },
+    {
+      kind: "activity",
+      action: "link_add",
+      actorName: "Tiểu Linh",
+      createdAt: "2026-09-26T01:39:01Z",
+      payload: { to: { value: "TECH-840" } },
+    },
+    {
+      kind: "activity",
+      action: "link_add",
+      actorName: "TechLead_A",
+      createdAt: "2026-09-26T01:50:00Z",
+      payload: { to: { value: "TECH-769" } },
+    },
+    {
+      kind: "activity",
+      action: "link_remove",
+      actorName: "TechLead_A",
+      createdAt: "2026-09-26T02:02:00Z",
+      payload: { to: { value: "TECH-840" } },
+    },
+    {
+      kind: "comment",
+      pinned: true,
+      actorName: "TechLead_A",
+      body: PIN,
+      createdAt: "2026-09-26T01:54:10Z",
+    },
+    {
+      kind: "comment",
+      pinned: false,
+      actorName: "admin",
+      body: "🚨 **Người báo giục gấp.** Anh cần xử lý gấp",
+      createdAt: "2026-09-26T01:55:00Z",
+    },
   ];
   const setup = (issue: any, tl: any[] = timeline) => {
     let captured: TicketGraphNode | undefined;
@@ -819,13 +937,18 @@ describe("syncDoneTicketToKnowledgeGraph — học từ comment ghim và tín hi
         return { tickets: 1, clusters: 1 };
       },
     } as unknown as MemgraphClient;
-    const client = { getIssue: async () => issue, getIssueTimeline: async () => tl } as unknown as ItsaplanClient;
+    const client = {
+      getIssue: async () => issue,
+      getIssueTimeline: async () => tl,
+    } as unknown as ItsaplanClient;
     return { client, memgraph, node: () => captured, recomputed: () => clustersRecomputed };
   };
 
   it("nguyên nhân / cách khắc phục lấy nguyên văn comment ghim của người", async () => {
     const t = setup(baseIssue());
-    const r = await syncDoneTicketToKnowledgeGraph(t.client, t.memgraph, 793, undefined, { projectKey: "TECH" });
+    const r = await syncDoneTicketToKnowledgeGraph(t.client, t.memgraph, 793, undefined, {
+      projectKey: "TECH",
+    });
     expect(r.success).toBe(true);
     expect(t.node()?.humanCause).toBe("Bị gắn trùng tk học do cùng tên");
     expect(t.node()?.humanFix).toBe("Gỡ tk học 1 con bị trùng & thêm chữ BỎ");
@@ -835,34 +958,49 @@ describe("syncDoneTicketToKnowledgeGraph — học từ comment ghim và tín hi
 
   it("chỉ link người gắn thành RELATES_TO; link/trường bot ghi và mã test bỏ qua; người gỡ thành âm", async () => {
     const t = setup(baseIssue());
-    await syncDoneTicketToKnowledgeGraph(t.client, t.memgraph, 793, undefined, { projectKey: "TECH" });
+    await syncDoneTicketToKnowledgeGraph(t.client, t.memgraph, 793, undefined, {
+      projectKey: "TECH",
+    });
     expect(t.node()?.relatedTickets).toEqual(["TECH-769"]);
     expect(t.node()?.negativeTickets).toEqual(["TECH-840"]);
   });
 
   it("kho tìm kiếm là lời người báo — không lẫn gợi ý bot ('Chẩn đoán & Gợi ý') hay callback", async () => {
     const t = setup(baseIssue());
-    await syncDoneTicketToKnowledgeGraph(t.client, t.memgraph, 793, undefined, { projectKey: "TECH" });
+    await syncDoneTicketToKnowledgeGraph(t.client, t.memgraph, 793, undefined, {
+      projectKey: "TECH",
+    });
     expect(t.node()?.symptomsText).toBe("bị trùng tài khoản con, sale không lên được đơn");
   });
 
   it("ticket nhãn IT Support được đánh dấu (kho gợi ý không nối chéo sang ticket kỹ thuật)", async () => {
     const t = setup(baseIssue({ labelIds: [9] }));
-    (t.client as any).getProject = async () => ({ labels: [{ id: 8, name: "Hỗ trợ" }, { id: 9, name: "IT Support" }] });
-    await syncDoneTicketToKnowledgeGraph(t.client, t.memgraph, 793, undefined, { projectKey: "TECH" });
+    (t.client as any).getProject = async () => ({
+      labels: [
+        { id: 8, name: "Hỗ trợ" },
+        { id: 9, name: "IT Support" },
+      ],
+    });
+    await syncDoneTicketToKnowledgeGraph(t.client, t.memgraph, 793, undefined, {
+      projectKey: "TECH",
+    });
     expect(t.node()?.itSupport).toBe(true);
   });
 
   it("nạp xong thì tính lại cụm nguyên nhân", async () => {
     const t = setup(baseIssue());
-    await syncDoneTicketToKnowledgeGraph(t.client, t.memgraph, 793, undefined, { projectKey: "TECH" });
+    await syncDoneTicketToKnowledgeGraph(t.client, t.memgraph, 793, undefined, {
+      projectKey: "TECH",
+    });
     expect(t.recomputed()).toBe(1);
   });
 
   it("có comment ghim mà LLM lỗi → vẫn nạp bằng chữ người viết (không chặn), chỉ thiếu nhóm nguyên nhân", async () => {
     const t = setup(baseIssue());
     const brokenLlm = { baseUrl: "http://127.0.0.1:1", apiKey: "x", model: "m" };
-    const r = await syncDoneTicketToKnowledgeGraph(t.client, t.memgraph, 793, brokenLlm as any, { projectKey: "TECH" });
+    const r = await syncDoneTicketToKnowledgeGraph(t.client, t.memgraph, 793, brokenLlm as any, {
+      projectKey: "TECH",
+    });
     expect(r.success).toBe(true);
     expect(t.node()?.rootCause).toBe("Bị gắn trùng tk học do cùng tên");
     expect(t.node()?.causeTaxon).toBeUndefined();
@@ -872,10 +1010,25 @@ describe("syncDoneTicketToKnowledgeGraph — học từ comment ghim và tín hi
     const ledger = new Map<string, { fingerprint: string; syncedAt: number }>();
     const opts = {
       projectKey: "TECH",
-      ledger: { get: (id: string) => ledger.get(id) ?? null, record: (id: string, fingerprint: string, syncedAt: number) => void ledger.set(id, { fingerprint, syncedAt }) },
+      ledger: {
+        get: (id: string) => ledger.get(id) ?? null,
+        record: (id: string, fingerprint: string, syncedAt: number) =>
+          void ledger.set(id, { fingerprint, syncedAt }),
+      },
     };
     const noPin = timeline.filter((e) => e.kind !== "comment");
-    const t1 = setup(baseIssue(), noPin.concat([{ kind: "comment", pinned: false, actorName: "TechLead_A", body: PIN, createdAt: "2026-09-26T01:54:10Z" } as any]));
+    const t1 = setup(
+      baseIssue(),
+      noPin.concat([
+        {
+          kind: "comment",
+          pinned: false,
+          actorName: "TechLead_A",
+          body: PIN,
+          createdAt: "2026-09-26T01:54:10Z",
+        } as any,
+      ]),
+    );
     await syncDoneTicketToKnowledgeGraph(t1.client, t1.memgraph, 793, undefined, opts);
     const t2 = setup(baseIssue());
     const r = await syncDoneTicketToKnowledgeGraph(t2.client, t2.memgraph, 793, undefined, opts);

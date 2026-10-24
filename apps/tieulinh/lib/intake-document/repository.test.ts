@@ -22,7 +22,12 @@ describe("IntakeDocumentRepository", () => {
       status: "collecting",
       currentTurn: 1,
       fields: {
-        title: { value: "Lỗi đăng nhập CRM", source: "user_message", turn: 1, updatedAt: new Date().toISOString() },
+        title: {
+          value: "Lỗi đăng nhập CRM",
+          source: "user_message",
+          turn: 1,
+          updatedAt: new Date().toISOString(),
+        },
       },
       evidence: {},
       askedCount: {},
@@ -45,7 +50,12 @@ describe("IntakeDocumentRepository", () => {
       currentTurn: 2,
       fields: {
         ...doc1.fields,
-        system: { value: "CRM_Vuihoc", source: "user_message", turn: 2, updatedAt: new Date().toISOString() },
+        system: {
+          value: "CRM_Vuihoc",
+          source: "user_message",
+          turn: 2,
+          updatedAt: new Date().toISOString(),
+        },
       },
       updatedAt: new Date().toISOString(),
     };
@@ -98,7 +108,12 @@ describe("IntakeDocumentRepository — chọn tài liệu mới nhất theo th�
   let db: Database;
   let repo: IntakeDocumentRepository;
 
-  const makeDoc = (docId: string, revision: number, status: IntakeDocument["status"], chatId = "chat_x"): IntakeDocument => ({
+  const makeDoc = (
+    docId: string,
+    revision: number,
+    status: IntakeDocument["status"],
+    chatId = "chat_x",
+  ): IntakeDocument => ({
     docId,
     chatId,
     revision,

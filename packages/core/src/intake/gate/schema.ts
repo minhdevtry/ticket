@@ -46,9 +46,7 @@ export interface FieldSchemaOptions {
  */
 export function buildFieldSchema(catalog: FieldCatalog, options: FieldSchemaOptions = {}) {
   const variantKeys = Object.keys(catalog.variants);
-  const variantLabels = variantKeys
-    .map((key) => `${key}=${catalog.variants[key].name}`)
-    .join(", ");
+  const variantLabels = variantKeys.map((key) => `${key}=${catalog.variants[key].name}`).join(", ");
 
   const shape: Record<string, z.ZodTypeAny> = {
     variant: z
@@ -58,7 +56,10 @@ export function buildFieldSchema(catalog: FieldCatalog, options: FieldSchemaOpti
   };
 
   for (const [name, field] of Object.entries(collectFillableFields(catalog))) {
-    shape[name] = z.string().optional().describe(describe(field, getVocabulary(catalog, field)));
+    shape[name] = z
+      .string()
+      .optional()
+      .describe(describe(field, getVocabulary(catalog, field)));
   }
 
   // What the user just told us they cannot answer. This is an observation about
@@ -112,10 +113,7 @@ export function buildWorkingMemorySchema(catalog: FieldCatalog) {
       .record(z.string(), z.string())
       .optional()
       .describe("Các trường đã thu thập được, tên trường -> giá trị"),
-    askedCount: z
-      .record(z.string(), z.number())
-      .optional()
-      .describe("Số lần đã hỏi từng trường"),
+    askedCount: z.record(z.string(), z.number()).optional().describe("Số lần đã hỏi từng trường"),
     cannotAnswer: z
       .array(z.string())
       .optional()

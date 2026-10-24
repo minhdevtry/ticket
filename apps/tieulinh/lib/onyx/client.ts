@@ -23,16 +23,97 @@ export interface OnyxSearchResult {
 }
 
 const TU_NHOE = new Set([
-  "a", "a.c", "a/c", "ac", "anh", "anh/chi", "anh/chị", "cam", "check", "chi", "cho", "chị", "cảm",
-  "dum", "dung", "dùm", "e", "e/c", "em", "fix", "gap", "gium", "giup", "giùm", "giúp", "gấp",
-  "ho", "hỗ", "hộ", "kiem", "kiểm", "kt", "ktr", "ktra", "lai", "loi", "lại", "lỗi", "m", "minh",
-  "mình", "nha", "nhe", "nho", "nhá", "nhé", "nhờ", "on", "sua", "support", "sửa", "t", "team",
-  "tech", "tra", "tro", "trợ", "va", "vh", "voi", "và", "với", "xem", "xin", "đúng", "ơn", "ạ",
+  "a",
+  "a.c",
+  "a/c",
+  "ac",
+  "anh",
+  "anh/chi",
+  "anh/chị",
+  "cam",
+  "check",
+  "chi",
+  "cho",
+  "chị",
+  "cảm",
+  "dum",
+  "dung",
+  "dùm",
+  "e",
+  "e/c",
+  "em",
+  "fix",
+  "gap",
+  "gium",
+  "giup",
+  "giùm",
+  "giúp",
+  "gấp",
+  "ho",
+  "hỗ",
+  "hộ",
+  "kiem",
+  "kiểm",
+  "kt",
+  "ktr",
+  "ktra",
+  "lai",
+  "loi",
+  "lại",
+  "lỗi",
+  "m",
+  "minh",
+  "mình",
+  "nha",
+  "nhe",
+  "nho",
+  "nhá",
+  "nhé",
+  "nhờ",
+  "on",
+  "sua",
+  "support",
+  "sửa",
+  "t",
+  "team",
+  "tech",
+  "tra",
+  "tro",
+  "trợ",
+  "va",
+  "vh",
+  "voi",
+  "và",
+  "với",
+  "xem",
+  "xin",
+  "đúng",
+  "ơn",
+  "ạ",
 ]);
 
 const DONG_TU_NHO = new Set([
-  "check", "ktra", "ktr", "kiểm", "kiem", "xem", "hỗ", "ho", "trợ", "tro", "support", "fix", "sửa",
-  "sua", "giúp", "giup", "hộ", "cảm", "cam", "nhờ", "nho",
+  "check",
+  "ktra",
+  "ktr",
+  "kiểm",
+  "kiem",
+  "xem",
+  "hỗ",
+  "ho",
+  "trợ",
+  "tro",
+  "support",
+  "fix",
+  "sửa",
+  "sua",
+  "giúp",
+  "giup",
+  "hộ",
+  "cảm",
+  "cam",
+  "nhờ",
+  "nho",
 ]);
 
 /**
@@ -40,14 +121,20 @@ const DONG_TU_NHO = new Set([
  */
 export function gonCauHoi(cau: string): string {
   if (!cau) return "";
-  const parts = cau.split(/[,;.]/).map((x) => x.trim()).filter(Boolean);
+  const parts = cau
+    .split(/[,;.]/)
+    .map((x) => x.trim())
+    .filter(Boolean);
   const got = parts
     .map((doan) => {
       const tu = doan.split(/\s+/);
       let i = tu.length;
       while (
         i > 0 &&
-        tu[i - 1].toLowerCase().replace(/[^\w/.]/g, "").match(/^[a-z.]+$/) &&
+        tu[i - 1]
+          .toLowerCase()
+          .replace(/[^\w/.]/g, "")
+          .match(/^[a-z.]+$/) &&
         TU_NHOE.has(tu[i - 1].toLowerCase().replace(/[^\w/.]/g, ""))
       ) {
         i--;
@@ -57,7 +144,10 @@ export function gonCauHoi(cau: string): string {
         .map((x) => x.toLowerCase().replace(/[^\w/.]/g, ""))
         .filter((x) => DONG_TU_NHO.has(x));
       if (i === tu.length || !boc.length) return doan;
-      return tu.slice(0, i).join(" ").replace(/^[ ,;.]+|[ ,;.]+$/g, "");
+      return tu
+        .slice(0, i)
+        .join(" ")
+        .replace(/^[ ,;.]+|[ ,;.]+$/g, "");
     })
     .filter(Boolean);
 
@@ -156,7 +246,8 @@ export class OnyxClient {
         signal: controller.signal,
       });
 
-      const sessionId = initRes.headers.get("mcp-session-id") || initRes.headers.get("Mcp-Session-Id");
+      const sessionId =
+        initRes.headers.get("mcp-session-id") || initRes.headers.get("Mcp-Session-Id");
       if (!initRes.ok || !sessionId) {
         throw new Error(`MCP init failed: HTTP ${initRes.status}`);
       }
@@ -262,7 +353,9 @@ export class OnyxClient {
           if (seen.has(code)) continue;
           seen.add(code);
 
-          const link = r.url || `${process.env.ITSAPLAN_WEB_URL?.replace(/\/+$/, "") || "https://itsaplan.example.com"}/workbench/vuihoc/tracker/${code}`;
+          const link =
+            r.url ||
+            `${process.env.ITSAPLAN_WEB_URL?.replace(/\/+$/, "") || "https://itsaplan.example.com"}/workbench/vuihoc/tracker/${code}`;
           const systemMatch = fullText.match(/TECH-\d+\s*·\s*([^·\n]+)/i);
           // Chấp nhận cả 2 định dạng đã xác nhận tồn tại song song trong Onyx:
           // - Compact (319 doc cũ trong "tech-done-tickets"): "TRIỆU CHỨNG\n...", không dấu ":"
@@ -315,9 +408,12 @@ export class OnyxClient {
       let answer = "";
       if (topCand) {
         const parts: string[] = [];
-        if (topCand.trieu_chung) parts.push(`- Triệu chứng tương tự (${topCand.ma}): ${topCand.trieu_chung}`);
-        if (topCand.nguyen_nhan) parts.push(`- Nguyên nhân tham khảo (${topCand.ma}): ${topCand.nguyen_nhan}`);
-        if (topCand.cach_khac_phuc) parts.push(`- Hướng khắc phục đề xuất (${topCand.ma}): ${topCand.cach_khac_phuc}`);
+        if (topCand.trieu_chung)
+          parts.push(`- Triệu chứng tương tự (${topCand.ma}): ${topCand.trieu_chung}`);
+        if (topCand.nguyen_nhan)
+          parts.push(`- Nguyên nhân tham khảo (${topCand.ma}): ${topCand.nguyen_nhan}`);
+        if (topCand.cach_khac_phuc)
+          parts.push(`- Hướng khắc phục đề xuất (${topCand.ma}): ${topCand.cach_khac_phuc}`);
         answer = parts.join("\n");
       }
 

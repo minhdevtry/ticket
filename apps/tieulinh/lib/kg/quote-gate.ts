@@ -23,10 +23,11 @@ export function extractQuotedErrors(...texts: Array<string | null | undefined>):
 }
 
 function normalizeQuote(s: string): Set<string> {
-  const toks = s
-    .toLowerCase()
-    .replace(/[0-9]+/g, " ")
-    .match(/[\p{L}]+/gu) ?? [];
+  const toks =
+    s
+      .toLowerCase()
+      .replace(/[0-9]+/g, " ")
+      .match(/[\p{L}]+/gu) ?? [];
   return new Set(toks.filter((w) => w.length > 1));
 }
 

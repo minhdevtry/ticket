@@ -24,11 +24,26 @@ export function queryKnowledgeGraph(): AnyMcpTool {
     inputSchema: {
       action: z
         .enum(["suggest_resolution", "top_root_causes", "most_related", "graph_stats"])
-        .describe("Hành động tra cứu: 'suggest_resolution' (gợi ý cách xử lý), 'top_root_causes' (nguyên nhân hay gặp), 'most_related' (tâm chấn sự cố), 'graph_stats' (thống kê đồ thị)"),
-      system: z.string().optional().describe("Tên hệ thống (vd: CRM_Vuihoc, LMS_Vuihoc, TUTOR_Vuihoc...)"),
-      errorCategory: z.string().optional().describe("Loại lỗi (vd: Lỗi hệ thống, Lỗi dữ liệu, Lỗi phân quyền...)"),
-      keywords: z.array(z.string()).optional().describe("Từ khóa triệu chứng hoặc lỗi kỹ thuật (vd: ['trùng tài khoản', 'tạo đơn'])"),
-      limit: z.number().optional().default(5).describe("Số lượng kết quả tối đa cần lấy (mặc định 5)"),
+        .describe(
+          "Hành động tra cứu: 'suggest_resolution' (gợi ý cách xử lý), 'top_root_causes' (nguyên nhân hay gặp), 'most_related' (tâm chấn sự cố), 'graph_stats' (thống kê đồ thị)",
+        ),
+      system: z
+        .string()
+        .optional()
+        .describe("Tên hệ thống (vd: CRM_Vuihoc, LMS_Vuihoc, TUTOR_Vuihoc...)"),
+      errorCategory: z
+        .string()
+        .optional()
+        .describe("Loại lỗi (vd: Lỗi hệ thống, Lỗi dữ liệu, Lỗi phân quyền...)"),
+      keywords: z
+        .array(z.string())
+        .optional()
+        .describe("Từ khóa triệu chứng hoặc lỗi kỹ thuật (vd: ['trùng tài khoản', 'tạo đơn'])"),
+      limit: z
+        .number()
+        .optional()
+        .default(5)
+        .describe("Số lượng kết quả tối đa cần lấy (mặc định 5)"),
     },
     handler: async ({ action, system, errorCategory, keywords = [], limit = 5 }) => {
       try {

@@ -6,7 +6,11 @@ import {
   VALID_REPORTING_DEPTS,
   VALID_DEVICE_TYPES,
 } from "../../mcp/tieulinh/domain/taxonomy";
-import { describeExtractedKeys, extractedFieldsSchema, type ExtractedFields } from "./extractor-schema";
+import {
+  describeExtractedKeys,
+  extractedFieldsSchema,
+  type ExtractedFields,
+} from "./extractor-schema";
 import { getLogger } from "../logger";
 import {
   extractBlockInfo,
@@ -44,7 +48,7 @@ export const SYSTEM_SYNONYMS: Record<string, string> = {
   "tự học": "VH_Tự học",
   "tự ôn luyện": "VH_Tự học",
   "hạ tầng": "Khác_Hạ tầng_IT",
-  "khác": "Khác_Hạ tầng_IT",
+  khác: "Khác_Hạ tầng_IT",
   // Công cụ liên lạc bên thứ 3 (Zalo, Viber, Messenger…) — data TECH thật phân
   // loại các lỗi này vào Khác_Hạ tầng_IT (soi TECH-876..887).
   zalo: "Khác_Hạ tầng_IT",
@@ -78,7 +82,11 @@ export const MAX_LLM_CONTEXT_CHARS = 1500;
 const INTENTS = ["report_issue", "provide_info", "confirm", "cancel", "chitchat"] as const;
 type Intent = (typeof INTENTS)[number];
 
-export type CompleteFn = (config: LlmConfig, systemPrompt: string, userPrompt: string) => Promise<string>;
+export type CompleteFn = (
+  config: LlmConfig,
+  systemPrompt: string,
+  userPrompt: string,
+) => Promise<string>;
 
 export interface ExtractOptions {
   /** Ticket đã tạo cho tài liệu hiện tại — để LLM phân biệt bổ sung / việc mới / cảm ơn. */
@@ -88,7 +96,11 @@ export interface ExtractOptions {
 /**
  * Chuẩn hóa giá trị Out-of-Vocabulary (OOV) về từ vựng đóng của taxonomy
  */
-export function normalizeWithSynonyms<T extends string>(val: string | null | undefined, validList: readonly T[], synonyms: Record<string, string>): T | undefined {
+export function normalizeWithSynonyms<T extends string>(
+  val: string | null | undefined,
+  validList: readonly T[],
+  synonyms: Record<string, string>,
+): T | undefined {
   if (!val || typeof val !== "string") return undefined;
   const trimmed = val.trim();
   if (!trimmed) return undefined;
@@ -130,11 +142,52 @@ function tokenize(text: string): string[] {
     .filter(Boolean);
 }
 
-const CONFIRM_CORE = new Set(["ok", "oke", "okay", "okie", "oki", "đúng", "chuẩn", "xác", "tạo", "gửi", "đồng", "yes", "y", "được", "chính"]);
+const CONFIRM_CORE = new Set([
+  "ok",
+  "oke",
+  "okay",
+  "okie",
+  "oki",
+  "đúng",
+  "chuẩn",
+  "xác",
+  "tạo",
+  "gửi",
+  "đồng",
+  "yes",
+  "y",
+  "được",
+  "chính",
+]);
 const CONFIRM_WORDS = new Set([
   ...CONFIRM_CORE,
-  "nhận", "ý", "xác", "rồi", "đi", "luôn", "giúp", "em", "chị", "anh", "mình", "nhé", "nha", "ạ",
-  "dạ", "vâng", "ticket", "vé", "cho", "với", "vậy", "thế", "là", "nhận", "e", "c", "a",
+  "nhận",
+  "ý",
+  "xác",
+  "rồi",
+  "đi",
+  "luôn",
+  "giúp",
+  "em",
+  "chị",
+  "anh",
+  "mình",
+  "nhé",
+  "nha",
+  "ạ",
+  "dạ",
+  "vâng",
+  "ticket",
+  "vé",
+  "cho",
+  "với",
+  "vậy",
+  "thế",
+  "là",
+  "nhận",
+  "e",
+  "c",
+  "a",
 ]);
 
 /**
@@ -151,9 +204,44 @@ export function isShortConfirmation(text: string): boolean {
 }
 
 const CANCEL_WORDS = new Set([
-  "hủy", "huỷ", "cancel", "dừng", "bỏ", "qua", "thôi", "không", "cần", "đi", "nhé", "nha", "ạ", "giúp", "em",
-  "chị", "anh", "mình", "ticket", "vé", "yêu", "cầu", "này", "luôn", "tạo", "nữa", "đâu", "rồi", "dạ", "vâng",
-  "cho", "với", "báo", "cáo", "lại", "e", "c", "a",
+  "hủy",
+  "huỷ",
+  "cancel",
+  "dừng",
+  "bỏ",
+  "qua",
+  "thôi",
+  "không",
+  "cần",
+  "đi",
+  "nhé",
+  "nha",
+  "ạ",
+  "giúp",
+  "em",
+  "chị",
+  "anh",
+  "mình",
+  "ticket",
+  "vé",
+  "yêu",
+  "cầu",
+  "này",
+  "luôn",
+  "tạo",
+  "nữa",
+  "đâu",
+  "rồi",
+  "dạ",
+  "vâng",
+  "cho",
+  "với",
+  "báo",
+  "cáo",
+  "lại",
+  "e",
+  "c",
+  "a",
 ]);
 
 /**
@@ -178,8 +266,36 @@ export function isExplicitCancel(text: string): boolean {
 }
 
 const DECLINE_WORDS = new Set([
-  "không", "ko", "k", "hông", "chưa", "biết", "rõ", "có", "nhớ", "dạ", "em", "chị", "anh", "mình", "ạ", "nhé",
-  "nha", "luôn", "thông", "tin", "cái", "này", "đâu", "rồi", "cũng", "e", "c", "a", "thì", "chịu",
+  "không",
+  "ko",
+  "k",
+  "hông",
+  "chưa",
+  "biết",
+  "rõ",
+  "có",
+  "nhớ",
+  "dạ",
+  "em",
+  "chị",
+  "anh",
+  "mình",
+  "ạ",
+  "nhé",
+  "nha",
+  "luôn",
+  "thông",
+  "tin",
+  "cái",
+  "này",
+  "đâu",
+  "rồi",
+  "cũng",
+  "e",
+  "c",
+  "a",
+  "thì",
+  "chịu",
 ]);
 
 /** "không biết", "em không rõ ạ", "chưa có" — người dùng nói rõ là không trả lời được câu vừa hỏi. */
@@ -189,16 +305,51 @@ export function isDeclineAnswer(text: string): boolean {
   if (tokens.length === 0 || !tokens.every((t) => DECLINE_WORDS.has(t))) return false;
   if (tokens.includes("chịu")) return true;
   for (let i = 0; i < tokens.length - 1; i++) {
-    if (/^(?:không|ko|k|hông|chưa)$/.test(tokens[i]) && /^(?:biết|rõ|có|nhớ)$/.test(tokens[i + 1])) return true;
+    if (/^(?:không|ko|k|hông|chưa)$/.test(tokens[i]) && /^(?:biết|rõ|có|nhớ)$/.test(tokens[i + 1]))
+      return true;
   }
   return false;
 }
 
-const CHITCHAT_CORE = new Set(["cảm", "cám", "thanks", "thank", "tks", "thx", "chào", "hi", "hello"]);
+const CHITCHAT_CORE = new Set([
+  "cảm",
+  "cám",
+  "thanks",
+  "thank",
+  "tks",
+  "thx",
+  "chào",
+  "hi",
+  "hello",
+]);
 const CHITCHAT_WORDS = new Set([
   ...CHITCHAT_CORE,
-  "ơn", "you", "ok", "oke", "vâng", "dạ", "em", "chị", "anh", "nhé", "nha", "ạ", "nhiều", "rất", "bot", "linh",
-  "tiểu", "mình", "ạh", "luôn", "nhá", "e", "c", "a", "much", "so",
+  "ơn",
+  "you",
+  "ok",
+  "oke",
+  "vâng",
+  "dạ",
+  "em",
+  "chị",
+  "anh",
+  "nhé",
+  "nha",
+  "ạ",
+  "nhiều",
+  "rất",
+  "bot",
+  "linh",
+  "tiểu",
+  "mình",
+  "ạh",
+  "luôn",
+  "nhá",
+  "e",
+  "c",
+  "a",
+  "much",
+  "so",
 ]);
 
 /** Lời cảm ơn / chào hỏi thuần tuý — không mang thông tin sự cố. */
@@ -207,14 +358,21 @@ export function isChitchat(text: string): boolean {
   const tokens = tokenize(text);
   if (tokens.length === 0) return true;
   if (!tokens.every((t) => CHITCHAT_WORDS.has(t))) return false;
-  return tokens.some((t) => CHITCHAT_CORE.has(t)) || tokens.every((t) => t === "dạ" || t === "vâng" || t === "ạ");
+  return (
+    tokens.some((t) => CHITCHAT_CORE.has(t)) ||
+    tokens.every((t) => t === "dạ" || t === "vâng" || t === "ạ")
+  );
 }
 
-const TITLE_EDIT = /^(?:(?:em|chị|anh|mình|cho em|nhờ em)\s+)?(?:sửa|đổi|thay)\s+(?:lại\s+)?tiêu\s*đề\s*(?:thành|là|sang)?\s*[:\-–]?\s*["“'«]?(.+?)["”'»]?\s*$/iu;
-const SYMPTOM_REMOVE = /^(?:(?:em|chị|anh|mình)\s+)?(?:bỏ|xoá|xóa|gỡ)\s+(?:ý|triệu\s*chứng|dòng|phần)\s*(?:là|:)?\s*["“'«]?(.+?)["”'»]?\s*$/iu;
+const TITLE_EDIT =
+  /^(?:(?:em|chị|anh|mình|cho em|nhờ em)\s+)?(?:sửa|đổi|thay)\s+(?:lại\s+)?tiêu\s*đề\s*(?:thành|là|sang)?\s*[:\-–]?\s*["“'«]?(.+?)["”'»]?\s*$/iu;
+const SYMPTOM_REMOVE =
+  /^(?:(?:em|chị|anh|mình)\s+)?(?:bỏ|xoá|xóa|gỡ)\s+(?:ý|triệu\s*chứng|dòng|phần)\s*(?:là|:)?\s*["“'«]?(.+?)["”'»]?\s*$/iu;
 
 /** Lệnh sửa tờ khai tường minh ("sửa tiêu đề thành …", "bỏ ý …") — tất định, không cần LLM. */
-export function parseEditCommand(text: string): { title?: string; removeSymptoms?: string[] } | null {
+export function parseEditCommand(
+  text: string,
+): { title?: string; removeSymptoms?: string[] } | null {
   const trimmed = text.trim();
   const t = TITLE_EDIT.exec(trimmed);
   if (t && t[1].trim()) return { title: capText(t[1].trim(), 120) };
@@ -237,13 +395,15 @@ export function detectSystem(text: string): string | undefined {
     .filter(([k]) => !GENERIC_SYSTEM_KEYS.has(k))
     .sort((a, b) => b[0].length - a[0].length);
   for (const [k, v] of entries) {
-    if (new RegExp(`(?:^|[^\\p{L}\\p{N}])${escapeRegex(k)}(?:$|[^\\p{L}\\p{N}])`, "u").test(lower)) return v;
+    if (new RegExp(`(?:^|[^\\p{L}\\p{N}])${escapeRegex(k)}(?:$|[^\\p{L}\\p{N}])`, "u").test(lower))
+      return v;
   }
   return undefined;
 }
 
 const PHONE_RE = /(?:\+?84|0)[35789]\d{8}\b/;
-const FOLLOW_UP_PREFIX = /^(?:bổ sung|thêm|à|à quên|quên|ngoài ra|cập nhật|update|thông tin thêm|gửi thêm)\b/iu;
+const FOLLOW_UP_PREFIX =
+  /^(?:bổ sung|thêm|à|à quên|quên|ngoài ra|cập nhật|update|thông tin thêm|gửi thêm)\b/iu;
 const PROBLEM_WORDS = /(?:lỗi|không|ko\b|bị|sập|treo|hỏng|error|mất|chậm|văng)/iu;
 
 function pickEnum<T extends string>(value: unknown, list: readonly T[]): T | undefined {
@@ -257,19 +417,26 @@ function pickString(value: unknown): string | undefined {
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
-  if (!trimmed || trimmed.toLowerCase() === "null" || trimmed.toLowerCase() === "undefined") return undefined;
+  if (!trimmed || trimmed.toLowerCase() === "null" || trimmed.toLowerCase() === "undefined")
+    return undefined;
   return trimmed;
 }
 
 const BLOCKS_LEARNING_RE =
   /không\s+(?:vào|tham gia|học|mở)\s*(?:được)?\s*(?:vào\s*)?(?:lớp|phòng học|buổi học|bài học|học)|chưa\s+(?:được\s+)?xếp lớp|không có khoá|khoá (?:học )?không active/i;
-const GROUP_SCOPE_RE = /cả lớp|nhiều (?:học sinh|hs|bạn|phụ huynh|lớp)|\b\d{2,}\s*(?:học sinh|hs|bạn|phụ huynh)|tất cả học sinh|hàng loạt/i;
-const SYSTEM_SCOPE_RE = /toàn (?:bộ )?hệ thống|toàn bộ (?:người dùng|học sinh)|hệ thống (?:sập|chết)|tất cả mọi người/i;
+const GROUP_SCOPE_RE =
+  /cả lớp|nhiều (?:học sinh|hs|bạn|phụ huynh|lớp)|\b\d{2,}\s*(?:học sinh|hs|bạn|phụ huynh)|tất cả học sinh|hàng loạt/i;
+const SYSTEM_SCOPE_RE =
+  /toàn (?:bộ )?hệ thống|toàn bộ (?:người dùng|học sinh)|hệ thống (?:sập|chết)|tất cả mọi người/i;
 const BLOCKS_PAYMENT_RE =
   /không\s+(?:thể\s+)?thanh toán|thanh toán\s+(?:bị\s+)?(?:lỗi|không được)|không\s+(?:tạo|lên|lập|chốt)\s+(?:được\s+)?đơn/i;
 
 function foldVietnamese(text: string): string {
-  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/gi, "d").toLowerCase();
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/gi, "d")
+    .toLowerCase();
 }
 
 /** Tin nhắn có nhắc bộ phận `dept` không — theo tên (bỏ dấu) hoặc viết tắt trong DEPT_SYNONYMS. */
@@ -278,7 +445,8 @@ export function deptMentioned(text: string, dept: string): boolean {
   if (folded.includes(foldVietnamese(dept))) return true;
   return Object.entries(DEPT_SYNONYMS).some(
     ([alias, target]) =>
-      target === dept && new RegExp(`(^|[^a-z0-9])${foldVietnamese(alias)}([^a-z0-9]|$)`).test(folded),
+      target === dept &&
+      new RegExp(`(^|[^a-z0-9])${foldVietnamese(alias)}([^a-z0-9]|$)`).test(folded),
   );
 }
 
@@ -311,7 +479,10 @@ export function detectUnrecognizedDept(text: string, matchedDept?: string): stri
   if (!name) return undefined;
   // Cụm khớp danh mục (kể cả viết tắt) thì không phải unrecognized
   const foldedName = foldVietnamese(name);
-  const known = [...VALID_REPORTING_DEPTS.map((d) => foldVietnamese(d)), ...Object.keys(DEPT_SYNONYMS).map((a) => foldVietnamese(a))];
+  const known = [
+    ...VALID_REPORTING_DEPTS.map((d) => foldVietnamese(d)),
+    ...Object.keys(DEPT_SYNONYMS).map((a) => foldVietnamese(a)),
+  ];
   if (known.some((k) => foldedName === k || foldedName.includes(k))) return undefined;
   return capText(name, 60);
 }
@@ -333,7 +504,9 @@ export function stripGreeting(line: string): string {
 }
 
 /** Luật nhận diện bằng chứng ưu tiên — chỉ bù khi LLM không trả (hoặc không có LLM). */
-export function inferEvidence(text: string): Pick<ExtractedFields, "scope" | "blocksLearning" | "blocksPayment"> {
+export function inferEvidence(
+  text: string,
+): Pick<ExtractedFields, "scope" | "blocksLearning" | "blocksPayment"> {
   const out: Pick<ExtractedFields, "scope" | "blocksLearning" | "blocksPayment"> = {};
   if (BLOCKS_LEARNING_RE.test(text)) out.blocksLearning = true;
   if (BLOCKS_PAYMENT_RE.test(text)) out.blocksPayment = true;
@@ -353,7 +526,11 @@ export class FieldExtractor {
     private readonly completeFn: CompleteFn = complete,
   ) {}
 
-  async extract(message: string, contextDescription?: string, opts: ExtractOptions = {}): Promise<ExtractedFields> {
+  async extract(
+    message: string,
+    contextDescription?: string,
+    opts: ExtractOptions = {},
+  ): Promise<ExtractedFields> {
     if (!message || !message.trim()) {
       return { userIntent: "chitchat", symptoms: [] };
     }
@@ -404,7 +581,9 @@ Tin nhắn mới của người dùng:
         // LLM đã cấu hình nhưng hết cả chuỗi dự phòng (thường là hết hạn mức
         // 429) → không được bịa tiêu đề, xử lý ngay dưới đây.
         llmExhausted = true;
-        getLogger().warn(`[llm] Không gọi được model nào, tạm bỏ tiêu đề: ${errorMessage(err).slice(0, 120)}`);
+        getLogger().warn(
+          `[llm] Không gọi được model nào, tạm bỏ tiêu đề: ${errorMessage(err).slice(0, 120)}`,
+        );
       }
     }
 
@@ -423,8 +602,10 @@ Tin nhắn mới của người dùng:
     // Lệnh sửa tờ khai tường minh luôn thắng — tất định, không phụ thuộc model
     const edit = parseEditCommand(text);
 
-    let userIntent: Intent = pickEnum(parsedResult.userIntent, INTENTS) ?? this.heuristicIntent(text);
-    if (edit && (userIntent === "report_issue" || userIntent === "chitchat")) userIntent = "provide_info";
+    let userIntent: Intent =
+      pickEnum(parsedResult.userIntent, INTENTS) ?? this.heuristicIntent(text);
+    if (edit && (userIntent === "report_issue" || userIntent === "chitchat"))
+      userIntent = "provide_info";
 
     // Khi đã có ticket (opts.createdTicket):
     // - Nếu tin nhắn KHÔNG chứa từ chỉ lỗi/sự cố (chỉ là tên con, mã học sinh, mã đơn,
@@ -432,21 +613,34 @@ Tin nhắn mới của người dùng:
     // - Nếu tin nhắn có từ chỉ lỗi rõ ràng (PROBLEM_WORDS) hoặc nói rõ báo lỗi mới
     //   thì mới coi là sự cố mới (report_issue).
     if (opts.createdTicket && userIntent === "report_issue") {
-      const describesNewProblem = PROBLEM_WORDS.test(text) || /báo (?:thêm )?lỗi khác|sự cố (?:mới|khác)|ticket khác/i.test(text);
+      const describesNewProblem =
+        PROBLEM_WORDS.test(text) ||
+        /báo (?:thêm )?lỗi khác|sự cố (?:mới|khác)|ticket khác/i.test(text);
       if (!describesNewProblem) {
         userIntent = "provide_info";
       }
     }
 
     // Chuẩn hóa taxonomy & OOV
-    const system = normalizeWithSynonyms(pickString(parsedResult.system), VALID_SYSTEMS, SYSTEM_SYNONYMS);
-    const deptCandidate = normalizeWithSynonyms(pickString(parsedResult.reportingDept), VALID_REPORTING_DEPTS, DEPT_SYNONYMS);
+    const system = normalizeWithSynonyms(
+      pickString(parsedResult.system),
+      VALID_SYSTEMS,
+      SYSTEM_SYNONYMS,
+    );
+    const deptCandidate = normalizeWithSynonyms(
+      pickString(parsedResult.reportingDept),
+      VALID_REPORTING_DEPTS,
+      DEPT_SYNONYMS,
+    );
     // Model hay tự đoán bộ phận khi tin nhắn không nói (M3 gán "Vận hành" cho mọi tin) —
     // chỉ nhận khi chính tin nhắn nhắc tới bộ phận đó.
-    const reportingDept = deptCandidate && deptMentioned(text, deptCandidate) ? deptCandidate : undefined;
+    const reportingDept =
+      deptCandidate && deptMentioned(text, deptCandidate) ? deptCandidate : undefined;
     // Người dùng nêu bộ phận ngoài danh mục (vd "Kế toán"): giữ nguyên tên để pipeline
     // hỏi lại ĐÚNG MỘT LẦN kèm danh sách, thay vì hỏi lại y nguyên câu cũ như chưa đọc.
-    const reportingDeptUnrecognized = reportingDept ? undefined : detectUnrecognizedDept(text, deptCandidate);
+    const reportingDeptUnrecognized = reportingDept
+      ? undefined
+      : detectUnrecognizedDept(text, deptCandidate);
 
     // Cưỡng chế quy tắc SĐT
     let customerId = pickString(parsedResult.customerId);
@@ -460,7 +654,10 @@ Tin nhắn mới của người dùng:
     // Chỉ tin báo lỗi / bổ sung mới sinh triệu chứng. Câu xác nhận, huỷ, cảm ơn,
     // "không biết" hay lệnh sửa tờ khai mà ghi thành triệu chứng thì ticket ra
     // một mục "ok em" / "cảm ơn" nằm giữa mô tả lỗi.
-    const carriesContent = (userIntent === "report_issue" || userIntent === "provide_info") && !edit && !isDeclineAnswer(text);
+    const carriesContent =
+      (userIntent === "report_issue" || userIntent === "provide_info") &&
+      !edit &&
+      !isDeclineAnswer(text);
     let symptoms: string[] = [];
     if (carriesContent) {
       symptoms = Array.isArray(parsedResult.symptoms)
@@ -473,7 +670,9 @@ Tin nhắn mới của người dùng:
     const removeSymptoms = [
       ...(edit?.removeSymptoms ?? []),
       ...(Array.isArray(parsedResult.removeSymptoms)
-        ? parsedResult.removeSymptoms.filter((s: unknown): s is string => typeof s === "string" && s.trim() !== "")
+        ? parsedResult.removeSymptoms.filter(
+            (s: unknown): s is string => typeof s === "string" && s.trim() !== "",
+          )
         : []),
     ];
 
@@ -483,11 +682,16 @@ Tin nhắn mới của người dùng:
       title = deriveFallbackTitle(text, symptoms);
       if (isInvalidTitle(title)) title = undefined;
     }
-    const titleExplicit = Boolean(edit?.title) || (fromLlm && parsedResult.titleExplicit === true && Boolean(title));
+    const titleExplicit =
+      Boolean(edit?.title) || (fromLlm && parsedResult.titleExplicit === true && Boolean(title));
     // LLM không nói gì về bằng chứng thì dùng luật nhận diện bù — không có nó,
     // bảng luật sàn (cả lớp không vào học → Urgent) không bao giờ khớp.
     const inferred = carriesContent ? inferEvidence(text) : {};
-    const llmScope = pickEnum(parsedResult.scope, ["single_user", "group", "entire_system"] as const);
+    const llmScope = pickEnum(parsedResult.scope, [
+      "single_user",
+      "group",
+      "entire_system",
+    ] as const);
 
     const safeObj: ExtractedFields = {
       userIntent,
@@ -590,20 +794,37 @@ Tin nhắn mới của người dùng:
     if (assMatch) assignmentId = assMatch[1];
 
     // Tin ngắn chỉ mang thông tin cấu trúc (phòng ban, SĐT, thiết bị…) mà không tả lỗi là bổ sung
-    const hasStructured = Boolean(studentAccount || reportingDept || deviceType || deviceOs || assignmentId || product || system);
+    const hasStructured = Boolean(
+      studentAccount ||
+        reportingDept ||
+        deviceType ||
+        deviceOs ||
+        assignmentId ||
+        product ||
+        system,
+    );
     let structuredOnly = false;
-    if (intent === "report_issue" && text.length <= 80 && hasStructured && !PROBLEM_WORDS.test(text)) {
+    if (
+      intent === "report_issue" &&
+      text.length <= 80 &&
+      hasStructured &&
+      !PROBLEM_WORDS.test(text)
+    ) {
       intent = "provide_info";
       structuredOnly = true;
     }
 
-    const carriesContent = (intent === "report_issue" || intent === "provide_info") && !structuredOnly;
+    const carriesContent =
+      (intent === "report_issue" || intent === "provide_info") && !structuredOnly;
     // Tiêu đề dự phòng từ câu chữ: bỏ lời chào / giới thiệu bản thân để không ra
     // tiêu đề kiểu "Em chào anh, em là HueDT bên bộ phận Sale…" (đã xảy ra khi
     // LLM chết và fallback heuristic thay thế sinh tiêu đề).
     // Dòng đầu hay chỉ là tên học sinh / mã / SĐT (TECH-941, 952) → lấy dòng đầu tiên có tả lỗi.
     // Dòng đầu hay chỉ là tên học sinh / mã / SĐT (TECH-941, 952, TECH-1146) → không lấy làm tiêu đề.
-    const lines = text.split("\n").map((l) => stripGreeting(l.replace(/\*\*/g, "").trim())).filter(Boolean);
+    const lines = text
+      .split("\n")
+      .map((l) => stripGreeting(l.replace(/\*\*/g, "").trim()))
+      .filter(Boolean);
     let titleCandidate = lines.find((l) => EXPANDED_PROBLEM_WORDS.test(l));
     if (titleCandidate && isInvalidTitle(titleCandidate, text)) {
       titleCandidate = undefined;
@@ -615,7 +836,12 @@ Tin nhắn mới của người dùng:
 
     return {
       userIntent: intent,
-      title: carriesContent && titleCandidate ? (titleCandidate.length <= 80 ? titleCandidate : titleCandidate.slice(0, 77) + "...") : undefined,
+      title:
+        carriesContent && titleCandidate
+          ? titleCandidate.length <= 80
+            ? titleCandidate
+            : titleCandidate.slice(0, 77) + "..."
+          : undefined,
       symptoms: carriesContent ? [text] : [],
       product,
       system,

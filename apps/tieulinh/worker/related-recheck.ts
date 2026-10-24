@@ -85,7 +85,11 @@ export class RelatedRecheck {
     try {
       const signature = corpusSignature(await this.options.corpus.loadSimilarityCorpus(projectKey));
       const columns = await itsaplan.listProjectColumns(projectKey);
-      const closed = new Set(columns.filter((c) => c.stateType === "completed" || c.stateType === "canceled").map((c) => c.id));
+      const closed = new Set(
+        columns
+          .filter((c) => c.stateType === "completed" || c.stateType === "canceled")
+          .map((c) => c.id),
+      );
       const since = now - (this.options.windowDays ?? 14) * 24 * 3600 * 1000;
       // Danh sách Itsaplan KHÔNG trả createdAt (29/09: lọc theo nó thì loại sạch) → lọc ticket
       // đang mở trước, rồi đọc ngày tạo từ chi tiết từng ticket.
@@ -94,12 +98,15 @@ export class RelatedRecheck {
       );
       const open: typeof listed = [];
       for (const i of listed) {
-        const createdAt = i.createdAt ?? (await itsaplan.getIssue(i.id).catch(() => null))?.createdAt;
+        const createdAt =
+          i.createdAt ?? (await itsaplan.getIssue(i.id).catch(() => null))?.createdAt;
         if (createdAt && Date.parse(createdAt) >= since) open.push(i);
       }
       const todo = open.filter((i) => this.lastChecked.get(i.id) !== signature);
       if (!todo.length) return;
-      log.info(`[RelatedRecheck] Bắt đầu tra lại ${todo.length}/${open.length} ticket đang mở (≤ ${this.options.windowDays ?? 14} ngày).`);
+      log.info(
+        `[RelatedRecheck] Bắt đầu tra lại ${todo.length}/${open.length} ticket đang mở (≤ ${this.options.windowDays ?? 14} ngày).`,
+      );
       const counts: Record<string, number> = {};
       for (const issue of todo) {
         const r = await this.options.curator.run(issue.id);
@@ -107,7 +114,9 @@ export class RelatedRecheck {
         // Lỗi thì để lượt sau thử lại; còn lại ghi nhận đã tra với kho này.
         if (r.status !== "error") this.lastChecked.set(issue.id, signature);
       }
-      log.info(`[RelatedRecheck] Tra lại ${todo.length}/${open.length} ticket đang mở với kho ${signature}: ${JSON.stringify(counts)}.`);
+      log.info(
+        `[RelatedRecheck] Tra lại ${todo.length}/${open.length} ticket đang mở với kho ${signature}: ${JSON.stringify(counts)}.`,
+      );
     } catch (err: any) {
       log.warn(`[RelatedRecheck] Lượt quét lỗi: ${err?.message ?? err}`);
     }

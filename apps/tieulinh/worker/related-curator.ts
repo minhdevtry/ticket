@@ -23,7 +23,13 @@ import { getLogger } from "../lib/logger";
 import { identifierInProject } from "./project-lock";
 import { resolveRelatedTicketsFieldId } from "./related-tickets-sync";
 
-export type CuratorStatus = "applied" | "dry_run" | "unchanged" | "no_human_cause" | "other_project" | "error";
+export type CuratorStatus =
+  | "applied"
+  | "dry_run"
+  | "unchanged"
+  | "no_human_cause"
+  | "other_project"
+  | "error";
 
 export interface CuratorResult {
   status: CuratorStatus;
@@ -91,8 +97,16 @@ const BURST_WINDOW_MS = 120_000;
 export function oldAlgorithmJunk(timeline: any[], until = OLD_ALGORITHM_UNTIL): string[] {
   const out = new Set<string>();
   const botLinks = timeline
-    .filter((e) => e?.action === "link_add" && isSystemActor(String(e.actorName ?? "")) && String(e.createdAt ?? "") < until)
-    .map((e) => ({ t: Date.parse(String(e.createdAt)), id: String(e.payload?.to?.value ?? "").toUpperCase() }))
+    .filter(
+      (e) =>
+        e?.action === "link_add" &&
+        isSystemActor(String(e.actorName ?? "")) &&
+        String(e.createdAt ?? "") < until,
+    )
+    .map((e) => ({
+      t: Date.parse(String(e.createdAt)),
+      id: String(e.payload?.to?.value ?? "").toUpperCase(),
+    }))
     .filter((x) => x.id && !Number.isNaN(x.t))
     .sort((a, b) => a.t - b.t);
   for (let i = 0; i < botLinks.length; i++) {
@@ -100,10 +114,23 @@ export function oldAlgorithmJunk(timeline: any[], until = OLD_ALGORITHM_UNTIL): 
     if (inWindow.length >= BURST_MIN) for (const x of inWindow) out.add(x.id);
   }
   for (const e of timeline) {
-    if (e?.kind !== "activity" || !isSystemActor(String(e.actorName ?? "")) || String(e.createdAt ?? "") >= until) continue;
+    if (
+      e?.kind !== "activity" ||
+      !isSystemActor(String(e.actorName ?? "")) ||
+      String(e.createdAt ?? "") >= until
+    )
+      continue;
     if (!RELATED_FIELD.test(String(e.payload?.subject?.value ?? ""))) continue;
-    const before = new Set(String(e.payload?.from?.value ?? "").toUpperCase().match(KEY) ?? []);
-    const added = (String(e.payload?.to?.value ?? "").toUpperCase().match(KEY) ?? []).filter((k) => !before.has(k));
+    const before = new Set(
+      String(e.payload?.from?.value ?? "")
+        .toUpperCase()
+        .match(KEY) ?? [],
+    );
+    const added = (
+      String(e.payload?.to?.value ?? "")
+        .toUpperCase()
+        .match(KEY) ?? []
+    ).filter((k) => !before.has(k));
     if (added.length >= BURST_MIN) for (const k of added) out.add(k);
   }
   return [...out];
@@ -135,7 +162,9 @@ export class RelatedTicketsCurator {
     if (pending) clearTimeout(pending);
     const timer = setTimeout(() => {
       this.timers.delete(issueId);
-      this.run(issueId).catch((err) => getLogger().warn(`[RelatedCurator] #${issueId} lỗi: ${err?.message ?? err}`));
+      this.run(issueId).catch((err) =>
+        getLogger().warn(`[RelatedCurator] #${issueId} lỗi: ${err?.message ?? err}`),
+      );
     }, this.options.delayMs ?? 90_000);
     (timer as any).unref?.();
     this.timers.set(issueId, timer);
@@ -152,15 +181,26 @@ export class RelatedTicketsCurator {
     const self = identifier.toUpperCase();
     const oldBotTargets = new Set(
       timeline
-        .filter((e) => e?.action === "link_add" && isSystemActor(String(e.actorName ?? "")) && String(e.createdAt ?? "") < OLD_ALGORITHM_UNTIL)
+        .filter(
+          (e) =>
+            e?.action === "link_add" &&
+            isSystemActor(String(e.actorName ?? "")) &&
+            String(e.createdAt ?? "") < OLD_ALGORITHM_UNTIL,
+        )
         .map((e) => String(e.payload?.to?.value ?? "").toUpperCase())
         .filter((id) => id && !own.has(id)),
     );
     for (const other of oldBotTargets) {
       let theirs = this.junkCache.get(other);
       if (!theirs) {
-        const issue = await findIssueByIdentifier(this.options.itsaplan, other, this.options.projectKey);
-        theirs = issue ? oldAlgorithmJunk(await this.options.itsaplan.getIssueTimeline(issue.id).catch(() => [])) : [];
+        const issue = await findIssueByIdentifier(
+          this.options.itsaplan,
+          other,
+          this.options.projectKey,
+        );
+        theirs = issue
+          ? oldAlgorithmJunk(await this.options.itsaplan.getIssueTimeline(issue.id).catch(() => []))
+          : [];
         this.junkCache.set(other, theirs);
       }
       if (theirs.includes(self)) own.add(other);
@@ -188,7 +228,8 @@ export class RelatedTicketsCurator {
     try {
       const issue = await itsaplan.getIssue(issueId);
       const identifier = issue.identifier;
-      if (!identifierInProject(identifier, projectKey)) return { status: "other_project", identifier };
+      if (!identifierInProject(identifier, projectKey))
+        return { status: "other_project", identifier };
 
       const field = relatedField(issue);
       const fieldBefore = String(field?.value ?? "").trim();
@@ -198,12 +239,19 @@ export class RelatedTicketsCurator {
       const human = humanKnowledgeOf(timeline, identifier);
       const isPinned = Boolean(human.cause?.trim());
       const mode: "pinned" | "suggested" = isPinned ? "pinned" : "suggested";
-      if (this.options.onlyMode && this.options.onlyMode !== mode) return { status: "unchanged", identifier, mode, fieldBefore };
+      if (this.options.onlyMode && this.options.onlyMode !== mode)
+        return { status: "unchanged", identifier, mode, fieldBefore };
 
       // Ai gắn link: hành động link_add cuối cùng lên mã đó.
       const lastAdder = new Map<string, string>();
-      for (const e of [...timeline].sort((a, b) => String(a.createdAt ?? "").localeCompare(String(b.createdAt ?? "")))) {
-        if (e?.action === "link_add") lastAdder.set(String(e.payload?.to?.value ?? "").toUpperCase(), String(e.actorName ?? ""));
+      for (const e of [...timeline].sort((a, b) =>
+        String(a.createdAt ?? "").localeCompare(String(b.createdAt ?? "")),
+      )) {
+        if (e?.action === "link_add")
+          lastAdder.set(
+            String(e.payload?.to?.value ?? "").toUpperCase(),
+            String(e.actorName ?? ""),
+          );
       }
 
       const corpus = await this.getCorpus();
@@ -214,10 +262,17 @@ export class RelatedTicketsCurator {
         humanCause: human.cause,
         positives: human.positives,
         negatives: human.negatives,
-        fieldKeys: String(field?.value ?? "").toUpperCase().match(/\b[A-Z][A-Z0-9_]*-[A-Z0-9-]*\d\b/g) ?? [],
+        fieldKeys:
+          String(field?.value ?? "")
+            .toUpperCase()
+            .match(/\b[A-Z][A-Z0-9_]*-[A-Z0-9-]*\d\b/g) ?? [],
         links: (issue.links ?? []).map((l) => {
           const id = l.issue.identifier.toUpperCase();
-          return { identifier: id, linkId: l.id, addedByHuman: !isSystemActor(lastAdder.get(id) ?? "") };
+          return {
+            identifier: id,
+            linkId: l.id,
+            addedByHuman: !isSystemActor(lastAdder.get(id) ?? ""),
+          };
         }),
         title: issue.title,
         description: issue.description,
@@ -230,7 +285,9 @@ export class RelatedTicketsCurator {
       } else {
         const cleanupOnly = await this.isDoneOrCanceled(issue);
         const queryText = `${issue.title ?? ""}\n${symptomsOfDescription(issue.description)}`;
-        const match = this.options.similarSource ? await this.options.similarSource.find(queryText, { excludeIds: [identifier] }) : null;
+        const match = this.options.similarSource
+          ? await this.options.similarSource.find(queryText, { excludeIds: [identifier] })
+          : null;
         plan = planSuggestedTickets(targetData, corpus, match, { cleanupOnly });
       }
 
@@ -246,24 +303,36 @@ export class RelatedTicketsCurator {
         const m = await findIssueByIdentifier(itsaplan, d, projectKey);
         if (m) members.push(m);
       }
-      const keysIn = (m: ItsaplanIssue): string[] => String(relatedField(m)?.value ?? "").toUpperCase().match(KEY) ?? [];
+      const keysIn = (m: ItsaplanIssue): string[] =>
+        String(relatedField(m)?.value ?? "")
+          .toUpperCase()
+          .match(KEY) ?? [];
       const propagate = isPinned
         ? members.filter((m) => !keysIn(m).includes(identifier.toUpperCase()))
         : [];
 
-      const nothing = plan.fieldValue === null && !plan.addLinks.length && !plan.removeLinks.length && !propagate.length;
-      if (nothing) return { status: "unchanged", mode, identifier, fieldBefore, plan, propagate: [] };
+      const nothing =
+        plan.fieldValue === null &&
+        !plan.addLinks.length &&
+        !plan.removeLinks.length &&
+        !propagate.length;
+      if (nothing)
+        return { status: "unchanged", mode, identifier, fieldBefore, plan, propagate: [] };
       const propagateIds = propagate.map((m) => m.identifier);
       getLogger().info(
         `[RelatedCurator] ${identifier}${this.options.dryRun ? " (chạy thử)" : ""} [${mode}]: cụm ${plan.clusterId ?? "none"} ${plan.desired.length} ticket | ` +
           `trường ${plan.fieldValue !== null ? "đổi" : "giữ"} | +link ${plan.addLinks.join(",") || "-"} | gỡ link bot ${plan.removeLinks.map((l) => l.identifier).join(",") || "-"} | ` +
           `thêm vào ticket cũ ${propagateIds.join(",") || "-"}`,
       );
-      if (this.options.dryRun) return { status: "dry_run", mode, identifier, fieldBefore, plan, propagate: propagateIds };
+      if (this.options.dryRun)
+        return { status: "dry_run", mode, identifier, fieldBefore, plan, propagate: propagateIds };
 
       const fieldId =
-        field?.fieldId ?? this.relatedFieldId ?? (await resolveRelatedTicketsFieldId(itsaplan as ItsaplanClient, projectKey));
-      if (plan.fieldValue !== null && fieldId) await itsaplan.setCustomFieldValue(issue.id, fieldId, plan.fieldValue);
+        field?.fieldId ??
+        this.relatedFieldId ??
+        (await resolveRelatedTicketsFieldId(itsaplan as ItsaplanClient, projectKey));
+      if (plan.fieldValue !== null && fieldId)
+        await itsaplan.setCustomFieldValue(issue.id, fieldId, plan.fieldValue);
       for (const d of plan.addLinks) {
         const m = members.find((x) => x.identifier.toUpperCase() === d);
         if (m && m.id !== issue.id) await itsaplan.addLink(issue.id, m.id, "relates");
@@ -274,7 +343,11 @@ export class RelatedTicketsCurator {
         const id = f?.fieldId ?? fieldId;
         if (!id) continue;
         const raw = String(f?.value ?? "").trim();
-        const keys = new Set([...(raw.toUpperCase().match(KEY) ?? []), m.identifier.toUpperCase(), identifier.toUpperCase()]);
+        const keys = new Set([
+          ...(raw.toUpperCase().match(KEY) ?? []),
+          m.identifier.toUpperCase(),
+          identifier.toUpperCase(),
+        ]);
         // Trường chỉ gồm mã → viết lại gọn, có thứ tự; có chữ khác (người ghi chú) → chỉ nối thêm.
         const onlyKeys = !raw || /^[\sA-Z0-9_,;-]*$/i.test(raw);
         const value = onlyKeys ? [...keys].sort(byIdentifier).join(", ") : `${raw}, ${identifier}`;

@@ -12,7 +12,12 @@
  */
 import { z } from "zod";
 import { defineTool, type AnyMcpTool } from "../core";
-import type { IdentityService, IdentityCheckResult, RegistrationResult, ApprovalMutationResult } from "./service";
+import type {
+  IdentityService,
+  IdentityCheckResult,
+  RegistrationResult,
+  ApprovalMutationResult,
+} from "./service";
 import { relinkIdentity, type RelinkResult, type RelinkOptions } from "./relink";
 import type { IdentityRepository } from "./repository";
 
@@ -64,7 +69,10 @@ export function registerIdentityTool(config: IdentityToolsConfig): AnyMcpTool {
       nameCode: z.string().describe('Name code người dùng khai, dạng "CS_example"'),
       fullName: z.string().optional().describe("Tên hiển thị"),
       username: z.string().optional().describe("Username trên kênh chat"),
-      pendingReport: z.string().optional().describe("Nội dung họ đang định báo, giữ lại để xử lý sau khi duyệt"),
+      pendingReport: z
+        .string()
+        .optional()
+        .describe("Nội dung họ đang định báo, giữ lại để xử lý sau khi duyệt"),
     },
     handler: (input) => {
       const result = config.service.registerIdentity(input);

@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { validateFields, type ValidationRules, type FieldRequirementsTable, type ProductMappingConfig } from "../shared/index";
+import {
+  validateFields,
+  type ValidationRules,
+  type FieldRequirementsTable,
+  type ProductMappingConfig,
+} from "../shared/index";
 import validationRules from "./domain/validation-rules.json";
 import fieldRequirements from "./domain/required_fields.json";
 import productMapping from "./domain/product_mapping.json";

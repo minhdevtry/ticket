@@ -46,11 +46,18 @@ export function isVideoAttachment(filenameOrUrl: string): boolean {
 }
 
 export function formatAttachmentMarkdown(att: UploadedAttachment): string {
-  if (isVideoAttachment(att.filename) || isVideoAttachment(att.url) || att.contentType?.startsWith("video/")) {
+  if (
+    isVideoAttachment(att.filename) ||
+    isVideoAttachment(att.url) ||
+    att.contentType?.startsWith("video/")
+  ) {
     return `<video src="${att.url}" controls></video>`;
   }
   const ext = path.extname(att.filename).toLowerCase();
-  if ([".jpg", ".jpeg", ".png", ".webp", ".gif"].includes(ext) || att.contentType?.startsWith("image/")) {
+  if (
+    [".jpg", ".jpeg", ".png", ".webp", ".gif"].includes(ext) ||
+    att.contentType?.startsWith("image/")
+  ) {
     return `![${att.filename}](${att.url})`;
   }
   return `[${att.filename}](${att.url})`;
@@ -81,12 +88,15 @@ export async function uploadAttachments(
       const filename = path.basename(filePath);
       const contentType = detectContentType(filename);
       const res = await client.uploadAttachment(issueId, filename, buffer, contentType);
-      const isLoopback = /^https?:\/\/(?:127\.0\.0\.1|localhost|0\.0\.0\.0|192\.168\.\d+\.\d+)(?::\d+)?/i.test(baseUrl);
+      const isLoopback =
+        /^https?:\/\/(?:127\.0\.0\.1|localhost|0\.0\.0\.0|192\.168\.\d+\.\d+)(?::\d+)?/i.test(
+          baseUrl,
+        );
       const fullUrl = res.url.startsWith("http")
         ? res.url
         : isLoopback
-        ? res.url
-        : `${baseUrl.replace(/\/+$/, "")}${res.url.startsWith("/") ? "" : "/"}${res.url}`;
+          ? res.url
+          : `${baseUrl.replace(/\/+$/, "")}${res.url.startsWith("/") ? "" : "/"}${res.url}`;
       uploaded.push({ id: res.id, url: fullUrl, filename, contentType });
     } catch (err: any) {
       getLogger().warn(`[attachments] Lỗi upload đính kèm ${rawPath}: ${err?.message}`);
@@ -106,15 +116,18 @@ const IMAGE_HEADING = "### 📸 Ảnh đính kèm";
  * description), but one function means create and update can never drift on
  * the rule again.
  */
-export function spliceAttachmentsIntoDescription(description: string, attachments: UploadedAttachment[]): string {
+export function spliceAttachmentsIntoDescription(
+  description: string,
+  attachments: UploadedAttachment[],
+): string {
   if (attachments.length === 0) return description;
   const mediaMarkdown = attachments.map(formatAttachmentMarkdown).join("\n\n");
 
   const heading = description.includes(IMAGE_HEADING)
     ? IMAGE_HEADING
     : description.includes("### 📸 Tệp đính kèm")
-    ? "### 📸 Tệp đính kèm"
-    : IMAGE_HEADING;
+      ? "### 📸 Tệp đính kèm"
+      : IMAGE_HEADING;
 
   if (description.includes(heading)) {
     return description.replace(`${heading}\n`, `${heading}\n\n${mediaMarkdown}\n`);
@@ -126,4 +139,3 @@ export function spliceAttachmentsIntoDescription(description: string, attachment
   }
   return `${description.trim()}\n\n${heading}\n\n${mediaMarkdown}`;
 }
-

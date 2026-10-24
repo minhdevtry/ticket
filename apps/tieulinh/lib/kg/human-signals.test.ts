@@ -1,5 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { humanLinkSignals, isSystemActor, parsePinnedKnowledge, pinnedKnowledgeOf } from "./human-signals";
+import {
+  humanLinkSignals,
+  isSystemActor,
+  parsePinnedKnowledge,
+  pinnedKnowledgeOf,
+} from "./human-signals";
 
 // Mẫu thật của tech lead trên TECH-920 (26/09).
 const PIN_920 = `Anh @TechUser_B
@@ -14,12 +19,20 @@ const PIN_920 = `Anh @TechUser_B
 
 describe("isSystemActor", () => {
   it("bot, admin (script/worker), Onyx không phải người", () => {
-    for (const a of ["Tiểu Linh", "VUIHOC Tiểu Linh", "admin", "Onyx Second Brain", "ticket-bot", "tieulinh"]) {
+    for (const a of [
+      "Tiểu Linh",
+      "VUIHOC Tiểu Linh",
+      "admin",
+      "Onyx Second Brain",
+      "ticket-bot",
+      "tieulinh",
+    ]) {
       expect(isSystemActor(a)).toBe(true);
     }
   });
   it("người thật", () => {
-    for (const a of ["TechLead_A", "TechUser_B", "TechUser_E"]) expect(isSystemActor(a)).toBe(false);
+    for (const a of ["TechLead_A", "TechUser_B", "TechUser_E"])
+      expect(isSystemActor(a)).toBe(false);
   });
 });
 
@@ -45,7 +58,10 @@ describe("parsePinnedKnowledge", () => {
   });
 
   it("mã TECH nhắc trong comment ghim là tín hiệu cùng nguyên nhân", () => {
-    const k = parsePinnedKnowledge("- **Nguyên nhân:** Bị sai số buổi (như TECH-338, TECH-405)\n- **Cách khắc phục:** x", "TECH-544");
+    const k = parsePinnedKnowledge(
+      "- **Nguyên nhân:** Bị sai số buổi (như TECH-338, TECH-405)\n- **Cách khắc phục:** x",
+      "TECH-544",
+    );
     expect(k.mentionedIds).toEqual(["TECH-338", "TECH-405"]);
   });
 
@@ -64,15 +80,44 @@ describe("parsePinnedKnowledge", () => {
 describe("pinnedKnowledgeOf", () => {
   it("chỉ lấy comment ghim của người, bản ghim mới nhất", () => {
     const tl = [
-      { kind: "comment", pinned: true, actorName: "Tiểu Linh", body: "- **Nguyên nhân:** bot đoán", createdAt: "2026-09-26T03:00:00Z" },
-      { kind: "comment", pinned: true, actorName: "TechLead_A", body: "- **Nguyên nhân:** cũ", createdAt: "2026-09-25T01:00:00Z" },
-      { kind: "comment", pinned: true, actorName: "TechLead_A", body: PIN_920, createdAt: "2026-09-26T01:00:00Z" },
-      { kind: "comment", pinned: false, actorName: "TechLead_A", body: "- **Nguyên nhân:** không ghim", createdAt: "2026-09-26T02:00:00Z" },
+      {
+        kind: "comment",
+        pinned: true,
+        actorName: "Tiểu Linh",
+        body: "- **Nguyên nhân:** bot đoán",
+        createdAt: "2026-09-26T03:00:00Z",
+      },
+      {
+        kind: "comment",
+        pinned: true,
+        actorName: "TechLead_A",
+        body: "- **Nguyên nhân:** cũ",
+        createdAt: "2026-09-25T01:00:00Z",
+      },
+      {
+        kind: "comment",
+        pinned: true,
+        actorName: "TechLead_A",
+        body: PIN_920,
+        createdAt: "2026-09-26T01:00:00Z",
+      },
+      {
+        kind: "comment",
+        pinned: false,
+        actorName: "TechLead_A",
+        body: "- **Nguyên nhân:** không ghim",
+        createdAt: "2026-09-26T02:00:00Z",
+      },
     ];
     expect(pinnedKnowledgeOf(tl, "TECH-920")?.cause).toBe("Bị gắn trùng tk học do cùng tên");
   });
   it("không có comment ghim → null", () => {
-    expect(pinnedKnowledgeOf([{ kind: "comment", pinned: false, actorName: "TechLead_A", body: "x" }], "TECH-1")).toBeNull();
+    expect(
+      pinnedKnowledgeOf(
+        [{ kind: "comment", pinned: false, actorName: "TechLead_A", body: "x" }],
+        "TECH-1",
+      ),
+    ).toBeNull();
   });
 });
 
@@ -134,7 +179,10 @@ describe("humanLinkSignals", () => {
   });
 
   it("bỏ chính nó", () => {
-    const s = humanLinkSignals([field("TechLead_A", "TECH-7, TECH-8", "2026-09-21T08:27:00Z")], "TECH-7");
+    const s = humanLinkSignals(
+      [field("TechLead_A", "TECH-7, TECH-8", "2026-09-21T08:27:00Z")],
+      "TECH-7",
+    );
     expect(s.positives).toEqual(["TECH-8"]);
   });
 });

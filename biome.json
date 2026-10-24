@@ -6,13 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": [
-      "**",
-      "!**/node_modules",
-      "!**/dist",
-      "!**/dist-live",
-      "!**/*.json"
-    ]
+    "includes": ["**", "!**/node_modules", "!**/dist", "!**/dist-live", "!**/*.json"]
   },
   "formatter": {
     "enabled": true,
@@ -49,11 +43,7 @@
   },
   "overrides": [
     {
-      "includes": [
-        "**/*.test.ts",
-        "**/*.test.mjs",
-        "**/test-preload.ts"
-      ],
+      "includes": ["**/*.test.ts", "**/*.test.mjs", "**/test-preload.ts"],
       "linter": {
         "rules": {
           "correctness": {

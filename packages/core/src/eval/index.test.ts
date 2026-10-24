@@ -32,7 +32,11 @@ function fakeRunner(): ConversationRunner {
         return { reply: "Đã tạo ticket OP-1 cho anh.", createdTicket: { identifier: "OP-1" } };
       }
       if (turns === 1) return { reply: "Anh mô tả giúp em sự cố ạ?" };
-      return { reply: "Em tóm tắt vậy đúng chưa ạ?", buttons: ["✅ Xác nhận tạo phiếu"], createdTicket: created ? { identifier: "OP-1" } : null };
+      return {
+        reply: "Em tóm tắt vậy đúng chưa ạ?",
+        buttons: ["✅ Xác nhận tạo phiếu"],
+        createdTicket: created ? { identifier: "OP-1" } : null,
+      };
     },
   };
 }
@@ -51,7 +55,10 @@ describe("runConversation", () => {
   });
 
   it("một lượt ném lỗi → dừng, ghi lượt lỗi vào transcript", async () => {
-    const run = await runConversation(fakeRunner(), { name: "lỗi", turns: [{ text: "boom" }, { text: "không tới" }] });
+    const run = await runConversation(fakeRunner(), {
+      name: "lỗi",
+      turns: [{ text: "boom" }, { text: "không tới" }],
+    });
     expect(run.transcript).toHaveLength(1);
     expect(run.transcript[0]!.output.meta?.error).toBe(true);
   });
@@ -79,7 +86,14 @@ describe("scoreRun + check dựng sẵn", () => {
 
   it("check ném lỗi → tính trượt, không vỡ cả run", async () => {
     const run = await runConversation(fakeRunner(), scenario);
-    const scored = scoreRun(run, [{ name: "xịt", run: () => { throw new Error("x"); } }]);
+    const scored = scoreRun(run, [
+      {
+        name: "xịt",
+        run: () => {
+          throw new Error("x");
+        },
+      },
+    ]);
     expect(scored.ok).toBe(false);
     expect(scored.checks[0]!.reason).toContain("ném lỗi");
   });
@@ -87,7 +101,10 @@ describe("scoreRun + check dựng sẵn", () => {
 
 describe("scoreRuns (nhiều kịch bản)", () => {
   it("tổng hợp pass/fail qua nhiều kịch bản, mỗi kịch bản runner mới", async () => {
-    const chitchat: EvalScenario = { name: "chitchat", turns: [{ text: "chào em" }, { text: "ừ cảm ơn" }] };
+    const chitchat: EvalScenario = {
+      name: "chitchat",
+      turns: [{ text: "chào em" }, { text: "ừ cảm ơn" }],
+    };
     const report = await scoreRuns(
       () => fakeRunner(),
       [scenario, chitchat],

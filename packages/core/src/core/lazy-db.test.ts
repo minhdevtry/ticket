@@ -2,7 +2,14 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { makeOpenLazyDb, isDegradedDb, setLogger, getLogger, resolveDbPath, inspectBindingDb } from "./index";
+import {
+  makeOpenLazyDb,
+  isDegradedDb,
+  setLogger,
+  getLogger,
+  resolveDbPath,
+  inspectBindingDb,
+} from "./index";
 import { Database } from "bun:sqlite";
 
 /**
@@ -14,7 +21,12 @@ import { Database } from "bun:sqlite";
 describe("makeOpenLazyDb", () => {
   it("cùng dbPath → cùng một kết nối, applySchema gọi đúng một lần", () => {
     let applied = 0;
-    const open = makeOpenLazyDb({ applySchema: (db) => { db.run("CREATE TABLE t (id INTEGER)"); applied++; } });
+    const open = makeOpenLazyDb({
+      applySchema: (db) => {
+        db.run("CREATE TABLE t (id INTEGER)");
+        applied++;
+      },
+    });
 
     const a = open(":memory:");
     const b = open(":memory:");
@@ -51,7 +63,9 @@ describe("makeOpenLazyDb", () => {
     try {
       const open = makeOpenLazyDb({ applySchema: (db) => db.run("CREATE TABLE t (id INTEGER)") });
       let db!: ReturnType<typeof open>;
-      expect(() => { db = open(bad); }).not.toThrow();
+      expect(() => {
+        db = open(bad);
+      }).not.toThrow();
       expect(isDegradedDb(db)).toBe(true);
       // schema vẫn áp trên bản :memory: → bảng dùng được, coi như cache rỗng
       db.run("INSERT INTO t (id) VALUES (1)");
@@ -101,7 +115,9 @@ describe("resolveDbPath", () => {
 
   it(":memory: và file: URI giữ nguyên", () => {
     expect(resolveDbPath(":memory:")).toBe(":memory:");
-    expect(resolveDbPath("file:x?mode=memory&cache=shared")).toBe("file:x?mode=memory&cache=shared");
+    expect(resolveDbPath("file:x?mode=memory&cache=shared")).toBe(
+      "file:x?mode=memory&cache=shared",
+    );
   });
 });
 
@@ -110,19 +126,30 @@ describe("inspectBindingDb (chốt chặn worker trỏ nhầm DB — mục 3)", 
     const prev = getLogger();
     const warns: string[] = [];
     setLogger({ ...prev, warn: (m: string) => warns.push(m), info: () => {} } as any);
-    try { run(); return warns; } finally { setLogger(prev); }
+    try {
+      run();
+      return warns;
+    } finally {
+      setLogger(prev);
+    }
   }
 
   it("DB có binding → đếm đúng, không cảnh báo", () => {
     const dir = mkdtempSync(join(tmpdir(), "inspect-ok-"));
     const p = join(dir, "op.db");
     const db = new Database(p, { create: true });
-    db.run(`CREATE TABLE ticket_bindings (issue_id INTEGER PRIMARY KEY, chat_id TEXT, identifier TEXT)`);
-    db.run(`INSERT INTO ticket_bindings (issue_id, chat_id, identifier) VALUES (1,'c','OP-1'),(2,'c','OP-2')`);
+    db.run(
+      `CREATE TABLE ticket_bindings (issue_id INTEGER PRIMARY KEY, chat_id TEXT, identifier TEXT)`,
+    );
+    db.run(
+      `INSERT INTO ticket_bindings (issue_id, chat_id, identifier) VALUES (1,'c','OP-1'),(2,'c','OP-2')`,
+    );
     db.close();
 
     let report!: ReturnType<typeof inspectBindingDb>;
-    const warns = captureWarns(() => { report = inspectBindingDb(p); });
+    const warns = captureWarns(() => {
+      report = inspectBindingDb(p);
+    });
     expect(report.bindingCount).toBe(2);
     expect(report.opened).toBe(true);
     expect(report.resolvedPath).toBe(p);
@@ -133,11 +160,15 @@ describe("inspectBindingDb (chốt chặn worker trỏ nhầm DB — mục 3)", 
     const dir = mkdtempSync(join(tmpdir(), "inspect-empty-"));
     const p = join(dir, "op.db");
     const db = new Database(p, { create: true });
-    db.run(`CREATE TABLE ticket_bindings (issue_id INTEGER PRIMARY KEY, chat_id TEXT, identifier TEXT)`);
+    db.run(
+      `CREATE TABLE ticket_bindings (issue_id INTEGER PRIMARY KEY, chat_id TEXT, identifier TEXT)`,
+    );
     db.close();
 
     let report!: ReturnType<typeof inspectBindingDb>;
-    const warns = captureWarns(() => { report = inspectBindingDb(p); });
+    const warns = captureWarns(() => {
+      report = inspectBindingDb(p);
+    });
     expect(report.bindingCount).toBe(0);
     expect(warns.some((w) => w.includes("RỖNG"))).toBe(true);
   });
@@ -150,7 +181,9 @@ describe("inspectBindingDb (chốt chặn worker trỏ nhầm DB — mục 3)", 
     db.close();
 
     let report!: ReturnType<typeof inspectBindingDb>;
-    const warns = captureWarns(() => { report = inspectBindingDb(p); });
+    const warns = captureWarns(() => {
+      report = inspectBindingDb(p);
+    });
     expect(report.bindingCount).toBeNull();
     expect(warns.some((w) => w.includes("CHƯA có bảng"))).toBe(true);
   });

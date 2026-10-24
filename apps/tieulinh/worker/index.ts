@@ -94,7 +94,11 @@ if (onyxGate.enabled && onyxBaseUrl) {
     itsaplanProjectKey: required("ITSAPLAN_PROJECT_KEY"),
     docIdPrefix: process.env.ONYX_DOC_PREFIX ?? "ticket_",
   };
-  const ingest = new OnyxIngestService(itsaplan, new OnyxConnectorManager(onyxConfig.onyxBaseUrl, onyxConfig.onyxApiKey), onyxConfig);
+  const ingest = new OnyxIngestService(
+    itsaplan,
+    new OnyxConnectorManager(onyxConfig.onyxBaseUrl, onyxConfig.onyxApiKey),
+    onyxConfig,
+  );
 
   // Onyx lỗi → vào onyx_ingest_queue để thử lại (trước đây lỗi là mất việc).
   onyxRunner = new KgSyncRunner({
@@ -146,7 +150,10 @@ if (kgGate.enabled && kgGate.projectKey) {
     // mã/link người đã gắn), pinned vẫn hoạt động bình thường.
     let similarSource: LlmSimilarTickets | undefined;
     if (onyxBaseUrl && process.env.ONYX_API_KEY && isLlmConfigured(llmConfig)) {
-      const onyx = new OnyxRestSearchClient({ baseUrl: onyxBaseUrl, apiKey: process.env.ONYX_API_KEY }, itsaplan);
+      const onyx = new OnyxRestSearchClient(
+        { baseUrl: onyxBaseUrl, apiKey: process.env.ONYX_API_KEY },
+        itsaplan,
+      );
       similarSource = new LlmSimilarTickets({
         memgraph,
         onyx,
@@ -166,7 +173,9 @@ if (kgGate.enabled && kgGate.projectKey) {
       dryRun: curatorMode !== "on",
       delayMs: Number(process.env.RELATED_CURATOR_DELAY_MS ?? 90_000),
     });
-    getLogger().info(`[worker] Chốt ticket tương tự lúc ghim nguyên nhân: ${curatorMode === "on" ? "BẬT (ghi Itsaplan)" : "CHẠY THỬ (chỉ log)"}.`);
+    getLogger().info(
+      `[worker] Chốt ticket tương tự lúc ghim nguyên nhân: ${curatorMode === "on" ? "BẬT (ghi Itsaplan)" : "CHẠY THỬ (chỉ log)"}.`,
+    );
     // Kho cụm nguyên nhân lớn dần theo mỗi lần tech lead ghim → tra lại ticket đang mở
     // chưa ghim (worker/related-recheck.ts). RELATED_RECHECK=off để tắt.
     if (similarSource && process.env.RELATED_RECHECK !== "off") {
@@ -273,7 +282,10 @@ import { AgentRunnerService } from "./agent-runner";
 const webhook = new ItsaplanWebhookServer({
   // Secret `whsec_…` của subscription Itsaplan (GET /projects/<key>/webhooks).
   // Chưa đặt thì nhận như cũ + cảnh báo — không làm gãy worker đang chạy.
-  itsaplanSecrets: (process.env.ITSAPLAN_WEBHOOK_SECRET ?? "").split(",").map((x) => x.trim()).filter(Boolean),
+  itsaplanSecrets: (process.env.ITSAPLAN_WEBHOOK_SECRET ?? "")
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean),
   // Phải trùng `secret_token` khai khi gọi setWebhook của Telegram.
   telegramSecret: process.env.TELEGRAM_WEBHOOK_SECRET,
   maxBodyBytes: Number(process.env.WEBHOOK_MAX_BODY_BYTES ?? 1024 * 1024),
@@ -309,7 +321,8 @@ const port = Number(process.env.WEBHOOK_PORT ?? 3102);
 await webhook.start(port);
 lifecycle.start(Number(process.env.LIFECYCLE_INTERVAL_MS ?? 60_000));
 // Mục tồn từ lần chạy trước được xử lý ngay khi khởi động, sau đó theo chu kỳ.
-for (const sink of knowledgeSinks) sink.start(Number(process.env.KG_SYNC_RETRY_INTERVAL_MS ?? 60_000));
+for (const sink of knowledgeSinks)
+  sink.start(Number(process.env.KG_SYNC_RETRY_INTERVAL_MS ?? 60_000));
 
 let runner: AgentRunnerService | null = null;
 const agentApiKey = process.env.ITSAPLAN_AGENT_KEY;
@@ -335,7 +348,9 @@ if (agentApiKey) {
 // Tự động kiểm tra và kích hoạt Webhook trên Itsaplan nếu có cấu hình WEBHOOK_URL
 const webhookUrl = process.env.WEBHOOK_URL;
 if (webhookUrl && !projectKey) {
-  getLogger().warn(`[worker] Có WEBHOOK_URL nhưng thiếu ITSAPLAN_PROJECT_KEY — không đăng ký webhook (không đoán "TECH").`);
+  getLogger().warn(
+    `[worker] Có WEBHOOK_URL nhưng thiếu ITSAPLAN_PROJECT_KEY — không đăng ký webhook (không đoán "TECH").`,
+  );
 } else if (webhookUrl && projectKey) {
   import("../lib/itsaplan/ensure-webhook").then(({ ensureItsaplanWebhook }) => {
     ensureItsaplanWebhook(adminItsaplan, projectKey, webhookUrl).catch((err) => {
@@ -361,9 +376,13 @@ const shutdown = async (signal: string) => {
     if (runner) runner.stop();
     lifecycle.stop();
     curator?.stop();
-    await webhook.stop().catch((err) => getLogger().warn(`[worker] Lỗi dừng webhook: ${err.message}`));
+    await webhook
+      .stop()
+      .catch((err) => getLogger().warn(`[worker] Lỗi dừng webhook: ${err.message}`));
     await Promise.allSettled(knowledgeSinks.map((sink) => sink.stop()));
-    await closeMemgraph?.().catch((err) => getLogger().warn(`[worker] Lỗi đóng Memgraph: ${err.message}`));
+    await closeMemgraph?.().catch((err) =>
+      getLogger().warn(`[worker] Lỗi đóng Memgraph: ${err.message}`),
+    );
     db.close();
   } finally {
     process.exit(0);

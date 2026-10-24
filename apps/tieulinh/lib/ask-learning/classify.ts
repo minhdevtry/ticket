@@ -113,7 +113,12 @@ Trả về ĐÚNG một object JSON, không kèm chữ nào khác:
 {"needs_info": true|false, "kind": "<một trong các kind>", "items": ["MÃ"], "already_in_report": true|false, "evidence": "..."}`;
 
 export function userPrompt(input: ClassifyInput): string {
-  const lines = ["Báo cáo ban đầu của người báo:", input.report, "", "Bình luận trước đó (cũ trước):"];
+  const lines = [
+    "Báo cáo ban đầu của người báo:",
+    input.report,
+    "",
+    "Bình luận trước đó (cũ trước):",
+  ];
   if (input.prev.length === 0) lines.push("(không có)");
   for (const p of input.prev.slice(-2)) {
     lines.push(`- ${p.actor} (${p.createdAt.slice(0, 16)}): ${p.text.slice(0, 500)}`);
@@ -140,7 +145,9 @@ export function sanitize(parsed: Record<string, unknown>, model: string): Classi
       if (isCanonItem(code) && code !== "OTHER" && !items.includes(code)) items.push(code);
     }
   }
-  const alreadyInReport = parsed.already_in_report === true || String(parsed.already_in_report).trim().toLowerCase() === "true";
+  const alreadyInReport =
+    parsed.already_in_report === true ||
+    String(parsed.already_in_report).trim().toLowerCase() === "true";
   const evidence = typeof parsed.evidence === "string" ? parsed.evidence.slice(0, 300) : "";
   return {
     needsInfo,
@@ -166,8 +173,9 @@ export async function classifyComment(
   const raw = await Promise.race([call, timeout]).finally(() => clearTimeout(timer));
   const parsed = extractJson<Record<string, unknown>>(raw);
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error(`ask-learning: model không trả JSON (${raw.slice(0, 80).replace(/\s+/g, " ")})`);
+    throw new Error(
+      `ask-learning: model không trả JSON (${raw.slice(0, 80).replace(/\s+/g, " ")})`,
+    );
   }
   return sanitize(parsed, cfg.model);
 }
-

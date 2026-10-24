@@ -2,7 +2,11 @@ import { z } from "zod";
 import { openLazyDb } from "../../../lib/storage/lazy-db";
 import { getLogger } from "../../../lib/logger";
 import { IdentityRepository } from "../../../lib/storage/identity-repository";
-import { savePendingButtons, getDepartmentButtons, type DepartmentOption } from "../../../lib/telegram/buttons";
+import {
+  savePendingButtons,
+  getDepartmentButtons,
+  type DepartmentOption,
+} from "../../../lib/telegram/buttons";
 import { defineTool, type AnyMcpTool } from "../tool";
 import { createRecord, evaluateGate } from "../../../lib/gate/index";
 import { validateValue } from "../../../lib/gate/validate";
@@ -39,11 +43,7 @@ function getCatalogForRules(rules: ValidationRules) {
   return cat;
 }
 
-export function validateOne(
-  rules: ValidationRules,
-  field: string,
-  value: string,
-): FieldVerdict {
+export function validateOne(rules: ValidationRules, field: string, value: string): FieldVerdict {
   const catalog = getCatalogForRules(rules);
   return validateValue(catalog, field, value);
 }
@@ -125,9 +125,17 @@ export function validateFields(
       askedCount: z
         .record(z.string(), z.number())
         .default({})
-        .describe("Số lần đã hỏi từng trường bắt buộc còn thiếu, để tool biết khi nào nên thôi hỏi và dùng mặc định"),
+        .describe(
+          "Số lần đã hỏi từng trường bắt buộc còn thiếu, để tool biết khi nào nên thôi hỏi và dùng mặc định",
+        ),
     },
-    handler: ({ values, reporterChatId, telegramUserId, rawText, askedCount }): ValidateFieldsResult => {
+    handler: ({
+      values,
+      reporterChatId,
+      telegramUserId,
+      rawText,
+      askedCount,
+    }): ValidateFieldsResult => {
       const currentValues: Record<string, string> = { ...values };
       const targetChatId = reporterChatId ?? telegramUserId;
 
@@ -169,7 +177,8 @@ export function validateFields(
       const { key: productKey } = inferProductKey(currentValues, productMapping);
 
       // 3. Kiểm tra sự cố liên quan tài khoản / phòng học
-      const combinedDesc = `${rawText || ""} ${currentValues.description || ""} ${currentValues.short_description || ""}`.toLowerCase();
+      const combinedDesc =
+        `${rawText || ""} ${currentValues.description || ""} ${currentValues.short_description || ""}`.toLowerCase();
       const isAccountOrClassIssue =
         combinedDesc.includes("phụ huynh") ||
         combinedDesc.includes("học sinh") ||
@@ -202,7 +211,10 @@ export function validateFields(
           try {
             const db = openLazyDb(dbPath);
             const repo = new IdentityRepository(db);
-            repo.updateDepartment(String(targetChatId), bpVerdict.normalized ?? currentValues.reporting_dept);
+            repo.updateDepartment(
+              String(targetChatId),
+              bpVerdict.normalized ?? currentValues.reporting_dept,
+            );
           } catch (err) {
             getLogger().warn(`Không thể lưu department vào SQLite: ${err}`);
           }

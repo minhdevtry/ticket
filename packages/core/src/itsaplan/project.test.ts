@@ -31,7 +31,17 @@ describe("parseIdentifier", () => {
     expect(parseIdentifier("B2B1-105")).toEqual({ projectKey: "B2B1", sequence: 105 });
   });
   test("trả null khi không phải mã hoặc bắt đầu bằng chữ số", () => {
-    for (const s of ["TECH", "42", "TECH-", "TECH-4a", "", "0912-345678", "2026-10", "2TECH-15", "invalid"]) {
+    for (const s of [
+      "TECH",
+      "42",
+      "TECH-",
+      "TECH-4a",
+      "",
+      "0912-345678",
+      "2026-10",
+      "2TECH-15",
+      "invalid",
+    ]) {
       expect(parseIdentifier(s)).toBeNull();
     }
   });
@@ -43,7 +53,10 @@ describe("issueWebUrl & teamRef", () => {
       "https://ticket.example.com/vuihoc/issue/TECH-42",
     );
     expect(
-      issueWebUrl("https://ticket.example.com", "PO", "PO-48", undefined, { teamRef: "product", ref: "product.PO" }),
+      issueWebUrl("https://ticket.example.com", "PO", "PO-48", undefined, {
+        teamRef: "product",
+        ref: "product.PO",
+      }),
     ).toBe("https://ticket.example.com/product/issue/PO-48");
     expect(issueWebUrl("https://ticket.example.com", "TECH", "TECH-42", 42, { teamId: 7 })).toBe(
       "https://ticket.example.com/7/issue/TECH-42",
@@ -59,9 +72,21 @@ describe("issueWebUrl & teamRef", () => {
     expect(projectTeamRef({})).toBeUndefined();
   });
   test("resolveProjectTeamRef lấy teamRef và chịu lỗi an toàn", async () => {
-    const ok = { getProject: async (key: string): Promise<ItsaplanProject> => ({ id: 1, key, name: "x", teamRef: "vh-tech", ref: `vh-tech.${key}` }) };
+    const ok = {
+      getProject: async (key: string): Promise<ItsaplanProject> => ({
+        id: 1,
+        key,
+        name: "x",
+        teamRef: "vh-tech",
+        ref: `vh-tech.${key}`,
+      }),
+    };
     expect(await resolveProjectTeamRef(ok, "TECH")).toBe("vh-tech");
-    const fail = { getProject: async (): Promise<ItsaplanProject> => { throw new Error("net"); } };
+    const fail = {
+      getProject: async (): Promise<ItsaplanProject> => {
+        throw new Error("net");
+      },
+    };
     expect(await resolveProjectTeamRef(fail, "TECH")).toBeUndefined();
   });
 });

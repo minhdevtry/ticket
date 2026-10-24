@@ -38,9 +38,7 @@ export function validateValue(
   }
 
   const hasRule =
-    fieldSpec.type.startsWith("enum:") ||
-    Boolean(fieldSpec.pattern) ||
-    Boolean(fieldSpec.semantic);
+    fieldSpec.type.startsWith("enum:") || Boolean(fieldSpec.pattern) || Boolean(fieldSpec.semantic);
 
   if (!hasRule) {
     return { field: fieldName, value: rawStr, valid: true, reason: "Không có luật cho trường này" };
@@ -82,7 +80,12 @@ export function validateValue(
   // 3. Semantic
   if (fieldSpec.semantic) {
     if ((fieldSpec.semantic.blacklist ?? []).some((bad) => fold(bad) === fold(trimmed))) {
-      return { field: fieldName, value: rawStr, valid: false, reason: "Giá trị rác, không mang thông tin" };
+      return {
+        field: fieldName,
+        value: rawStr,
+        valid: false,
+        reason: "Giá trị rác, không mang thông tin",
+      };
     }
     if (
       fieldSpec.semantic.whitelistPattern &&

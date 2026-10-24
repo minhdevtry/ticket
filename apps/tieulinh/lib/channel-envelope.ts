@@ -54,7 +54,14 @@ const BARE_CONTEXT_HEADER = /^\s*(conversation context|chat history[^:\n]*)\s*:\
 
 export function stripChannelEnvelope(text: string | null | undefined): string {
   const src = String(text ?? "");
-  if (!/\(untrusted/i.test(src) && !/^\s*>?\s*callback_data\s*:/im.test(src) && !ENVELOPE_KEYS.test(src) && !SENDER_LINE.test(src) && !/^\s*>?\s*#(\d+|session:)/m.test(src)) return src;
+  if (
+    !/\(untrusted/i.test(src) &&
+    !/^\s*>?\s*callback_data\s*:/im.test(src) &&
+    !ENVELOPE_KEYS.test(src) &&
+    !SENDER_LINE.test(src) &&
+    !/^\s*>?\s*#(\d+|session:)/m.test(src)
+  )
+    return src;
   // Khoan dung tiền tố quote "> " (ticket trích dẫn lại phong bì) ở đầu mỗi dòng.
   const lines = src.split("\n").map((line) => line.replace(/^\s*>\s?/, ""));
   const out: string[] = [];
@@ -125,5 +132,8 @@ export function stripChannelEnvelope(text: string | null | undefined): string {
     out.push(line);
     i++;
   }
-  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  return out
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
