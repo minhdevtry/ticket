@@ -7,7 +7,8 @@ Mỗi trang là một việc cụ thể, làm theo từng bước. Trạng thái
 | [Viết catalog tiếp nhận](/how-to/write-catalog) | Đã viết, mẫu code được CI chạy |
 | [Thêm kênh chat](/how-to/add-channel) | Đã viết, mẫu code được CI typecheck |
 | [Dựng worker báo ngược](/how-to/notify-worker) | Đã viết, có mẫu chạy được không cần mạng |
-| [Chạy shadow](/how-to/run-shadow) | Một phần: công cụ parity đã có; chế độ shadow cho bot **đang viết** |
+| [Chạy shadow](/how-to/run-shadow) | Một phần: công cụ parity đã có; chế độ shadow chung cho bot **đang viết** |
+| [Chạy bóng Tiểu Linh 2](/how-to/shadow-tl2) | Có: relay, proxy giữ secret và gateway Colab chạy song song với Tiểu Linh 1 |
 | [Deploy và đẩy secret qua SSH](/how-to/deploy) | Một phần: đẩy secret và cập nhật code đã viết; unit systemd và rollback **đang viết** |
 | [Chuyển project vào team](/how-to/move-project-to-team) | Một phần: phía code đã viết; quy trình trên itsaplan **đang viết** |
 | [Chuyển bot sang bot-core](/how-to/adopt-core) | Đã viết |

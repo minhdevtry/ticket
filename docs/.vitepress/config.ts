@@ -45,6 +45,7 @@ export default defineConfig({
             { text: "Thêm kênh chat", link: "/how-to/add-channel" },
             { text: "Dựng worker báo ngược", link: "/how-to/notify-worker" },
             { text: "Chạy shadow", link: "/how-to/run-shadow" },
+            { text: "Chạy bóng Tiểu Linh 2", link: "/how-to/shadow-tl2" },
             { text: "Deploy và đẩy secret qua SSH", link: "/how-to/deploy" },
             { text: "Chuyển project vào team", link: "/how-to/move-project-to-team" },
             { text: "Chuyển bot sang bot-core", link: "/how-to/adopt-core" },
