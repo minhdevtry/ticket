@@ -4,7 +4,7 @@ import { applySchema } from "../storage/schema";
 import { IntakeDocumentRepository } from "../intake-document/repository";
 import { FieldExtractor } from "./extractor";
 import { IntakeStepPipeline } from "./pipeline";
-import type { ItsaplanClient, ItsaplanIssue } from "../itsaplan/client";
+import type { ItsaplanClient, ItsaplanIssue } from "@vuihoc/bot-core/itsaplan";
 import validationRules from "../../mcp/tieulinh/domain/validation-rules.json";
 import fieldRequirements from "../../mcp/tieulinh/domain/required_fields.json";
 import productMapping from "../../mcp/tieulinh/domain/product_mapping.json";

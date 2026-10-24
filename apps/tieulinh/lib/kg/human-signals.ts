@@ -1,4 +1,4 @@
-import { decodeHtmlEntities } from "../formatting";
+import { decodeHtmlEntities } from "../html-entities";
 
 /**
  * Tín hiệu của NGƯỜI trên một ticket — nguồn chuẩn duy nhất cho ticket tương tự
@@ -9,7 +9,7 @@ import { decodeHtmlEntities } from "../formatting";
  * Module thuần: chỉ đọc timeline Itsaplan (`/issues/:id/timeline/items`).
  */
 
-import { stripCommentHtml } from "../formatting";
+import { stripCommentHtml } from "@vuihoc/bot-core/core";
 /** Tiểu Linh, VUIHOC Tiểu Linh, `admin` (worker + script), Onyx, mọi tên có chữ bot. */
 const SYSTEM_ACTOR = /ti[eể]u\s*linh|tieulinh|onyx|bot|^admin$/i;
 

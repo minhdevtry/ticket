@@ -1,24 +1,13 @@
+import { defineTool, type AnyMcpTool } from "@vuihoc/bot-core/core";
+import { type UrgencyRules, evaluatePriorityRules } from "@vuihoc/bot-core/intake";
 import { z } from "zod";
-import { defineTool, type AnyMcpTool } from "../tool";
 
-export interface UrgencyRuleFloor {
-  when: Record<string, unknown>;
-  minLevel: string;
-  reason: string;
-}
-
-export interface UrgencyRuleCeiling {
-  when: Record<string, unknown>;
-  maxLevel: string;
-  reason: string;
-}
-
-export interface UrgencyRules {
-  levels: string[];
-  floors: UrgencyRuleFloor[];
-  ceilings: UrgencyRuleCeiling[];
-  evidence?: Record<string, unknown>;
-}
+/**
+ * Wrapper MCP của Tiểu Linh cho `assess_priority`. Engine floor/ceiling
+ * (`evaluatePriorityRules`) và các kiểu `UrgencyRules*` nằm ở
+ * `@vuihoc/bot-core/intake`; file này chỉ giữ schema bằng chứng (zod) và việc
+ * gắn engine vào MCP SDK.
+ */
 
 const evidenceShape = {
   scope: z
@@ -37,52 +26,6 @@ const evidenceShape = {
   hasWorkaround: z.boolean().optional().describe("Có cách làm tạm để đi vòng qua lỗi không?"),
   singleDeviceOnly: z.boolean().optional().describe("Chỉ hỏng trên một máy, máy khác vẫn chạy?"),
 };
-
-const matches = (when: Record<string, unknown>, evidence: Record<string, unknown>) =>
-  Object.entries(when).every(([k, v]) => evidence[k] === v);
-
-export function evaluatePriorityRules(
-  rules: UrgencyRules,
-  proposedLevel: string,
-  evidence: Record<string, unknown>,
-) {
-  const levels = rules.levels;
-  const indexOf = (level: string) => levels.indexOf(level);
-
-  let floor = 0;
-  const floorReasons: string[] = [];
-  for (const rule of rules.floors) {
-    if (!matches(rule.when, evidence)) continue;
-    floor = Math.max(floor, indexOf(rule.minLevel));
-    floorReasons.push(rule.reason);
-  }
-
-  let ceiling = levels.length - 1;
-  const ceilingReasons: string[] = [];
-  for (const rule of rules.ceilings) {
-    if (!matches(rule.when, evidence)) continue;
-    ceiling = Math.min(ceiling, indexOf(rule.maxLevel));
-    ceilingReasons.push(rule.reason);
-  }
-
-  const floorWins = ceiling < floor;
-  if (floorWins) ceiling = floor;
-
-  const proposed = indexOf(proposedLevel);
-  const allowed = Math.min(Math.max(proposed, floor), ceiling);
-  const direction = allowed > proposed ? "raised" : allowed < proposed ? "lowered" : "kept";
-
-  return {
-    proposedLevel,
-    allowedLevel: levels[allowed],
-    direction,
-    differsFromProposed: direction !== "kept",
-    reasons: direction === "raised" ? floorReasons : direction === "lowered" ? ceilingReasons : [],
-    floor: levels[floor],
-    ceiling: levels[ceiling],
-    floorOverrodeCeiling: floorWins,
-  };
-}
 
 export function assessPriority(rules: UrgencyRules): AnyMcpTool {
   const levels = rules.levels;

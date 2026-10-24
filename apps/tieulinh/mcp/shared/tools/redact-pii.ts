@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { redactIncidentPII } from "../../../lib/onyx/pii-redactor";
-import { defineTool } from "../tool";
+import { redactIncidentPII } from "@vuihoc/bot-core/core";
+import { defineTool } from "@vuihoc/bot-core/core";
 
 /**
  * Khử thông tin cá nhân trước khi text rời khỏi luồng tiếp nhận.

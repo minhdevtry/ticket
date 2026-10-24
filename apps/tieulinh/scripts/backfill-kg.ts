@@ -13,12 +13,12 @@
  * Dùng khi đổi cách nạp (26/09, ADR-0007: KG cũ còn cạnh do bot tạo). Bản sao
  * lưu ở data/kg-<dự án>-backup-<giờ>.json.
  */
+import { createItsaplanClient } from "../lib/itsaplan/client-factory";
 import * as fs from "node:fs";
-import { ItsaplanClient } from "../lib/itsaplan/client";
 import { MemgraphClient } from "../lib/kg/memgraph-client";
 import { syncDoneTicketToKnowledgeGraph } from "../worker/kg-sync";
-import { classifyColumn } from "../lib/itsaplan/ticket-state";
-import { getLogger } from "../lib/logger";
+import { classifyColumn } from "@vuihoc/bot-core/itsaplan";
+import { getLogger } from "@vuihoc/bot-core/core";
 import { llmConfigFromEnv } from "../worker/llm";
 
 const args = process.argv.slice(2);
@@ -43,7 +43,7 @@ if (!baseUrl || !apiKey) {
 }
 
 const completedColumnIds = new Set<number>();
-const itsaplan = new ItsaplanClient(baseUrl, apiKey);
+const itsaplan = createItsaplanClient(baseUrl, apiKey);
 
 // Xác định cột "hoàn thành" từ cấu hình project
 const project = await itsaplan.getProject(projectKey);

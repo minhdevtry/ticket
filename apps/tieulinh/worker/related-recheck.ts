@@ -13,9 +13,9 @@
  * chắn, chỉ gỡ rác thuật toán cũ, giữ mọi mã người gắn). Không tra lại khi kho chưa đổi
  * kể từ lần tra trước của ticket đó.
  */
-import type { ItsaplanClient } from "../lib/itsaplan/client";
+import type { ItsaplanClient } from "@vuihoc/bot-core/itsaplan";
 import type { CorpusTicket } from "../lib/kg/similar-finder";
-import { getLogger } from "../lib/logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 import type { CuratorResult } from "./related-curator";
 
 export interface RelatedRecheckOptions {

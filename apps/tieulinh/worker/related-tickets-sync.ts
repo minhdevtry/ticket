@@ -1,6 +1,6 @@
-import type { ItsaplanClient } from "../lib/itsaplan/client";
-import { findIssueByIdentifier, parseIdentifier } from "../lib/itsaplan/project";
-import { getLogger } from "../lib/logger";
+import type { ItsaplanClient } from "@vuihoc/bot-core/itsaplan";
+import { findIssueByIdentifier, parseIdentifier } from "@vuihoc/bot-core/itsaplan";
+import { getLogger } from "@vuihoc/bot-core/core";
 import { isSystemActor } from "../lib/kg/human-signals";
 
 const TICKET_KEY_REGEX = /\b([A-Z0-9_]+-\d+)\b/gi;

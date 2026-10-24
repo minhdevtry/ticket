@@ -9,7 +9,7 @@ import {
 
 afterEach(() => {
   setToolFailureAlert(null);
-  setToolFailureOptions({ hideDetailFromUser: false });
+  setToolFailureOptions({ hideDetailFromUser: false, useDeclaredErrorCode: true });
 });
 
 // ── ported from both intake and CM suites ────────────────────────────────────
@@ -120,5 +120,26 @@ describe("tool-error: hideDetailFromUser (B3)", () => {
     setToolFailureAlert((_k, m) => seen.push(m));
     describeToolFailure("create_issue", new Error("Itsaplan 503 Service Unavailable"));
     expect(seen[0]).toContain("Itsaplan 503 Service Unavailable");
+  });
+});
+
+describe("tool-error: useDeclaredErrorCode (cho bot cần mã lỗi intake cũ)", () => {
+  test("mặc định: lỗi tự khai code dạng E_XXX giữ nguyên làm ma_loi", () => {
+    const err = Object.assign(new Error("rate"), { code: "E_TICKET_RATE_LIMITED" });
+    expect(describeToolFailure("t", err).ma_loi).toBe("E_TICKET_RATE_LIMITED");
+  });
+
+  test("useDeclaredErrorCode:false → luôn mã ngắn theo thời điểm, hai lỗi cùng code vẫn khác mã", () => {
+    setToolFailureOptions({ useDeclaredErrorCode: false });
+    try {
+      const err = Object.assign(new Error("reset"), { code: "ECONNRESET" });
+      const a = describeToolFailure("t", err, 1_757_000_000_000);
+      const b = describeToolFailure("t", err, 1_757_000_000_001);
+      expect(a.ma_loi).toMatch(/^[0-9A-Z]{6}$/);
+      expect(a.ma_loi).not.toBe("ECONNRESET");
+      expect(a.ma_loi).not.toBe(b.ma_loi);
+    } finally {
+      setToolFailureOptions({ useDeclaredErrorCode: true });
+    }
   });
 });

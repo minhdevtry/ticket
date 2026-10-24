@@ -1,28 +1,25 @@
 import { z } from "zod";
-import { ItsaplanClient } from "../../../lib/itsaplan/client";
-import { findIssueByIdentifier, resolveProject } from "../../../lib/itsaplan/project";
+import { createItsaplanClient } from "../../../lib/itsaplan/client-factory";
+import { findIssueByIdentifier, resolveProject } from "@vuihoc/bot-core/itsaplan";
+import { uploadAttachments } from "../../../lib/itsaplan/upload";
 import {
-  uploadAttachments,
   spliceAttachmentsIntoDescription,
   formatAttachmentMarkdown,
-} from "../../../lib/itsaplan/attachments";
+} from "../../../lib/itsaplan/upload";
 import { findRecentInboundMedia } from "../../../lib/media";
-import { resolveFriendlyStatusName } from "../../../lib/itsaplan/status";
+import { resolveFriendlyStatusName } from "@vuihoc/bot-core/itsaplan";
 import { describeState } from "../../../lib/itsaplan/state-messages";
 import { isOwnTicket } from "../../../lib/itsaplan/ownership";
 import { getSharedBindingRepo } from "../../../lib/storage/binding-repository";
-import {
-  appendTicketUpdateDescription,
-  markBotComment,
-  stripCommentHtml,
-} from "../../../lib/formatting";
+import { appendTicketUpdateDescription } from "../../../lib/formatting.local";
+import { markBotComment, stripCommentHtml } from "@vuihoc/bot-core/core";
 import {
   clearPendingButtons,
   getLastActiveChatId,
   savePendingButtons,
 } from "../../../lib/telegram/buttons";
 import { alertAdmin } from "../../../lib/telegram/alert";
-import { defineTool, type AnyMcpTool } from "../tool";
+import { defineTool, type AnyMcpTool } from "@vuihoc/bot-core/core";
 
 export interface TrackerConfig {
   baseUrl: string;
@@ -73,7 +70,7 @@ export function getIssue(
   vocabulary: IssueVocabulary = DEFAULT_ISSUE_VOCABULARY,
   options: OwnTicketsOnlyOptions = {},
 ): AnyMcpTool {
-  const client = new ItsaplanClient(config.baseUrl, config.apiKey);
+  const client = createItsaplanClient(config.baseUrl, config.apiKey);
   const sampleId = `${config.projectKey}-42`;
   return defineTool({
     name: "get_issue",
@@ -246,7 +243,7 @@ export function updateIssue(
   vocabulary: IssueVocabulary = DEFAULT_ISSUE_VOCABULARY,
   options: UpdateIssueOptions = {},
 ): AnyMcpTool {
-  const client = new ItsaplanClient(config.baseUrl, config.apiKey);
+  const client = createItsaplanClient(config.baseUrl, config.apiKey);
   const sampleId = `${config.projectKey}-42`;
   const repo = () => (dbPath ? getSharedBindingRepo(dbPath) : undefined);
 

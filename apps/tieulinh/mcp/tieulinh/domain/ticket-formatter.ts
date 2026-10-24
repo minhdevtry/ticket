@@ -13,13 +13,10 @@ export interface FormatTicketDescriptionOptions {
   sourceName?: string;
 }
 
-import {
-  cleanMediaTags,
-  formatIctTimestamp,
-  appendTicketUpdateDescription,
-  escapeItsaplanMarkdown,
-} from "../../../lib/formatting";
-import { getLogger } from "../../../lib/logger";
+import { cleanMediaTags, formatIctTimestamp } from "@vuihoc/bot-core/core";
+import { appendTicketUpdateDescription } from "../../../lib/formatting.local";
+import { escapeItsaplanMarkdown } from "../../../lib/html-entities";
+import { getLogger } from "@vuihoc/bot-core/core";
 import {
   IDENTIFIER_FIELD_KEYS,
   isGroundedInDigits,

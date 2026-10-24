@@ -1,5 +1,5 @@
-import type { ItsaplanClient, ItsaplanIssue, ProjectColumn } from "../itsaplan/client";
-import { classifyColumn, type TicketState } from "../itsaplan/ticket-state";
+import type { ItsaplanClient, ItsaplanIssue, ProjectColumn } from "@vuihoc/bot-core/itsaplan";
+import { classifyColumn, type TicketState } from "@vuihoc/bot-core/itsaplan";
 import {
   closedTicketRefusalMessage,
   resolveSupplementMentionTarget,
@@ -12,24 +12,26 @@ import {
   parseIdentifier,
   resolveLabelsForIssue,
   resolveProjectTeamRef,
-} from "../itsaplan/project";
-import { formatAttachmentMarkdown, uploadAttachments } from "../itsaplan/attachments";
+} from "@vuihoc/bot-core/itsaplan";
+import { formatAttachmentMarkdown } from "../itsaplan/upload";
+import { uploadAttachments } from "../itsaplan/upload";
 import {
   buildAdviceComment,
   formatTicketDescription,
 } from "../../mcp/tieulinh/domain/ticket-formatter";
 import { VALID_SYSTEMS } from "../../mcp/tieulinh/domain/taxonomy";
-import { markBotComment, escapeItsaplanMarkdown } from "../formatting";
-import { fieldButtons, layoutButtons } from "../gate/buttons";
+import { markBotComment } from "@vuihoc/bot-core/core";
+import { escapeItsaplanMarkdown } from "../html-entities";
+import { fieldButtons, layoutButtons } from "@vuihoc/bot-core/intake";
 import {
   clearPendingButtons,
   getConfirmationButtons,
   savePendingButtons,
   toTelegramButtons,
 } from "../telegram/buttons";
-import { composeQuestion, evaluateGate } from "../gate/gate";
+import { composeQuestion, evaluateGate } from "@vuihoc/bot-core/intake";
 import { catalogFromValidationRules } from "../gate/from-validation-rules";
-import type { InlineButton, IntakeRecord } from "../gate/types";
+import type { InlineButton, IntakeRecord } from "@vuihoc/bot-core/intake";
 import type {
   ValidationRules,
   FieldRequirementsTable,
@@ -37,7 +39,7 @@ import type {
   UrgencyRules,
 } from "../../mcp/shared/index";
 import { inferProductKey } from "../../mcp/shared/tools/validate-fields";
-import { evaluatePriorityRules } from "../../mcp/shared/tools/assess-priority";
+import { evaluatePriorityRules } from "@vuihoc/bot-core/intake";
 import {
   attachMediaToIssue,
   bindIssueToChat,
@@ -60,8 +62,9 @@ import { mergeExtractedFields } from "./merger";
 import type { OnyxRestSearchClient } from "../onyx/rest-search";
 import type { LlmConfig } from "../../worker/llm";
 import type { SimilarTicketSource } from "../kg/similar-ticket-source";
-import { stripChannelEnvelope, isInternalCallbackToken } from "../channel-envelope";
-import { getLogger } from "../logger";
+import { isInternalCallbackToken } from "@vuihoc/bot-core/core";
+import { stripChannelEnvelope } from "../channel-envelope";
+import { getLogger } from "@vuihoc/bot-core/core";
 import { IDENTIFIER_FIELD_KEYS, identifiersConflict } from "../identifier-grounding";
 import {
   extractLabelledIdentifiers,
@@ -87,7 +90,7 @@ import {
   type TicketCommand,
   type TicketCommandInterpreter,
 } from "./ticket-reply-router";
-import { stripCommentHtml } from "../formatting";
+import { stripCommentHtml } from "@vuihoc/bot-core/core";
 import { isSystemActor } from "../kg/human-signals";
 
 /** Đang tạo ticket (status "confirmed") quá chừng này mà chưa xong thì coi như kẹt, cho xác nhận lại. */

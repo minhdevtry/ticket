@@ -16,6 +16,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.21.0",
+        "@vuihoc/bot-core": "workspace:*",
         "neo4j-driver": "^6.2.0",
         "zod": "^4.5.4",
       },

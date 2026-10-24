@@ -1,16 +1,18 @@
-import type { ItsaplanClient } from "../lib/itsaplan/client";
+import type { ItsaplanClient } from "@vuihoc/bot-core/itsaplan";
 import type { TicketClosure } from "./ticket-closure";
 import { REPORTER_OK_CALLBACK } from "./notifier";
 import type { TicketBindingRepository } from "../lib/storage/binding-repository";
-import { getLogger } from "../lib/logger";
-import { markBotComment, escapeItsaplanMarkdown } from "../lib/formatting";
-import { classifyColumn } from "../lib/itsaplan/ticket-state";
+import { getLogger } from "@vuihoc/bot-core/core";
+import { markBotComment } from "@vuihoc/bot-core/core";
+import { escapeItsaplanMarkdown } from "../lib/html-entities";
+import { classifyColumn } from "@vuihoc/bot-core/itsaplan";
 import {
   closedTicketRefusalMessage,
   resolveSupplementMentionTarget,
 } from "../lib/itsaplan/supplement-notifier";
-import { TelegramTransport } from "../lib/telegram/transport";
-import { identifierInProject, isTieuLinhProject, projectOfIdentifier } from "./project-lock";
+import { TelegramTransport } from "@vuihoc/bot-core/telegram";
+import { identifierInProject, projectOfIdentifier } from "@vuihoc/bot-core/itsaplan";
+import { isTieuLinhProject } from "./project-lock";
 
 export interface TelegramHandlerOptions {
   itsaplan: ItsaplanClient;
@@ -31,7 +33,7 @@ export class TelegramWebhookHandler {
 
   constructor(private readonly options: TelegramHandlerOptions) {
     this.transport = options.botToken
-      ? new TelegramTransport({ botToken: options.botToken, timeoutMs: 10_000 })
+      ? new TelegramTransport({ botToken: options.botToken, timeoutMs: 10_000, maxRetries: 0 })
       : undefined;
   }
 

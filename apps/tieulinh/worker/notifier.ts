@@ -7,10 +7,10 @@
  * framework, không thư viện.
  */
 import type { TicketBinding } from "../lib/storage/binding-repository";
-import { getLogger } from "../lib/logger";
-import { TelegramTransport } from "../lib/telegram/transport";
-import { stripBotMentions } from "../lib/formatting";
-import type { TicketState } from "../lib/itsaplan/ticket-state";
+import { getLogger } from "@vuihoc/bot-core/core";
+import { TelegramTransport } from "@vuihoc/bot-core/telegram";
+import { stripBotMentions } from "../lib/formatting.local";
+import type { TicketState } from "@vuihoc/bot-core/itsaplan";
 
 /**
  * Tiền tố callback của nút "👍 Đã ổn". Nút cũ gửi trước 24/09 dùng `confirm_done:`
@@ -70,7 +70,7 @@ export class TelegramNotifier implements Notifier {
   private readonly transport: TelegramTransport;
 
   constructor(private readonly options: TelegramNotifierOptions) {
-    this.transport = new TelegramTransport({ botToken: options.botToken });
+    this.transport = new TelegramTransport({ botToken: options.botToken, maxRetries: 0 });
   }
 
   /**

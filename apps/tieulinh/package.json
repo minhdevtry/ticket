@@ -16,6 +16,7 @@
     "live:tieulinh": "bun run openclaw/test-tieulinh-live.ts"
   },
   "dependencies": {
+    "@vuihoc/bot-core": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.21.0",
     "neo4j-driver": "^6.2.0",
     "zod": "^4.5.4"

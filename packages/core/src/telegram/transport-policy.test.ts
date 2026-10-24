@@ -1,6 +1,9 @@
 import { describe, expect, test, mock, beforeEach, afterEach } from "bun:test";
 import { TelegramTransport } from "./transport";
 
+// Lifted from Tiểu Linh `lib/telegram/transport.test.ts`: khoá hai chính sách lỗi
+// (call ném / tryCall nuốt) và các đường multipart + tải file mà transport.test.ts
+// của thư viện chưa phủ. Dùng global fetch giả, đúng như bản gốc.
 /**
  * Cổng ra Telegram trước đây được viết hai bản trong `worker/`, và không bản
  * nào có test — hai chính sách lỗi lệch nhau lặng lẽ. Test ở đây khoá lại đúng

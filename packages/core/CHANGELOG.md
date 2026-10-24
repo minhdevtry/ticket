@@ -7,6 +7,33 @@ All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded
 - Moved into the `ticket` monorepo (`packages/core`, consumed via `workspace:*`);
   scrubbed internal fixtures (hosts, IPs, phone numbers, chat/user IDs, staff names
   and handles, personal paths) and removed the old standalone-repo docs.
+- **Tiểu Linh adoption — behaviour lifted from the app into the library** (the app
+  now consumes `@vuihoc/bot-core`; see `docs/adoption/tieulinh-iris.md`). All
+  additive, defaults unchanged for other bots:
+  - `core`: `isInternalCallbackToken` / `INTERNAL_CALLBACK_TOKENS` (TECH-1148);
+    `stripChannelEnvelope` now drops `callback_data: noop|none|ignore|nil` instead of
+    keeping it as the user's words.
+  - `core`: `makeOpenLazyDb({ onOpenError: "throw" })` for callers that have their
+    own fallback; default stays the ADR-0003 `:memory:` degrade.
+  - `itsaplan`: `listProjectIssues({ page })`; typed `listComments` (`author`,
+    `createdAt`, `id` coerced to number, bad-typed fields become `undefined`);
+    `ensureItsaplanWebhook(client, key, url, { events })` so a bot registers only the
+    events it handles (default stays `REQUIRED_WEBHOOK_EVENTS`).
+  - `itsaplan`: fix `resolveFriendlyStatusName("", …)` returning `""` — falls back to
+    "Chờ xử lý" again (intake used `||`).
+  - Options so a frozen legacy bot can keep exact old behaviour while the library
+    keeps its better defaults (all default to the previous library behaviour):
+    `ItsaplanClient` `timeoutMs <= 0` = no timeout and `strictResponses: false`
+    (empty 2xx body -> `{}`, non-JSON -> text); `ensureItsaplanWebhook`
+    `reactivateDisabled` / `repointSameHost`; `uploadAttachments` `maxBytes`
+    (`Infinity` allowed); `formatAttachmentMarkdown` / `spliceAttachmentsIntoDescription`
+    `{ escape }`; `stripChannelEnvelope` `keepSoleEnvelopeBlock` /
+    `keepTextAfterEnvelopeBlock` / `stripPastedEnvelopeFences`; `stripBotMentions`
+    `knownHandles` / `stripBotSuffixHandles`; `setToolFailureOptions({ useDeclaredErrorCode })`.
+  - `identity`: `saveUserIdentity` now treats an empty string as "absent" (`||`, as
+    intake did) so it no longer overwrites stored values with `""`. Library-wide.
+  - tests: `isLoopback`, MCP server error-as-`loi` result, Telegram transport
+    error policies / multipart / file download.
 
 ## 0.8.0 — 2026-10-19
 

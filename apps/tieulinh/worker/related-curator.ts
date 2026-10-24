@@ -12,15 +12,15 @@
  *   "vẫn phải làm tay những ticket cũ đã đóng rồi nhưng có thêm ticket tương tự").
  * Không bao giờ gỡ thứ người đã gắn. Ticket IT Support xử lý như mọi ticket TECH (người dùng chốt 27/09).
  */
-import type { ItsaplanClient, ItsaplanIssue, ProjectColumn } from "../lib/itsaplan/client";
-import { classifyColumn } from "../lib/itsaplan/ticket-state";
-import { findIssueByIdentifier } from "../lib/itsaplan/project";
+import type { ItsaplanClient, ItsaplanIssue, ProjectColumn } from "@vuihoc/bot-core/itsaplan";
+import { classifyColumn } from "@vuihoc/bot-core/itsaplan";
+import { findIssueByIdentifier } from "@vuihoc/bot-core/itsaplan";
 import { humanKnowledgeOf, isSystemActor } from "../lib/kg/human-signals";
 import { planRelatedTickets, planSuggestedTickets, type RelatedPlan } from "../lib/kg/related-plan";
 import { symptomsOfDescription, type CorpusTicket } from "../lib/kg/similar-finder";
 import type { SimilarTicketSource } from "../lib/kg/similar-ticket-source";
-import { getLogger } from "../lib/logger";
-import { identifierInProject } from "./project-lock";
+import { getLogger } from "@vuihoc/bot-core/core";
+import { identifierInProject } from "@vuihoc/bot-core/itsaplan";
 import { resolveRelatedTicketsFieldId } from "./related-tickets-sync";
 
 export type CuratorStatus =

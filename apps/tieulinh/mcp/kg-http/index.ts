@@ -15,7 +15,7 @@
  *          KG_MCP_ALLOW_NO_AUTH=1 cho dev cục bộ).
  */
 import { createIntakeMcpServer, runOnHttp, queryKnowledgeGraph } from "../shared/index";
-import { getLogger } from "../../lib/logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 import { type KgHttpConfig, resolveKgHttpConfig } from "./config";
 
 let config: KgHttpConfig;

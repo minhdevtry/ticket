@@ -54,9 +54,16 @@ let alertHook: ToolFailureAlert | null = null;
  */
 export interface ToolFailureOptions {
   hideDetailFromUser: boolean;
+  /**
+   * `true` (mặc định, CM): lỗi tự khai `code` dạng `E_TICKET_RATE_LIMITED` giữ nguyên
+   * làm `ma_loi`. `false` = hành vi intake cũ: LUÔN dùng mã ngắn theo thời điểm, duy
+   * nhất mỗi lần (mã cố định như `ECONNRESET` làm hai sự cố khác nhau cùng mã khi
+   * người dùng chụp màn hình gửi kỹ thuật).
+   */
+  useDeclaredErrorCode: boolean;
 }
 
-let options: ToolFailureOptions = { hideDetailFromUser: false };
+let options: ToolFailureOptions = { hideDetailFromUser: false, useDeclaredErrorCode: true };
 
 /** Cài tuỳ chọn hiển thị lỗi (vd bật ẩn chi tiết kỹ thuật khỏi người dùng). */
 export function setToolFailureOptions(next: Partial<ToolFailureOptions>): void {
@@ -106,7 +113,7 @@ function shorten(message: string, max = 300): string {
  */
 export function describeToolFailure(toolName: string, err: unknown, now?: number): ToolFailure {
   const raw = err instanceof Error ? err.message : String(err);
-  const code = errorCodeFor(err, now);
+  const code = options.useDeclaredErrorCode ? errorCodeFor(err, now) : newErrorCode(now);
   const detail = shorten(raw);
 
   getLogger().error(`[tool:${toolName}] lỗi ${code}: ${raw}`);

@@ -19,7 +19,7 @@ export interface RetryOptions {
   retryOnStatuses?: number[];
   onRetry?: (attempt: number, error: unknown, delayMs: number) => void;
   /**
-   * Thời gian chờ tối đa cho MỖI lần thử (ms). Tín hiệu huỷ được tạo lại cho từng lần
+   * Thời gian chờ tối đa cho MỖI lần thử (ms); không có hoặc `<= 0` = không timeout. Tín hiệu huỷ được tạo lại cho từng lần
    * thử nên retry vẫn có đủ thời gian chờ.
    */
   timeoutMs?: number;
@@ -141,11 +141,13 @@ export async function fetchWithRetry(
   return withRetry(async () => {
     // Tín hiệu huỷ tạo lại mỗi lần thử: dùng chung một signal thì lần thử sau thừa
     // hưởng và thất bại ngay. `AbortSignal.any` để không mất signal caller truyền vào.
+    // `timeoutMs` không có hoặc <= 0 nghĩa là KHÔNG đặt timeout.
+    const timeoutMs = options?.timeoutMs;
     const perAttemptSignal =
-      options?.timeoutMs != null
+      timeoutMs != null && timeoutMs > 0
         ? init?.signal
-          ? AbortSignal.any([init.signal, AbortSignal.timeout(options.timeoutMs)])
-          : AbortSignal.timeout(options.timeoutMs)
+          ? AbortSignal.any([init.signal, AbortSignal.timeout(timeoutMs)])
+          : AbortSignal.timeout(timeoutMs)
         : init?.signal;
     const res = await fetch(input, { ...init, signal: perAttemptSignal });
     if (!res.ok) {

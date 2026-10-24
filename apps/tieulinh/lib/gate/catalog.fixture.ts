@@ -3,8 +3,8 @@
  * a free-text field, a single-choice enum, a multi-value enum, a system-filled
  * field, and a field blocked from the recap.
  */
-import { createCatalog } from "./catalog";
-import type { FieldCatalog } from "./types";
+import { createCatalog } from "@vuihoc/bot-core/intake";
+import type { FieldCatalog } from "@vuihoc/bot-core/intake";
 
 export const fixtureCatalog: FieldCatalog = createCatalog({
   fields: {

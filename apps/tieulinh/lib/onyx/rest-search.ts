@@ -1,9 +1,9 @@
-import type { ItsaplanClient } from "../itsaplan/client";
-import { findIssueByIdentifier, parseIdentifier } from "../itsaplan/project";
-import { ProjectColumnStates } from "../itsaplan/ticket-state";
+import type { ItsaplanClient } from "@vuihoc/bot-core/itsaplan";
+import { findIssueByIdentifier, parseIdentifier } from "@vuihoc/bot-core/itsaplan";
+import { ProjectColumnStates } from "@vuihoc/bot-core/itsaplan";
 import { gonCauHoi } from "./client";
-import { redactIncidentPII } from "./pii-redactor";
-import { getLogger } from "../logger";
+import { redactIncidentPII } from "@vuihoc/bot-core/core";
+import { getLogger } from "@vuihoc/bot-core/core";
 import { systemAliasesFor } from "../kg/system-taxonomy";
 import type { SimilarTicketItem } from "../intake-document/types";
 

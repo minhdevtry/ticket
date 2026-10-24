@@ -164,17 +164,31 @@ export const KNOWN_BOT_HANDLES = [
  * giữ được `@iris`, `@tieulinh`, `@bot-iris-intake` ở mọi vị trí) VÀ luật CM (bỏ
  * mọi `@<tên>_bot`, vd `@vh_teacher_sp_bot`). Hai lượt thay thế độc lập.
  */
-export function stripBotMentions(text?: string | null, extraHandles: string[] = []): string {
+export interface StripBotMentionsOptions {
+  /**
+   * Danh sách handle thay cho {@link KNOWN_BOT_HANDLES} (vd bot cũ chỉ muốn đúng
+   * bộ handle của mình, không có `cmsupport`).
+   */
+  knownHandles?: readonly string[];
+  /** Bỏ thêm mọi `@<tên>_bot` (luật CM). Mặc định `true`; intake cũ không có luật này. */
+  stripBotSuffixHandles?: boolean;
+}
+
+export function stripBotMentions(
+  text?: string | null,
+  extraHandles: string[] = [],
+  opts: StripBotMentionsOptions = {},
+): string {
   if (!text || typeof text !== "string") return "";
+  const knownHandles = opts.knownHandles ?? KNOWN_BOT_HANDLES;
+  const stripSuffix = opts.stripBotSuffixHandles ?? true;
   // Lượt 1 (intake): danh sách handle cụ thể, ở bất kỳ vị trí nào, nuốt dấu nối ": , -".
-  const allHandles = Array.from(new Set([...KNOWN_BOT_HANDLES, ...extraHandles])).filter(Boolean);
+  const allHandles = Array.from(new Set([...knownHandles, ...extraHandles])).filter(Boolean);
   const sorted = allHandles.sort((a, b) => b.length - a.length);
   const escaped = sorted.map((h) => h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
   const byList = new RegExp(`(?<=^|\\s)@(${escaped})(?![a-zA-Z0-9_-])\\s*(?:[:,-]\\s*)?`, "gi");
   // Lượt 2 (CM): mọi `@<tên>_bot` còn sót. Nuốt luôn một khoảng trắng theo sau
   // (như lượt 1) để bỏ mention giữa câu không để lại khoảng trắng đôi.
-  return text
-    .replace(byList, "")
-    .replace(/@\w+_bot\b\s*/gi, "")
-    .trim();
+  const byListOnly = text.replace(byList, "");
+  return (stripSuffix ? byListOnly.replace(/@\w+_bot\b\s*/gi, "") : byListOnly).trim();
 }

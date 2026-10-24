@@ -1,18 +1,18 @@
 import { z } from "zod";
-import { stripChannelEnvelope, isInternalCallbackToken } from "../../../lib/channel-envelope";
-import { ItsaplanClient } from "../../../lib/itsaplan/client";
+import { createItsaplanClient } from "../../../lib/itsaplan/client-factory";
+import { isInternalCallbackToken } from "@vuihoc/bot-core/core";
+import { stripChannelEnvelope } from "../../../lib/channel-envelope";
+import type { ItsaplanClient } from "@vuihoc/bot-core/itsaplan";
 import {
   issueWebUrl,
   resolveBacklogColumn,
   resolveLabel,
   resolveLabelsForIssue,
   resolveProject,
-} from "../../../lib/itsaplan/project";
-import {
-  uploadAttachments,
-  spliceAttachmentsIntoDescription,
-  type UploadedAttachment,
-} from "../../../lib/itsaplan/attachments";
+} from "@vuihoc/bot-core/itsaplan";
+import { uploadAttachments } from "../../../lib/itsaplan/upload";
+import { type UploadedAttachment } from "@vuihoc/bot-core/itsaplan";
+import { spliceAttachmentsIntoDescription } from "../../../lib/itsaplan/upload";
 import { findRecentInboundMedia } from "../../../lib/media";
 import {
   getSharedBindingRepo,
@@ -29,10 +29,10 @@ import {
   type IntakeDocumentRepository,
 } from "../../../lib/intake-document/repository";
 import { CLOSED_STATUSES, type IntakeDocument } from "../../../lib/intake-document/types";
-import { getLogger } from "../../../lib/logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 import { buildAdviceComment } from "../../tieulinh/domain/ticket-formatter";
-import { markBotComment } from "../../../lib/formatting";
-import { defineTool, type AnyMcpTool } from "../tool";
+import { markBotComment } from "@vuihoc/bot-core/core";
+import { defineTool, type AnyMcpTool } from "@vuihoc/bot-core/core";
 import type { TrackerConfig } from "./issues";
 
 import {
@@ -299,7 +299,7 @@ export function createIssue<TShape extends z.ZodRawShape>(
   dbPath?: string,
   confirmButtonLabel: string = "✅ Đúng rồi, xác nhận",
 ): AnyMcpTool {
-  const client = new ItsaplanClient(config.baseUrl, config.apiKey);
+  const client = createItsaplanClient(config.baseUrl, config.apiKey);
 
   const inputSchema = {
     ...domain.inputShape,

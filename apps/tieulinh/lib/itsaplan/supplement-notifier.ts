@@ -25,11 +25,17 @@
  *    gửi thêm tin ngắn tới kênh trực ca Telegram (mặc định tắt an toàn).
  */
 
-import type { ItsaplanClient, ItsaplanIssue, ProjectAssignee, ProjectColumn } from "./client";
-import { classifyColumn, type TicketState } from "./ticket-state";
+import type {
+  ItsaplanClient,
+  ItsaplanIssue,
+  ProjectAssignee,
+  ProjectColumn,
+} from "@vuihoc/bot-core/itsaplan";
+import { classifyColumn, type TicketState } from "@vuihoc/bot-core/itsaplan";
 import { isSystemActor } from "../kg/human-signals";
-import { isBotComment, markBotComment, escapeItsaplanMarkdown } from "../formatting";
-import { getLogger } from "../logger";
+import { isBotComment, markBotComment } from "@vuihoc/bot-core/core";
+import { escapeItsaplanMarkdown } from "../html-entities";
+import { getLogger } from "@vuihoc/bot-core/core";
 
 const NON_SPECIALIST_ACTOR_RE =
   /\b(?:ti[eể]u\s*linh|tieulinh|iris|bot-ticket-intake|bot-iris-intake|onyx|bot|ai-coder|ai-lead|ai-qa|coder\s*ai|lead\s*ai|qa\s*ai)\b|^admin$/i;

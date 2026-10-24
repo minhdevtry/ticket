@@ -6,6 +6,7 @@ import {
   formatAttachmentMarkdown,
   spliceAttachmentsIntoDescription,
   uploadAttachments,
+  MAX_ATTACHMENT_BYTES,
   type MediaResolver,
 } from "./attachments";
 import type { ItsaplanClient } from "./client";
@@ -152,5 +153,65 @@ describe("spliceAttachmentsIntoDescription", () => {
       { id: "v1", url: "https://x/clip.mp4", filename: "clip.mp4", contentType: "video/mp4" },
     ]);
     expect(out).toContain('<video src="https://x/clip.mp4" controls></video>');
+  });
+});
+
+describe("opts (hành vi intake cũ cho bot cần)", () => {
+  const att = { id: "1", url: "/u/a b&c.png", filename: "anh_1.png", contentType: "image/png" };
+
+  test("formatAttachmentMarkdown: mặc định escape, escape:false chèn nguyên văn", () => {
+    expect(formatAttachmentMarkdown(att)).toBe("![anh\\_1.png](/u/a&#32;b&#38;c.png)");
+    expect(formatAttachmentMarkdown(att, { escape: false })).toBe("![anh_1.png](/u/a b&c.png)");
+  });
+
+  test("`.map(formatAttachmentMarkdown)` (chỉ số làm tham số 2) vẫn escape mặc định", () => {
+    expect([att].map(formatAttachmentMarkdown as (a: typeof att, i: number) => string)[0]).toBe(
+      "![anh\\_1.png](/u/a&#32;b&#38;c.png)",
+    );
+  });
+
+  test("spliceAttachmentsIntoDescription truyền escape xuống từng đính kèm", () => {
+    expect(spliceAttachmentsIntoDescription("mô tả", [att], { escape: false })).toContain(
+      "![anh_1.png](/u/a b&c.png)",
+    );
+    expect(spliceAttachmentsIntoDescription("mô tả", [att])).toContain("anh\\_1.png");
+  });
+
+  test("uploadAttachments: trần mặc định 20 MB bỏ file lớn; maxBytes: Infinity vẫn tải", async () => {
+    const p = path.join(
+      os.tmpdir(),
+      `attach-big-${Date.now()}-${Math.random().toString(36).slice(2)}.mp4`,
+    );
+    fs.writeFileSync(p, "");
+    fs.truncateSync(p, MAX_ATTACHMENT_BYTES + 1); // file thưa, không tốn đĩa
+    try {
+      const client = fakeClient((filename) => ({ id: "x", url: `/f/${filename}`, filename }));
+      expect(await uploadAttachments(client, 1, "https://t.test", [p])).toHaveLength(0);
+      const all = await uploadAttachments(client, 1, "https://t.test", [p], undefined, {
+        maxBytes: Number.POSITIVE_INFINITY,
+      });
+      expect(all).toHaveLength(1);
+    } finally {
+      fs.unlinkSync(p);
+    }
+  });
+
+  test("uploadAttachments: maxBytes tuỳ chỉnh nhỏ hơn mặc định", async () => {
+    const p = path.join(
+      os.tmpdir(),
+      `attach-small-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`,
+    );
+    fs.writeFileSync(p, "0123456789");
+    try {
+      const client = fakeClient((filename) => ({ id: "x", url: `/f/${filename}`, filename }));
+      expect(
+        await uploadAttachments(client, 1, "https://t.test", [p], undefined, { maxBytes: 5 }),
+      ).toHaveLength(0);
+      expect(
+        await uploadAttachments(client, 1, "https://t.test", [p], undefined, { maxBytes: 10 }),
+      ).toHaveLength(1);
+    } finally {
+      fs.unlinkSync(p);
+    }
   });
 });

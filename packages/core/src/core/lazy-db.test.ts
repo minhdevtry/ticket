@@ -78,6 +78,32 @@ describe("makeOpenLazyDb", () => {
     }
   });
 
+  it('onOpenError: "throw" → file không mở được thì ném, không hạ xuống :memory:', () => {
+    const dir = mkdtempSync(join(tmpdir(), "lazydb-throw-"));
+    // Một FILE chắn ngang đường thư mục cha ⇒ mkdir/open chắc chắn lỗi.
+    const obstacle = join(dir, "obstacle.txt");
+    writeFileSync(obstacle, "not-a-directory");
+    const bad = join(obstacle, "sub", "store.sqlite");
+
+    const open = makeOpenLazyDb({
+      applySchema: (db) => db.run("CREATE TABLE t (id INTEGER)"),
+      onOpenError: "throw",
+    });
+    expect(() => open(bad)).toThrow();
+    // Không cache kết quả lỗi: gọi lại vẫn ném (không trả một DB rỗng giả).
+    expect(() => open(bad)).toThrow();
+
+    // Mặc định vẫn là "degrade".
+    const degrade = makeOpenLazyDb({ applySchema: (db) => db.run("CREATE TABLE t (id INTEGER)") });
+    const prev = getLogger();
+    setLogger({ ...prev, warn: () => {} } as any);
+    try {
+      expect(isDegradedDb(degrade(bad))).toBe(true);
+    } finally {
+      setLogger(prev);
+    }
+  });
+
   it("DB mở bình thường thì KHÔNG degraded", () => {
     const dir = mkdtempSync(join(tmpdir(), "lazydb-ok-"));
     const open = makeOpenLazyDb({ applySchema: (db) => db.run("CREATE TABLE t (id INTEGER)") });

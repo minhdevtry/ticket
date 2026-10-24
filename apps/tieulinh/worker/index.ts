@@ -11,21 +11,21 @@
  * Worker chạy độc lập với agent. Agent nào cầm MCP cũng được, worker vẫn cứ
  * chạy nền — đó là ranh giới đúng.
  */
+import { createItsaplanClient } from "../lib/itsaplan/client-factory";
 import { Database } from "bun:sqlite";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ItsaplanClient } from "../lib/itsaplan/client";
 import { TicketBindingRepository } from "../lib/storage/binding-repository";
 import { applySchema } from "../lib/storage/schema";
 import { OnyxConnectorManager } from "../lib/onyx/connector-manager";
-import { getLogger } from "../lib/logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 import { ItsaplanWebhookServer } from "./webhook-server";
 import { NotificationDispatcher } from "./notification-dispatcher";
 import { TicketLifecycleService } from "./lifecycle";
 import { OnyxIngestService } from "./ingest.service";
 import { isLlmConfigured, llmConfigFromEnv, parseApiStyle } from "./llm";
 import { TelegramNotifier, type Notifier } from "./notifier";
-import { normalizeProjectKey } from "./project-lock";
+import { normalizeProjectKey } from "@vuihoc/bot-core/itsaplan";
 import { KgSyncRunner, resolveKgSyncGate, resolveOnyxSyncGate } from "./kg-sync-runner";
 import { RelatedTicketsCurator } from "./related-curator";
 import { RelatedRecheck } from "./related-recheck";
@@ -33,7 +33,7 @@ import { LlmSimilarTickets } from "../lib/kg/similar-ticket-source";
 import type { JudgeMode } from "../lib/kg/similar-judge";
 import { OnyxRestSearchClient } from "../lib/onyx/rest-search";
 import { TicketClosure } from "./ticket-closure";
-import { ProjectColumnStates } from "../lib/itsaplan/ticket-state";
+import { ProjectColumnStates } from "@vuihoc/bot-core/itsaplan";
 import { KgSyncRepository } from "../lib/storage/kg-sync-repository";
 import { DuplicateMerger } from "./duplicate-merger";
 
@@ -52,9 +52,9 @@ const adminKey = required("ITSAPLAN_API_KEY");
 const agentKey = process.env.ITSAPLAN_AGENT_KEY || adminKey;
 
 // Client của bot (Tiểu Linh) dùng cho mọi trao đổi, comment, lifecycle, ingest
-const itsaplan = new ItsaplanClient(required("ITSAPLAN_BASE_URL"), agentKey);
+const itsaplan = createItsaplanClient(required("ITSAPLAN_BASE_URL"), agentKey);
 // Client admin cho các tác vụ quản trị hạ tầng (như cấu hình webhook dự án)
-const adminItsaplan = new ItsaplanClient(required("ITSAPLAN_BASE_URL"), adminKey);
+const adminItsaplan = createItsaplanClient(required("ITSAPLAN_BASE_URL"), adminKey);
 const bindings = new TicketBindingRepository(db);
 
 // Mỗi dự án một worker. Webhook Itsaplan không lọc dự án và hai worker dùng
@@ -352,8 +352,8 @@ if (webhookUrl && !projectKey) {
     `[worker] Có WEBHOOK_URL nhưng thiếu ITSAPLAN_PROJECT_KEY — không đăng ký webhook (không đoán "TECH").`,
   );
 } else if (webhookUrl && projectKey) {
-  import("../lib/itsaplan/ensure-webhook").then(({ ensureItsaplanWebhook }) => {
-    ensureItsaplanWebhook(adminItsaplan, projectKey, webhookUrl).catch((err) => {
+  import("../lib/itsaplan/ensure-webhook").then(({ ensureTieuLinhWebhook }) => {
+    ensureTieuLinhWebhook(adminItsaplan, projectKey, webhookUrl).catch((err) => {
       getLogger().warn(`[worker] Không thể tự động đảm bảo webhook: ${err.message}`);
     });
   });

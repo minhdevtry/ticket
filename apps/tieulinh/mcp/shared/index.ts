@@ -1,11 +1,13 @@
-export { defineTool, type McpTool, type AnyMcpTool } from "./tool";
+// Nối hook báo admin của Tiểu Linh vào describeToolFailure của thư viện (side-effect).
+import "../../lib/tool-error";
+export { defineTool, type McpTool, type AnyMcpTool } from "@vuihoc/bot-core/core";
 export {
   createIntakeMcpServer,
   runOnStdio,
   runOnHttp,
   type IntakeMcpOptions,
   type HttpMcpOptions,
-} from "./server";
+} from "@vuihoc/bot-core/core";
 export { redactPii } from "./tools/redact-pii";
 export { checkRequiredFields } from "./tools/check-required-fields";
 export {
@@ -29,7 +31,8 @@ export {
   rejectUser,
   type IdentityConfig,
 } from "./tools/identity";
-export { assessPriority, type UrgencyRules } from "./tools/assess-priority";
+export { assessPriority } from "./tools/assess-priority";
+export { type UrgencyRules } from "@vuihoc/bot-core/intake";
 export { searchKnowledge, type KnowledgeConfig } from "./tools/search-knowledge";
 export {
   validateFields,

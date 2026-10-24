@@ -6,7 +6,7 @@
 import { z } from "zod";
 import { formatConfirmationMessage, formatTicketDescription } from "./domain/ticket-formatter";
 import type { IncidentDetails } from "./domain/types";
-import { getLogger } from "../../lib/logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 import { reporterShape, type IssueDomain } from "../shared/index";
 
 const PHONE_OR_ACCOUNT = /(0\d{9,10}|\b\d{9,11}\b)/g;

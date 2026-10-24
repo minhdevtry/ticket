@@ -5,7 +5,7 @@ import {
   clearRelatedTicketsFieldCache,
   syncRelatedTickets,
 } from "./related-tickets-sync";
-import type { ItsaplanClient, ItsaplanIssue, ItsaplanCustomField } from "../lib/itsaplan/client";
+import type { ItsaplanClient, ItsaplanIssue, ItsaplanCustomField } from "@vuihoc/bot-core/itsaplan";
 
 describe("related-tickets-sync", () => {
   describe("extractTicketKeys", () => {

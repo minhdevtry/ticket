@@ -1,21 +1,22 @@
 import type { TicketBinding, TicketBindingRepository } from "../lib/storage/binding-repository";
 import type { Notifier } from "./notifier";
-import { getLogger } from "../lib/logger";
-import type { ItsaplanWebhookEnvelope } from "./webhook-server";
+import { getLogger } from "@vuihoc/bot-core/core";
+import type { ItsaplanWebhookEnvelope } from "@vuihoc/bot-core/itsaplan";
 
 import type { TicketClosure } from "./ticket-closure";
 import type { TicketLifecycleService } from "./lifecycle";
 
-import type { ItsaplanClient } from "../lib/itsaplan/client";
+import type { ItsaplanClient } from "@vuihoc/bot-core/itsaplan";
 import { syncRelatedTickets } from "./related-tickets-sync";
+import { isBotComment, stripCommentHtml } from "@vuihoc/bot-core/core";
+import { stripBotMentions } from "../lib/formatting.local";
+import { isCommentRecentlyForwarded } from "../lib/formatting.local";
+import { decodeHtmlEntities } from "../lib/html-entities";
 import {
-  isBotComment,
-  stripBotMentions,
-  stripCommentHtml,
-  isCommentRecentlyForwarded,
-  decodeHtmlEntities,
-} from "../lib/formatting";
-import { identifierInProject, normalizeProjectKey, projectOfIdentifier } from "./project-lock";
+  identifierInProject,
+  normalizeProjectKey,
+  projectOfIdentifier,
+} from "@vuihoc/bot-core/itsaplan";
 import type { DuplicateMerger } from "./duplicate-merger";
 
 /**

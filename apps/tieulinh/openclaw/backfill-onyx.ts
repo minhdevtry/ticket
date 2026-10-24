@@ -8,7 +8,7 @@
  * Chạy: bun run --env-file=.env backfill-onyx.ts            (nạp thật)
  *       bun run --env-file=.env backfill-onyx.ts --chay-kho  (chỉ liệt kê, không nạp)
  */
-import { ItsaplanClient } from "../lib/itsaplan/client";
+import { createItsaplanClient } from "../lib/itsaplan/client-factory";
 import { OnyxConnectorManager } from "../lib/onyx/connector-manager";
 import { OnyxIngestService } from "../worker/ingest.service";
 import { parseApiStyle } from "../worker/llm";
@@ -119,7 +119,7 @@ async function checkExisting(
 }
 
 async function main() {
-  const client = new ItsaplanClient(ITSAPLAN_BASE_URL, ITSAPLAN_API_KEY);
+  const client = createItsaplanClient(ITSAPLAN_BASE_URL, ITSAPLAN_API_KEY);
 
   // Cột "completed" (Done/Resolved) — đọc động, không hardcode id phòng khi đổi board.
   const project = await client.getProject(PROJECT_KEY);

@@ -1,6 +1,6 @@
 import type { Database } from "bun:sqlite";
 import { openLazyDb } from "../storage/lazy-db";
-import { memoByPath } from "../storage/memo";
+import { memoByPath } from "@vuihoc/bot-core/core";
 import type { IntakeDocument } from "./types";
 import { normalizeSystemName } from "../kg/system-taxonomy";
 

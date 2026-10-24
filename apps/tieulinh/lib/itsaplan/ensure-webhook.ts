@@ -1,69 +1,31 @@
-import type { ItsaplanClient } from "./client";
-import { getLogger } from "../logger";
+import { ensureItsaplanWebhook, type ItsaplanClient } from "@vuihoc/bot-core/itsaplan";
 
 /**
- * Sự kiện worker cần. `comment.updated` là sự kiện Itsaplan bắn khi GHIM hoặc
- * sửa comment — lúc tech lead ghim Nguyên nhân / Cách khắc phục thì worker chốt
- * ticket tương tự (worker/related-curator.ts, ADR-0007).
+ * Sự kiện worker Tiểu Linh cần. `comment.updated` là sự kiện Itsaplan bắn khi GHIM
+ * hoặc sửa comment — lúc tech lead ghim Nguyên nhân / Cách khắc phục thì worker
+ * chốt ticket tương tự (worker/related-curator.ts, ADR-0007).
+ *
+ * Cố ý KHÔNG có `issue.created` (bộ mặc định của thư viện có): giữ đúng các sự
+ * kiện webhook hiện đang đăng ký trên Itsaplan, không tự bật thêm luồng mới.
  */
-export const REQUIRED_WEBHOOK_EVENTS = [
+export const TIEULINH_WEBHOOK_EVENTS = [
   "comment.created",
   "comment.updated",
   "issue.state_changed",
   "issue.assigned",
-];
+] as const;
 
-/**
- * Đảm bảo Webhook lắng nghe sự kiện trên Itsaplan luôn tồn tại, bật, và đủ sự kiện.
- */
-export async function ensureItsaplanWebhook(
+/** `ensureItsaplanWebhook` của thư viện với bộ sự kiện và cách xử lý webhook cũ của Tiểu Linh. */
+export function ensureTieuLinhWebhook(
   client: ItsaplanClient,
   projectKey: string,
   webhookUrl: string,
-): Promise<{ success: boolean; webhookId?: number; message: string }> {
-  try {
-    const hooks = await client.listWebhooks(projectKey).catch(() => []);
-    const matching = hooks.find(
-      (h) => h.url.trim().toLowerCase() === webhookUrl.trim().toLowerCase(),
-    );
-
-    const missing = matching
-      ? REQUIRED_WEBHOOK_EVENTS.filter((e) => !(matching.events ?? []).includes(e))
-      : [];
-    if (matching && matching.isActive && missing.length) {
-      await client.updateWebhook(matching.id, {
-        events: [...new Set([...(matching.events ?? []), ...missing])],
-      });
-      const msg = `Webhook [${projectKey}] #${matching.id}: thêm sự kiện ${missing.join(", ")}`;
-      getLogger().info(`[ensureWebhook] ${msg}`);
-      return { success: true, webhookId: matching.id, message: msg };
-    }
-
-    if (matching && matching.isActive) {
-      const msg = `Webhook trên [${projectKey}] đã hoạt động chuẩn: ${webhookUrl} (ID: ${matching.id})`;
-      getLogger().info(`[ensureWebhook] ${msg}`);
-      return { success: true, webhookId: matching.id, message: msg };
-    }
-
-    if (matching && !matching.isActive) {
-      getLogger().warn(
-        `[ensureWebhook] Webhook ID ${matching.id} đang bị tắt (isActive = false), xóa và tạo mới...`,
-      );
-      await client.deleteWebhook(matching.id).catch(() => {});
-    }
-
-    const created = await client.createWebhook(projectKey, {
-      url: webhookUrl,
-      events: REQUIRED_WEBHOOK_EVENTS,
-      isActive: true,
-    });
-
-    const msg = `Đã tự động tạo và kích hoạt Webhook trên [${projectKey}]: ${created.url} (ID: ${created.id})`;
-    getLogger().info(`[ensureWebhook] ${msg}`);
-    return { success: true, webhookId: created.id, message: msg };
-  } catch (err: any) {
-    const msg = `Không thể đảm bảo webhook trên [${projectKey}]: ${err.message}`;
-    getLogger().warn(`[ensureWebhook] ${msg}`);
-    return { success: false, message: msg };
-  }
+) {
+  return ensureItsaplanWebhook(client, projectKey, webhookUrl, {
+    events: TIEULINH_WEBHOOK_EVENTS,
+    // Hành vi cũ: chỉ khớp URL chính xác; webhook khớp mà đang tắt thì xoá rồi tạo
+    // mới; không tự trỏ lại webhook cùng host lệch cổng.
+    reactivateDisabled: false,
+    repointSameHost: false,
+  });
 }

@@ -18,7 +18,7 @@ import type {
   ItsaplanIssue,
   ProjectAssignee,
   ProjectColumn,
-} from "../itsaplan/client";
+} from "@vuihoc/bot-core/itsaplan";
 import type { IntakeDocument } from "../intake-document/types";
 import type { ValidationRules, FieldRequirementsTable, UrgencyRules } from "../../mcp/shared/index";
 import validationRules from "../../mcp/tieulinh/domain/validation-rules.json";

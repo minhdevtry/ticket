@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { openLazyDb } from "../../../lib/storage/lazy-db";
-import { memoByKey } from "../../../lib/storage/memo";
+import { memoByKey } from "@vuihoc/bot-core/core";
 import { getSharedBindingRepo } from "../../../lib/storage/binding-repository";
 import { getSharedDraftSessionRepo } from "../../../lib/storage/session-repository";
 import { IdentityRepository } from "../../../lib/storage/identity-repository";
@@ -10,7 +10,7 @@ import {
   savePendingButtons,
   getBranchButtons,
 } from "../../../lib/telegram/buttons";
-import { defineTool, type AnyMcpTool } from "../tool";
+import { defineTool, type AnyMcpTool } from "@vuihoc/bot-core/core";
 
 /**
  * Ticket cũ quá thì không còn là "đang trao đổi" nữa — trả về vẫn dễ khiến

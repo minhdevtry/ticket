@@ -78,5 +78,5 @@ export function tryResolveFriendlyStatusName(
  * có một chuỗi hiển thị.
  */
 export function resolveFriendlyStatusName(columnName?: string, stateType?: string): string {
-  return tryResolveFriendlyStatusName(columnName, stateType) ?? columnName ?? "Chờ xử lý";
+  return tryResolveFriendlyStatusName(columnName, stateType) ?? (columnName || "Chờ xử lý");
 }

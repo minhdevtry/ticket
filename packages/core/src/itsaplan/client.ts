@@ -218,8 +218,18 @@ export interface ItsaplanClientOptions {
   baseUrl?: string;
   apiKey?: string;
   retryOptions?: RetryOptions;
-  /** Thời gian chờ tối đa cho một request (ms). Mặc định 20s. */
+  /**
+   * Thời gian chờ tối đa cho một request (ms). Mặc định 20s; `<= 0` = KHÔNG timeout
+   * (bot cũ như Tiểu Linh không có timeout — abort giữa chừng một request ghi chậm
+   * rồi thử lại có thể sinh ticket/comment trùng, và upload lớn bị cắt).
+   */
   timeoutMs?: number;
+  /**
+   * Mặc định `true`: 2xx với body rỗng hoặc không phải JSON ném
+   * `ItsaplanMalformedResponseError` (không bịa dữ liệu). `false` = hành vi intake
+   * cũ: body rỗng → `{}`, body không phải JSON → trả nguyên chuỗi.
+   */
+  strictResponses?: boolean;
 }
 
 /** Thời gian chờ tối đa mặc định cho một request Itsaplan. */
@@ -230,6 +240,7 @@ export class ItsaplanClient {
   public readonly apiKey: string;
   private readonly retryOptions?: RetryOptions;
   private readonly timeoutMs: number;
+  private readonly strictResponses: boolean;
 
   /**
    * `(baseUrl, apiKey, retryOptions | options)`. Spec: everything via
@@ -242,20 +253,23 @@ export class ItsaplanClient {
     apiKey: string,
     retryOptionsOrOptions?: RetryOptions | ItsaplanClientOptions,
   ) {
-    const explicitOptions =
-      retryOptionsOrOptions && "retryOptions" in retryOptionsOrOptions
-        ? (retryOptionsOrOptions as ItsaplanClientOptions)
-        : undefined;
-    const retryOpts =
-      explicitOptions?.retryOptions ||
-      (retryOptionsOrOptions && !("retryOptions" in retryOptionsOrOptions)
-        ? (retryOptionsOrOptions as RetryOptions)
-        : undefined);
+    // Tham số thứ 3 là `ItsaplanClientOptions` khi có `retryOptions`/`strictResponses`;
+    // ngược lại coi là `RetryOptions` trần (call site intake cũ).
+    const isClientOptions =
+      !!retryOptionsOrOptions &&
+      ("retryOptions" in retryOptionsOrOptions || "strictResponses" in retryOptionsOrOptions);
+    const explicitOptions = isClientOptions
+      ? (retryOptionsOrOptions as ItsaplanClientOptions)
+      : undefined;
+    const retryOpts = isClientOptions
+      ? explicitOptions?.retryOptions
+      : (retryOptionsOrOptions as RetryOptions | undefined);
 
     this.baseUrl = (baseUrl || explicitOptions?.baseUrl || "").replace(/\/+$/, "");
     this.apiKey = apiKey || explicitOptions?.apiKey || "";
     this.retryOptions = retryOpts;
     this.timeoutMs = explicitOptions?.timeoutMs ?? DEFAULT_ITSAPLAN_TIMEOUT_MS;
+    this.strictResponses = explicitOptions?.strictResponses ?? true;
   }
 
   public async request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -292,12 +306,14 @@ export class ItsaplanClient {
       // KHÔNG bịa dữ liệu: trả `{}` khiến caller tưởng issue rỗng (ghi đè field trống
       // lên ticket đã có), còn ép kiểu chuỗi HTML khiến mọi job lỗi dây chuyền. (CM)
       if (!text) {
+        if (!this.strictResponses) return {} as T;
         throw new ItsaplanMalformedResponseError(path, "HTTP 2xx nhưng body rỗng");
       }
 
       try {
         return JSON.parse(text) as T;
       } catch {
+        if (!this.strictResponses) return text as unknown as T;
         throw new ItsaplanMalformedResponseError(
           path,
           `HTTP 2xx nhưng body không phải JSON (${text.length} ký tự, bắt đầu bằng "${text.slice(0, 60).replace(/\s+/g, " ")}")`,
@@ -475,13 +491,17 @@ export class ItsaplanClient {
     await this.request<void>(`/issues/${issueId}`, { method: "DELETE" });
   }
 
-  /** Liệt kê issue của một dự án (một trang, tối đa `limit`). */
+  /**
+   * Liệt kê issue của một dự án (một trang, tối đa `limit`; `page` để duyệt trang
+   * kế). Dùng cho backfill/đối soát. (intake: `page` bổ sung sau bản gộp 0.1.0)
+   */
   async listProjectIssues(
     projectKey: string,
-    options: { limit?: number } = {},
+    options: { limit?: number; page?: number } = {},
   ): Promise<ItsaplanIssue[]> {
     const q = new URLSearchParams();
     if (options.limit) q.set("limit", String(options.limit));
+    if (options.page) q.set("page", String(options.page));
     const query = q.toString();
     const res = await this.request<ItsaplanIssue[] | { issues?: ItsaplanIssue[] }>(
       `/projects/${encodeURIComponent(projectKey)}/issues${query ? `?${query}` : ""}`,
@@ -566,17 +586,27 @@ export class ItsaplanClient {
    * A false "no comments" causes a duplicate comment to be re-posted; intake's
    * `.catch(() => [])` here was the behavioural bug CM fixed.
    */
-  async listComments(
-    issueId: number,
-  ): Promise<Array<{ id: number; body: string; author?: unknown }>> {
+  async listComments(issueId: number): Promise<
+    Array<{
+      id: number;
+      body: string;
+      author?: { name?: string; id?: string };
+      createdAt?: string;
+    }>
+  > {
     const timeline = await this.getIssueTimeline(issueId);
-    return timeline
-      .filter((item: any) => item.kind === "comment")
-      .map((item: any) => ({
-        id: item.id,
-        body: item.body || "",
-        author: { name: item.actorName, id: item.actorUserId },
-        createdAt: item.createdAt,
+    // Typed + coerced (intake): `id` luôn là number, field thiếu/sai kiểu → undefined
+    // thay vì lọt `null`/object vào caller.
+    return (timeline as Array<Record<string, unknown>>)
+      .filter((item) => item.kind === "comment")
+      .map((item) => ({
+        id: typeof item.id === "number" ? item.id : Number(item.id),
+        body: typeof item.body === "string" ? item.body : "",
+        author: {
+          name: typeof item.actorName === "string" ? item.actorName : undefined,
+          id: typeof item.actorUserId === "string" ? item.actorUserId : undefined,
+        },
+        createdAt: typeof item.createdAt === "string" ? item.createdAt : undefined,
       }));
   }
 

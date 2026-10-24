@@ -7,6 +7,7 @@
  * - Các MCP server có sẵn sàng chạy không.
  * - Biến môi trường quan trọng đã được cấu hình chưa.
  */
+import { createItsaplanClient } from "../lib/itsaplan/client-factory";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -92,9 +93,8 @@ for (const envKey of OPTIONAL_ENV) {
 if (process.env.ITSAPLAN_BASE_URL && process.env.ITSAPLAN_API_KEY) {
   console.log("\n🏷️ Đồng bộ nhãn chuẩn Huly sang Itsaplan:");
   try {
-    const { ItsaplanClient } = await import("../lib/itsaplan/client");
-    const { syncHulyLabelsToItsaplan } = await import("../lib/itsaplan/sync-labels");
-    const itsaplan = new ItsaplanClient(
+    const { ItsaplanClient, syncHulyLabelsToItsaplan } = await import("@vuihoc/bot-core/itsaplan");
+    const itsaplan = createItsaplanClient(
       process.env.ITSAPLAN_BASE_URL,
       process.env.ITSAPLAN_API_KEY,
     );
@@ -110,13 +110,13 @@ if (process.env.ITSAPLAN_BASE_URL && process.env.ITSAPLAN_API_KEY) {
 if (process.env.ITSAPLAN_BASE_URL && process.env.ITSAPLAN_API_KEY && process.env.WEBHOOK_URL) {
   console.log("\n🔗 Kiểm tra & Kích hoạt Webhook trên Itsaplan:");
   try {
-    const { ItsaplanClient } = await import("../lib/itsaplan/client");
-    const { ensureItsaplanWebhook } = await import("../lib/itsaplan/ensure-webhook");
-    const itsaplan = new ItsaplanClient(
+    const { ItsaplanClient } = await import("@vuihoc/bot-core/itsaplan");
+    const { ensureTieuLinhWebhook } = await import("../lib/itsaplan/ensure-webhook");
+    const itsaplan = createItsaplanClient(
       process.env.ITSAPLAN_BASE_URL,
       process.env.ITSAPLAN_API_KEY,
     );
-    const resTech = await ensureItsaplanWebhook(itsaplan, "TECH", process.env.WEBHOOK_URL);
+    const resTech = await ensureTieuLinhWebhook(itsaplan, "TECH", process.env.WEBHOOK_URL);
     console.log(`  ✅ [TECH] ${resTech.message}`);
   } catch (err: any) {
     console.log(`  ⚠️ Lỗi kích hoạt webhook: ${err.message}`);

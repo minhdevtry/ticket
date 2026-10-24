@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { MemgraphClient } from "../../../lib/kg/memgraph-client";
 import { KnowledgeGraphQueries } from "../../../lib/kg/kg-queries";
-import { defineTool, type AnyMcpTool } from "../tool";
+import { defineTool, type AnyMcpTool } from "@vuihoc/bot-core/core";
 
 export function queryKnowledgeGraph(): AnyMcpTool {
   let memgraph: MemgraphClient | undefined;

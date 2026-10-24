@@ -1,7 +1,7 @@
 import type { IntakeDocument, FieldValue, FieldSource } from "../intake-document/types";
 import type { ExtractedFields } from "./extractor-schema";
 import { IDENTIFIER_FIELD_KEYS } from "../identifier-grounding";
-import { isInternalCallbackToken } from "../channel-envelope";
+import { isInternalCallbackToken } from "@vuihoc/bot-core/core";
 import { isInvalidTitle } from "./multi-incident";
 
 /** Một triệu chứng dài hơn chừng này bị cắt — tin dán log không được thổi phồng mô tả ticket. */

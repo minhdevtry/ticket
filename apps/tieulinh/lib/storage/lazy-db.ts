@@ -1,24 +1,14 @@
-import { Database } from "bun:sqlite";
-import * as fs from "node:fs";
-import * as path from "node:path";
+import { makeOpenLazyDb } from "@vuihoc/bot-core/core";
 import { applySchema } from "./schema";
-import { memoByPath } from "./memo";
 
 /**
- * Mở một kết nối SQLite lười, đã áp schema, cache theo đường dẫn.
+ * Mở một kết nối SQLite lười, cache theo đường dẫn, áp schema của Tiểu Linh.
  *
- * Trước đây `binding-repository.ts`, `session-repository.ts`, và
- * `identity.ts` mỗi file tự viết lại đúng đoạn này (mkdir thư mục cha, mở
- * DB, áp schema) — ba lần giống hệt nhau, và ba kết nối riêng biệt tới
- * cùng một file khi các repo dùng chung `dbPath`. Gom về đây thì sửa một
- * chỗ là sửa cho cả ba, và các repo dùng chung `dbPath` giờ chia sẻ đúng
- * một kết nối.
+ * Phần mở/cache/hạ cấp nằm ở `@vuihoc/bot-core/core` (`makeOpenLazyDb`); lõi
+ * không biết schema của bot nào nên schema được tiêm vào ở đây.
+ *
+ * `onOpenError: "throw"`: giữ nguyên hành vi cũ của Tiểu Linh — file không mở
+ * được thì ném cho caller (vd lookup ask-learning bắt rồi bỏ tính năng) thay vì
+ * hạ xuống `:memory:` rỗng như mặc định của thư viện.
  */
-export const openLazyDb = memoByPath<Database>((dbPath) => {
-  if (dbPath !== ":memory:") {
-    fs.mkdirSync(path.dirname(path.resolve(dbPath)), { recursive: true });
-  }
-  const db = new Database(dbPath, { create: true });
-  applySchema(db, { wal: dbPath !== ":memory:" });
-  return db;
-});
+export const openLazyDb = makeOpenLazyDb({ applySchema, onOpenError: "throw" });

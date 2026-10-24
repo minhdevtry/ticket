@@ -1,34 +1,16 @@
 import http from "node:http";
-import { createHmac, timingSafeEqual } from "node:crypto";
-import type { ItsaplanClient } from "../lib/itsaplan/client";
-import { getLogger } from "../lib/logger";
+import {
+  DEFAULT_MAX_BODY_BYTES,
+  DEFAULT_SIGNATURE_TOLERANCE_SEC,
+  type ItsaplanClient,
+  type ItsaplanWebhookEnvelope,
+  isLoopback,
+  safeEqualToken,
+  verifyItsaplanSignature,
+  webhookDedupeKey,
+} from "@vuihoc/bot-core/itsaplan";
+import { getLogger } from "@vuihoc/bot-core/core";
 import type { ReporterOkResult, ReporterReplyResult } from "./ticket-closure";
-
-export interface ItsaplanWebhookActor {
-  type?: "human" | "agent" | "system" | string;
-  id?: string | number | null;
-  name?: string | null;
-}
-
-export interface ItsaplanWebhookEnvelope {
-  action: "create" | "update" | "remove";
-  type: "Issue" | "Comment";
-  event:
-    | "issue.created"
-    | "issue.updated"
-    | "issue.deleted"
-    | "issue.assigned"
-    | "issue.state_changed"
-    | "issue.column_changed"
-    | "issue.label_changed"
-    | "issue.link_changed"
-    | "comment.created"
-    | "comment.updated";
-  data: any;
-  actor?: ItsaplanWebhookActor | null;
-  createdAt: string;
-  webhookTimestamp?: number;
-}
 
 export type WebhookEventHandler = (envelope: ItsaplanWebhookEnvelope) => Promise<void>;
 export type TelegramUpdateHandler = (update: any) => Promise<void>;
@@ -48,62 +30,6 @@ export interface ItsaplanWebhookServerOptions {
   telegramSecret?: string;
   /** Độ lệch tối đa của `t=` trong chữ ký so với đồng hồ máy. Mặc định 5 phút. */
   signatureToleranceSec?: number;
-}
-
-const DEFAULT_MAX_BODY_BYTES = 1024 * 1024;
-const DEFAULT_SIGNATURE_TOLERANCE_SEC = 5 * 60;
-
-/**
- * Kiểm chữ ký Itsaplan: HMAC-SHA256 trên `${t}.${body}` (đúng byte nhận được),
- * header dạng `t=<giây>,v1=<hex>` — khớp apps/worker/src/signature.ts của Itsaplan.
- */
-export function verifyItsaplanSignature(
-  header: string | undefined,
-  rawBody: string,
-  secrets: string[],
-  nowSec: number = Math.floor(Date.now() / 1000),
-  toleranceSec: number = DEFAULT_SIGNATURE_TOLERANCE_SEC,
-): boolean {
-  if (!header) return false;
-  const parts = new Map(
-    header.split(",").map((kv) => {
-      const i = kv.indexOf("=");
-      return [kv.slice(0, i).trim(), kv.slice(i + 1).trim()] as [string, string];
-    }),
-  );
-  const ts = Number(parts.get("t"));
-  const sig = parts.get("v1") ?? "";
-  if (!Number.isFinite(ts) || !/^[0-9a-f]+$/i.test(sig)) return false;
-  if (Math.abs(nowSec - ts) > toleranceSec) return false;
-  const given = Buffer.from(sig, "hex");
-  return secrets.some((secret) => {
-    const expected = createHmac("sha256", secret).update(`${ts}.${rawBody}`).digest();
-    return expected.length === given.length && timingSafeEqual(expected, given);
-  });
-}
-
-function safeEqual(a: string, b: string): boolean {
-  const x = Buffer.from(a);
-  const y = Buffer.from(b);
-  return x.length === y.length && timingSafeEqual(x, y);
-}
-
-/**
- * Khoá chống trùng: loại sự kiện + issue (+ comment) + webhookTimestamp. Chỉ
- * theo timestamp thì hai sự kiện khác nhau cùng mili-giây bị coi là trùng.
- */
-export function webhookDedupeKey(envelope: ItsaplanWebhookEnvelope): string | null {
-  if (!envelope?.webhookTimestamp) return null;
-  const data = envelope.data ?? {};
-  const isComment = envelope.event === "comment.created" || envelope.event === "comment.updated";
-  const issueId = isComment ? data.issueId : (data.id ?? data.issueId);
-  const commentId = isComment ? (data.id ?? "") : "";
-  return `${envelope.event}|${issueId ?? ""}|${commentId}|${envelope.webhookTimestamp}`;
-}
-
-/** Endpoint nội bộ chỉ nhận từ chính máy này (plugin OpenClaw chạy cùng máy). */
-export function isLoopback(address: string | undefined): boolean {
-  return address === "127.0.0.1" || address === "::1" || address === "::ffff:127.0.0.1";
 }
 
 export type ReporterOkHandler = (request: {
@@ -394,7 +320,7 @@ export class ItsaplanWebhookServer {
         if (pathname === "/telegram-webhook") {
           if (this.telegramSecret) {
             const token = String(req.headers["x-telegram-bot-api-secret-token"] ?? "");
-            if (!safeEqual(token, this.telegramSecret)) {
+            if (!safeEqualToken(token, this.telegramSecret)) {
               req.resume();
               this.reply(res, 401, { error: "Unauthorized" });
               return;

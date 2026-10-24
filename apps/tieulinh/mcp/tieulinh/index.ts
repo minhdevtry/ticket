@@ -4,6 +4,7 @@
  *
  * Itsaplan-only ngay từ thiết kế: không có đường nào dẫn tới Huly.
  */
+import { createItsaplanClient } from "../../lib/itsaplan/client-factory";
 import {
   assessPriority,
   checkIdentity,
@@ -35,7 +36,6 @@ import { inspectTools } from "./tools/inspect-tools";
 import { getSharedIntakeDocRepo } from "../../lib/intake-document/repository";
 import { FieldExtractor } from "../../lib/intake-step/extractor";
 import { OnyxRestSearchClient } from "../../lib/onyx/rest-search";
-import { ItsaplanClient } from "../../lib/itsaplan/client";
 import { MemgraphClient } from "../../lib/kg/memgraph-client";
 import { LlmSimilarTickets } from "../../lib/kg/similar-ticket-source";
 import type { JudgeMode } from "../../lib/kg/similar-judge";
@@ -71,7 +71,7 @@ const identity: IdentityConfig = {
   requireApproval: false, // Ticket sự cố không cần duyệt
 };
 
-const itsaplanClient = new ItsaplanClient(tracker.baseUrl, tracker.apiKey);
+const itsaplanClient = createItsaplanClient(tracker.baseUrl, tracker.apiKey);
 const docRepo = getSharedIntakeDocRepo(identity.dbPath);
 const searchClient = knowledge.apiKey
   ? new OnyxRestSearchClient(

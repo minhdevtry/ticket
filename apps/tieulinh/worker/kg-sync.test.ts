@@ -1,5 +1,5 @@
 import { describe, expect, it, afterEach, mock } from "bun:test";
-import type { ItsaplanClient } from "../lib/itsaplan/client";
+import type { ItsaplanClient } from "@vuihoc/bot-core/itsaplan";
 import type { MemgraphClient } from "../lib/kg/memgraph-client";
 import type { TicketGraphNode } from "../lib/kg/types";
 import {

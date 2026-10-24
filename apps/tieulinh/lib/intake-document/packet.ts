@@ -1,4 +1,4 @@
-import type { InlineButton } from "../gate/types";
+import type { InlineButton } from "@vuihoc/bot-core/intake";
 import type { IntakeDocument, IntakeDocumentStatus } from "./types";
 
 export type IntakeNextAction =

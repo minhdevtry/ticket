@@ -11,11 +11,11 @@
  *
  * Dùng: bun run apps/tieulinh/scripts/push-kg-to-onyx.ts [--limit N] [--dry-run]
  */
+import { createItsaplanClient } from "../lib/itsaplan/client-factory";
 import { MemgraphClient } from "../lib/kg/memgraph-client";
 import { OnyxConnectorManager } from "../lib/onyx/connector-manager";
-import { redactIncidentPII } from "../lib/onyx/pii-redactor";
-import { ItsaplanClient } from "../lib/itsaplan/client";
-import { issueWebUrl, resolveProjectTeamRef } from "../lib/itsaplan/project";
+import { redactIncidentPII } from "@vuihoc/bot-core/core";
+import { issueWebUrl, resolveProjectTeamRef } from "@vuihoc/bot-core/itsaplan";
 
 const args = process.argv.slice(2);
 const getArg = (name: string, fallback?: string) => {
@@ -91,7 +91,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const itsaplanTeamRef =
   itsaplanBaseUrl && itsaplanApiKey
     ? await resolveProjectTeamRef(
-        new ItsaplanClient(itsaplanBaseUrl, itsaplanApiKey),
+        createItsaplanClient(itsaplanBaseUrl, itsaplanApiKey),
         itsaplanProjectKey,
       )
     : undefined;

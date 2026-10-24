@@ -36,6 +36,25 @@ const CALLBACK_LINE = /^\s*callback_data\s*:\s*([^\n]*)$/i;
 // Payload nút dạng mã máy "tên_lệnh:đối_số" (không phải nhãn chữ người đọc).
 const MACHINE_PAYLOAD = /^[a-z][a-z0-9_]*:[\w:.-]+$/i;
 
+/** Token payload nút nội bộ (như "noop" của nút đã khoá) — TECH-1148. */
+export const INTERNAL_CALLBACK_TOKENS: Record<string, true> = {
+  noop: true,
+  none: true,
+  ignore: true,
+  nil: true,
+};
+
+/**
+ * `true` khi `token` là payload nút nội bộ ("noop", "none"…) hoặc mã máy dạng
+ * `lệnh:đối_số` — tức KHÔNG phải nhãn chữ người đọc, không phải lời người báo.
+ * Dùng để loại khỏi tiêu đề/mô tả/triệu chứng. NGUỒN: Tiểu Linh (TECH-1148).
+ */
+export function isInternalCallbackToken(token: string | null | undefined): boolean {
+  if (!token) return false;
+  const clean = token.trim().toLowerCase();
+  return Boolean(INTERNAL_CALLBACK_TOKENS[clean]) || MACHINE_PAYLOAD.test(clean);
+}
+
 // Khoá định danh kênh trong JSON phong bì.
 const ENVELOPE_KEYS = /"(chat_id|sender_id|message_id|inbound_event_kind|username)"\s*:/i;
 
@@ -48,7 +67,31 @@ const HISTORY_LINE = /^\s*#(\d+|session:[0-9a-f]+)\s+\w{3}\s+\d{4}-/i;
 // Header ngữ cảnh mà model đã cắt mất đuôi "(untrusted …)".
 const BARE_CONTEXT_HEADER = /^\s*(conversation context|chat history[^:\n]*)\s*:\s*$/i;
 
-export function stripChannelEnvelope(text: string | null | undefined): string {
+/**
+ * Tuỳ chọn cho {@link stripChannelEnvelope}. Mặc định là hành vi mới của thư viện
+ * (bản CM, ưu tiên không nuốt lời người dùng); bot cần đúng hành vi intake cũ
+ * (Tiểu Linh) tắt từng mục.
+ */
+export interface StripChannelEnvelopeOptions {
+  /**
+   * Khối JSON phong bì chiếm TRỌN tin: `true` (mặc định) = giữ nguyên khối (không
+   * làm tin rỗng); `false` = bỏ hẳn → tin rỗng (intake cũ: guard "tin vô nghĩa" ở
+   * bot xử lý tiếp; giữ khối thì chat_id/sender_id lọt vào mô tả — TECH-922).
+   */
+  keepSoleEnvelopeBlock?: boolean;
+  /** Giữ chữ đứng sau `}` cuối của khối JSON phong bì. Mặc định `true`; intake cũ bỏ cả dòng. */
+  keepTextAfterEnvelopeBlock?: boolean;
+  /** Bỏ khối ``` ``` do người dùng dán nếu bên trong có khoá phong bì. Mặc định `true`; intake cũ giữ nguyên. */
+  stripPastedEnvelopeFences?: boolean;
+}
+
+export function stripChannelEnvelope(
+  text: string | null | undefined,
+  opts: StripChannelEnvelopeOptions = {},
+): string {
+  const keepSoleBlock = opts.keepSoleEnvelopeBlock ?? true;
+  const keepTail = opts.keepTextAfterEnvelopeBlock ?? true;
+  const stripFences = opts.stripPastedEnvelopeFences ?? true;
   const src = String(text ?? "");
   if (
     !/\(untrusted/i.test(src) &&
@@ -113,10 +156,10 @@ export function stripChannelEnvelope(text: string | null | undefined): string {
         // bì hệ thống nằm cùng dòng với lời họ. Chỉ cắt đúng khối JSON, giữ phần
         // chữ đứng sau `}` cuối. Khi `}` cuối nằm riêng dòng, `tail` rỗng.
         const closeAt = (lines[j - 1] ?? "").lastIndexOf("}");
-        const tail = closeAt >= 0 ? lines[j - 1]!.slice(closeAt + 1).trim() : "";
+        const tail = keepTail && closeAt >= 0 ? lines[j - 1]!.slice(closeAt + 1).trim() : "";
         // Khối chiếm TRỌN tin và không chừa chữ nào khác ⇒ bỏ khối đi thì tin
         // thành rỗng, tức nuốt mất lời người dùng. Giữ nguyên khối JSON.
-        if (!tail && out.length === 0 && j >= lines.length) {
+        if (keepSoleBlock && !tail && out.length === 0 && j >= lines.length) {
           out.push(lines.slice(i, j).join("\n"));
         } else if (tail) {
           out.push(tail);
@@ -130,7 +173,7 @@ export function stripChannelEnvelope(text: string | null | undefined): string {
     // bên trong có khoá phong bì, bỏ nguyên cả rào + nội dung, giữ lời ngoài rào.
     // Nếu bên trong KHÔNG có khoá phong bì, giữ nguyên để bot đọc được mã người
     // dùng dán (không nuốt dữ liệu thật của họ).
-    if (/^\s*```/.test(line ?? "")) {
+    if (stripFences && /^\s*```/.test(line ?? "")) {
       const opener = line?.match(/^\s*```[A-Za-z0-9_-]*\s*$/);
       if (opener) {
         const body: string[] = [];
@@ -149,9 +192,9 @@ export function stripChannelEnvelope(text: string | null | undefined): string {
     // callback_data: <nhãn nút> — người dùng BẤM NÚT: giữ lại nhãn, đó là câu trả lời của họ.
     const callback = line.match(CALLBACK_LINE);
     if (callback) {
-      // Payload máy ("reporter_ok:481", "confirm_done:12") thì bỏ.
+      // Payload máy ("reporter_ok:481", "confirm_done:12") hoặc token nội bộ ("noop") thì bỏ — TECH-940, TECH-1148.
       const label = (callback[1] ?? "").trim();
-      if (label && !MACHINE_PAYLOAD.test(label)) out.push(label);
+      if (label && !isInternalCallbackToken(label)) out.push(label);
       i++;
       continue;
     }

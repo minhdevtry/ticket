@@ -2,7 +2,7 @@ import { describe, expect, test, mock, beforeEach } from "bun:test";
 import { TicketLifecycleService } from "./lifecycle";
 import { Database } from "bun:sqlite";
 import { applySchema } from "../lib/storage/schema";
-import type { ItsaplanClient, ItsaplanIssue, ProjectColumn } from "../lib/itsaplan/client";
+import type { ItsaplanClient, ItsaplanIssue, ProjectColumn } from "@vuihoc/bot-core/itsaplan";
 import type { Notifier } from "./notifier";
 
 describe("TicketLifecycleService", () => {

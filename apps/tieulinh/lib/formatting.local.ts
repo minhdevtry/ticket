@@ -1,90 +1,16 @@
 import {
-  decodeHtmlEntities,
-  escapeItsaplanMarkdown,
-  escapeTelegramHtml,
-  escapeHtml,
-} from "./html-entities";
-
-export { decodeHtmlEntities, escapeItsaplanMarkdown, escapeTelegramHtml, escapeHtml };
+  KNOWN_BOT_HANDLES,
+  formatIctTimestamp,
+  stripBotMentions as stripBotMentionsWith,
+} from "@vuihoc/bot-core/core";
+import { escapeItsaplanMarkdown } from "./html-entities";
 
 /**
- * Shared string and date formatting utilities for intake bots.
+ * Phần định dạng RIÊNG của Tiểu Linh — gắn layout ticket ("### Mô tả / Thông tin
+ * sự cố", mục "### ➕ Bổ sung") và trạng thái toàn cục của worker, nên không nằm
+ * trong `@vuihoc/bot-core/core`. Phần chung (marker bot, stripCommentHtml, ...)
+ * import thẳng từ thư viện.
  */
-
-/**
- * Dấu vô hình gắn vào mọi bình luận do chính bot ghi lên tracker.
- *
- * Bot ghi comment (`update_issue`) → Itsaplan bắn `comment.created` → worker
- * thấy comment mới và đẩy ngược về Telegram → người dùng nhận lại đúng câu
- * mình vừa nhắn. Từ khi bật chế độ đẩy-tất-cả (17/09/2026) vòng này có thật,
- * nên comment của bot phải tự nhận diện được. Markdown không hiện thẻ chú thích
- * HTML, nên người đọc trên tracker không thấy gì.
- */
-export const BOT_COMMENT_MARKER = "<!-- intake-bot -->";
-
-/** Gắn dấu vào một bình luận bot sắp ghi lên tracker. */
-export function markBotComment(body: string): string {
-  return body.includes(BOT_COMMENT_MARKER) ? body : `${body}\n\n${BOT_COMMENT_MARKER}`;
-}
-
-/** Bình luận này do chính bot ghi ra? */
-export function isBotComment(body?: string | null): boolean {
-  return typeof body === "string" && body.includes(BOT_COMMENT_MARKER);
-}
-
-/**
- * Strips Telegram/chat media markers so they never leak into tracker descriptions or briefs.
- * Matches both `[media attached: ...]` and `<media:...>`.
- */
-export function cleanMediaTags(str?: string | null): string {
-  if (!str || typeof str !== "string") return "";
-  return str
-    .replace(/\[media attached:\s*[^\]]+\]/gi, "")
-    .replace(/<media:\w+[^>]*>/gi, "")
-    .trim();
-}
-
-/**
- * Gỡ các thẻ HTML nhúng trong bình luận Itsaplan (`<video>`, `<mark>`, `<span>`
- * tô màu/highlight của Tiptap) trước khi gửi cho người báo qua Telegram hoặc
- * đưa vào LLM / Knowledge Graph.
- *
- * - `<video ...>...</video>` và `<video ...>` bị bỏ hẳn (link video đã được bóc riêng).
- * - `<mark ...>chữ</mark>` và `<span ...>chữ</span>` chỉ bỏ thẻ, giữ nguyên chữ bên trong.
- */
-export function stripCommentHtml(text?: string | null): string {
-  if (!text || typeof text !== "string") return "";
-  return text
-    .replace(/<video\b[^>]*>[\s\S]*?<\/video>/gi, "")
-    .replace(/<\/?video\b[^>]*>/gi, "")
-    .replace(/<\/?(?:mark|span)\b[^>]*>/gi, "");
-}
-
-/**
- * Trích xuất các đường dẫn file ảnh đính kèm từ tin nhắn chat (e.g. [media attached: ...])
- */
-export function extractMediaAttachments(str?: string | null): string[] {
-  if (!str || typeof str !== "string") return [];
-  const matches = str.matchAll(/\[media attached:\s*([^\]]+?)(?:\s*\([^)]+\))?\]/gi);
-  const paths: string[] = [];
-  for (const m of matches) {
-    if (m[1]) paths.push(m[1].trim());
-  }
-  return paths;
-}
-
-/**
- * Formats a Date in ICT (Indochina Time - UTC+7) as `YYYY-MM-DD HH:mm`.
- * Used for stamping ticket creation, updates, and post-mortems in local office time.
- */
-export function formatIctTimestamp(date: Date = new Date()): string {
-  const ict = new Date(date.getTime() + 7 * 3600_000);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return (
-    `${ict.getUTCFullYear()}-${pad(ict.getUTCMonth() + 1)}-${pad(ict.getUTCDate())} ` +
-    `${pad(ict.getUTCHours())}:${pad(ict.getUTCMinutes())}`
-  );
-}
 
 export function appendTicketUpdateDescription(
   existingDescription: string,
@@ -240,35 +166,6 @@ export function appendTicketUpdateDescription(
 }
 
 /**
- * Danh sách tên handle của bot trên các hệ thống để lọc bỏ khỏi câu trao đổi.
- */
-export const KNOWN_BOT_HANDLES = [
-  "iris",
-  "tieulinh",
-  "bot-iris-intake",
-  "bot-ticket-intake",
-  "vhiris_bot",
-  "vhticket_bot",
-  "iris-bot",
-  "intake",
-  "intake-bot",
-  "itsaplan_agent_bot",
-];
-
-/**
- * Gỡ bỏ toàn bộ mention tới bot (ví dụ: @iris, @bot-iris-intake, @tieulinh) khỏi bình luận
- * trước khi gửi về Telegram, giúp nội dung tự nhiên và không thừa thãi handle.
- */
-export function stripBotMentions(text?: string | null, extraHandles: string[] = []): string {
-  if (!text || typeof text !== "string") return "";
-  const allHandles = Array.from(new Set([...KNOWN_BOT_HANDLES, ...extraHandles])).filter(Boolean);
-  const sorted = allHandles.sort((a, b) => b.length - a.length);
-  const escaped = sorted.map((h) => h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
-  const pattern = new RegExp(`(?<=^|\\s)@(${escaped})(?![a-zA-Z0-9_-])\\s*(?:[:,-]\\s*)?`, "gi");
-  return text.replace(pattern, "").trim();
-}
-
-/**
  * Bộ nhớ đệm ngắn hạn chống gửi lặp bình luận giữa Webhook và AgentRunner
  * khi cả hai cùng nhận được một comment có tag agent.
  */
@@ -289,4 +186,22 @@ export function isCommentRecentlyForwarded(issueId: number, text: string, ttlMs 
     }
   }
   return false;
+}
+
+/**
+ * Handle bot của Tiểu Linh = `KNOWN_BOT_HANDLES` của thư viện trừ `cmsupport` (handle
+ * của bot CM, Tiểu Linh chưa từng lọc).
+ */
+export const TIEULINH_BOT_HANDLES = KNOWN_BOT_HANDLES.filter((h) => h !== "cmsupport");
+
+/**
+ * `stripBotMentions` đúng như bản cũ: chỉ lọc theo danh sách handle, KHÔNG xoá mọi
+ * `@<tên>_bot` (luật mới của thư viện có thể nuốt mention người thật cuối dòng
+ * dạng `@xxx_bot`).
+ */
+export function stripBotMentions(text?: string | null, extraHandles: string[] = []): string {
+  return stripBotMentionsWith(text, extraHandles, {
+    knownHandles: TIEULINH_BOT_HANDLES,
+    stripBotSuffixHandles: false,
+  });
 }

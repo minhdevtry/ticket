@@ -16,7 +16,7 @@
  * - LLM = NGƯỜI PHÁN XỬ DUY NHẤT, xác minh 1-1 (similar-judge.ts), quyết định
  *   cuối luôn qua chốt chặn xác định (quote-gate.ts) + yêu cầu cụm đã lặp lại.
  */
-import { getLogger } from "../logger";
+import { getLogger } from "@vuihoc/bot-core/core";
 import type { LlmConfig } from "../../worker/llm";
 import type { MemgraphClient } from "./memgraph-client";
 import type { OnyxRestSearchClient } from "../onyx/rest-search";

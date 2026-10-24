@@ -12,8 +12,8 @@
  *    với backoff mũ, sống qua restart; quá số lần thì bỏ cuộc kèm log lỗi.
  */
 import type { KgSyncRepository } from "../lib/storage/kg-sync-repository";
-import { getLogger } from "../lib/logger";
-import { identifierInProject, normalizeProjectKey } from "./project-lock";
+import { getLogger } from "@vuihoc/bot-core/core";
+import { identifierInProject, normalizeProjectKey } from "@vuihoc/bot-core/itsaplan";
 
 export interface KgSyncGate {
   enabled: boolean;

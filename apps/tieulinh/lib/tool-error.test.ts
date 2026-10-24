@@ -1,59 +1,43 @@
-import { describe, expect, test } from "bun:test";
-import { createIntakeMcpServer } from "../mcp/shared/server";
-import { defineTool } from "../mcp/shared/tool";
-import { describeToolFailure, newErrorCode } from "./tool-error";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { describeToolFailure } from "@vuihoc/bot-core/core";
+import "./tool-error";
+import { configureAlerts } from "./telegram/alert";
 
-describe("tool-error", () => {
-  test("mã lỗi ngắn, viết hoa, và hai thời điểm khác nhau ra hai mã khác nhau", () => {
-    const a = newErrorCode(1_757_000_000_000);
-    const b = newErrorCode(1_757_000_000_001);
-    expect(a).toMatch(/^[0-9A-Z]{6}$/);
-    expect(a).not.toBe(b);
+describe("tool-error adapter (nối hook báo admin của Tiểu Linh)", () => {
+  const originalFetch = globalThis.fetch;
+  let calls: Array<Record<string, unknown>>;
+
+  beforeEach(() => {
+    calls = [];
+    configureAlerts({ botToken: "test-token", chatId: "42" });
+    globalThis.fetch = (async (_url: string, init: { body: string }) => {
+      calls.push(JSON.parse(init.body));
+      return new Response(JSON.stringify({ ok: true, result: {} }), { status: 200 });
+    }) as unknown as typeof fetch;
   });
 
-  test("thông báo mang đủ mã lỗi, chi tiết và lời dặn chụp màn hình", () => {
-    const failure = describeToolFailure(
-      "create_issue",
-      new Error("Itsaplan 503 Service Unavailable"),
-    );
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    configureAlerts(null);
+  });
+
+  test("tool lỗi thì kết quả vẫn có cờ loi VÀ quản trị viên được báo qua alertAdmin", async () => {
+    const failure = describeToolFailure("create_issue", new Error("Itsaplan 503"));
     expect(failure.loi).toBe(true);
-    expect(failure.thong_bao_cho_nguoi_dung).toContain(failure.ma_loi);
-    expect(failure.thong_bao_cho_nguoi_dung).toContain("Itsaplan 503 Service Unavailable");
-    expect(failure.thong_bao_cho_nguoi_dung).toContain("chụp màn hình");
+    expect(failure.thong_bao_cho_nguoi_dung).toContain("Itsaplan 503");
+    await Bun.sleep(10);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].chat_id).toBe("42");
+    expect(String(calls[0].text)).toContain("create_issue");
+    expect(String(calls[0].text)).toContain(failure.ma_loi);
   });
 
-  /** Stack dài thì người ta không đọc, và tin nhắn Telegram cũng có trần. */
-  test("chi tiết dài bị cắt, không nhồi cả stack vào tin nhắn", () => {
-    const failure = describeToolFailure("get_issue", new Error("x".repeat(2000)));
-    expect(failure.chi_tiet.length).toBeLessThanOrEqual(301);
-    expect(failure.chi_tiet.endsWith("…")).toBe(true);
-  });
-
-  /**
-   * Cổng thật: tool ném lỗi thì host phải nhận kết quả bình thường mang cờ
-   * `loi`, không phải một exception để model tự quyết định nói gì.
-   */
-  test("tool ném lỗi thì server trả kết quả có cờ loi, không ném lên host", async () => {
-    const server = createIntakeMcpServer({
-      name: "test",
-      version: "0",
-      tools: [
-        defineTool({
-          name: "no_op",
-          description: "tool luôn hỏng",
-          inputSchema: {},
-          handler: () => {
-            throw new Error("ổ cắm rút rồi");
-          },
-        }),
-      ],
-    });
-
-    const registered = (server as any)._registeredTools?.no_op;
-    expect(registered).toBeDefined();
-    const res = await registered.handler({}, {});
-    const payload = JSON.parse(res.content[0].text);
-    expect(payload.loi).toBe(true);
-    expect(payload.thong_bao_cho_nguoi_dung).toContain("ổ cắm rút rồi");
+  test("mã lỗi luôn là mã ngắn theo thời điểm, KHÔNG dùng err.code tự khai (như cũ)", async () => {
+    const err = Object.assign(new Error("reset"), { code: "ECONNRESET" });
+    const a = describeToolFailure("create_issue", err, 1_757_000_000_000);
+    const b = describeToolFailure("create_issue", err, 1_757_000_000_001);
+    expect(a.ma_loi).toMatch(/^[0-9A-Z]{6}$/);
+    expect(a.ma_loi).not.toBe("ECONNRESET");
+    expect(a.ma_loi).not.toBe(b.ma_loi);
   });
 });
