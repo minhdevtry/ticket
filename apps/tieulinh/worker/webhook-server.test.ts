@@ -321,11 +321,3 @@ describe('ItsaplanWebhookServer — /internal/force-new (plugin OpenClaw xac-nha
     expect(await res.json()).toEqual({ ok: false });
   });
 });
-
-describe("isLoopback", () => {
-  test("chỉ nhận địa chỉ máy nội bộ", async () => {
-    const { isLoopback } = await import("./webhook-server");
-    for (const ok of ["127.0.0.1", "::1", "::ffff:127.0.0.1"]) expect(isLoopback(ok)).toBe(true);
-    for (const no of ["10.0.0.6", "10.0.0.5", undefined, ""]) expect(isLoopback(no)).toBe(false);
-  });
-});

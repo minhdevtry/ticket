@@ -4,8 +4,8 @@
  *
  * Used by Tiểu Linh in Phase 1 to migrate to lib/gate without rewriting JSON.
  */
-import { assertCatalogIntegrity } from "./catalog";
-import type { FieldCatalog, FieldSpec, VariantKey, VariantSpec } from "./types";
+import { assertCatalogIntegrity } from "@vuihoc/bot-core/intake";
+import type { FieldCatalog, FieldSpec, VariantKey, VariantSpec } from "@vuihoc/bot-core/intake";
 
 export type ValidationRule =
   | { type: "regex"; pattern: string; description?: string }

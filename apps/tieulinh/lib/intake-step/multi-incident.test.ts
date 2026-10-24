@@ -12,7 +12,7 @@ import {
   type PendingButtonsSink,
 } from "./pipeline";
 import type { ItsaplanClient, ItsaplanIssue } from "@vuihoc/bot-core/itsaplan";
-import type { InlineButton } from "../gate/types";
+import type { InlineButton } from "@vuihoc/bot-core/intake";
 import type { UrgencyRules } from "../../mcp/shared/index";
 import validationRules from "../../mcp/tieulinh/domain/validation-rules.json";
 import fieldRequirements from "../../mcp/tieulinh/domain/required_fields.json";

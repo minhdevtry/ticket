@@ -2,7 +2,7 @@ import { describe, expect, test, mock } from "bun:test";
 import { NotificationDispatcher } from "./notification-dispatcher";
 import type { TicketBinding, TicketBindingRepository } from "../lib/storage/binding-repository";
 import type { Notifier } from "./notifier";
-import type { ItsaplanWebhookEnvelope } from "./webhook-server";
+import type { ItsaplanWebhookEnvelope } from "@vuihoc/bot-core/itsaplan";
 
 const HANDLES = ["bot-ticket-intake", "vhticket_bot", "intake-bot", "intake"];
 

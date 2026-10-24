@@ -3,7 +3,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { getLogger } from "@vuihoc/bot-core/core";
 import { alertAdmin } from "./alert";
-import { MAX_CALLBACK_DATA_BYTES, type InlineButton } from "../gate/types";
+import { MAX_CALLBACK_DATA_BYTES, type InlineButton } from "@vuihoc/bot-core/intake";
 
 export interface TelegramButton {
   text: string;

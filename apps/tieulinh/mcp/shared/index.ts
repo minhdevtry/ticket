@@ -31,7 +31,8 @@ export {
   rejectUser,
   type IdentityConfig,
 } from "./tools/identity";
-export { assessPriority, type UrgencyRules } from "./tools/assess-priority";
+export { assessPriority } from "./tools/assess-priority";
+export { type UrgencyRules } from "@vuihoc/bot-core/intake";
 export { searchKnowledge, type KnowledgeConfig } from "./tools/search-knowledge";
 export {
   validateFields,

@@ -1,7 +1,7 @@
 import type { TicketBinding, TicketBindingRepository } from "../lib/storage/binding-repository";
 import type { Notifier } from "./notifier";
 import { getLogger } from "@vuihoc/bot-core/core";
-import type { ItsaplanWebhookEnvelope } from "./webhook-server";
+import type { ItsaplanWebhookEnvelope } from "@vuihoc/bot-core/itsaplan";
 
 import type { TicketClosure } from "./ticket-closure";
 import type { TicketLifecycleService } from "./lifecycle";

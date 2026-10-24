@@ -8,8 +8,8 @@ import {
   type DepartmentOption,
 } from "../../../lib/telegram/buttons";
 import { defineTool, type AnyMcpTool } from "@vuihoc/bot-core/core";
-import { createRecord, evaluateGate } from "../../../lib/gate/index";
-import { validateValue } from "../../../lib/gate/validate";
+import { createRecord, evaluateGate } from "@vuihoc/bot-core/intake";
+import { validateValue } from "@vuihoc/bot-core/intake";
 import {
   catalogFromValidationRules,
   FIELD_PROMPT_LABELS,
@@ -20,7 +20,7 @@ import {
   type FieldRequirementsTable,
   type ProductMappingConfig,
 } from "../../../lib/gate/from-validation-rules";
-import type { FieldVerdict } from "../../../lib/gate/types";
+import type { FieldVerdict } from "@vuihoc/bot-core/intake";
 
 export {
   FIELD_PROMPT_LABELS,

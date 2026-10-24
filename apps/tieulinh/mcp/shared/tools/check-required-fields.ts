@@ -7,7 +7,7 @@ import {
   fieldButtons,
   normalizeValue,
   type FieldCatalog,
-} from "../../../lib/gate/index";
+} from "@vuihoc/bot-core/intake";
 import { openLazyDb } from "../../../lib/storage/lazy-db";
 import { memoByPath } from "@vuihoc/bot-core/core";
 import { IdentityRepository } from "../../../lib/storage/identity-repository";

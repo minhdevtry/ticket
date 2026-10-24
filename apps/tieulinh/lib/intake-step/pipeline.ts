@@ -22,16 +22,16 @@ import {
 import { VALID_SYSTEMS } from "../../mcp/tieulinh/domain/taxonomy";
 import { markBotComment } from "@vuihoc/bot-core/core";
 import { escapeItsaplanMarkdown } from "../html-entities";
-import { fieldButtons, layoutButtons } from "../gate/buttons";
+import { fieldButtons, layoutButtons } from "@vuihoc/bot-core/intake";
 import {
   clearPendingButtons,
   getConfirmationButtons,
   savePendingButtons,
   toTelegramButtons,
 } from "../telegram/buttons";
-import { composeQuestion, evaluateGate } from "../gate/gate";
+import { composeQuestion, evaluateGate } from "@vuihoc/bot-core/intake";
 import { catalogFromValidationRules } from "../gate/from-validation-rules";
-import type { InlineButton, IntakeRecord } from "../gate/types";
+import type { InlineButton, IntakeRecord } from "@vuihoc/bot-core/intake";
 import type {
   ValidationRules,
   FieldRequirementsTable,
@@ -39,7 +39,7 @@ import type {
   UrgencyRules,
 } from "../../mcp/shared/index";
 import { inferProductKey } from "../../mcp/shared/tools/validate-fields";
-import { evaluatePriorityRules } from "../../mcp/shared/tools/assess-priority";
+import { evaluatePriorityRules } from "@vuihoc/bot-core/intake";
 import {
   attachMediaToIssue,
   bindIssueToChat,
