@@ -43,3 +43,11 @@ tmp/
 .vscode/
 *.swp
 .scan-denylist
+
+# Docs site: build output and generated pages (see scripts/gen-docs.ts)
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+docs/reference/api/
+docs/reference/copy-keys.md
+docs/explanation/adr-index.md
+docs/.snippets/

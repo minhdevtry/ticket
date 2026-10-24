@@ -1,0 +1,19 @@
+{
+  "name": "@vuihoc/docs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Site tài liệu (VitePress) cho @vuihoc/bot-core và các bot. Không có script check riêng: dùng `bun run docs:check` ở thư mục gốc.",
+  "scripts": {
+    "api": "typedoc --options typedoc.json",
+    "dev": "vitepress dev",
+    "build": "vitepress build"
+  },
+  "devDependencies": {
+    "typedoc": "0.28.20",
+    "typedoc-plugin-markdown": "4.14.1",
+    "typedoc-vitepress-theme": "1.1.4",
+    "typescript": "5.9.3",
+    "vitepress": "1.6.4"
+  }
+}

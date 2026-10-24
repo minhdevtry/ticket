@@ -8,6 +8,8 @@ Repo này công khai. Mọi thứ đã push coi như đã lộ vĩnh viễn, k�
 - Hạ tầng nội bộ: IP LAN/Tailscale, hostname nội bộ, cổng dịch vụ nội bộ ngoài loopback.
 - Dữ liệu người thật: số điện thoại, chat ID Telegram, tên/handle nhân sự, nội dung ticket thật của khách hàng, file DB/SQLite.
 
+Docs cũng là code công khai: ví dụ trong `docs/` chịu cùng quy tắc và cùng bị quét.
+
 Fixture dùng dữ liệu giả: số điện thoại `0900000000`–`0900000999`, chat ID `-1000000000001`…, host `*.example.com`, IP `10.0.0.x`.
 
 ## Lớp bảo vệ

@@ -11,14 +11,17 @@ Repo **công khai**. Trước mọi commit: không secret, không IP/host nội 
   - `worker`: webhook itsaplan → Telegram, vòng đời ticket.
   - `skills/tieulinh`: persona và workspace OpenClaw (đồng bộ bằng `openclaw/sync-workspace.ts`).
   - `openclaw-plugin`: plugin nút bấm, xác nhận xong.
-- `deploy/`: unit systemd, template, script deploy qua SSH.
-- `docs/adr`: quyết định cấp repo. Mỗi package có `docs/adr` riêng.
+- `deploy/`: script đẩy secret qua SSH và README deploy (chưa có unit systemd trong repo).
+- `docs/`: site VitePress (tiếng Việt), published lên GitHub Pages. Gồm `guide/`, `how-to/`, `reference/`, `explanation/` và `adr/` (quyết định cấp repo). Mỗi package/app có `docs/adr` riêng cạnh code.
+- `scripts/`: `scan-public.ts` (vệ sinh repo công khai), `gen-docs.ts`, `check-doc-snippets.ts`, `check-docs-refs.ts`, `check-docs-touched.ts` (kiểm docs).
 
 ## Lệnh
 
 ```bash
 bun install
-bun run verify                      # lint + check + test + scan
+bun run verify                      # lint + check + test + scan + kiểm docs nhanh
+bun run docs:dev                    # xem trước site docs
+bun run docs:check                  # build site + TypeDoc + mẫu code + đối chiếu (như CI)
 bun run --cwd packages/core test
 bun run --cwd apps/tieulinh test
 ```
@@ -29,4 +32,5 @@ bun run --cwd apps/tieulinh test
 - itsaplan là nguồn sự thật; SQLite cục bộ là cache.
 - Test không gọi dịch vụ thật. Script `live:*` phải bật tay.
 - Sửa core → thêm test trong core và ghi `packages/core/CHANGELOG.md`.
+- Đổi hành vi hoặc API công khai → cập nhật `docs/` trong cùng PR (CI chặn nếu thiếu; nhãn `no-docs` chỉ cho refactor thuần và test). Mẫu `ts` trong docs phải có cờ `check`, `run` hoặc `no-check`. Không bao giờ chép chữ ký hàm vào docs bằng tay khi TypeDoc đã sinh.
 - Commit theo Conventional Commits, scope là tên package.

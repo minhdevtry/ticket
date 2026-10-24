@@ -85,3 +85,5 @@ export {
 
 // ── render (ticket 13) ───────────────────────────────────────────────────────
 export * from "./render";
+// `ParseMode` của render (Markdown | plain) bị `ParseMode` của send che; xuất lại dưới tên riêng.
+export type { ParseMode as RenderParseMode } from "./render";

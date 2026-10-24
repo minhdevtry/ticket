@@ -1,0 +1,28 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "@vuihoc/bot-core",
+  "entryPoints": [
+    "../packages/core/src/core/index.ts",
+    "../packages/core/src/itsaplan/index.ts",
+    "../packages/core/src/intake/index.ts",
+    "../packages/core/src/identity/index.ts",
+    "../packages/core/src/openclaw/index.ts",
+    "../packages/core/src/telegram/index.ts",
+    "../packages/core/src/worker/index.ts",
+    "../packages/core/src/eval/index.ts"
+  ],
+  "entryPointStrategy": "resolve",
+  "tsconfig": "../packages/core/tsconfig.json",
+  "out": "reference/api",
+  "plugin": ["typedoc-plugin-markdown", "typedoc-vitepress-theme"],
+  "readme": "none",
+  "hidePageTitle": false,
+  "sourceLinkTemplate": "https://github.com/minhdevtry/ticket/blob/main/{path}",
+  "validation": {
+    "notExported": true,
+    "invalidLink": true,
+    "notDocumented": false
+  },
+  "treatWarningsAsErrors": true,
+  "treatValidationWarningsAsErrors": true
+}

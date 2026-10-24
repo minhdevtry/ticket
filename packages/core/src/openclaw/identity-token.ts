@@ -29,7 +29,7 @@ export const IDENTITY_PARAM = "_identity";
 /** Hạn mặc định: đủ cho một lượt agent, quá ngắn thì lượt dài sẽ hết hạn. */
 export const DEFAULT_IDENTITY_TTL_MS = 10 * 60 * 1000;
 
-const identityTokenSchema = z
+export const identityTokenSchema = z
   .object({
     /** Telegram user id dạng số — khoá chính. */
     u: z.string(),

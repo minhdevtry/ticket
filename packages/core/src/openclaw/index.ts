@@ -15,6 +15,7 @@ export {
   IDENTITY_PARAM,
   DEFAULT_IDENTITY_TTL_MS,
   type IdentityTokenPayload,
+  identityTokenSchema,
   type TokenErrorCode,
   IdentityTokenFailure,
   type ReplayStore,

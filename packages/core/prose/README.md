@@ -9,7 +9,6 @@ số điện thoại.
 - `AGENTS.shared.md` — quy tắc vận hành chung (một lượt một tin, cấm nghĩ thành
   tiếng, không bịa, hỏi gộp một lần, kỷ luật icon, không khẳng định khi tool
   chưa xác nhận, danh tính là của hệ thống, bảo mật thắng nguyên văn).
-- `LAYERS.md` — mô hình năm lớp của một bot và phép thử tool-vs-skill.
 - `skills/confirm-before-create/SKILL.md` — skill an toàn: xác nhận trước khi tạo
   bản ghi mới.
 
@@ -32,3 +31,5 @@ bot). Prose là nguồn chung; bot chỉ sao chép, không sửa tại chỗ tro
 
 Phần **riêng từng bot** — `IDENTITY.md`, `SOUL.md`, và các playbook sản phẩm —
 **ở lại trong chính bot đó**, không đưa vào đây. Prose chỉ giữ phần dùng chung.
+
+Mô hình năm lớp của một bot và phép thử tool-vs-skill: xem trang [Năm lớp của một bot](https://minhdevtry.github.io/ticket/explanation/layers) trong site docs (nguồn `docs/explanation/layers.md`).

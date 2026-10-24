@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+    # labeled/unlabeled: gắn hoặc gỡ nhãn `no-docs` phải chạy lại job docs-required.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 permissions:
   contents: read
@@ -30,6 +32,41 @@ jobs:
         run: bun run test
       - name: Public-hygiene scan
         run: bun run scan
+      - name: Docs tooling tests
+        run: bun run test:scripts
+
+  # Docs không được phép cũ đi: build site (link chết = lỗi), TypeDoc (cảnh báo = lỗi),
+  # typecheck mọi mẫu `ts check`, đối chiếu docs với code. Xem CONTRIBUTING.md, mục Tài liệu.
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: bun install --frozen-lockfile
+      - name: Build site, TypeDoc, snippets, refs
+        run: bun run docs:check
+
+  # Đổi hành vi công khai (packages/*/src, app, deploy) thì phải đụng docs hoặc CHANGELOG,
+  # trừ khi PR có nhãn `no-docs` (chỉ cho refactor thuần và test).
+  docs-required:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - name: Docs required
+        run: bun run scripts/check-docs-touched.ts
 
   secrets:
     runs-on: ubuntu-latest
