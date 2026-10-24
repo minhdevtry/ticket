@@ -37,11 +37,20 @@ Ghi chú về `ITSAPLAN_PROJECT_KEY`: worker chỉ `required` nó bên trong nh�
 | `ALERT_CHAT_ID` | không | phần tử đầu của `ADMIN_IDS` | mcp | Chat nhận báo động khi tool lỗi. Thiếu cả hai thì chỉ log. |
 | `ADMIN_IDS` | không | `""` | mcp | ID Telegram của quản trị, ngăn cách bằng dấu phẩy. |
 | `REQUIRE_APPROVAL` | không | không có | `.env.example`, `openclaw.json` | Có trong mẫu và được truyền cho MCP, nhưng code TypeScript hiện **không đọc** (cờ duyệt người dùng được đặt cứng `false`). Đừng trông chờ nó có tác dụng. |
-| `OPENCLAW_STATE_DIR` | không | `~/.openclaw` | mcp | Thư mục trạng thái OpenClaw, để tìm `media/inbound` cho ảnh đính kèm. |
+| `OPENCLAW_STATE_DIR` | không | `~/.openclaw` | mcp, plugin | Thư mục trạng thái OpenClaw, để tìm `media/inbound` cho ảnh đính kèm; plugin `shadow-forwarder` đặt spool và nhật ký ở đây. |
 | `OPENCLAW_CONFIG_DIR` | không | `~/.openclaw` | plugin, bootstrap | Thư mục cấu hình OpenClaw (plugin đọc `openclaw.json` ở đây; `sync-workspace` lấy làm gốc workspace). |
 | `OPENCLAW_CONFIG_PATH` | không | không có | plugin | Đường dẫn trực tiếp tới `openclaw.json`, ưu tiên cao nhất. |
 | `OPENCLAW_BIN` | không | `/usr/local/bin/openclaw` nếu tồn tại, không thì `openclaw` | worker | Binary OpenClaw khi `OPENAI_API_STYLE=openclaw`. |
 | `XAC_NHAN_XONG_WORKERS` | không | `iris-agent=http://127.0.0.1:3103` | plugin | Bảng `agent=url` (ngăn cách bằng dấu phẩy) cho plugin `xac-nhan-xong` biết gọi worker nào. Đặt biến thì **thay hoàn toàn** mặc định, không gộp. |
+
+## Plugin shadow-forwarder (chạy bóng)
+
+Chỉ dùng khi bật plugin `shadow-forwarder` trên gateway; cấu hình chính nằm trong `plugins.entries` của `openclaw.json`, hai biến dưới đây là phương án dự phòng. Xem [Chạy bóng Tiểu Linh 2](/how-to/shadow-tl2).
+
+| Biến | Bắt buộc | Mặc định | Đọc bởi | Ý nghĩa |
+|---|---|---|---|---|
+| `SHADOW_RELAY_URL` | không | không có (không đặt thì plugin không làm gì) | plugin | URL `http(s)://<IP>:<cổng>/ingest` của relay; phải là địa chỉ IP, không phải hostname. |
+| `SHADOW_RELAY_TOKEN` | có, nếu relay ngoài loopback | không có | plugin | Token dùng chung với relay (>= 16 ký tự), gửi trong header `x-shadow-token`. |
 
 ## Worker: webhook, vòng đời, hành vi
 

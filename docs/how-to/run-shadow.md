@@ -22,10 +22,14 @@ Biến môi trường (tuỳ chọn): `PARITY_REPOS_DIR` (thư mục chứa các
 
 Báo cáo gần nhất: [REPORT.md](https://github.com/minhdevtry/ticket/blob/main/packages/core/docs/parity/REPORT.md) và [ENGINE.md](https://github.com/minhdevtry/ticket/blob/main/packages/core/docs/parity/ENGINE.md).
 
-## Đang viết: shadow cho bot chạy thật
+## Đã có cho Tiểu Linh 2: chạy bóng song song với bot đang live
+
+Tiểu Linh 2 chạy bóng trên Colab: nhận bản sao mỗi tin mà Tiểu Linh 1 nhận, không có kênh Telegram nên không nhắn người dùng thật, rồi ghép hai câu trả lời để so. Cách dựng, mô hình an toàn và cách cài plugin: [Chạy bóng Tiểu Linh 2](/how-to/shadow-tl2).
+
+## Đang viết: shadow dùng chung cho mọi bot
 
 ::: warning Đang viết
-Chế độ shadow cho bot đang chạy (nhận cùng sự kiện nhưng không gửi tin, không ghi ticket, chỉ log việc nó sẽ làm) chưa tồn tại. Nó gắn với `defineBot` và vai hậu cần, hai thứ còn **đang thiết kế**, nên trang này chưa mô tả cách bật. Khi có, trang sẽ nêu cách bật, những tác dụng phụ nào bị chặn, và cách đọc kết quả.
+Chế độ shadow dùng chung cho bot dựng trên thư viện (nhận cùng sự kiện nhưng không gửi tin, không ghi ticket, chỉ log việc nó sẽ làm) chưa tồn tại. Nó gắn với `defineBot` và vai hậu cần, hai thứ còn **đang thiết kế**, nên trang này chưa mô tả cách bật. Phần chạy bóng Tiểu Linh 2 ở trên là giải pháp riêng cho một bot, không phải chế độ chung đó.
 :::
 
 Trong khi chờ, có hai cách an toàn gần với shadow đã có sẵn trong code:

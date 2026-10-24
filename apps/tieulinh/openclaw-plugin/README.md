@@ -48,3 +48,7 @@ intake-agents không sinh nút đó.
 
 Lưu ý kiểm thử: hook `before_agent_reply` KHÔNG chạy với tin gửi qua `openclaw agent` (CLI) — chỉ
 kiểm được qua Telegram thật. Đừng thử bằng `openclaw agent --agent iris-agent`: tin rơi vào LLM Iris.
+
+## shadow-forwarder
+
+Sao chép không chặn lưu lượng của agent sang relay chạy thử Tiểu Linh 2 (`tools/tl2-shadow`). Không nằm trong cấu hình chạy thật mặc định; cách cài ở [shadow-forwarder/README.md](shadow-forwarder/README.md).

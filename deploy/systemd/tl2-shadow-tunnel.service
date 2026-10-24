@@ -1,0 +1,27 @@
+[Unit]
+Description=Tiểu Linh 2 chạy bóng: tunnel tới Colab
+After=tl2-shadow-proxy.service
+
+[Service]
+# Cài bằng: deploy/dev/tl2-shadow.sh systemd-install (thay @REPO@, @BUN@).
+ExecStartPre=/bin/mkdir -p %h/.local/share/tl2-shadow/logs
+ExecStart=@BUN@ run @REPO@/tools/tl2-shadow/tunnel.ts
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.local/share/tl2-shadow %h/.ssh %h/.colab-profiles
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictSUIDSGID=yes
+LockPersonality=yes
+StandardOutput=append:%h/.local/share/tl2-shadow/logs/tunnel.log
+StandardError=inherit
+
+[Install]
+WantedBy=default.target
