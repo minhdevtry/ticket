@@ -44,6 +44,10 @@
         "typescript": "^7.0.2",
       },
     },
+    "tools/tl2-shadow": {
+      "name": "@vuihoc/tl2-shadow",
+      "version": "0.1.0",
+    },
   },
   "packages": {
     "@algolia/abtesting": ["@algolia/abtesting@1.26.0", "", { "dependencies": { "@algolia/client-common": "5.60.0", "@algolia/requester-browser-xhr": "5.60.0", "@algolia/requester-fetch": "5.60.0", "@algolia/requester-node-http": "5.60.0" } }, "sha512-h6ff/as504npvSqhLlh1qw3B8lFktXgr6AOL5vkP4WCLU1oH+VCBh2K4x4Kvewnwr7kchH6HgLm3CcS8ZAYi8A=="],
@@ -341,6 +345,8 @@
     "@vuihoc/docs": ["@vuihoc/docs@workspace:docs"],
 
     "@vuihoc/tieulinh": ["@vuihoc/tieulinh@workspace:apps/tieulinh"],
+
+    "@vuihoc/tl2-shadow": ["@vuihoc/tl2-shadow@workspace:tools/tl2-shadow"],
 
     "accepts": ["accepts@2.0.0", "", { "dependencies": { "mime-types": "^3.0.0", "negotiator": "^1.0.0" } }, "sha512-5cvg6CtKwfgdmVqY1WIiXKc3Q1bkRqGLi+2W/6ao+6Y7gu/RCwRuAhGEzh5B4KlszSuTLgZYuqFqo5bImjNKng=="],
 

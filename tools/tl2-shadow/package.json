@@ -1,0 +1,15 @@
+{
+  "name": "@vuihoc/tl2-shadow",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Chạy bóng Tiểu Linh 2: relay, hàng đợi, proxy giữ secret, tunnel và bảng so sánh. Chỉ chạy trên máy dev.",
+  "scripts": {
+    "test": "bun test .",
+    "check": "tsc --noEmit -p .",
+    "relay": "bun run relay.ts",
+    "proxy": "bun run proxy.ts",
+    "tunnel": "bun run tunnel.ts",
+    "compare": "bun run compare.ts"
+  }
+}
