@@ -1,0 +1,11 @@
+{
+  "id": "iris-tuong-tac",
+  "name": "Tương Tác Nút Bấm (Tiểu Linh + IRIS)",
+  "description": "Tự động đính kèm Telegram Inline Buttons vào câu trả lời — dùng chung cho mọi agent Telegram của gateway.",
+  "version": "1.0.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

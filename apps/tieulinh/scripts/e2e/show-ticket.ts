@@ -1,0 +1,10 @@
+import { ItsaplanClient } from "../../lib/itsaplan/client";
+const c = new ItsaplanClient(process.env.ITSAPLAN_BASE_URL!, process.env.ITSAPLAN_API_KEY!);
+if (process.env.WAIT) await Bun.sleep(Number(process.env.WAIT) * 1000);
+const i: any = await c.getIssueByNumber("TECH", Number(process.argv[2]));
+console.log(i.identifier, "|", i.title, "| cột", i.columnId, "| ưu tiên", i.priority, "| nhãn", i.labelIds);
+console.log(String(i.description).slice(0, 2500));
+for (const f of i.fields ?? []) if (f.value) console.log("TRƯỜNG", f.name, "=", String(f.value).slice(0, 200));
+console.log("LINKS", (i.links ?? []).map((l: any) => l.issue?.identifier).join(", "));
+const tl = await c.getIssueTimeline(i.id);
+for (const e of tl) console.log(" TL", String(e.createdAt).slice(11, 19), e.actorName, e.kind, e.action ?? "", String(e.body ?? JSON.stringify(e.payload ?? "")).slice(0, 160).replace(/\n/g, " "));

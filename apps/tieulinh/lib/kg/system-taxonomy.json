@@ -1,0 +1,59 @@
+{
+  "$comment": "Danh mục Hệ thống chuẩn (2026-09-23). Nguồn: Excel '[Vuihoc] Tổng hợp lỗi hệ thống 2026' cột Tech update (tech lead duy trì) + rule nghiệp vụ tech lead: OMS chỉ setup sản phẩm/CTKM; tạo đơn, chuyển phí/chuyển nhượng, upsale, chuyển đổi sản phẩm → CRM. + Confluence Onyx: OMS-Overview (PP/955606), [US] Tạo đơn hàng áp dụng KM (PP/126386323), PRD Chuyển đổi sản phẩm Up-sale (PP/571768891), [DUO] Chuyển phí và chuyển nhượng (PVS/600670314). 15 nhãn rác LLM cũ → 9 chuẩn. Chưa chốt: ranh giới VH_Tự học vs DUO_Vuihoc trên app vuihoc.vn (hỏi tech lead) — ticket không chắc đi vào review-list, không gán bừa.",
+  "systems": [
+    {
+      "id": "CRM_Vuihoc",
+      "definition": "Tạo đơn, chuyển phí/chuyển nhượng, upsale/chuyển đổi sản phẩm, phiếu thu & đối soát phiếu thu, contact, phân quyền, lượt test. Lỗi OMS/CTKM chỉ khi nằm ở catalog sản phẩm/giá/khuyến mãi (setup) — còn thao tác lên đơn luôn là CRM.",
+      "absorbs": ["OMS_Vuihoc", "CRM_VH", "CRM/ERP_Tutor", "CRM/ERP_Tutor (lượt test)"],
+      "keywords": ["tạo đơn", "lên đơn", "không lên được đơn", "đơn hàng", "chuyển phí", "chuyển nhượng", "upsale", "chuyển đổi sản phẩm", "chuyển sản phẩm", "phiếu thu", "đối soát", "đối soát phiếu thu", "trùng tài khoản", "trùng contact", "gia hạn gói", "CRM", "cts"]
+    },
+    {
+      "id": "DUO_Vuihoc",
+      "definition": "Lớp/buổi học Duo, học nhóm, bài giảng Duo, ERP-DUO (kịch bản, chấm chữa bài), app/web DUO, Bitu (kênh chat của DUO).",
+      "absorbs": ["Bitu Chat", "Vuihoc (App/Web_Vuihoc + ERP_DUO) [phần Duo]"],
+      "keywords": ["duo", "bitu", "học nhóm", "lớp học duo", "bài giảng duo", "erp-duo", "erp duo", "kịch bản duo"]
+    },
+    {
+      "id": "TUTOR_Vuihoc",
+      "definition": "Gia sư trong nước + quốc tế (Rino/Station): App/Web Gia sư, ERP Tutor/Rino, lịch học gia sư, kịch bản, chăm sóc giáo viên.",
+      "absorbs": ["TUTOR_Vuihoc (ERP/APP/WEB_Gia sư)", "TUTOR_Vuihoc (ERP/APP/WEB_Gia_sư)"],
+      "keywords": ["gia sư", "tutor", "tutor_vuihoc", "rino", "station", "giáo viên gia sư", "lớp gia sư"]
+    },
+    {
+      "id": "VH_Tự học",
+      "definition": "vuihoc.vn tự học + nền chung: tự ôn luyện, ESP, BTVN, banner, đăng ký/tài khoản app, thông báo, sổ liên lạc. (Ranh giới với DUO_Vuihoc trên app vuihoc.vn CHƯA CHỐT — đang hỏi tech lead.)",
+      "absorbs": ["Web_Vuihoc", "App/Web_Vuihoc", "Vuihoc (App/Web_Vuihoc + ERP_DUO) [phần non-Duo]"],
+      "keywords": ["tự học", "tự ôn luyện", "btvn", "esp", "sổ liên lạc", "banner", "đăng ký tài khoản", "thông báo app", "vuihoc.vn", "app vuihoc", "web vuihoc"]
+    },
+    {
+      "id": "LMS_Vuihoc",
+      "definition": "Học liệu/nội dung khóa học: soạn bài, bài tập, tài liệu, hiển thị khóa học, ngân hàng câu hỏi.",
+      "absorbs": [],
+      "keywords": ["lms", "học liệu", "khóa học lms", "ngân hàng câu hỏi", "soạn bài", "khóa học bị sai"]
+    },
+    {
+      "id": "CARE_Vuihoc",
+      "definition": "Chăm sóc khách hàng: định kỳ/đặc biệt, chuyển sale, gia hạn (trạng thái), gọi điện, lịch sử chăm sóc.",
+      "absorbs": [],
+      "keywords": ["care", "chăm sóc", "care_vuihoc", "lịch sử chăm sóc", "chuyển sale"]
+    },
+    {
+      "id": "ClassIn",
+      "definition": "Nền tảng lớp học ClassIn: vào lớp, âm thanh, link lớp, whiteboard.",
+      "absorbs": [],
+      "keywords": ["classin", "lớp học classin", "vào lớp classin"]
+    },
+    {
+      "id": "VNESCHOOL",
+      "definition": "vneschool.vn khối trường đối tác: import user, thanh toán, khóa ESP. (Confluence xác nhận active tới 2026-01.)",
+      "absorbs": [],
+      "keywords": ["vneschool", "vne school", "trường đối tác"]
+    },
+    {
+      "id": "Khác_Hạ tầng_IT",
+      "definition": "Ngoài sản phẩm: Zimbra/mail, mạng, máy tính, SMS, hạ tầng văn phòng. (Đổi từ 'Khác (liên quan bên IT)'.)",
+      "absorbs": ["Khác (liên quan bên IT)", "SMS"],
+      "keywords": ["zimbra", "mail", "máy tính", "mạng nội bộ", "sms", "máy in", "wifi văn phòng"]
+    }
+  ]
+}

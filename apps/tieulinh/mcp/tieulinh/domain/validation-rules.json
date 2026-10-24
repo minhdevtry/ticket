@@ -1,0 +1,115 @@
+{
+  "_comment": "Port từ validation_patterns.json bên tms. Đổi customer_id -> subject_code: mã người liên quan để chung chung, chỉ ghi rõ là KH/PH/HS khi người báo nói rõ.",
+  "name_code": {
+    "type": "regex",
+    "pattern": "^[A-Z]{2,4}_[A-Za-z0-9_]+$",
+    "_sua_2026_08_01": "Thêm `_` vào lớp ký tự phần sau. Mẫu cũ là `[A-Za-z0-9]+` nên chính hai ví dụ trong mô tả bên dưới — TE_anh_a, PO_chi_b — đều KHÔNG khớp mẫu của nó. docs/04-nghiep-vu.md mục 4 cũng dùng TE_anh_a làm ví dụ chuẩn. Test ở mcp-server/kiem_hop_le.py bắt được.",
+    "_sua_2026_08_02": "Đổi `reporter_code` thành `reporter_id` trong mô tả. `db/schema.sql` khai cột của bảng `ticket` là `reporter_id`; `reporter_code` là tên cột B của Google Sheet gốc, vẫn còn dùng trong redaction_patterns.json (redact_columns) và etl/. Hai tên cho hai thứ khác nhau — mô tả này trỏ sai vào tên cũ nên đọc tưởng schema mới có cột `reporter_code`. Phát hiện khi nối nút [Gửi] của web: truy vấn `SELECT reporter_code` nổ `UndefinedColumn`.",
+    "description": "Pattern mới theo user yêu cầu, vd: TE_anh_a, PO_chi_b. Áp dụng cho cột `reporter_id` của bảng `ticket` ở schema mới (KHÔNG phải `reporter_code` — đó là tên cột B của Sheet gốc); data cũ (LamNT3, thuynt41, ...) đã verify 24/2237 dùng format này — coi như soft-warning hoặc migrate từ từ."
+  },
+  "urgency": {
+    "type": "enum",
+    "values": [
+      "Urgent",
+      "High",
+      "Medium",
+      "Low"
+    ],
+    "description": "Enum nguyên nhân. Data thật 79% Urgent, 20% High, 0.76% Medium, 1 Low (audit 2026-07-31 mục 1.2). Phase 1 có bước agent recalibrate urgency (README mục 8 Phase 1). Reject riêng value='0.0' (1 row data bug)."
+  },
+  "subject_code": {
+    "type": "regex",
+    "pattern": "^[A-Z]+[0-9]+$|^[0-9]{6,}$",
+    "description": "Mã của người liên quan tới sự cố. Chấp nhận tiền tố chữ + số (KH001, HS2039) hoặc dãy số từ 6 chữ số. KHÔNG tự suy ra đây là mã khách hàng, phụ huynh hay học sinh."
+  },
+  "device_os": {
+    "type": "semantic",
+    "blacklist": [
+      "case",
+      "test",
+      "ok",
+      "na",
+      "n/a",
+      ".",
+      ".."
+    ],
+    "whitelist_pattern": "(Laptop|PC|Windows|Mac|Android|iOS|iPadOS|iPad|Linux|Chrome OS)",
+    "case_insensitive": true,
+    "description": "Blacklist rác + whitelist OS regex; normalize case trước khi so sánh. Audit mục 2.6: cột G cực nhiễu (130 dòng '.', 173 dòng 'window' lowercase, 139 dòng 'máy tính' diacritics). 'not-empty' không đủ — cần semantic validate."
+  },
+  "system": {
+    "type": "enum",
+    "values": [
+      "CRM_Vuihoc",
+      "DUO_Vuihoc",
+      "TUTOR_Vuihoc",
+      "VH_Tự học",
+      "LMS_Vuihoc",
+      "CARE_Vuihoc",
+      "ClassIn",
+      "VNESCHOOL",
+      "Khác_Hạ tầng_IT"
+    ],
+    "description": "Enum 9 giá trị chuẩn đồng bộ với VALID_SYSTEMS (lib/kg/.../taxonomy.ts) — danh sách 15 nhãn cũ (Vuihoc (App/Web_Vuihoc + ERP_DUO), OMS_Vuihoc, Bitu Chat, App_THPT, ...) đã xoá vì LLM extract từ ticket cũ sinh nhiễu 62% (audit 2026-09-23)."
+  },
+  "product": {
+    "type": "enum",
+    "values": [
+      "Tự học",
+      "Duo",
+      "Pas",
+      "Tutor",
+      "Exam",
+      "VNESchool",
+      "K12 Viettel",
+      "Smart Media",
+      "Khác"
+    ],
+    "description": "Enum đúng 9 giá trị từ Google Form mục 2.1 — verified khớp 100%."
+  },
+  "error_category": {
+    "type": "enum",
+    "values": [
+      "Lỗi hệ thống",
+      "Lỗi kỹ thuật",
+      "Lỗi dữ liệu",
+      "Lỗi bên thứ 3",
+      "Lỗi chưa xác định",
+      "Hỗ trợ",
+      "Khác",
+      "Lỗi cấu hình máy",
+      "Cải tiến sản phẩm",
+      "ND bị nhầm hoặc hiểu sai",
+      "Lỗi nhập liệu"
+    ],
+    "description": "11 danh mục phân loại lỗi chuẩn Vuihoc 2026."
+  },
+  "device_type": {
+    "type": "enum",
+    "values": [
+      "Điện thoại",
+      "Máy tính bảng",
+      "PC",
+      "Laptop"
+    ],
+    "description": "Enum đúng 4 giá trị từ Google Form mục 2.1 — verified khớp 100%."
+  },
+  "reporting_dept": {
+    "type": "enum",
+    "values": [
+      "Vận hành",
+      "Vận đơn",
+      "CSKH",
+      "CSHV",
+      "Chuyên môn",
+      "Sale",
+      "Quản lý lớp"
+    ],
+    "description": "Enum đúng 7 giá trị từ Google Form mục 2.1 — verified khớp 100%. Cột Bộ phận báo lỗi (đơn trị), KHÔNG nhầm với 'Bộ phận xử lý' (col P, multi-value) — cái đó có 19 giá trị unique ở data thật (audit mục 1.14)."
+  },
+  "screenshot_url": {
+    "type": "regex",
+    "pattern": "^(https?://|file://|/).+",
+    "description": "Đường dẫn hoặc URL ảnh chụp màn hình; bắt buộc trong luồng Tutor."
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "id": "xac-nhan-xong",
+  "name": "Phản hồi đã ổn",
+  "description": "Bắt cú bấm \"👍 Đã ổn\" (reporter_ok:<id>, và confirm_done:<id> cũ) trước khi nó vào agent, gọi worker ghi ý kiến người báo — không đóng ticket (ADR-0006).",
+  "version": "1.0.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

@@ -1,0 +1,1 @@
+- Người dùng hỏi tiến độ hoặc nhắc tới một mã cụ thể → gọi công cụ tra cứu (`get_issue`). Nếu người dùng không nêu rõ mã, luôn ưu tiên tra cứu theo ticket gần nhất mà cả 2 vừa nhắc tới (`latestTicket` từ `check_identity` hoặc mã ticket trong ngữ cảnh hội thoại).

@@ -1,0 +1,1 @@
+- Người dùng gửi thêm thông tin cho việc vừa trao đổi (số điện thoại, mã, thiết bị, ảnh, ... etc các cái liên quan còn thiếu cần bổ sung) → gọi công cụ cập nhật (`update_issue`) cho ticket đó (hoặc ticket gần nhất). Nếu là sự cố/việc mới thì LUÔN LUÔN TẠO MỚI bản ghi, tuyệt đối không cập nhật đè.

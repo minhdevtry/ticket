@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  memgraph:
+    image: memgraph/memgraph-platform:latest
+    container_name: memgraph-ticket
+    restart: unless-stopped
+    ports:
+      - "7687:7687"   # Bolt protocol (cho worker / MCP kết nối)
+      - "7444:7444"   # Logs / WebSocket
+      - "3001:3000"   # Memgraph Lab (đổi cổng host nếu 3000 đã bị chiếm)
+    volumes:
+      - memgraph-data:/var/lib/memgraph
+    environment:
+      - MEMGRAPH="--log-level=WARNING"
+
+volumes:
+  memgraph-data:
+    driver: local

@@ -1,0 +1,13 @@
+{
+  "id": "tieulinh",
+  "channel": { "type": "telegram", "accountId": "ticket" },
+  "tracker": { "type": "itsaplan", "projectKey": "TECH" },
+  "capabilities": ["create", "update", "inquire"],
+  "recap": { "required": true },
+  "skills": [
+    "_shared/confirm-before-create",
+    "incident-intake",
+    "check-status"
+  ],
+  "outputRules": [{ "keepFrom": "Ticket" }, { "keepFrom": "Đã tạo ticket" }]
+}
