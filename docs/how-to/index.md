@@ -1,0 +1,18 @@
+# Cách làm
+
+Mỗi trang là một việc cụ thể, làm theo từng bước. Trạng thái ghi thẳng ở đây để bạn khỏi mất công mở trang rồi mới biết nó chưa xong.
+
+| Việc | Trạng thái |
+|---|---|
+| [Viết catalog tiếp nhận](/how-to/write-catalog) | Đã viết, mẫu code được CI chạy |
+| [Thêm kênh chat](/how-to/add-channel) | Đã viết, mẫu code được CI typecheck |
+| [Dựng worker báo ngược](/how-to/notify-worker) | Đã viết, có mẫu chạy được không cần mạng |
+| [Chạy shadow](/how-to/run-shadow) | Một phần: công cụ parity đã có; chế độ shadow cho bot **đang viết** |
+| [Deploy và đẩy secret qua SSH](/how-to/deploy) | Một phần: đẩy secret và cập nhật code đã viết; unit systemd và rollback **đang viết** |
+| [Chuyển project vào team](/how-to/move-project-to-team) | Một phần: phía code đã viết; quy trình trên itsaplan **đang viết** |
+| [Chuyển bot sang bot-core](/how-to/adopt-core) | Đã viết |
+| [Chuyển Tiểu Linh sang bot-core](/how-to/migrate-tieulinh) | Bản ghi lại việc đã làm |
+
+Chưa có trang cho các việc của vai hậu cần (viết trigger, viết rule) vì API còn **đang thiết kế**: xem [Kiến trúc](/explanation/architecture).
+
+Các trang này dùng mẫu code có cờ `ts check` hoặc `ts run`, tức được CI kiểm với code thật. Nếu một mẫu không chạy được với bản bạn đang có, đó là lỗi của docs: mở issue.
