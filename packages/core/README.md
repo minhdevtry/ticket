@@ -1,53 +1,24 @@
 # @vuihoc/bot-core
 
-Shared TypeScript/Bun core for VUIHOC bots (Tiểu Linh, Bot CM, Bot-Sales, …).
-One package, subpath exports per layer.
+Thư viện TypeScript/Bun dùng chung cho các bot ticket của VuiHoc. Một package, mỗi tầng là một subpath: `core`, `itsaplan`, `intake`, `identity`, `openclaw`, `telegram`, `worker`, `eval` (và `prose/*` cho markdown dùng chung).
 
-Layers: `core`, `identity`, `itsaplan`, `intake`, `openclaw`, `telegram`, `worker`, `prose`. Adoption guides per bot:
-[`docs/adoption/`](docs/adoption/README.md). Parity proof: [`docs/parity/REPORT.md`](docs/parity/REPORT.md).
+Package nằm trong monorepo `ticket` và được app dùng qua `"@vuihoc/bot-core": "workspace:*"`. Mã nguồn TypeScript được phát hành trực tiếp, không có bước build.
 
-## Install
+## Tài liệu
 
-This package lives in the `ticket` monorepo at `packages/core` and is consumed by
-the apps through `workspace:*`:
+Toàn bộ tài liệu ở site docs: <https://minhdevtry.github.io/ticket/> (nguồn trong thư mục `docs/` ở gốc repo).
 
-```jsonc
-// apps/<app>/package.json
-{
-  "dependencies": {
-    "@vuihoc/bot-core": "workspace:*"
-  }
-}
-```
+- Bắt đầu: `docs/guide/`
+- Việc cụ thể (catalog, kênh chat, worker báo ngược, deploy): `docs/how-to/`
+- API, biến môi trường, sự kiện webhook, CopyKey: `docs/reference/` (API sinh bằng TypeDoc lúc build)
+- Vì sao thiết kế như vậy: `docs/explanation/`
 
-Import from a layer entry point:
-
-```ts
-import { getLogger, Logger, describeToolFailure, setToolFailureAlert } from "@vuihoc/bot-core/core";
-```
-
-## "MCP imports pure code only"
-
-Code reachable from an MCP server — and anything shipped in `core` — must be
-**pure, dependency-light TypeScript**: no Telegram/OpenClaw runtime, no native
-modules, no file reads for lookup tables (import them). This is what keeps
-`bun build --compile` binaries small and self-contained.
-
-Consequences visible in this slice:
-- the logger's default is a dependency-free console shim; a host installs a
-  structured logger via `setLogger`;
-- `tool-error` imports no Telegram — the admin alert is an **injected hook**
-  (`setToolFailureAlert(fn)`) the host wires at startup;
-- runtime deps are limited to `@modelcontextprotocol/sdk` and `zod`.
-
-## Develop
+## Phát triển
 
 ```bash
-bun install         # from the monorepo root
-bun run test        # unit tests (bun test src)
-bun run check       # typecheck (tsc --noEmit -p .)
+bun install            # từ thư mục gốc monorepo
+bun run test           # bun test src
+bun run check          # tsc --noEmit -p .
 ```
 
-Ship TypeScript source (no build step published); Bun runs TS directly.
-Versioning starts at 0.x — breaking changes allowed until 1.0 but must be in
-[`CHANGELOG.md`](CHANGELOG.md).
+Trước 1.0 cho phép breaking change nhưng phải ghi trong [`CHANGELOG.md`](CHANGELOG.md). Đổi hành vi hoặc API thì cập nhật docs trong cùng PR (CI kiểm, xem `CONTRIBUTING.md`).

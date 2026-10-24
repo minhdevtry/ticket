@@ -5,8 +5,13 @@ Monorepo cho các bot tiếp nhận và xử lý ticket nội bộ của VuiHoc,
 | Thư mục | Nội dung |
 |---|---|
 | [`packages/core`](packages/core) | `@vuihoc/bot-core`: thư viện dùng chung (logger, MCP server, itsaplan client, intake engine, Telegram, worker, eval) |
+| [`docs`](docs) | Site tài liệu (VitePress, tiếng Việt), published lên GitHub Pages |
 | [`apps/tieulinh`](apps/tieulinh) | **Tiểu Linh**: bot tiếp nhận sự cố kỹ thuật qua Telegram → ticket itsaplan |
 | `apps/op`, `apps/po`, `apps/cm` | Dự kiến: các bot vận hành, product, CM dùng chung core |
+
+## Tài liệu
+
+Site: <https://minhdevtry.github.io/ticket/>. Nguồn ở [`docs/`](docs): hướng dẫn, cách làm, tra cứu (API sinh từ code) và giải thích kiến trúc (bot có hai vai: lễ tân và hậu cần). CI giữ docs khớp code, xem [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Bắt đầu
 
@@ -14,7 +19,8 @@ Yêu cầu: [Bun](https://bun.sh) ≥ 1.4.
 
 ```bash
 bun install
-bun run verify        # lint + typecheck + test + quét vệ sinh repo công khai
+bun run verify        # lint + typecheck + test + quét vệ sinh repo công khai + kiểm docs nhanh
+bun run docs:dev      # xem trước site docs ở máy bạn
 bun run --cwd apps/tieulinh mcp:tieulinh   # chạy MCP server Tiểu Linh (cần .env, xem dưới)
 ```
 
@@ -33,7 +39,8 @@ Telegram ──► OpenClaw gateway ──► agent (persona, skills)
 
 - Logic tất định (thu thập trường, xác nhận, tạo ticket) nằm trong MCP tool và engine; model chỉ diễn đạt.
 - itsaplan là nguồn sự thật; SQLite cục bộ chỉ là cache/trạng thái hội thoại.
-- Quyết định kiến trúc: [`docs/adr`](docs/adr) (cấp repo), `packages/core/docs/adr`, `apps/tieulinh/docs/adr`.
+- Quyết định kiến trúc: [`docs/adr`](docs/adr) (cấp repo), `packages/core/docs/adr`, `apps/tieulinh/docs/adr`; chỉ mục đầy đủ trên site docs.
+- Kiến trúc đầy đủ (lễ tân và hậu cần): trang "Kiến trúc" trong site docs.
 
 ## Đóng góp
 
