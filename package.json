@@ -1,0 +1,23 @@
+{
+  "name": "ticket",
+  "private": true,
+  "type": "module",
+  "description": "VuiHoc ticket bots: Tiểu Linh intake on top of the shared bot-core library.",
+  "workspaces": ["packages/*", "apps/*"],
+  "engines": { "bun": ">=1.4.0" },
+  "packageManager": "bun@1.4.4",
+  "scripts": {
+    "check": "bun run --filter '*' check",
+    "test": "bun run --filter '*' test",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "scan": "bun run scripts/scan-public.ts",
+    "verify": "bun run lint && bun run check && bun run test && bun run scan"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@types/bun": "^1.4.2",
+    "@types/node": "^22.20.2",
+    "typescript": "^7.0.2"
+  }
+}

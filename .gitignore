@@ -1,0 +1,45 @@
+# Dependencies & build output
+node_modules/
+dist/
+dist-live/
+build/
+coverage/
+.cache/
+.turbo/
+*.tsbuildinfo
+
+# Secrets: never commit. Deploy them over SSH (see deploy/README.md)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Runtime state
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+*.sqlite
+*.sqlite3
+data/*.jsonl
+apps/*/data/*
+!apps/*/data/.gitkeep
+
+# Tooling
+.tgrep/
+.claude/settings.local.json
+__pycache__/
+*.pyc
+.venv/
+scratch/
+tmp/
+*.log
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+.scan-denylist
