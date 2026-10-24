@@ -1,0 +1,18 @@
+{
+  "id": "shadow-forwarder",
+  "name": "Shadow forwarder",
+  "description": "Sao chép không chặn lưu lượng của MỘT agent (tin vào, tin ra đã gửi, lệnh gọi tool) sang relay chạy thử Tiểu Linh 2. Không bao giờ chặn hay ném lỗi vào gateway.",
+  "version": "0.1.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "relayUrl": { "type": "string" },
+      "token": { "type": "string" },
+      "sessionPrefix": { "type": "string" },
+      "timeoutMs": { "type": "integer", "minimum": 200, "maximum": 5000 },
+      "tools": { "type": "boolean" },
+      "spoolPath": { "type": "string" }
+    }
+  }
+}
