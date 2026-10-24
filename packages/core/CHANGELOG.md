@@ -4,6 +4,12 @@ All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded
 
 ## Unreleased
 
+- Docs site: `OutboxKind`, `CommentPayload`, `StatePayload` (`intake`) giờ được export;
+  `identityTokenSchema` (`openclaw`) được export từ entry point; `ParseMode` của
+  `render` được xuất lại dưới tên `RenderParseMode` (`telegram`) vì `ParseMode` của
+  `send` che nó. Chỉ thêm export, không đổi hành vi. Lý do: TypeDoc (cảnh báo = lỗi)
+  đòi mọi kiểu được tham chiếu phải có trong tài liệu.
+
 - Moved into the `ticket` monorepo (`packages/core`, consumed via `workspace:*`);
   scrubbed internal fixtures (hosts, IPs, phone numbers, chat/user IDs, staff names
   and handles, personal paths) and removed the old standalone-repo docs.

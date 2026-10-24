@@ -53,16 +53,16 @@ export function outboxApplySchema(db: Database, opts: { wal: boolean } = { wal: 
   for (const stmt of OUTBOX_SCHEMA) db.run(stmt);
 }
 
-type OutboxKind = "comment" | "state";
+export type OutboxKind = "comment" | "state";
 
-interface CommentPayload {
+export interface CommentPayload {
   binding: NotifyBinding;
   authorName: string;
   text: string;
   images?: string[];
   videos?: string[];
 }
-interface StatePayload {
+export interface StatePayload {
   binding: NotifyBinding;
   message: string;
   state: TicketLifecycleState;
