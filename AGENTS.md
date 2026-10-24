@@ -11,6 +11,7 @@ Repo **công khai**. Trước mọi commit: không secret, không IP/host nội 
   - `worker`: webhook itsaplan → Telegram, vòng đời ticket.
   - `skills/tieulinh`: persona và workspace OpenClaw (đồng bộ bằng `openclaw/sync-workspace.ts`).
   - `openclaw-plugin`: plugin nút bấm, xác nhận xong.
+- `tools/tl2-shadow`: bộ chạy bóng Tiểu Linh 2 (relay, proxy giữ secret, tunnel, so sánh). Chỉ chạy trên máy dev; xem `docs/how-to/shadow-tl2.md`, ADR-0005.
 - `deploy/`: script đẩy secret qua SSH và README deploy (chưa có unit systemd trong repo).
 - `docs/`: site VitePress (tiếng Việt), published lên GitHub Pages. Gồm `guide/`, `how-to/`, `reference/`, `explanation/` và `adr/` (quyết định cấp repo). Mỗi package/app có `docs/adr` riêng cạnh code.
 - `scripts/`: `scan-public.ts` (vệ sinh repo công khai), `gen-docs.ts`, `check-doc-snippets.ts`, `check-docs-refs.ts`, `check-docs-touched.ts` (kiểm docs).
