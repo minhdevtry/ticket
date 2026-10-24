@@ -39,6 +39,34 @@ describe("SqliteIdentityRepository (:memory:)", () => {
     expect(repo.getUserIdentityByNameCode("te_usera")?.userId).toBe("123");
   });
 
+  test("upsert: chuỗi rỗng KHÔNG ghi đè fullName/username/pendingReport/approvedBy/department đã lưu (|| như intake)", () => {
+    repo.saveUserIdentity({
+      userId: "9",
+      nameCode: "TE_x",
+      fullName: "Lan",
+      username: "lan_u",
+      pendingReport: '{"a":1}',
+      status: "approved",
+      approvedBy: "admin",
+      department: "IT",
+    });
+    repo.saveUserIdentity({
+      userId: "9",
+      nameCode: "TE_x",
+      fullName: "",
+      username: "",
+      pendingReport: "",
+      approvedBy: "",
+      department: "",
+    });
+    const got = repo.getUserIdentity("9");
+    expect(got?.fullName).toBe("Lan");
+    expect(got?.username).toBe("lan_u");
+    expect(got?.pendingReport).toBe('{"a":1}');
+    expect(got?.approvedBy).toBe("admin");
+    expect(got?.department).toBe("IT");
+  });
+
   test("approve / reject / department / pending report mutate the row", () => {
     repo.saveUserIdentity({ userId: "1", nameCode: "TE_a" });
     repo.approveUserIdentity("1", "admin");

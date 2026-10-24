@@ -27,6 +27,17 @@ export interface EnsureWebhookOptions {
    * để không đăng ký thêm sự kiện mà worker của nó chưa cần.
    */
   events?: readonly string[];
+  /**
+   * Webhook khớp URL nhưng đang tắt: `true` (mặc định) = bật lại tại chỗ, giữ
+   * id/secret; `false` = hành vi intake cũ: XOÁ rồi tạo mới.
+   */
+  reactivateDisabled?: boolean;
+  /**
+   * Không có webhook khớp URL nhưng có webhook cùng host lệch cổng/path: `true`
+   * (mặc định) = trỏ webhook đó về URL đúng, tái dùng id; `false` = hành vi intake
+   * cũ: chỉ so khớp URL chính xác, không thì tạo mới.
+   */
+  repointSameHost?: boolean;
 }
 
 export async function ensureItsaplanWebhook(
@@ -36,6 +47,8 @@ export async function ensureItsaplanWebhook(
   opts: EnsureWebhookOptions = {},
 ): Promise<{ success: boolean; webhookId?: number; message: string }> {
   const requiredEvents = [...(opts.events ?? REQUIRED_WEBHOOK_EVENTS)];
+  const reactivateDisabled = opts.reactivateDisabled ?? true;
+  const repointSameHost = opts.repointSameHost ?? true;
   try {
     const hooks = await client.listWebhooks(projectKey).catch(() => []);
     const matching = hooks.find(
@@ -61,7 +74,12 @@ export async function ensureItsaplanWebhook(
       return { success: true, webhookId: matching.id, message: msg };
     }
 
-    if (matching && !matching.isActive) {
+    if (matching && !matching.isActive && !reactivateDisabled) {
+      getLogger().warn(
+        `[ensureWebhook] Webhook ID ${matching.id} đang bị tắt (isActive = false), xóa và tạo mới...`,
+      );
+      await client.deleteWebhook(matching.id).catch(() => {});
+    } else if (matching && !matching.isActive) {
       getLogger().warn(
         `[ensureWebhook] Webhook ID ${matching.id} đang bị tắt (isActive = false), kích hoạt lại...`,
       );
@@ -81,16 +99,17 @@ export async function ensureItsaplanWebhook(
     // đúng và giữ nguyên id/secret. Chỉ nhận cùng host để không đụng webhook của
     // máy khác đang phục vụ cùng dự án.
     const canon = safeUrl(webhookUrl);
-    const sameHostStale = canon
-      ? hooks.find((h) => {
-          const u = safeUrl(h.url);
-          return (
-            !!u &&
-            u.hostname === canon.hostname &&
-            h.url.trim().toLowerCase() !== webhookUrl.trim().toLowerCase()
-          );
-        })
-      : undefined;
+    const sameHostStale =
+      canon && repointSameHost && !matching
+        ? hooks.find((h) => {
+            const u = safeUrl(h.url);
+            return (
+              !!u &&
+              u.hostname === canon.hostname &&
+              h.url.trim().toLowerCase() !== webhookUrl.trim().toLowerCase()
+            );
+          })
+        : undefined;
     if (sameHostStale) {
       await client.updateWebhook(sameHostStale.id, {
         url: webhookUrl,

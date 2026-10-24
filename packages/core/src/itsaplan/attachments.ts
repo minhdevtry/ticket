@@ -82,9 +82,22 @@ function escapeAttributeValue(url: string): string {
   return url.replace(/["'<>&\s]/g, (char) => `&#${char.charCodeAt(0)};`);
 }
 
-export function formatAttachmentMarkdown(att: UploadedAttachment): string {
-  const filename = escapeMarkdownText(att.filename);
-  const url = escapeAttributeValue(att.url);
+export interface AttachmentMarkdownOptions {
+  /**
+   * Escape tên file + URL trước khi nhét vào markdown/HTML (mặc định `true`, CM).
+   * `false` = hành vi intake cũ: chèn nguyên văn.
+   */
+  escape?: boolean;
+}
+
+export function formatAttachmentMarkdown(
+  att: UploadedAttachment,
+  opts: AttachmentMarkdownOptions = {},
+): string {
+  // `.map(formatAttachmentMarkdown)` truyền chỉ số vào tham số thứ hai: chỉ nhận object.
+  const shouldEscape = typeof opts === "object" && opts !== null ? (opts.escape ?? true) : true;
+  const filename = shouldEscape ? escapeMarkdownText(att.filename) : att.filename;
+  const url = shouldEscape ? escapeAttributeValue(att.url) : att.url;
   if (
     isVideoAttachment(att.filename) ||
     isVideoAttachment(att.url) ||
@@ -102,8 +115,16 @@ export function formatAttachmentMarkdown(att: UploadedAttachment): string {
   return `[${filename}](${url})`;
 }
 
-/** Trần kích thước 1 tệp đính kèm. (CM) */
+/** Trần kích thước 1 tệp đính kèm mặc định. (CM) */
 export const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
+
+export interface UploadAttachmentsOptions {
+  /**
+   * Trần kích thước mỗi tệp (byte). Mặc định {@link MAX_ATTACHMENT_BYTES};
+   * `Infinity` = không giới hạn (intake cũ đọc mọi file).
+   */
+  maxBytes?: number;
+}
 
 /**
  * Uploads each local file path (or resolver-resolvable ref) to an issue.
@@ -119,7 +140,9 @@ export async function uploadAttachments(
   baseUrl: string,
   paths: string[],
   media?: MediaResolver,
+  opts: UploadAttachmentsOptions = {},
 ): Promise<UploadedAttachment[]> {
+  const maxBytes = opts.maxBytes ?? MAX_ATTACHMENT_BYTES;
   const uploaded: UploadedAttachment[] = [];
   for (const rawPath of paths) {
     try {
@@ -133,7 +156,7 @@ export async function uploadAttachments(
         continue;
       }
       const stat = await fs.promises.stat(filePath);
-      if (!stat.isFile() || stat.size > MAX_ATTACHMENT_BYTES) {
+      if (!stat.isFile() || stat.size > maxBytes) {
         getLogger().warn(`[attachments] Bỏ qua tệp không hợp lệ hoặc quá lớn: ${rawPath}`);
         continue;
       }
@@ -172,9 +195,10 @@ const IMAGE_HEADING = "### 📸 Ảnh đính kèm";
 export function spliceAttachmentsIntoDescription(
   description: string,
   attachments: UploadedAttachment[],
+  opts: AttachmentMarkdownOptions = {},
 ): string {
   if (attachments.length === 0) return description;
-  const mediaMarkdown = attachments.map(formatAttachmentMarkdown).join("\n\n");
+  const mediaMarkdown = attachments.map((a) => formatAttachmentMarkdown(a, opts)).join("\n\n");
 
   const heading = description.includes(IMAGE_HEADING)
     ? IMAGE_HEADING

@@ -43,6 +43,10 @@ export interface UserIdentity {
 export interface IdentityRepository {
   getUserIdentity(userId: string): UserIdentity | null;
   getUserIdentityByNameCode(nameCode: string): UserIdentity | null;
+  /**
+   * Upsert. Chuỗi RỖNG coi như "không có" (`||`, như intake): không ghi đè
+   * `fullName`/`username`/`pendingReport`... đã lưu bằng chuỗi rỗng.
+   */
   saveUserIdentity(identity: {
     userId: string;
     nameCode: string;
@@ -177,12 +181,12 @@ export class SqliteIdentityRepository implements IdentityRepository {
       .run(
         identity.userId,
         identity.nameCode,
-        identity.fullName ?? null,
-        identity.username ?? null,
-        identity.status ?? "pending",
-        identity.approvedBy ?? null,
-        identity.pendingReport ?? null,
-        identity.department ?? null,
+        identity.fullName || null,
+        identity.username || null,
+        identity.status || "pending",
+        identity.approvedBy || null,
+        identity.pendingReport || null,
+        identity.department || null,
       );
   }
 

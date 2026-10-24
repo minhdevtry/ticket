@@ -21,6 +21,17 @@ All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded
     events it handles (default stays `REQUIRED_WEBHOOK_EVENTS`).
   - `itsaplan`: fix `resolveFriendlyStatusName("", …)` returning `""` — falls back to
     "Chờ xử lý" again (intake used `||`).
+  - Options so a frozen legacy bot can keep exact old behaviour while the library
+    keeps its better defaults (all default to the previous library behaviour):
+    `ItsaplanClient` `timeoutMs <= 0` = no timeout and `strictResponses: false`
+    (empty 2xx body -> `{}`, non-JSON -> text); `ensureItsaplanWebhook`
+    `reactivateDisabled` / `repointSameHost`; `uploadAttachments` `maxBytes`
+    (`Infinity` allowed); `formatAttachmentMarkdown` / `spliceAttachmentsIntoDescription`
+    `{ escape }`; `stripChannelEnvelope` `keepSoleEnvelopeBlock` /
+    `keepTextAfterEnvelopeBlock` / `stripPastedEnvelopeFences`; `stripBotMentions`
+    `knownHandles` / `stripBotSuffixHandles`; `setToolFailureOptions({ useDeclaredErrorCode })`.
+  - `identity`: `saveUserIdentity` now treats an empty string as "absent" (`||`, as
+    intake did) so it no longer overwrites stored values with `""`. Library-wide.
   - tests: `isLoopback`, MCP server error-as-`loi` result, Telegram transport
     error policies / multipart / file download.
 

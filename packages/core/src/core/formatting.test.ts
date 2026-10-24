@@ -13,6 +13,7 @@ import {
   foldForComparison,
   looseIncludes,
   stripBotMentions,
+  KNOWN_BOT_HANDLES,
 } from "./formatting";
 
 // ── marker chống echo-loop (merged intake + CM) ──────────────────────────────
@@ -156,5 +157,23 @@ describe("stripBotMentions (CM cases)", () => {
       "Thầy cô xem giúp em đề kiểm tra",
     );
     expect(stripBotMentions("Nhờ @vh_teacher_sp_bot xem")).toBe("Nhờ xem");
+  });
+});
+
+describe("stripBotMentions — options (cho bot cần hành vi intake cũ)", () => {
+  test("knownHandles thay danh sách mặc định: không lọc @cmsupport nếu không có trong danh sách", () => {
+    const handles = KNOWN_BOT_HANDLES.filter((h) => h !== "cmsupport");
+    expect(stripBotMentions("@cmsupport xem giúp", [], { knownHandles: handles })).toBe(
+      "@cmsupport xem giúp",
+    );
+    expect(stripBotMentions("@iris xem giúp", [], { knownHandles: handles })).toBe("xem giúp");
+  });
+
+  test("stripBotSuffixHandles:false giữ @<tên>_bot lạ, chỉ lọc handle trong danh sách", () => {
+    expect(
+      stripBotMentions("Nhờ @vh_teacher_sp_bot xem", [], { stripBotSuffixHandles: false }),
+    ).toBe("Nhờ @vh_teacher_sp_bot xem");
+    // handle có _bot trong danh sách (vhticket_bot) vẫn bị lọc.
+    expect(stripBotMentions("@vhticket_bot xem", [], { stripBotSuffixHandles: false })).toBe("xem");
   });
 });

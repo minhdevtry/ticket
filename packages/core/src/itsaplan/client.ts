@@ -218,8 +218,18 @@ export interface ItsaplanClientOptions {
   baseUrl?: string;
   apiKey?: string;
   retryOptions?: RetryOptions;
-  /** Thời gian chờ tối đa cho một request (ms). Mặc định 20s. */
+  /**
+   * Thời gian chờ tối đa cho một request (ms). Mặc định 20s; `<= 0` = KHÔNG timeout
+   * (bot cũ như Tiểu Linh không có timeout — abort giữa chừng một request ghi chậm
+   * rồi thử lại có thể sinh ticket/comment trùng, và upload lớn bị cắt).
+   */
   timeoutMs?: number;
+  /**
+   * Mặc định `true`: 2xx với body rỗng hoặc không phải JSON ném
+   * `ItsaplanMalformedResponseError` (không bịa dữ liệu). `false` = hành vi intake
+   * cũ: body rỗng → `{}`, body không phải JSON → trả nguyên chuỗi.
+   */
+  strictResponses?: boolean;
 }
 
 /** Thời gian chờ tối đa mặc định cho một request Itsaplan. */
@@ -230,6 +240,7 @@ export class ItsaplanClient {
   public readonly apiKey: string;
   private readonly retryOptions?: RetryOptions;
   private readonly timeoutMs: number;
+  private readonly strictResponses: boolean;
 
   /**
    * `(baseUrl, apiKey, retryOptions | options)`. Spec: everything via
@@ -242,20 +253,23 @@ export class ItsaplanClient {
     apiKey: string,
     retryOptionsOrOptions?: RetryOptions | ItsaplanClientOptions,
   ) {
-    const explicitOptions =
-      retryOptionsOrOptions && "retryOptions" in retryOptionsOrOptions
-        ? (retryOptionsOrOptions as ItsaplanClientOptions)
-        : undefined;
-    const retryOpts =
-      explicitOptions?.retryOptions ||
-      (retryOptionsOrOptions && !("retryOptions" in retryOptionsOrOptions)
-        ? (retryOptionsOrOptions as RetryOptions)
-        : undefined);
+    // Tham số thứ 3 là `ItsaplanClientOptions` khi có `retryOptions`/`strictResponses`;
+    // ngược lại coi là `RetryOptions` trần (call site intake cũ).
+    const isClientOptions =
+      !!retryOptionsOrOptions &&
+      ("retryOptions" in retryOptionsOrOptions || "strictResponses" in retryOptionsOrOptions);
+    const explicitOptions = isClientOptions
+      ? (retryOptionsOrOptions as ItsaplanClientOptions)
+      : undefined;
+    const retryOpts = isClientOptions
+      ? explicitOptions?.retryOptions
+      : (retryOptionsOrOptions as RetryOptions | undefined);
 
     this.baseUrl = (baseUrl || explicitOptions?.baseUrl || "").replace(/\/+$/, "");
     this.apiKey = apiKey || explicitOptions?.apiKey || "";
     this.retryOptions = retryOpts;
     this.timeoutMs = explicitOptions?.timeoutMs ?? DEFAULT_ITSAPLAN_TIMEOUT_MS;
+    this.strictResponses = explicitOptions?.strictResponses ?? true;
   }
 
   public async request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -292,12 +306,14 @@ export class ItsaplanClient {
       // KHÔNG bịa dữ liệu: trả `{}` khiến caller tưởng issue rỗng (ghi đè field trống
       // lên ticket đã có), còn ép kiểu chuỗi HTML khiến mọi job lỗi dây chuyền. (CM)
       if (!text) {
+        if (!this.strictResponses) return {} as T;
         throw new ItsaplanMalformedResponseError(path, "HTTP 2xx nhưng body rỗng");
       }
 
       try {
         return JSON.parse(text) as T;
       } catch {
+        if (!this.strictResponses) return text as unknown as T;
         throw new ItsaplanMalformedResponseError(
           path,
           `HTTP 2xx nhưng body không phải JSON (${text.length} ký tự, bắt đầu bằng "${text.slice(0, 60).replace(/\s+/g, " ")}")`,

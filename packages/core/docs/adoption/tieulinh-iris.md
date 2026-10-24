@@ -20,19 +20,20 @@ test), không bỏ.
 
 **Thay hẳn bằng import từ thư viện** (file local bị xoá, call-site import thẳng
 `@vuihoc/bot-core/<subpath>`):
-`lib/logger`, `lib/channel-envelope`, `lib/onyx/pii-redactor`, `lib/storage/memo`,
+`lib/logger`, `lib/onyx/pii-redactor`, `lib/storage/memo`,
 `mcp/shared/{server,tool}` (`/core`); `lib/itsaplan/{client,project,status,ticket-state,sync-labels,ensure-webhook,attachments}`
 và phần chung của `worker/project-lock` (`/itsaplan`); `lib/gate/{types,catalog,gate,normalize,recap,schema,buttons,validate}`
 và engine `evaluatePriorityRules` (`/intake`); `lib/telegram/transport` (`/telegram`);
 hàm thuần của `worker/webhook-server` (chữ ký, khoá dedupe, `isLoopback`, kiểu envelope).
 
 **Giữ một adapter mỏng tại chỗ** (lý do trong ngoặc):
-- `lib/tool-error.ts` — nối `setToolFailureAlert` vào `alertAdmin` (thư viện không có Telegram); `mcp/shared/index.ts` import nó.
+- `lib/tool-error.ts` — nối `setToolFailureAlert` vào `alertAdmin` (thư viện không có Telegram) và đặt `useDeclaredErrorCode: false`; `mcp/shared/index.ts` import nó.
 - `lib/storage/lazy-db.ts` — `makeOpenLazyDb({ applySchema, onOpenError: "throw" })` (schema của bot; giữ hành vi ném khi file không mở được).
-- `lib/formatting.local.ts` — `appendTicketUpdateDescription`, `isCommentRecentlyForwarded` (layout ticket và state worker).
-- `lib/itsaplan/client-factory.ts` — `createItsaplanClient` tắt retry (xem Khác biệt hành vi).
+- `lib/formatting.local.ts` — `appendTicketUpdateDescription`, `isCommentRecentlyForwarded` (layout ticket và state worker), `stripBotMentions` với danh sách handle cũ.
+- `lib/itsaplan/client-factory.ts` — `createItsaplanClient`: không retry, không timeout, body 2xx lỏng (xem bảng giữ hành vi).
 - `lib/itsaplan/ensure-webhook.ts` — `ensureTieuLinhWebhook` với bộ sự kiện riêng của Tiểu Linh.
-- `lib/itsaplan/upload.ts` — `uploadAttachments` cắm `MediaResolver` của bot (`resolveMediaFilePath`).
+- `lib/itsaplan/upload.ts` — `uploadAttachments` cắm `MediaResolver` của bot (`resolveMediaFilePath`), không trần kích thước; `formatAttachmentMarkdown`/`spliceAttachmentsIntoDescription` không escape.
+- `lib/channel-envelope.ts` — `stripChannelEnvelope` với hành vi intake cũ (thư viện cho tuỳ chọn).
 - `worker/project-lock.ts` — chỉ còn `isTieuLinhProject`.
 - `mcp/shared/tools/assess-priority.ts` — wrapper MCP + schema zod; engine từ thư viện.
 - `lib/telegram/alert.ts` — mặt tiền `alertAdmin`/`configureAlerts` đọc env, dựng trên `Alerter`.
@@ -51,23 +52,34 @@ hàm thuần của `worker/webhook-server` (chữ ký, khoá dedupe, `isLoopback
 sửa `resolveFriendlyStatusName("")`; cộng test cho `isLoopback`, lỗi tool → `loi`,
 chính sách lỗi transport / multipart / tải file.
 
-**Khác biệt hành vi còn lại** (đều đã chấp nhận, không có trong parity cũ):
-- `ItsaplanClient`: thư viện có timeout 20 s mỗi request (app cũ không có), lỗi là `ItsaplanApiError`
-  (cùng chuỗi `Itsaplan API error: <status> (<path>) - ...`), 2xx body rỗng/không phải JSON ném
-  `ItsaplanMalformedResponseError` thay vì trả `{}`/chuỗi. Retry 429/5xx của thư viện bị TẮT
-  qua `createItsaplanClient` (retry POST có thể tạo ticket/comment trùng).
-- `formatAttachmentMarkdown`/`uploadAttachments`: tên file và URL được escape (`_` → `\_`, `&`/khoảng trắng → `&#NN;`),
-  bỏ qua file > 20 MB hoặc không phải file thường.
-- `ensureItsaplanWebhook`: webhook đang tắt được bật lại tại chỗ (giữ id/secret) thay vì xoá-tạo-lại; webhook cùng host
-  lệch cổng được trỏ lại thay vì đẻ thêm. Bộ sự kiện giữ nguyên 4 sự kiện cũ (không có `issue.created`).
+**Nguyên tắc giữ hành vi (vòng review thứ hai):** Tiểu Linh là baseline đóng băng, nên thư viện
+có thể giữ mặc định tốt hơn nhưng bot phải truyền tuỳ chọn tường minh để cư xử như bản cũ.
+Mỗi tuỳ chọn có test ở `packages/core` (mặc định) và ở `apps/tieulinh` (adapter).
+
+| Hành vi | Mặc định thư viện | Tiểu Linh (tuỳ chọn) |
+|---|---|---|
+| `ItsaplanClient` timeout | 20 s/request | `timeoutMs: 0` = không timeout (`createItsaplanClient`, `maxRetries: 0` giữ nguyên) |
+| 2xx body rỗng / không phải JSON | ném `ItsaplanMalformedResponseError` | `strictResponses: false` → `{}` / chuỗi như cũ |
+| `ensureItsaplanWebhook` | bật lại webhook tắt tại chỗ, trỏ lại webhook cùng host lệch cổng | `reactivateDisabled: false`, `repointSameHost: false` (khớp URL chính xác; tắt thì xoá-tạo lại) + 4 sự kiện cũ |
+| `stripChannelEnvelope` | giữ khối JSON phong bì chiếm trọn tin, giữ chữ sau khối, bỏ ``` dán | `lib/channel-envelope.ts`: `keepSoleEnvelopeBlock`, `keepTextAfterEnvelopeBlock`, `stripPastedEnvelopeFences` đều `false` (TECH-922) |
+| `uploadAttachments` | trần 20 MB | `maxBytes: Infinity` |
+| `formatAttachmentMarkdown` / splice | escape tên file và URL | `escape: false` (wrapper trong `lib/itsaplan/upload.ts`) |
+| `stripBotMentions` | gồm `cmsupport` và mọi `@\w+_bot` | `knownHandles` không có `cmsupport`, `stripBotSuffixHandles: false` |
+| mã lỗi tool (`describeToolFailure`) | dùng `err.code` tự khai | `useDeclaredErrorCode: false` → luôn mã thời gian duy nhất |
+
+Thay đổi áp dụng cho CẢ thư viện (chủ ý): `saveUserIdentity` dùng `||` thay `??` (chuỗi rỗng
+không ghi đè giá trị đã lưu, giống intake).
+
+**Khác biệt hành vi còn lại** (đã chấp nhận, không có trong parity cũ):
 - `TelegramTransport`: lỗi form-data có chữ `(form-data)` bị bỏ; 429 không thử lại (`maxRetries: 0`) ở cả 3 nơi dựng.
 - `verifyItsaplanSignature`: secret rỗng bị bỏ qua (cũ vẫn thử HMAC với khoá rỗng).
 - `clearPendingButtons`: không còn log cảnh báo khi xoá file lỗi.
 - `listPendingIdentities`: trả thêm `department`.
 - Thông báo `alertAdmin` khi nút quá 64 byte / ghi file nút hỏng: câu chữ do thư viện sinh (khoá chống lặp giữ nguyên).
+- `uploadAttachments` vẫn bỏ qua đường dẫn không phải file thường (chỉ bỏ trần kích thước).
 
 **Số test** (chạy trên máy ngoài): trước app 1019 pass / 27 skip / 0 fail, core 517 pass;
-sau app 893 pass / 27 skip / 0 fail, core 540 pass. Test trùng với core được xoá, test
+sau app 911 pass / 27 skip / 0 fail, core 562 pass. Test trùng với core được xoá, test
 của hành vi đưa vào thư viện được chuyển sang `packages/core`.
 
 ---

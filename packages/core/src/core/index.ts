@@ -56,6 +56,7 @@ export {
 // ── channel envelope ─────────────────────────────────────────────────────────
 export {
   type ChannelEnvelopeInfo,
+  type StripChannelEnvelopeOptions,
   INTERNAL_CALLBACK_TOKENS,
   isInternalCallbackToken,
   stripChannelEnvelope,
@@ -78,6 +79,7 @@ export {
   formatIctDate,
   foldForComparison,
   looseIncludes,
+  type StripBotMentionsOptions,
   stripBotMentions,
 } from "./formatting";
 

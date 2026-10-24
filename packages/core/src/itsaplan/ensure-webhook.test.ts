@@ -1,5 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { deriveWebhookUrl, pruneForeignWebhooks, ensureItsaplanWebhook } from "./ensure-webhook";
+import {
+  deriveWebhookUrl,
+  pruneForeignWebhooks,
+  ensureItsaplanWebhook,
+  REQUIRED_WEBHOOK_EVENTS,
+} from "./ensure-webhook";
 import type { ItsaplanClient } from "./client";
 
 /**
@@ -139,5 +144,53 @@ describe("ensureItsaplanWebhook — opts.events (bộ sự kiện riêng của b
     const { client, hooks } = fakeClient([]);
     await ensureItsaplanWebhook(client, "TECH", url);
     expect(hooks[0]!.events).toContain("issue.created");
+  });
+});
+
+describe("ensureItsaplanWebhook — reactivateDisabled / repointSameHost (hành vi intake cũ)", () => {
+  const url = "http://10.0.0.5:3104/webhook";
+  const OLD = { reactivateDisabled: false, repointSameHost: false } as const;
+
+  it("mặc định: webhook khớp URL nhưng đang tắt được BẬT LẠI tại chỗ (giữ id)", async () => {
+    const { client, hooks, deleted } = fakeClient([{ id: 7, url, isActive: false, events: [] }]);
+    const res = await ensureItsaplanWebhook(client, "TECH", url);
+    expect(res.webhookId).toBe(7);
+    expect(deleted).toEqual([]);
+    expect(hooks).toHaveLength(1);
+    expect(hooks[0]!.isActive).toBe(true);
+  });
+
+  it("reactivateDisabled:false → xoá webhook tắt rồi tạo mới (id mới)", async () => {
+    const { client, hooks, deleted } = fakeClient([{ id: 7, url, isActive: false, events: [] }]);
+    const res = await ensureItsaplanWebhook(client, "TECH", url, OLD);
+    expect(deleted).toEqual([7]);
+    expect(res.webhookId).toBe(99);
+    expect(hooks).toHaveLength(1);
+    expect(hooks[0]!.id).toBe(99);
+    expect(hooks[0]!.isActive).toBe(true);
+  });
+
+  it("repointSameHost:false → webhook cùng host lệch cổng KHÔNG bị trỏ lại, tạo mới và để nguyên webhook cũ", async () => {
+    const stale = {
+      id: 14,
+      url: "http://10.0.0.5:3102/webhook",
+      isActive: true,
+      events: ["comment.created"],
+    };
+    const { client, hooks } = fakeClient([{ ...stale }]);
+    const res = await ensureItsaplanWebhook(client, "TECH", url, OLD);
+    expect(res.webhookId).toBe(99);
+    expect(hooks).toHaveLength(2);
+    expect(hooks.find((h) => h.id === 14)!.url).toBe(stale.url);
+    expect(hooks.find((h) => h.id === 14)!.events).toEqual(["comment.created"]);
+  });
+
+  it("khớp URL chính xác và đang bật: không đổi gì dù tắt hai tuỳ chọn", async () => {
+    const { client, hooks } = fakeClient([
+      { id: 7, url, isActive: true, events: [...REQUIRED_WEBHOOK_EVENTS] },
+    ]);
+    const res = await ensureItsaplanWebhook(client, "TECH", url, OLD);
+    expect(res.webhookId).toBe(7);
+    expect(hooks).toHaveLength(1);
   });
 });

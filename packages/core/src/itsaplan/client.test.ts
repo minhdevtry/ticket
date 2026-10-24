@@ -197,3 +197,69 @@ describe("ItsaplanClient.listProjectIssues / listComments", () => {
     ]);
   });
 });
+
+describe("ItsaplanClient options: timeoutMs <= 0, strictResponses", () => {
+  const originalFetch = globalThis.fetch;
+  let signals: Array<AbortSignal | null | undefined>;
+
+  const respond = (body: string | null, status = 200) => {
+    globalThis.fetch = mock(async (_input: any, init?: any) => {
+      signals.push(init?.signal);
+      return new Response(body, { status });
+    }) as any;
+  };
+
+  beforeEach(() => {
+    signals = [];
+  });
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  test("mặc định có timeout (AbortSignal); timeoutMs: 0 hoặc âm → không đặt signal", async () => {
+    respond("{}");
+    await new ItsaplanClient("http://x", "k").getProject("TECH");
+    expect(signals[0]).toBeDefined();
+
+    for (const timeoutMs of [0, -1]) {
+      signals.length = 0;
+      respond("{}");
+      await new ItsaplanClient("http://x", "k", {
+        retryOptions: { maxRetries: 0 },
+        timeoutMs,
+      }).getProject("TECH");
+      expect(signals[0]).toBeUndefined();
+    }
+  });
+
+  test("timeoutMs: 0 áp cho cả uploadAttachment", async () => {
+    respond(JSON.stringify({ id: "1", url: "/u", filename: "a.png" }));
+    await new ItsaplanClient("http://x", "k", {
+      retryOptions: { maxRetries: 0 },
+      timeoutMs: 0,
+    }).uploadAttachment(1, "a.png", Buffer.from("x"), "image/png");
+    expect(signals[0]).toBeUndefined();
+  });
+
+  test("mặc định strict: body rỗng và body không phải JSON ném ItsaplanMalformedResponseError", async () => {
+    const client = new ItsaplanClient("http://x", "k");
+    respond("");
+    await expect(client.deleteLink(1, 2)).rejects.toBeInstanceOf(ItsaplanMalformedResponseError);
+    respond("<html>oops</html>");
+    await expect(client.getProject("TECH")).rejects.toBeInstanceOf(ItsaplanMalformedResponseError);
+  });
+
+  test("strictResponses: false → body rỗng trả {}, body không phải JSON trả nguyên chuỗi (intake cũ)", async () => {
+    const client = new ItsaplanClient("http://x", "k", {
+      retryOptions: { maxRetries: 0 },
+      strictResponses: false,
+    });
+    respond("");
+    expect(await client.request("/anything")).toEqual({});
+    respond("plain text ok");
+    expect(await client.request("/anything")).toBe("plain text ok");
+    // lỗi HTTP vẫn ném ItsaplanApiError
+    respond("nope", 404);
+    await expect(client.request("/anything")).rejects.toBeInstanceOf(ItsaplanApiError);
+  });
+});

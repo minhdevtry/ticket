@@ -247,3 +247,38 @@ describe("isInternalCallbackToken (TECH-1148, lifted from Tiểu Linh)", () => {
     expect(stripChannelEnvelope("callback_data: Sự cố mới")).toBe("Sự cố mới");
   });
 });
+
+describe("stripChannelEnvelope — options (hành vi intake cũ cho bot cần)", () => {
+  const SOLE = `{
+  "chat_id": "telegram:1000000001",
+  "sender_id": "1000000001",
+  "message_id": "7"
+}`;
+  const LEGACY = {
+    keepSoleEnvelopeBlock: false,
+    keepTextAfterEnvelopeBlock: false,
+    stripPastedEnvelopeFences: false,
+  } as const;
+
+  it("mặc định: tin chỉ có khối phong bì được giữ nguyên (không nuốt lời người dùng)", () => {
+    expect(stripChannelEnvelope(SOLE)).toBe(SOLE);
+  });
+
+  it("keepSoleEnvelopeBlock:false → tin chỉ có khối phong bì thành rỗng, không lộ chat_id (TECH-922)", () => {
+    const out = stripChannelEnvelope(SOLE, { keepSoleEnvelopeBlock: false });
+    expect(out).toBe("");
+    expect(stripChannelEnvelope(SOLE, LEGACY)).not.toMatch(/chat_id|sender_id/);
+  });
+
+  it("chữ sau `}` cuối: mặc định giữ, keepTextAfterEnvelopeBlock:false bỏ cả dòng", () => {
+    const t = '{ "chat_id": "telegram:1", "message_id": "2" } lỗi 502 ở lớp học\nxin hỗ trợ';
+    expect(stripChannelEnvelope(t)).toBe("lỗi 502 ở lớp học\nxin hỗ trợ");
+    expect(stripChannelEnvelope(t, { keepTextAfterEnvelopeBlock: false })).toBe("xin hỗ trợ");
+  });
+
+  it("khối ``` dán có khoá phong bì: mặc định bỏ, stripPastedEnvelopeFences:false giữ nguyên", () => {
+    const t = 'lỗi này\n```json\n{ "chat_id": "telegram:1" }\n```\nhết';
+    expect(stripChannelEnvelope(t)).toBe("lỗi này\nhết");
+    expect(stripChannelEnvelope(t, { stripPastedEnvelopeFences: false })).toContain("```json");
+  });
+});
