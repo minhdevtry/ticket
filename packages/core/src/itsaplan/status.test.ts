@@ -22,4 +22,9 @@ describe("tryResolveFriendlyStatusName (CM truthful variant)", () => {
     // resolveFriendlyStatusName vẫn trả nguyên tên cột lạ (hợp đồng intake).
     expect(resolveFriendlyStatusName("Một cột lạ", "")).toBe("Một cột lạ");
   });
+
+  test("thiếu hoặc rỗng tên cột + không khớp stateType → 'Chờ xử lý' (hợp đồng intake dùng ||)", () => {
+    expect(resolveFriendlyStatusName(undefined, undefined)).toBe("Chờ xử lý");
+    expect(resolveFriendlyStatusName("", "")).toBe("Chờ xử lý");
+  });
 });
