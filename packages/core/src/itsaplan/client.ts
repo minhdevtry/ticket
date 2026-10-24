@@ -475,13 +475,17 @@ export class ItsaplanClient {
     await this.request<void>(`/issues/${issueId}`, { method: "DELETE" });
   }
 
-  /** Liệt kê issue của một dự án (một trang, tối đa `limit`). */
+  /**
+   * Liệt kê issue của một dự án (một trang, tối đa `limit`; `page` để duyệt trang
+   * kế). Dùng cho backfill/đối soát. (intake: `page` bổ sung sau bản gộp 0.1.0)
+   */
   async listProjectIssues(
     projectKey: string,
-    options: { limit?: number } = {},
+    options: { limit?: number; page?: number } = {},
   ): Promise<ItsaplanIssue[]> {
     const q = new URLSearchParams();
     if (options.limit) q.set("limit", String(options.limit));
+    if (options.page) q.set("page", String(options.page));
     const query = q.toString();
     const res = await this.request<ItsaplanIssue[] | { issues?: ItsaplanIssue[] }>(
       `/projects/${encodeURIComponent(projectKey)}/issues${query ? `?${query}` : ""}`,
@@ -566,17 +570,27 @@ export class ItsaplanClient {
    * A false "no comments" causes a duplicate comment to be re-posted; intake's
    * `.catch(() => [])` here was the behavioural bug CM fixed.
    */
-  async listComments(
-    issueId: number,
-  ): Promise<Array<{ id: number; body: string; author?: unknown }>> {
+  async listComments(issueId: number): Promise<
+    Array<{
+      id: number;
+      body: string;
+      author?: { name?: string; id?: string };
+      createdAt?: string;
+    }>
+  > {
     const timeline = await this.getIssueTimeline(issueId);
-    return timeline
-      .filter((item: any) => item.kind === "comment")
-      .map((item: any) => ({
-        id: item.id,
-        body: item.body || "",
-        author: { name: item.actorName, id: item.actorUserId },
-        createdAt: item.createdAt,
+    // Typed + coerced (intake): `id` luôn là number, field thiếu/sai kiểu → undefined
+    // thay vì lọt `null`/object vào caller.
+    return (timeline as Array<Record<string, unknown>>)
+      .filter((item) => item.kind === "comment")
+      .map((item) => ({
+        id: typeof item.id === "number" ? item.id : Number(item.id),
+        body: typeof item.body === "string" ? item.body : "",
+        author: {
+          name: typeof item.actorName === "string" ? item.actorName : undefined,
+          id: typeof item.actorUserId === "string" ? item.actorUserId : undefined,
+        },
+        createdAt: typeof item.createdAt === "string" ? item.createdAt : undefined,
       }));
   }
 

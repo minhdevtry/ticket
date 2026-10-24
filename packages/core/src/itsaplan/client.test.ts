@@ -136,3 +136,64 @@ describe("ItsaplanClient (merged)", () => {
     expect(isRetryableItsaplanError(new Error("network"))).toBe(true);
   });
 });
+
+// Lifted from Tiểu Linh: `page` cho listProjectIssues, listComments có kiểu + ép kiểu.
+describe("ItsaplanClient.listProjectIssues / listComments", () => {
+  const originalFetch = globalThis.fetch;
+  let urls: string[];
+
+  const respond = (payload: unknown) => {
+    globalThis.fetch = mock(async (input: any) => {
+      urls.push(String(input));
+      return new Response(JSON.stringify(payload), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }) as any;
+  };
+
+  beforeEach(() => {
+    urls = [];
+  });
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  test("listProjectIssues đưa limit và page lên query, nhận cả mảng lẫn { issues }", async () => {
+    respond([{ id: 1 }]);
+    const client = new ItsaplanClient("http://mock-itsaplan:3100", "k");
+    expect(await client.listProjectIssues("TECH", { limit: 100, page: 3 })).toEqual([
+      { id: 1 } as any,
+    ]);
+    expect(urls[0]).toBe("http://mock-itsaplan:3100/projects/TECH/issues?limit=100&page=3");
+
+    respond({ issues: [{ id: 2 }] });
+    expect(await client.listProjectIssues("TECH")).toEqual([{ id: 2 } as any]);
+    expect(urls[1]).toBe("http://mock-itsaplan:3100/projects/TECH/issues");
+  });
+
+  test("listComments chỉ lấy comment, ép id về number và bỏ field sai kiểu", async () => {
+    respond([
+      {
+        kind: "comment",
+        id: "7",
+        body: "xin chào",
+        actorName: "An",
+        actorUserId: "u1",
+        createdAt: "2026-10-01T00:00:00Z",
+      },
+      { kind: "comment", id: 8, body: null, actorName: 5, actorUserId: {}, createdAt: 123 },
+      { kind: "state_changed", id: 9, body: "bỏ" },
+    ]);
+    const client = new ItsaplanClient("http://mock-itsaplan:3100", "k");
+    expect(await client.listComments(1)).toEqual([
+      {
+        id: 7,
+        body: "xin chào",
+        author: { name: "An", id: "u1" },
+        createdAt: "2026-10-01T00:00:00Z",
+      },
+      { id: 8, body: "", author: { name: undefined, id: undefined }, createdAt: undefined },
+    ]);
+  });
+});

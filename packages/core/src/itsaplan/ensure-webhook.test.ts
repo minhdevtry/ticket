@@ -108,3 +108,36 @@ describe("pruneForeignWebhooks", () => {
     expect(hooks.find((h) => h.id === 15)).toBeTruthy();
   });
 });
+
+describe("ensureItsaplanWebhook — opts.events (bộ sự kiện riêng của bot)", () => {
+  const url = "http://10.0.0.5:3104/webhook";
+  const own = ["comment.created", "comment.updated", "issue.state_changed", "issue.assigned"];
+
+  it("tạo mới đúng bộ sự kiện truyền vào, KHÔNG thêm issue.created", async () => {
+    const { client, hooks } = fakeClient([]);
+    const res = await ensureItsaplanWebhook(client, "TECH", url, { events: own });
+    expect(res.success).toBe(true);
+    expect(hooks[0]!.events).toEqual(own);
+  });
+
+  it("webhook đủ bộ riêng thì giữ nguyên, không thêm sự kiện mặc định", async () => {
+    const { client, hooks } = fakeClient([{ id: 7, url, isActive: true, events: [...own] }]);
+    const res = await ensureItsaplanWebhook(client, "TECH", url, { events: own });
+    expect(res.webhookId).toBe(7);
+    expect(hooks[0]!.events).toEqual(own);
+  });
+
+  it("webhook thiếu sự kiện thì chỉ bổ sung phần thiếu của bộ riêng", async () => {
+    const { client, hooks } = fakeClient([
+      { id: 7, url, isActive: true, events: ["comment.created"] },
+    ]);
+    await ensureItsaplanWebhook(client, "TECH", url, { events: own });
+    expect([...hooks[0]!.events].sort()).toEqual([...own].sort());
+  });
+
+  it("không truyền opts thì dùng REQUIRED_WEBHOOK_EVENTS (có issue.created)", async () => {
+    const { client, hooks } = fakeClient([]);
+    await ensureItsaplanWebhook(client, "TECH", url);
+    expect(hooks[0]!.events).toContain("issue.created");
+  });
+});

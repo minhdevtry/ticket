@@ -20,11 +20,22 @@ export const REQUIRED_WEBHOOK_EVENTS = [
   "issue.created",
 ];
 
+export interface EnsureWebhookOptions {
+  /**
+   * Bộ sự kiện webhook PHẢI có. Mặc định {@link REQUIRED_WEBHOOK_EVENTS}. Bot chỉ
+   * xử lý một phần sự kiện (vd Tiểu Linh chưa bật `issue.created`) truyền bộ riêng
+   * để không đăng ký thêm sự kiện mà worker của nó chưa cần.
+   */
+  events?: readonly string[];
+}
+
 export async function ensureItsaplanWebhook(
   client: ItsaplanClient,
   projectKey: string,
   webhookUrl: string,
+  opts: EnsureWebhookOptions = {},
 ): Promise<{ success: boolean; webhookId?: number; message: string }> {
+  const requiredEvents = [...(opts.events ?? REQUIRED_WEBHOOK_EVENTS)];
   try {
     const hooks = await client.listWebhooks(projectKey).catch(() => []);
     const matching = hooks.find(
@@ -32,7 +43,7 @@ export async function ensureItsaplanWebhook(
     );
 
     const missing = matching
-      ? REQUIRED_WEBHOOK_EVENTS.filter((e) => !(matching.events ?? []).includes(e))
+      ? requiredEvents.filter((e) => !(matching.events ?? []).includes(e))
       : [];
 
     if (matching && matching.isActive && missing.length) {
@@ -84,7 +95,7 @@ export async function ensureItsaplanWebhook(
       await client.updateWebhook(sameHostStale.id, {
         url: webhookUrl,
         isActive: true,
-        events: [...new Set([...(sameHostStale.events ?? []), ...REQUIRED_WEBHOOK_EVENTS])],
+        events: [...new Set([...(sameHostStale.events ?? []), ...requiredEvents])],
       });
       const msg = `Webhook [${projectKey}] #${sameHostStale.id}: trỏ lại URL đúng ${webhookUrl} (từ ${sameHostStale.url}), tái dùng id — không tạo mới`;
       getLogger().info(`[ensureWebhook] ${msg}`);
@@ -93,7 +104,7 @@ export async function ensureItsaplanWebhook(
 
     const created = await client.createWebhook(projectKey, {
       url: webhookUrl,
-      events: REQUIRED_WEBHOOK_EVENTS,
+      events: requiredEvents,
       isActive: true,
     });
 
