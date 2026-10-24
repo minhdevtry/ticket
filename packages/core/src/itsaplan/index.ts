@@ -22,3 +22,6 @@ export * from "./ensure-webhook";
 
 // ── ticket 14: webhook front door (signature, dedupe, server) ────────────────
 export * from "./webhook";
+
+// ── bot kit: hàng đợi external agent runs (client + worker) ──────────────────
+export * from "./agent-runs";
