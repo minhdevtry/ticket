@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { createHmac } from "node:crypto";
-import { ItsaplanWebhookServer } from "./server";
+import { ItsaplanWebhookServer, isLoopback } from "./server";
 import { MemoryWebhookDedupeStore } from "./dedupe-store";
 import type { ItsaplanWebhookEnvelope } from "./events";
 
@@ -270,5 +270,12 @@ describe("ItsaplanWebhookServer listenHost", () => {
     });
     expect(res.status).toBeLessThan(300);
     expect(called).toBe(1);
+  });
+});
+
+describe("isLoopback", () => {
+  test("chỉ nhận địa chỉ máy nội bộ (endpoint nội bộ chỉ cho plugin cùng máy)", () => {
+    for (const ok of ["127.0.0.1", "::1", "::ffff:127.0.0.1"]) expect(isLoopback(ok)).toBe(true);
+    for (const no of ["10.0.0.6", "10.0.0.5", undefined, ""]) expect(isLoopback(no)).toBe(false);
   });
 });
