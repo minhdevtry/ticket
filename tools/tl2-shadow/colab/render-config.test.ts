@@ -52,7 +52,7 @@ describe("renderConfig", () => {
     }
     expect(cfg.channels).toEqual({});
     expect(cfg.mcp.servers.ticketintake.args[1]).toBe(
-      "/data/release/apps/tieulinh/mcp/tieulinh/index.ts",
+      "/data/release/apps/tieulinh-legacy/mcp/tieulinh/index.ts",
     );
   });
 

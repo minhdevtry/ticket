@@ -24,7 +24,7 @@ Vai tiếp nhận: **kênh chat → hội thoại tiếp nhận → xác nhận 
 
 Bot không tự đóng ticket. Người xử lý chuyển ticket sang "đã xử lý"; lúc đó người báo nhận nút "Đã ổn", cú bấm chỉ ghi một comment, không đổi trạng thái. Chỉ người xử lý chuyển sang "hoàn tất".
 
-Trong code, vai này là các tầng `intake`, `worker`, `telegram`, `itsaplan`, `identity` của [`@vuihoc/bot-core`](/reference/entry-points). Tiểu Linh (`apps/tieulinh`) là lễ tân đầu tiên và đang chạy thật.
+Trong code, vai này là các tầng `intake`, `worker`, `telegram`, `itsaplan`, `identity` của [`@vuihoc/bot-core`](/reference/entry-points). Tiểu Linh (`apps/tieulinh-legacy`) là lễ tân đầu tiên và đang chạy thật; đây là bản tham chiếu đóng băng, xem [Bản legacy và bản mới của Tiểu Linh](/explanation/tieulinh-legacy).
 
 ## Hậu cần (back office)
 

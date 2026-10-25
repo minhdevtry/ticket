@@ -16,7 +16,7 @@ Xem [Kiến trúc: lễ tân và hậu cần](/explanation/architecture) để h
 | `defineBot({...})` và `createBot`: một khai báo cho cả bot, vòng đời, health, đọc env (`bot`) | Có (milestone 1), 0.x nên chữ ký còn có thể đổi |
 | Hậu cần: handler theo trigger, luật, tracker khoá theo dự án (`backoffice`), itsaplan giả để test (`testing`) | Có (milestone 1) |
 | Vai lễ tân trong `createBot`, lịch cron do bot giữ, hẹn giờ bền, host OpenClaw | Chưa có (milestone 2 và 3), xem [RFC 0001](/rfc/0001-bot-kit) |
-| Tiểu Linh (`apps/tieulinh`) dùng bot-core | Có, qua `workspace:*`. Còn vài adapter mỏng và phần chưa thay (pipeline hội thoại, dispatcher), xem [Chuyển Tiểu Linh sang bot-core](/how-to/migrate-tieulinh) |
+| Tiểu Linh (`apps/tieulinh-legacy`) dùng bot-core | Có, qua `workspace:*`. Còn vài adapter mỏng và phần chưa thay (pipeline hội thoại, dispatcher), xem [Chuyển Tiểu Linh sang bot-core](/how-to/migrate-tieulinh) |
 
 Vai hậu cần dựng nhanh bằng `defineBot`. Vai lễ tân hôm nay vẫn ghép từ các phần (port) của thư viện, các trang [Cách làm](/how-to/) mô tả cách ghép đó.
 

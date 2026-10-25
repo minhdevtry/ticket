@@ -5,16 +5,16 @@ import { parseCopyKeys } from "./gen-docs";
 describe("check-docs-touched", () => {
   test("file hành vi công khai", () => {
     expect(isBehaviourFile("packages/core/src/intake/ports.ts")).toBe(true);
-    expect(isBehaviourFile("apps/tieulinh/worker/index.ts")).toBe(true);
-    expect(isBehaviourFile("apps/tieulinh/skills/tieulinh/SOUL.md")).toBe(true);
+    expect(isBehaviourFile("apps/tieulinh-legacy/worker/index.ts")).toBe(true);
+    expect(isBehaviourFile("apps/tieulinh-legacy/skills/tieulinh/SOUL.md")).toBe(true);
     expect(isBehaviourFile("deploy/push-secrets.sh")).toBe(true);
   });
 
   test("test, fixture, script chạy tay và README không phải hành vi", () => {
     expect(isBehaviourFile("packages/core/src/core/env.test.ts")).toBe(false);
     expect(isBehaviourFile("packages/core/src/intake/gate/catalog.fixture.ts")).toBe(false);
-    expect(isBehaviourFile("apps/tieulinh/scripts/ask-learn.ts")).toBe(false);
-    expect(isBehaviourFile("apps/tieulinh/openclaw-plugin/README.md")).toBe(false);
+    expect(isBehaviourFile("apps/tieulinh-legacy/scripts/ask-learn.ts")).toBe(false);
+    expect(isBehaviourFile("apps/tieulinh-legacy/openclaw-plugin/README.md")).toBe(false);
     expect(isBehaviourFile("docs/index.md")).toBe(false);
   });
 

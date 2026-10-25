@@ -155,4 +155,4 @@ Cách thường dùng là qua `defineBot`/`createBot` (xem [bot kit](/explanatio
 
 ## So với runner ad-hoc cũ của Tiểu Linh
 
-`apps/tieulinh/worker/agent-runner.ts` tự gọi `claim` và `result` bằng `fetch`: không heartbeat (run lâu hơn lease bị giao lại), không gửi `attempt`, không backoff khi lỗi, chỉ chạy một run một lúc, không dừng êm, và báo kết quả lỗi thì chỉ log (mất kết quả). Worker mới giải quyết cả sáu điểm; chuyển Tiểu Linh sang nó nằm ở milestone sau (xem RFC).
+`apps/tieulinh-legacy/worker/agent-runner.ts` tự gọi `claim` và `result` bằng `fetch`: không heartbeat (run lâu hơn lease bị giao lại), không gửi `attempt`, không backoff khi lỗi, chỉ chạy một run một lúc, không dừng êm, và báo kết quả lỗi thì chỉ log (mất kết quả). Worker mới giải quyết cả sáu điểm; chuyển Tiểu Linh sang nó nằm ở milestone sau (xem RFC).

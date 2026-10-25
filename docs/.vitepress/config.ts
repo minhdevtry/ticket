@@ -76,6 +76,7 @@ export default defineConfig({
             { text: "Kiến trúc: lễ tân và hậu cần", link: "/explanation/architecture" },
             { text: "Bot kit: defineBot và createBot", link: "/explanation/bot-kit" },
             { text: "Năm lớp của một bot", link: "/explanation/layers" },
+            { text: "Bản legacy và bản mới của Tiểu Linh", link: "/explanation/tieulinh-legacy" },
             { text: "Bảo mật repo công khai", link: "/explanation/public-repo-security" },
             { text: "Chỉ mục ADR", link: "/explanation/adr-index" },
           ],

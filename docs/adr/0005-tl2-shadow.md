@@ -9,7 +9,7 @@ Cần so Tiểu Linh 2 (bản dựng trên `@vuihoc/bot-core`) với Tiểu Linh
 
 ## Quyết định
 
-- Server: plugin `shadow-forwarder` (`apps/tieulinh/openclaw-plugin/shadow-forwarder`) chỉ quan sát (`message_received`, `message_sent`, `after_tool_call`), bắn rồi quên tới relay; lỗi thì ghi spool giới hạn cỡ và thời gian. Không đăng ký hook chặn. Cấu hình sai thì plugin tự tắt, không "mở rộng phạm vi".
+- Server: plugin `shadow-forwarder` (`apps/tieulinh-legacy/openclaw-plugin/shadow-forwarder`) chỉ quan sát (`message_received`, `message_sent`, `after_tool_call`), bắn rồi quên tới relay; lỗi thì ghi spool giới hạn cỡ và thời gian. Không đăng ký hook chặn. Cấu hình sai thì plugin tự tắt, không "mở rộng phạm vi".
 - Máy dev: `tools/tl2-shadow` gồm relay (hàng đợi JSONL 0600 ngoài repo, lưu 7 ngày), worker (gọi Tiểu Linh 2 theo thứ tự từng chat), proxy giữ secret, tunnel và `compare.ts`.
 - Colab: gateway OpenClaw riêng, chỉ loopback, không có token Telegram, không có secret, cấm tool shell/file/web. Gọi MiniMax và itsaplan qua `ssh -R` tới proxy trên dev; dev gọi gateway qua `ssh -L`. Cả hai đi trên ControlMaster có sẵn.
 - Relay mặc định chỉ nghe loopback. Muốn nhận từ server qua LAN phải bind vào một IP cụ thể, đặt token dùng chung (hai phía) và danh sách IP nguồn.

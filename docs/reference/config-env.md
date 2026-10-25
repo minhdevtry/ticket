@@ -1,8 +1,8 @@
 # Cấu hình và biến môi trường
 
-Trang này là bảng tra cứu mọi biến môi trường mà code chạy thật của Tiểu Linh (`apps/tieulinh`) đọc. Nó được CI đối chiếu với code bằng `scripts/check-docs-refs.ts`: thêm biến vào code hoặc `.env.example` mà không ghi ở đây, hoặc ghi ở đây một biến code không còn đọc, đều làm CI đỏ. Mỗi biến một dòng, tên biến ở cột đầu.
+Trang này là bảng tra cứu mọi biến môi trường mà code chạy thật của Tiểu Linh (`apps/tieulinh-legacy`) đọc. Nó được CI đối chiếu với code bằng `scripts/check-docs-refs.ts`: thêm biến vào code hoặc `.env.example` mà không ghi ở đây, hoặc ghi ở đây một biến code không còn đọc, đều làm CI đỏ. Mỗi biến một dòng, tên biến ở cột đầu.
 
-Mẫu giá trị: [`apps/tieulinh/openclaw/.env.example`](https://github.com/minhdevtry/ticket/blob/main/apps/tieulinh/openclaw/.env.example). **Không commit file `.env`**; secret đẩy lên máy chạy qua SSH ([Deploy và đẩy secret qua SSH](/how-to/deploy)).
+Mẫu giá trị: [`apps/tieulinh-legacy/openclaw/.env.example`](https://github.com/minhdevtry/ticket/blob/main/apps/tieulinh-legacy/openclaw/.env.example). **Không commit file `.env`**; secret đẩy lên máy chạy qua SSH ([Deploy và đẩy secret qua SSH](/how-to/deploy)).
 
 ::: tip Thư viện bot-core không tự đọc biến nào
 `@vuihoc/bot-core` nhận mọi cấu hình qua tham số (ví dụ `startIntakeWorker` không đọc `process.env`). Nó chỉ cung cấp bộ nạp env (`parseEnvContent`, `loadEnvFile`, `loadEnvDefaults` trong `@vuihoc/bot-core/core`) để bot tự dùng. Các biến dưới đây thuộc về app.

@@ -5,7 +5,7 @@
 
 ## Bối cảnh
 
-Tài liệu rải rác ở bốn nơi (README package, `packages/core/docs`, `apps/tieulinh/docs`, `prose`), nhiều file mô tả quy trình đã bỏ (ghim tag git của repo cũ) hoặc chứa mẫu code sai (`new ItsaplanClient({ baseUrl, apiKey })` trong khi hàm tạo là `(baseUrl, apiKey, opts)`; `TelegramTransport({ token })` trong khi tham số là `botToken`). Docs sai còn tệ hơn không có docs.
+Tài liệu rải rác ở bốn nơi (README package, `packages/core/docs`, `apps/tieulinh-legacy/docs`, `prose`), nhiều file mô tả quy trình đã bỏ (ghim tag git của repo cũ) hoặc chứa mẫu code sai (`new ItsaplanClient({ baseUrl, apiKey })` trong khi hàm tạo là `(baseUrl, apiKey, opts)`; `TelegramTransport({ token })` trong khi tham số là `botToken`). Docs sai còn tệ hơn không có docs.
 
 ## Quyết định
 

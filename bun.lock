@@ -11,8 +11,8 @@
         "typescript": "^7.0.2",
       },
     },
-    "apps/tieulinh": {
-      "name": "@vuihoc/tieulinh",
+    "apps/tieulinh-legacy": {
+      "name": "@vuihoc/tieulinh-legacy",
       "version": "0.1.0",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.21.0",
@@ -345,7 +345,7 @@
 
     "@vuihoc/docs": ["@vuihoc/docs@workspace:docs"],
 
-    "@vuihoc/tieulinh": ["@vuihoc/tieulinh@workspace:apps/tieulinh"],
+    "@vuihoc/tieulinh-legacy": ["@vuihoc/tieulinh-legacy@workspace:apps/tieulinh-legacy"],
 
     "@vuihoc/tl2-shadow": ["@vuihoc/tl2-shadow@workspace:tools/tl2-shadow"],
 

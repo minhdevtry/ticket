@@ -23,6 +23,6 @@ Hỏi: *hai model khác nhau chạy cái này, có buộc phải ra cùng kết 
 
 ## Bot nạp prose dùng chung thế nào
 
-`@vuihoc/bot-core` mở thư mục `prose/` qua subpath `@vuihoc/bot-core/prose/*`. Một script đồng bộ của bot sao chép các tệp từ `node_modules/@vuihoc/bot-core/prose/` vào đúng chỗ lớp markdown của bot (ví dụ `AGENTS.shared.md` thành phần nền của `AGENTS.md`, `skills/confirm-before-create/` vào thư mục skills). Prose là nguồn chung: bot chỉ sao chép, không sửa tại chỗ trong `node_modules`. Với Tiểu Linh, việc đồng bộ chạy bằng `bun run --cwd apps/tieulinh openclaw:sync`.
+`@vuihoc/bot-core` mở thư mục `prose/` qua subpath `@vuihoc/bot-core/prose/*`. Một script đồng bộ của bot sao chép các tệp từ `node_modules/@vuihoc/bot-core/prose/` vào đúng chỗ lớp markdown của bot (ví dụ `AGENTS.shared.md` thành phần nền của `AGENTS.md`, `skills/confirm-before-create/` vào thư mục skills). Prose là nguồn chung: bot chỉ sao chép, không sửa tại chỗ trong `node_modules`. Với Tiểu Linh, việc đồng bộ chạy bằng `bun run --cwd apps/tieulinh-legacy openclaw:sync`.
 
 Prose chỉ giữ phần trung lập về nghiệp vụ: không tên bot, không project key, không sản phẩm, không số điện thoại. Phần riêng của từng bot ở lại trong bot đó.

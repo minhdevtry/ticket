@@ -37,7 +37,7 @@ describe("cup-openclaw.sh: chốt chặn secret (M1)", () => {
 
   for (const bad of [
     ".env",
-    "apps/tieulinh/.env",
+    "apps/tieulinh-legacy/.env",
     ".env.production",
     "deploy/server.pem",
     "config/prod.key",

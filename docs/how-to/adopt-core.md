@@ -40,7 +40,7 @@ export const marker = getBotCommentMarker();
 
 ## 4. Test không được chạm dịch vụ thật
 
-`bun test` không bao giờ được gọi tracker, Telegram hay LLM thật. Bun tự nạp `.env` của thư mục chạy, nên test chạy với token thật nếu không dọn. Cách làm: một file preload khai trong `bunfig.toml` của bot, gọi `scrubOutboundEnv` với danh sách tiền tố của bot (xem `apps/tieulinh/test-preload.ts` làm mẫu). Thư viện cũng có preload sẵn cho bộ biến phổ biến ở `packages/core/src/core/test-preload.ts`. Giữ `RUN_LIVE_LLM=1` nếu cần chạy LLM thật.
+`bun test` không bao giờ được gọi tracker, Telegram hay LLM thật. Bun tự nạp `.env` của thư mục chạy, nên test chạy với token thật nếu không dọn. Cách làm: một file preload khai trong `bunfig.toml` của bot, gọi `scrubOutboundEnv` với danh sách tiền tố của bot (xem `apps/tieulinh-legacy/test-preload.ts` làm mẫu). Thư viện cũng có preload sẵn cho bộ biến phổ biến ở `packages/core/src/core/test-preload.ts`. Giữ `RUN_LIVE_LLM=1` nếu cần chạy LLM thật.
 
 ## 5. Ẩn chi tiết lỗi kỹ thuật khỏi người dùng
 

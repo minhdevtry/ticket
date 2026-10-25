@@ -143,11 +143,11 @@ function checkEnv() {
   }
 
   const inCode = new Map<string, string>();
-  for (const f of sourceFiles(join(ROOT, "apps/tieulinh")).filter(isRuntimeFile)) {
+  for (const f of sourceFiles(join(ROOT, "apps/tieulinh-legacy")).filter(isRuntimeFile)) {
     for (const name of envNamesIn(readFileSync(f, "utf8")))
       if (!inCode.has(name)) inCode.set(name, rel(f));
   }
-  const example = read("apps/tieulinh/openclaw/.env.example");
+  const example = read("apps/tieulinh-legacy/openclaw/.env.example");
   const inExample = new Set([...example.matchAll(/^#?\s*([A-Z][A-Z0-9_]+)=/gm)].map((m) => m[1]));
 
   for (const [name, where] of inCode) {
