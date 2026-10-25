@@ -31,9 +31,16 @@ describe("tunnel", () => {
   });
 
   it("missingForwards chỉ trả forward còn thiếu", () => {
-    expect(forwardSpecs(cfg)).toHaveLength(3);
+    expect(forwardSpecs(cfg)).toHaveLength(4);
     const all = missingForwards(cfg, { remoteListening: new Set(), token: null }, false);
-    expect(all.map((f) => f.flag)).toEqual(["-L", "-R", "-R"]);
+    expect(all.map((f) => f.flag)).toEqual(["-L", "-L", "-R", "-R"]);
+    // chỉ cổng gateway đã nghe: forward cổng app (3120) vẫn thiếu
+    const partial = missingForwards(
+      cfg,
+      { remoteListening: new Set([18999, 18998]), token: null },
+      new Set([18796]),
+    );
+    expect(partial).toEqual([{ flag: "-L", spec: "127.0.0.1:3120:127.0.0.1:3120" }]);
     const some = missingForwards(cfg, { remoteListening: new Set([18999]), token: null }, true);
     expect(some).toEqual([{ flag: "-R", spec: "127.0.0.1:18998:127.0.0.1:18998" }]);
     expect(
@@ -55,10 +62,11 @@ describe("tunnel", () => {
     };
     const s = await tunnelCycle(cfg, ok, (t) => saved.push(t));
     expect(s.error).toBeNull();
-    expect(s.added).toHaveLength(2); // -L gateway và -R itsaplan
+    expect(s.added).toHaveLength(3); // -L gateway, -L app và -R itsaplan
     expect(saved).toEqual(["tok"]);
     expect(ran.filter((a) => a.includes("-O")).map((a) => a[3])).toEqual([
       "127.0.0.1:18796:127.0.0.1:18796",
+      "127.0.0.1:3120:127.0.0.1:3120",
       "127.0.0.1:18998:127.0.0.1:18998",
     ]);
 

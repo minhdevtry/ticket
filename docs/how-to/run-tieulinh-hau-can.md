@@ -65,6 +65,16 @@ console.log(`${records.length} bản ghi, ${alerts.length} cảnh báo trực ca
 
 Hoặc chỉ cần `jq 'select(.kind=="alert")' /var/lib/tieulinh2/tieulinh-channel.jsonl`.
 
+## Chạy chế độ bóng trên Colab (không secret)
+
+Cách đang dùng để thử TL2 với TECH2: app chạy trên VM Colab, mọi secret ở lại máy dev. Các bước thật (chuẩn bị Colab, webhook TECH2 qua relay, `cup-tieulinh.sh`, smoke, gỡ) nằm ở [Chạy bóng Tiểu Linh 2](/how-to/shadow-tl2#chay-app-hau-can-tren-colab). Khác với chạy trực tiếp ở trên:
+
+- `ITSAPLAN_BASE_URL` và `LLM_BASE_URL` trỏ cổng loopback của hai proxy (`ssh -R`); `ITSAPLAN_AGENT_KEY` và `LLM_API_KEY` chỉ là giá trị giả, proxy gắn khoá thật. Proxy itsaplan chỉ cho đúng các route `agent-runs` và vài route đọc/ghi trong TECH2.
+- Webhook đi itsaplan, relay trên dev (kiểm chữ ký `ITSAPLAN_WEBHOOK_SECRET`, secret không lên Colab), `ssh -L`, rồi vào server webhook loopback của app. Vì vậy app không đặt `ITSAPLAN_WEBHOOK_SECRET`.
+- Agent phải bật `triggerOnMention` trên itsaplan, nếu không `@tieulinh2` không tạo run.
+- Kho dữ liệu nằm trên Colab và mất khi VM bị thu hồi; `TIEULINH_SANDBOX_CHAT` là chat giả, kênh vẫn chỉ ghi nhật ký.
+- Bot bỏ qua sự kiện do chính một agent gây ra: khi thử, đổi cột và comment bằng khoá của người, không dùng khoá `tieulinh2`.
+
 ## 5. Chuyển sang gửi thật và sang TECH
 
 - Gửi Telegram thật: đặt `TELEGRAM_BOT_TOKEN` **và** `TIEULINH_ONCALL_CHAT_ID` (thiếu một trong hai thì bot dừng với `ConfigError`: cảnh báo SLA không được nuốt im). Cần liên kết ticket-chat thật, tức lễ tân (chưa làm), hoặc `TIEULINH_SANDBOX_CHAT` cho chat thử. Để nút "Đã ổn" và trả lời tự do của người báo có người nghe: giữ `BOT_WEBHOOK_PORT`, rồi hoặc `setWebhook` của Telegram trỏ tới `/telegram-webhook` với `secret_token` bằng `TELEGRAM_WEBHOOK_SECRET` (bắt buộc nếu nghe ngoài loopback), hoặc để plugin Telegram cùng máy gọi `/internal/reporter-ok` và `/internal/reporter-reply` (chỉ loopback). Chế độ Telegram mới được kiểm bằng Telegram giả, chưa chạy với bot thật: thử trên một chat riêng trước.

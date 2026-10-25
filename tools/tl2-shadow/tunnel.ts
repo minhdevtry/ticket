@@ -3,6 +3,7 @@
  * Giữ các tunnel giữa máy dev và Colab trên ControlMaster ssh có sẵn (host mặc định `colab2`):
  *
  *   -L 127.0.0.1:18796  gateway OpenClaw của Tiểu Linh 2 (Colab) -> dev
+ *   -L 127.0.0.1:3120   server webhook của app hậu cần `apps/tieulinh` (Colab) -> dev (relay chuyển tiếp)
  *   -R 127.0.0.1:18999  proxy MiniMax (dev) -> Colab
  *   -R 127.0.0.1:18998  proxy itsaplan (dev) -> Colab
  *
@@ -19,6 +20,8 @@ import { ensurePrivateDir } from "./queue.ts";
 export interface TunnelConfig {
   host: string;
   gatewayPort: number;
+  /** Cổng webhook của app hậu cần trên Colab (`BOT_WEBHOOK_PORT`). */
+  appPort: number;
   minimaxPort: number;
   itsaplanPort: number;
   /** Đường dẫn file token trên Colab (shell trên Colab sẽ mở rộng $HOME). */
@@ -32,6 +35,7 @@ export function tunnelConfig(env: Record<string, string | undefined> = process.e
   return {
     host: env.TL2_COLAB_HOST || "colab2",
     gatewayPort: intEnv(env, "TL2_GATEWAY_PORT", 18796, 1, 65535),
+    appPort: intEnv(env, "TL2_APP_PORT", 3120, 1, 65535),
     minimaxPort: intEnv(env, "TL2_MINIMAX_PORT", 18999, 1, 65535),
     itsaplanPort: intEnv(env, "TL2_ITSAPLAN_PORT", 18998, 1, 65535),
     remoteTokenPath: env.TL2_REMOTE_TOKEN_PATH || "$HOME/tl2/home/gateway.token",
@@ -78,21 +82,26 @@ export function forwardSpecs(c: TunnelConfig): ForwardSpec[] {
   const lo = (p: number) => `127.0.0.1:${p}:127.0.0.1:${p}`;
   return [
     { flag: "-L", spec: lo(c.gatewayPort) },
+    { flag: "-L", spec: lo(c.appPort) },
     { flag: "-R", spec: lo(c.minimaxPort) },
     { flag: "-R", spec: lo(c.itsaplanPort) },
   ];
 }
 
-/** Forward nào còn thiếu, dựa trên kết quả thăm dò. */
+/**
+ * Forward nào còn thiếu, dựa trên kết quả thăm dò. `localListening`: tập cổng -L đang nghe phía
+ * dev (hoặc một boolean áp cho mọi cổng -L).
+ */
 export function missingForwards(
   c: TunnelConfig,
   probe: Probe,
-  localGatewayListening: boolean,
+  localListening: boolean | ReadonlySet<number>,
 ): ForwardSpec[] {
   const specs = forwardSpecs(c);
   return specs.filter((f) => {
-    if (f.flag === "-L") return !localGatewayListening;
     const port = Number(f.spec.split(":")[1]);
+    if (f.flag === "-L")
+      return !(typeof localListening === "boolean" ? localListening : localListening.has(port));
     return !probe.remoteListening.has(port);
   });
 }
@@ -165,7 +174,9 @@ export async function tunnelCycle(
   }
   const parsed = parseProbe(probe.out);
   if (parsed.token) saveToken(parsed.token);
-  const localUp = await r.localListening(c.gatewayPort);
+  const localUp = new Set<number>();
+  for (const port of [c.gatewayPort, c.appPort])
+    if (await r.localListening(port)) localUp.add(port);
   const added: string[] = [];
   for (const f of missingForwards(c, parsed, localUp)) {
     const res = await r.run(["-O", "forward", f.flag, f.spec, c.host]);
@@ -230,7 +241,7 @@ if (import.meta.main) {
     });
   }
   log(
-    `host=${c.host} gateway=:${c.gatewayPort} minimax=:${c.minimaxPort} itsaplan=:${c.itsaplanPort}`,
+    `host=${c.host} gateway=:${c.gatewayPort} app=:${c.appPort} minimax=:${c.minimaxPort} itsaplan=:${c.itsaplanPort}`,
   );
   void loop();
 }

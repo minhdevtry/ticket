@@ -12,6 +12,13 @@
  *      POST  /issues/{id}/fields, PUT /issues/{id}/fields/{fieldId}
  *      POST  /issues/{id}/links            {targetIssueId, kind} (đích cũng phải thuộc project thử)
  *    Ghi bỏ query string, bắt buộc content-type JSON, body được serialize lại từ bản đã kiểm tra.
+ *  - AGENT-RUNS (chỉ khi `agentRuns: true`, dành cho `apps/tieulinh` chạy bằng khoá agent):
+ *      POST /agent-runs/claim              không body; nhớ id run nhận về
+ *      POST /agent-runs/{id}/heartbeat     {attempt?}
+ *      POST /agent-runs/{id}/result        {attempt?, status, output?, error?, usage?}
+ *      POST /agent-runs/{id}/events        {attempt, offset, events[], sessionId?}
+ *    `{id}` chỉ được dùng nếu run đó vừa nhận qua chính proxy này và thuộc project thử; id lạ trả
+ *    404 (client coi là "lost/stale", không coi là lỗi chết như 403).
  *  - DELETE, webhook, đính kèm, team/project, mọi route khác: chặn.
  */
 import {
@@ -39,6 +46,10 @@ export interface ItsaplanOpts {
   log?: Log;
   ratePerMin?: number;
   writesPerMin?: number;
+  /** Cho phép đúng bốn route `/agent-runs/*` (mặc định TẮT: chỉ bật cho bot hậu cần). */
+  agentRuns?: boolean;
+  /** Trần lệnh agent-runs mỗi phút (heartbeat, events, claim). Mặc định 1200. */
+  agentRunsPerMin?: number;
 }
 
 export interface ProjectRefs {
@@ -58,6 +69,22 @@ const NO_TTL = 30_000;
 const REFS_TTL = 5 * 60_000;
 const OWNED_MAX = 5000;
 const MAX_WRITE_BODY = 1024 * 1024;
+const RUN_TTL = 6 * 60 * 60_000;
+const RUNS_MAX = 2000;
+const RUN_STATUS = new Set(["success", "failed"]);
+/** Loại sự kiện AG-UI mà itsaplan nhận ở `/events`. */
+const AGUI_TYPES = new Set([
+  "RUN_STARTED",
+  "RUN_FINISHED",
+  "RUN_ERROR",
+  "TEXT_MESSAGE_START",
+  "TEXT_MESSAGE_CONTENT",
+  "TEXT_MESSAGE_END",
+  "TOOL_CALL_START",
+  "TOOL_CALL_ARGS",
+  "TOOL_CALL_END",
+  "TOOL_CALL_RESULT",
+]);
 const PRIORITIES = new Set(["urgent", "high", "medium", "low"]);
 const LINK_KINDS = new Set(["relates", "duplicates", "blocks"]);
 
@@ -142,6 +169,67 @@ export function matchWrite(method: string, seg: string[]): Route | null {
   return null;
 }
 
+type AgentRoute = { kind: "claim" } | { kind: "heartbeat" | "result" | "events"; runId: number };
+
+/** Route agent-runs duy nhất được phép (POST); null nếu không khớp. */
+export function matchAgentRun(method: string, seg: string[]): AgentRoute | null {
+  if (seg[0] !== "agent-runs" || method !== "POST") return null;
+  if (seg.length === 2 && seg[1] === "claim") return { kind: "claim" };
+  if (seg.length === 3 && /^\d{1,12}$/.test(seg[1] ?? "")) {
+    const kind = seg[2];
+    if (kind === "heartbeat" || kind === "result" || kind === "events") {
+      return { kind, runId: Number(seg[1]) };
+    }
+  }
+  return null;
+}
+
+const isObj = (v: unknown): v is Record<string, unknown> =>
+  !!v && typeof v === "object" && !Array.isArray(v);
+
+/** Kiểm body agent-runs; trả lý do từ chối hoặc null. */
+export function checkAgentBody(
+  kind: "heartbeat" | "result" | "events",
+  body: unknown,
+): string | null {
+  if (body === undefined) return kind === "heartbeat" ? null : "thiếu body";
+  if (!isObj(body)) return "body phải là object JSON";
+  const allowed: Record<string, (v: unknown) => boolean> = {
+    attempt: (v) => isInt(v) && v >= 0,
+  };
+  if (kind === "result") {
+    Object.assign(allowed, {
+      status: (v: unknown) => typeof v === "string" && RUN_STATUS.has(v),
+      output: (v: unknown) => v === null || (typeof v === "string" && v.length <= 10_000),
+      error: (v: unknown) => v === null || (typeof v === "string" && v.length <= 500),
+      usage: (v: unknown) =>
+        v === null ||
+        (isObj(v) &&
+          Object.keys(v).every((k) => k === "inputTokens" || k === "outputTokens") &&
+          Object.values(v).every((x) => isInt(x) && x >= 0)),
+    });
+  } else if (kind === "events") {
+    Object.assign(allowed, {
+      offset: (v: unknown) => isInt(v) && v >= 0,
+      sessionId: (v: unknown) => typeof v === "string" && v.length <= 100,
+      events: (v: unknown) =>
+        Array.isArray(v) &&
+        v.length >= 1 &&
+        v.length <= 200 &&
+        v.every((e) => isObj(e) && typeof e.type === "string" && AGUI_TYPES.has(e.type)),
+    });
+  }
+  for (const [k, v] of Object.entries(body)) {
+    const check = allowed[k];
+    if (!check) return `khoá body không được phép: ${k}`;
+    if (!check(v)) return `giá trị không hợp lệ: ${k}`;
+  }
+  if (kind === "result" && !("status" in body)) return "thiếu status";
+  if (kind === "events" && !("events" in body && "offset" in body && "attempt" in body))
+    return "thiếu attempt/offset/events";
+  return null;
+}
+
 export function createItsaplanProxy(o: ItsaplanOpts) {
   const doFetch = o.fetchImpl ?? fetch;
   const now = o.now ?? Date.now;
@@ -150,6 +238,23 @@ export function createItsaplanProxy(o: ItsaplanOpts) {
   const owned = new Map<number, { ok: boolean; exp: number }>();
   const readLimit = new RateLimiter(o.ratePerMin ?? 600, now);
   const writeLimit = new RateLimiter(o.writesPerMin ?? 60, now);
+  const agentLimit = new RateLimiter(o.agentRunsPerMin ?? 1200, now);
+  /** Run đã nhận qua proxy này và thuộc project thử: id -> hạn. */
+  const runs = new Map<number, number>();
+  const rememberRun = (id: number) => {
+    runs.delete(id);
+    runs.set(id, now() + RUN_TTL);
+    while (runs.size > RUNS_MAX) runs.delete(runs.keys().next().value as number);
+  };
+  const runKnown = (id: number) => {
+    const exp = runs.get(id);
+    if (exp === undefined) return false;
+    if (exp <= now()) {
+      runs.delete(id);
+      return false;
+    }
+    return true;
+  };
   let refs: ProjectRefs | null = null;
 
   const fetchUp = (path: string, init: RequestInit = {}) => {
@@ -233,6 +338,89 @@ export function createItsaplanProxy(o: ItsaplanOpts) {
     return checkKeys(body, spec, await loadRefs(true));
   }
 
+  /** Chuyển tiếp một lệnh agent-runs đã khớp route (xem đầu file). */
+  async function handleAgent(
+    route: AgentRoute,
+    req: Request,
+    entry: Record<string, unknown>,
+    finish: (res: Response, decision: string, reason?: string) => Response,
+    refuse: (reason: string, status?: number) => Response,
+  ): Promise<Response> {
+    if (!agentLimit.take()) return refuse("vượt trần agent-runs", 429);
+    if (route.kind !== "claim") {
+      entry.runId = route.runId;
+      if (!runKnown(route.runId)) {
+        return finish(
+          json(404, { error: "denied", reason: "run chưa nhận qua proxy" }),
+          "deny",
+          "run chưa nhận qua proxy",
+        );
+      }
+    }
+    let out: string | undefined;
+    if (route.kind !== "claim") {
+      const raw = await readBody(req, MAX_WRITE_BODY);
+      if (!raw) return refuse("body quá lớn", 413);
+      if (raw.byteLength > 0) {
+        if (!isJson(req)) return refuse("cần content-type application/json", 415);
+        let body: unknown;
+        try {
+          body = JSON.parse(new TextDecoder().decode(raw));
+        } catch {
+          return refuse("body không phải JSON", 400);
+        }
+        const problem = checkAgentBody(route.kind, body);
+        if (problem) return refuse(problem);
+        out = JSON.stringify(body);
+      } else {
+        const problem = checkAgentBody(route.kind, undefined);
+        if (problem) return refuse(problem);
+      }
+    }
+    const path = new URL(req.url).pathname;
+    try {
+      const res = await fetchUp(path, {
+        method: "POST",
+        headers: out === undefined ? {} : { "content-type": "application/json" },
+        body: out,
+      });
+      if (route.kind !== "claim") {
+        return finish(
+          new Response(res.body, { status: res.status, headers: passHeaders(res.headers) }),
+          "allow",
+        );
+      }
+      const text = await res.text();
+      let decision = "allow";
+      let reason: string | undefined;
+      try {
+        const run = (JSON.parse(text) as any)?.run;
+        if (res.ok && run && isInt(run.id)) {
+          const ident = run.issueIdentifier;
+          if (
+            ident === null ||
+            ident === undefined ||
+            String(ident).startsWith(`${o.projectKey}-`)
+          ) {
+            rememberRun(run.id);
+            entry.runId = run.id;
+          } else {
+            decision = "warn";
+            entry.runId = run.id;
+            reason = "run ngoài project thử, không nhớ id";
+          }
+        }
+      } catch {}
+      return finish(
+        new Response(text, { status: res.status, headers: passHeaders(res.headers) }),
+        decision,
+        reason,
+      );
+    } catch (e) {
+      return finish(json(502, { error: "upstream" }), "error", (e as Error)?.message);
+    }
+  }
+
   return async (req: Request): Promise<Response> => {
     const t0 = now();
     const url = new URL(req.url);
@@ -254,6 +442,11 @@ export function createItsaplanProxy(o: ItsaplanOpts) {
     const method = req.method.toUpperCase();
     if (seg.some((s) => /^(webhooks?|attachments?|teams?|users)$/i.test(s))) {
       return refuse("tài nguyên bị chặn");
+    }
+    const agent = matchAgentRun(method, seg);
+    if (agent) {
+      if (!o.agentRuns) return refuse("agent-runs không được bật");
+      return handleAgent(agent, req, entry, finish, refuse);
     }
     if (!readLimit.take()) return refuse("vượt trần tốc độ", 429);
 
@@ -308,7 +501,11 @@ export function createItsaplanProxy(o: ItsaplanOpts) {
         entry.issueId = route.id;
         if (!(await belongs(route.id))) return refuse("ticket không thuộc project thử");
         if (route.kind === "patch") problem = await validate(body, ISSUE_KEYS);
-        else if (route.kind === "comment") problem = await validate(body, { body: isStr(50_000) });
+        else if (route.kind === "comment")
+          problem = await validate(body, {
+            body: isStr(50_000),
+            replyToId: (v) => isInt(v) && v > 0,
+          });
         else if (route.kind === "fieldPut") {
           problem = (await loadRefs()).fieldIds.has(route.fieldId)
             ? await validate(body, FIELD_KEYS)

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import { ConfigError, intEnv, parseEnvFile, relayConfig } from "./config.ts";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { ConfigError, intEnv, loadWebhookSecret, parseEnvFile, relayConfig } from "./config.ts";
 
 const TOKEN = "t".repeat(16);
 
@@ -68,5 +71,61 @@ describe("config", () => {
     expect(relayConfig({ TL2_GATEWAY_URL: "http://127.0.0.1:1234/" }).gatewayUrl).toBe(
       "http://127.0.0.1:1234",
     );
+  });
+});
+
+describe("webhook itsaplan của relay", () => {
+  const SECRET = "whsec_" + "a".repeat(20);
+
+  it("tắt khi không có secret; bật với secret, mặc định tới app loopback :3120/webhook", () => {
+    expect(relayConfig({}).webhook).toBeNull();
+    const c = relayConfig({ ITSAPLAN_WEBHOOK_SECRET: SECRET });
+    expect(c.webhook).toEqual({
+      secret: SECRET,
+      forwardUrl: "http://127.0.0.1:3120/webhook",
+      events: ["comment.created", "issue.state_changed"],
+    });
+    const d = relayConfig({
+      ITSAPLAN_WEBHOOK_SECRET: SECRET,
+      TL2_APP_PORT: "4000",
+      TL2_WEBHOOK_EVENTS: "comment.created",
+    });
+    expect(d.webhook?.forwardUrl).toBe("http://127.0.0.1:4000/webhook");
+    expect(d.webhook?.events).toEqual(["comment.created"]);
+  });
+
+  it("secret quá ngắn hoặc app không phải loopback thì dừng khởi động", () => {
+    expect(() => relayConfig({ ITSAPLAN_WEBHOOK_SECRET: "ngan" })).toThrow(
+      /ITSAPLAN_WEBHOOK_SECRET/,
+    );
+    for (const url of ["http://10.0.0.9:3120", "https://127.0.0.1:3120", "http://app.example.com"])
+      expect(() => relayConfig({ ITSAPLAN_WEBHOOK_SECRET: SECRET, TL2_APP_URL: url })).toThrow(
+        /TL2_APP_URL/,
+      );
+  });
+
+  it("loadWebhookSecret đọc đúng một khoá từ tieulinh2.env, không ghi đè biến đã đặt", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tl2-cfg-"));
+    try {
+      const file = join(dir, "tieulinh2.env");
+      writeFileSync(file, `ITSAPLAN_API_KEY=khong-doc\nITSAPLAN_WEBHOOK_SECRET=${SECRET}\n`);
+      const env: Record<string, string | undefined> = { TIEULINH2_ENV_FILE: file };
+      loadWebhookSecret(env);
+      expect(env.ITSAPLAN_WEBHOOK_SECRET).toBe(SECRET);
+      expect(env.ITSAPLAN_API_KEY).toBeUndefined();
+      const keep: Record<string, string | undefined> = {
+        TIEULINH2_ENV_FILE: file,
+        ITSAPLAN_WEBHOOK_SECRET: "da-dat",
+      };
+      loadWebhookSecret(keep);
+      expect(keep.ITSAPLAN_WEBHOOK_SECRET).toBe("da-dat");
+      const none: Record<string, string | undefined> = {
+        TIEULINH2_ENV_FILE: join(dir, "khong-co"),
+      };
+      loadWebhookSecret(none);
+      expect(none.ITSAPLAN_WEBHOOK_SECRET).toBeUndefined();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

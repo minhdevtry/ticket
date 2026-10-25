@@ -1,7 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import {
+  checkAgentBody,
   createItsaplanProxy,
   createMinimaxProxy,
+  matchAgentRun,
   matchWrite,
   safePath,
   selfTest,
@@ -131,7 +133,11 @@ const PROJECT = {
 
 type Upstream = { method: string; url: string; headers: Headers; body?: string };
 
-function it2(issues: Record<number, { identifier: string; projectId: number }>, extra = {}) {
+function it2(
+  issues: Record<number, { identifier: string; projectId: number }>,
+  extra = {},
+  claim: unknown = { run: null },
+) {
   const calls: Upstream[] = [];
   const logs: Record<string, unknown>[] = [];
   let nextId = 900;
@@ -152,6 +158,7 @@ function it2(issues: Record<number, { identifier: string; projectId: number }>, 
         body: init?.body ? String(init.body) : undefined,
       });
       if (method === "GET" && path === "/projects/TECH2") return Response.json(PROJECT);
+      if (method === "POST" && path === "/agent-runs/claim") return Response.json(claim);
       const m = path.match(/^\/issues\/(\d+)$/);
       if (method === "GET" && m) {
         const issue = issues[Number(m[1])];
@@ -301,6 +308,14 @@ describe("itsaplan proxy: ghi (H1)", () => {
     expect(
       await status(proxy, ireq("POST", "/issues/5/comments", { body: "hi", authorId: "x" })),
     ).toBe(403);
+    // trả lời trong luồng comment (tracker.comment gửi replyToId)
+    expect(
+      await status(proxy, ireq("POST", "/issues/5/comments", { body: "hi", replyToId: 12 })),
+    ).toBe(200);
+    for (const replyToId of ["12", 0, -1, 1.5, null])
+      expect(
+        await status(proxy, ireq("POST", "/issues/5/comments", { body: "hi", replyToId })),
+      ).toBe(403);
     expect(await status(proxy, ireq("PUT", "/issues/5/fields/20", { value: "a" }))).toBe(200);
     expect(await status(proxy, ireq("PUT", "/issues/5/fields/21", { value: "a" }))).toBe(403);
     expect(await status(proxy, ireq("POST", "/issues/5/fields", { fieldId: 20, value: 1 }))).toBe(
@@ -380,6 +395,161 @@ describe("itsaplan proxy: ghi (H1)", () => {
     ]);
     expect(JSON.stringify(logs)).not.toContain("nhạy cảm");
     expect(JSON.stringify(logs)).not.toContain(KEY);
+  });
+});
+
+const RUN = { run: { id: 77, trigger: "mention", issueId: 5, issueIdentifier: "TECH2-5" } };
+const areq = (path: string, body?: unknown, headers: Record<string, string> = {}) =>
+  new Request(`http://127.0.0.1:18998${path}`, {
+    method: "POST",
+    headers: { authorization: "Bearer khoa-gia", ...headers },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+const JSONH = { "content-type": "application/json" };
+
+describe("itsaplan proxy: agent-runs", () => {
+  it("mặc định TẮT: không có cờ agentRuns thì mọi route agent-runs bị chặn", async () => {
+    const { proxy, calls } = it2({ ...base });
+    expect(await status(proxy, areq("/agent-runs/claim"))).toBe(403);
+    expect(await status(proxy, areq("/agent-runs/77/heartbeat", {}, JSONH))).toBe(403);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("claim -> heartbeat/events/result chạy với khoá thật; id lạ trả 404, không chuyển tiếp", async () => {
+    const { proxy, calls, logs } = it2({ ...base }, { agentRuns: true }, RUN);
+    // chưa claim: id 77 chưa được biết
+    expect(await status(proxy, areq("/agent-runs/77/heartbeat", { attempt: 1 }, JSONH))).toBe(404);
+    expect(calls).toHaveLength(0);
+
+    const c = await proxy(areq("/agent-runs/claim"));
+    expect(c.status).toBe(200);
+    expect(((await c.json()) as any).run.id).toBe(77);
+    expect((calls[0].headers as Headers).get("x-api-key")).toBe(KEY);
+    expect(calls[0].method).toBe("POST");
+    expect(calls[0].body).toBeUndefined();
+
+    expect(await status(proxy, areq("/agent-runs/77/heartbeat", undefined))).toBe(200);
+    expect(await status(proxy, areq("/agent-runs/77/heartbeat", { attempt: 1 }, JSONH))).toBe(200);
+    expect(
+      await status(
+        proxy,
+        areq(
+          "/agent-runs/77/events",
+          { attempt: 1, offset: 0, events: [{ type: "RUN_STARTED" }] },
+          JSONH,
+        ),
+      ),
+    ).toBe(200);
+    expect(
+      await status(
+        proxy,
+        areq("/agent-runs/77/result", { status: "success", output: "xong", attempt: 1 }, JSONH),
+      ),
+    ).toBe(200);
+    expect(await status(proxy, areq("/agent-runs/78/result", { status: "success" }, JSONH))).toBe(
+      404,
+    );
+    expect(calls.map((c) => c.url)).toEqual([
+      "/agent-runs/claim",
+      "/agent-runs/77/heartbeat",
+      "/agent-runs/77/heartbeat",
+      "/agent-runs/77/events",
+      "/agent-runs/77/result",
+    ]);
+    // log có runId, không có body
+    expect(logs.some((l) => l.runId === 77)).toBe(true);
+    expect(JSON.stringify(logs)).not.toContain("xong");
+  });
+
+  it("run ngoài project thử không được nhớ: mọi lệnh sau đó trả 404", async () => {
+    const foreign = { run: { id: 88, trigger: "mention", issueId: 6, issueIdentifier: "TECH-6" } };
+    const { proxy, logs } = it2({ ...base }, { agentRuns: true }, foreign);
+    expect(await status(proxy, areq("/agent-runs/claim"))).toBe(200);
+    expect(logs.at(-1)).toMatchObject({ decision: "warn", runId: 88 });
+    expect(await status(proxy, areq("/agent-runs/88/result", { status: "failed" }, JSONH))).toBe(
+      404,
+    );
+  });
+
+  it("claim rỗng (không có run) không nhớ gì; route/phương thức lạ bị chặn", async () => {
+    const { proxy, calls } = it2({ ...base }, { agentRuns: true }, { run: null });
+    expect(await status(proxy, areq("/agent-runs/claim"))).toBe(200);
+    for (const [method, path] of [
+      ["GET", "/agent-runs/claim"],
+      ["GET", "/agent-runs/77"],
+      ["POST", "/agent-runs"],
+      ["POST", "/agent-runs/77"],
+      ["POST", "/agent-runs/77/cancel"],
+      ["POST", "/agent-runs/abc/result"],
+      ["DELETE", "/agent-runs/77"],
+      ["POST", "/agent-runs/claim/extra"],
+      ["POST", "/agent-schedules"],
+    ] as const) {
+      const r = await proxy(
+        new Request(`http://127.0.0.1:18998${path}`, {
+          method,
+          headers: JSONH,
+          body: method === "POST" ? "{}" : undefined,
+        }),
+      );
+      expect([method, path, r.status >= 400]).toEqual([method, path, true]);
+    }
+    expect(calls).toHaveLength(1);
+  });
+
+  it("body bị kiểm: khoá lạ, status sai, content-type, quá lớn; trần tốc độ riêng", async () => {
+    const { proxy } = it2({ ...base }, { agentRuns: true, agentRunsPerMin: 13 }, RUN);
+    await proxy(areq("/agent-runs/claim"));
+    const bad: [string, unknown][] = [
+      ["result", { status: "done" }],
+      ["result", { status: "success", ownerId: 1 }],
+      ["result", {}],
+      ["result", { status: "failed", usage: { inputTokens: -1 } }],
+      ["events", { attempt: 1, offset: 0, events: [] }],
+      ["events", { attempt: 1, offset: 0, events: [{ type: "EVIL" }] }],
+      ["events", { attempt: 1, offset: 0, events: [{ type: "RUN_STARTED" }], url: "x" }],
+      ["events", { attempt: 1, events: [{ type: "RUN_STARTED" }] }],
+      ["heartbeat", { attempt: "1" }],
+      ["heartbeat", [1]],
+    ];
+    for (const [kind, body] of bad)
+      expect([
+        kind,
+        JSON.stringify(body),
+        await status(proxy, areq(`/agent-runs/77/${kind}`, body, JSONH)),
+      ]).toEqual([kind, JSON.stringify(body), 403]);
+    expect(await status(proxy, areq("/agent-runs/77/result", { status: "success" }))).toBe(415);
+    const big = { status: "success", output: "x".repeat(10_001) };
+    expect(await status(proxy, areq("/agent-runs/77/result", big, JSONH))).toBe(403);
+    // đã dùng 1 (claim) + 10 + 1 + 1 = 13 lệnh: lệnh thứ 14 vượt trần
+    expect(await status(proxy, areq("/agent-runs/77/heartbeat", {}, JSONH))).toBe(429);
+  });
+
+  it("Host không phải loopback bị từ chối; route ghi/đọc thường vẫn như cũ", async () => {
+    const { proxy } = it2({ ...base }, { agentRuns: true }, RUN);
+    const r = await proxy(
+      new Request("http://evil.example.com/agent-runs/claim", { method: "POST" }),
+    );
+    expect(r.status).toBe(403);
+    expect(await status(proxy, ireq("GET", "/issues/6"))).toBe(403);
+  });
+});
+
+describe("matchAgentRun / checkAgentBody", () => {
+  it("chỉ bốn route POST", () => {
+    expect(matchAgentRun("POST", ["agent-runs", "claim"])).toEqual({ kind: "claim" });
+    expect(matchAgentRun("POST", ["agent-runs", "5", "result"])).toEqual({
+      kind: "result",
+      runId: 5,
+    });
+    expect(matchAgentRun("GET", ["agent-runs", "claim"])).toBeNull();
+    expect(matchAgentRun("POST", ["agent-runs", "5", "x"])).toBeNull();
+    expect(matchAgentRun("POST", ["issues", "5", "result"])).toBeNull();
+  });
+  it("heartbeat cho phép không body; result/events thì không", () => {
+    expect(checkAgentBody("heartbeat", undefined)).toBeNull();
+    expect(checkAgentBody("result", undefined)).not.toBeNull();
+    expect(checkAgentBody("events", undefined)).not.toBeNull();
   });
 });
 

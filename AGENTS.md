@@ -12,8 +12,8 @@ Repo **công khai**. Trước mọi commit: không secret, không IP/host nội 
   - `skills/tieulinh`: persona và workspace OpenClaw (đồng bộ bằng `openclaw/sync-workspace.ts`).
   - `openclaw-plugin`: plugin nút bấm, xác nhận xong.
 - `apps/tieulinh` (`@vuihoc/tieulinh`): Tiểu Linh mới, nửa **hậu cần** dựng bằng `defineBot` (agent `tieulinh2`, dự án `TECH2` đổi được bằng env). Mention bằng LLM, báo người báo khi Resolved/Done và chuyển comment, nhắc SLA, gợi ý ticket trùng. Lễ tân chưa có. Xem `apps/tieulinh/README.md`. Test: `bun run --cwd apps/tieulinh test`.
-- `tools/tl2-shadow`: bộ chạy bóng Tiểu Linh 2 (relay, proxy giữ secret, tunnel, so sánh). Chỉ chạy trên máy dev; xem `docs/how-to/shadow-tl2.md`, ADR-0005.
-- `deploy/`: script đẩy secret qua SSH và README deploy (chưa có unit systemd trong repo).
+- `tools/tl2-shadow`: bộ chạy bóng Tiểu Linh 2 (relay, proxy giữ secret, tunnel, so sánh) và chạy `apps/tieulinh` trên Colab không secret (`deploy/colab/cup-tieulinh.sh`). Chỉ chạy trên máy dev; xem `docs/how-to/shadow-tl2.md`, ADR-0005.
+- `deploy/`: script đẩy secret qua SSH, README deploy, launcher dev (`deploy/dev/tl2-shadow.sh`) và Colab (`deploy/colab/cup-*.sh`).
 - `docs/`: site VitePress (tiếng Việt), published lên GitHub Pages. Gồm `guide/`, `how-to/`, `reference/`, `explanation/` và `adr/` (quyết định cấp repo). Mỗi package/app có `docs/adr` riêng cạnh code.
 - `scripts/`: `scan-public.ts` (vệ sinh repo công khai), `gen-docs.ts`, `check-doc-snippets.ts`, `check-docs-refs.ts`, `check-docs-touched.ts` (kiểm docs).
 

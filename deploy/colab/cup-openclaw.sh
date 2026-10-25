@@ -83,6 +83,6 @@ echo "== bootstrap gateway"
 sshc "set -e; touch ${remote}; ln -sfn ${remote} \$HOME/tl2/current; cd ${remote} && bun run tools/tl2-shadow/colab/bootstrap.ts --release ${remote} --api ${q_api} --model ${q_model}"
 
 echo "== dọn bản cũ (giữ ${keep})"
-# Không bao giờ xoá bản `current` đang trỏ tới (kể cả khi nó cũ hơn theo mtime vì đã được triển khai lại).
-sshc "cd \$HOME/tl2/releases && cur=\$(basename \$(readlink -f \$HOME/tl2/current)) && ls -1t | grep -v '\.tmp\$' | grep -vx \"\$cur\" | tail -n +${keep} | xargs -r rm -rf"
+# Không bao giờ xoá bản `current` (và `tieulinh-current` của cup-tieulinh.sh) đang trỏ tới (kể cả khi nó cũ hơn theo mtime vì đã được triển khai lại).
+sshc "cd \$HOME/tl2/releases && cur=\$(basename \$(readlink -f \$HOME/tl2/current)) && tcur=\$(basename \$(readlink -f \$HOME/tl2/tieulinh-current 2>/dev/null || echo x)) && ls -1t | grep -v '\.tmp\$' | grep -vx \"\$cur\" | grep -vx \"\$tcur\" | tail -n +${keep} | xargs -r rm -rf"
 echo "== xong. Token gateway ở ~/tl2/home/gateway.token trên ${host}; relay lấy qua tunnel.ts."

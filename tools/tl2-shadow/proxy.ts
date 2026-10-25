@@ -7,8 +7,10 @@
  *  - MiniMax  (:18999)  chỉ POST /v1/messages và /v1/chat/completions, chỉ model trong allowlist,
  *                       có trần tốc độ và trần đồng thời, KHÔNG log nội dung.
  *  - itsaplan (:18998)  chỉ GET, tạo ticket vào đúng project thử, và ghi vào /issues/{id} khi
- *                       ticket đó đã kiểm tra là thuộc project thử. Chặn DELETE, webhook,
- *                       đổi project/team. Log mọi lệnh gọi (phương thức, đường dẫn, quyết định).
+ *                       ticket đó đã kiểm tra là thuộc project thử; thêm đúng bốn route
+ *                       /agent-runs/* cho bot hậu cần (tắt bằng TL2_ITSAPLAN_AGENT_RUNS=false).
+ *                       Chặn DELETE, webhook, đổi project/team. Log mọi lệnh gọi (phương thức,
+ *                       đường dẫn, quyết định).
  *
  * Khoá và URL đọc từ ~/.config/ticket/minimax.env và ~/.config/ticket/tieulinh2.env (không commit).
  */
@@ -31,7 +33,13 @@ import {
 } from "./proxy-common.ts";
 import { createItsaplanProxy, selfTest } from "./proxy-itsaplan.ts";
 
-export { createItsaplanProxy, matchWrite, selfTest } from "./proxy-itsaplan.ts";
+export {
+  checkAgentBody,
+  createItsaplanProxy,
+  matchAgentRun,
+  matchWrite,
+  selfTest,
+} from "./proxy-itsaplan.ts";
 export { safePath } from "./proxy-common.ts";
 
 // ---------------------------------------------------------------- MiniMax
@@ -187,6 +195,8 @@ export async function startProxies(
     ...itOpts,
     ratePerMin: intEnv(env, "TL2_ITSAPLAN_RATE_PER_MIN", 600),
     writesPerMin: intEnv(env, "TL2_ITSAPLAN_WRITES_PER_MIN", 60),
+    agentRuns: env.TL2_ITSAPLAN_AGENT_RUNS !== "false",
+    agentRunsPerMin: intEnv(env, "TL2_ITSAPLAN_AGENT_RUNS_PER_MIN", 1200),
     log,
   });
   await selfTest({ handler: itsaplan, ...itOpts, forbidden: FORBIDDEN_PROJECTS });
