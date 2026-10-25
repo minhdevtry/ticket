@@ -48,7 +48,7 @@ export default defineBot({
       schedule: staleDigest,              // run `schedule` từ lịch tạo trên itsaplan
     },
     rules: [                              // sự kiện → điều kiện → hành động (webhook)
-      whenColumn("Cần phân loại").do(comment("Đã nhận"), setPriority("medium")),
+      whenColumn("Cần phân loại").do(actions.comment("Đã nhận"), actions.setPriority("medium")),
       whenResolved().do(notifyReporter),
     ],
     runs: { concurrency: 2 },
@@ -82,16 +82,17 @@ Mọi dự án nằm trong một team và mã `KEY` chỉ duy nhất trong team.
 Handler nhận `RunContext`:
 
 - `run`, `trigger`, `config` (có kiểu), `logger`, `signal` (huỷ khi mất lease/tắt cưỡng bức), `trace`, `clock`, `idempotencyKey`;
-- `comment`: comment đã phân tích (`text` đã gỡ HTML và `@bot`, `replyToId`, `threadContext`);
+- `attempt`, `maxAttempts`, `prompt` (prompt nguyên văn);
+- `comment`: comment đã phân tích (`text` đã gỡ HTML và `@bot`, `replyToId`, `threadContext`); CHỈ có ở trigger `mention`, trigger khác là `null`;
 - `issue()`: issue của run (lazy, nhớ kết quả, `null` nếu ngoài dự án);
 - `tracker`: client **khoá vào dự án**, có `tracker.ref` (`tech.TECH2`) (`getIssue`, `comment`, `moveTo`, `assign`, `setPriority`, `search`...). Ghi lên issue ngoài dự án ném `OutOfProjectError`;
-- `reply(text)`: comment trả lời đúng luồng, gắn dấu bot, **chống trùng theo run**.
+- `reply(text)`: comment trả lời đúng luồng, gắn dấu bot, **chống trùng theo run và số thứ tự lần gọi** (`reply#n`); kiểm-rồi-ghi không nguyên tử.
 
-Trả về: chuỗi (success + output), không gì (success), hoặc `{ status: "failed", error }` / `{ status: "retry" }`. Ném lỗi = `failed`.
+Trả về: chuỗi (success + output), không gì (success), hoặc `{ status: "failed", error }` / `{ status: "retry" }`. Ném lỗi thường = `failed`; lỗi tạm thời (5xx/429/mạng/hết giờ) = `retry`, và ở lượt cuối `retry` thành `failed` kèm lý do.
 
 ### Luật
 
-`event → điều kiện → hành động` trên webhook đã qua `ItsaplanWebhookServer` (chữ ký, dedupe). Bộ dựng: `whenEvent`, `whenColumn`, `whenResolved`, `whenDone`, `whenCommentCreated`, cộng `.and(cond)`, `.named()`, `.do(...)`. Hành động dựng sẵn: `comment`, `moveTo`, `assign`, `setPriority`; hành động tuỳ ý là một hàm. Engine tự bỏ qua sự kiện ngoài dự án, do agent gây ra (chống vòng lặp), comment của bot, và sự kiện trùng. Lỗi một luật không chặn luật khác.
+`event → điều kiện → hành động` trên webhook đã qua `ItsaplanWebhookServer` (chữ ký, dedupe). Bộ dựng: `whenEvent`, `whenColumn`, `whenResolved`, `whenDone`, `whenCommentCreated`, cộng `.and(cond)`, `.named()`, `.do(...)`. Hành động dựng sẵn trong namespace `actions`: `actions.comment`, `moveTo`, `assign`, `setPriority`; hành động tuỳ ý là một hàm. Sự kiện đổi cột là `issue.state_changed` (đã đối chiếu code server: không có `issue.column_changed`). Engine tự bỏ qua sự kiện ngoài dự án, do agent gây ra (chống vòng lặp), comment của bot, và sự kiện trùng. Lỗi một luật không chặn luật khác.
 
 ## Vòng đời
 
@@ -106,15 +107,17 @@ bot.start()                         created → starting → running
    ├─ worker agent-runs bắt đầu poll
    └─ /healthz (nếu BOT_HEALTH_PORT)
 bot.health()                        status: starting | ok | degraded | down | stopped
-bot.stop()                          êm, idempotent: ngừng claim → chờ run tới drainTimeoutMs → huỷ
-runBot(bot)                         start + SIGINT/SIGTERM → stop (tín hiệu thứ hai thoát ngay)
+bot.stop()                          êm, idempotent: ngừng claim → chờ run tới drainTimeoutMs (5 s) → huỷ
+                                    → chờ tối đa 1 s rồi bỏ mặc handler phớt lờ signal
+runBot(bot)                         start + SIGINT/SIGTERM/lỗi chết → stop (hạn thoát cưỡng bức = bot.stopBudgetMs;
+                                    tín hiệu thứ hai thoát ngay; lỗi chết thoát mã 1)
 ```
 
 `health()`:
 
 - `ok`: đang chạy, poll gần đây thành công.
-- `degraded`: claim lỗi liên tiếp từ 3 lần, hoặc quá lâu chưa poll thành công.
-- `down`: worker dừng vì lỗi chết (key bị từ chối, agent có invocation URL) hoặc bot `failed`.
+- `degraded`: claim lỗi liên tiếp từ 3 lần, hoặc quá lâu chưa poll thành công (không tính lúc bận hết concurrency).
+- `down`: worker dừng vì lỗi chết (key bị từ chối 3 lần liên tiếp, agent có invocation URL) hoặc bot `failed`.
 - `/healthz` trả 200 cho `ok`/`degraded`, 503 cho còn lại; mặc định bind `127.0.0.1`.
 
 Cấu hình và log:
@@ -165,6 +168,21 @@ Mỗi bước là một PR riêng, chạy song song với bản cũ (cờ bật/
 5. **Ranh giới `retry`**: server không có API "trả run về hàng đợi", chỉ có cách để lease hết hạn (mặc định 5 phút, tối đa 3 lần). Có cần đề nghị endpoint release/defer?
 6. **Nhiều bot một process**: `createBot` hiện là một bot một process; có cần `createFleet([...])` dùng chung health server không?
 7. **Ledger bền**: mặc định in-memory mất khi process chết. Giữ in-memory ở M1 là chấp nhận được vì idempotency ở tầng comment (dấu ẩn) vẫn chặn ghi trùng; có cần ledger bền ngay ở M2 không?
+
+## Phát hiện từ review và việc để lại cho milestone 2
+
+Review độc lập của PR milestone 1 đã được xử lý ngay trong PR (lỗi tạm thời không còn thành `failed`, `stop()` bị chặn trên, run bị giao lại được nhận thay vì bỏ qua, ranh giới dự án theo `projectId`, luật chỉ đánh dấu "đã thấy" sau thành công, che secret theo giá trị, webhook ngoài loopback bắt buộc có secret, `issue.column_changed` bị bỏ vì server không phát sự kiện đó). Những mục sau cố ý để lại, mỗi mục nên thành một issue riêng:
+
+1. **`findIssueByIdentifier` mặc định vẫn nuốt mọi lỗi** thành "không thấy" (cho tương thích các bot cũ). Bot kit dùng `strict` (chỉ nuốt 404). Cần rà các nơi gọi của `apps/tieulinh` rồi đổi mặc định.
+2. **Ghi comment không nguyên tử**: chống trùng là kiểm-rồi-ghi bằng dấu ẩn. Cần itsaplan nhận khoá idempotency khi tạo comment, hoặc bot giữ khoá bền.
+3. **Ledger bền** (SQLite) cho `RunLedger`; hiện in-memory.
+4. **Endpoint nhả/hoãn run** ở itsaplan để `retry` không phải chờ lease hết hạn (5 phút).
+5. **Heartbeat lỗi liên tiếp** nên huỷ handler trước khi lease hết hạn thay vì chờ server báo mất lease.
+6. **`X-Itsaplan-Event-Id`** (mã giao nhận ổn định của server, nằm ở header chứ không ở body) chưa tới được handler của `ItsaplanWebhookServer`, nên dedupe vẫn dựa vào `webhookTimestamp`. Nên chuyển header xuống handler.
+7. **`comment.deleted`** có ở server nhưng chưa có trong `ItsaplanWebhookEventName`.
+8. **Luật**: chưa có hẹn giờ (`closeAfter`), chưa có thử lại riêng từng luật, và tracker của luật chưa gắn `signal` như tracker của run.
+9. **Brand type** cho từng phần của ref (team slug, mã dự án) thay vì chỉ `ProjectRef`; hiện chỉ ref đủ là brand.
+10. **Một key hay hai** (câu hỏi mở 3) vẫn chưa quyết: tracker còn dùng key agent.
 
 ## Phương án đã loại
 

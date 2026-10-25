@@ -48,7 +48,7 @@ Mấy điểm cần để ý:
 - `tracker` luôn có đủ `team` và `project`. Thiếu hoặc sai định dạng là `BotDefinitionError` ngay khi module được nạp.
 - `ctx.config` có kiểu suy ra từ `env`: `ctx.config.GREETING` là `string`.
 - `ctx.reply` ghi comment vào đúng luồng của comment gọi bot, gắn dấu bot, và **không ghi hai lần** nếu run bị giao lại sau khi bot sập giữa chừng.
-- Handler trả chuỗi (hoặc không trả gì) là thành công; `skip(lý do)` đóng run mà không làm gì; ném lỗi hoặc trả `{ status: "failed", error }` là thất bại cuối cùng (server không thử lại). Lỗi tạm thời thì trả `retryLater(lý do)`.
+- Handler trả chuỗi (hoặc không trả gì) là thành công; `skip(lý do)` đóng run mà không làm gì; ném lỗi hoặc trả `{ status: "failed", error }` là thất bại cuối cùng (server không thử lại). Lỗi tạm thời thì trả `retryLater(lý do)` (lỗi 5xx/429/mạng của itsaplan được bot đổi thành thử lại hộ bạn; ở lượt cuối run báo `failed` kèm lý do).
 
 Khai báo sai bị bắt sớm và gom đủ một lần:
 
@@ -145,16 +145,18 @@ Phản ứng tất định với thay đổi trên ticket (đổi cột, comment
 
 ```ts check
 import {
-  comment,
-  setPriority,
+  actions,
   whenColumn,
   whenCommentCreated,
 } from "@vuihoc/bot-core/backoffice";
 
 // Đưa mảng này vào `defineBot({ backoffice: { rules } })`.
 export const rules = [
-  whenColumn("Cần phân loại").do(comment("Đã nhận, đang phân loại."), setPriority("medium")),
-  whenCommentCreated((c) => c.text.includes("gấp")).do(setPriority("high")),
+  whenColumn("Cần phân loại").do(
+    actions.comment("Đã nhận, đang phân loại."),
+    actions.setPriority("medium"),
+  ),
+  whenCommentCreated((c) => c.text.includes("gấp")).do(actions.setPriority("high")),
 ];
 ```
 

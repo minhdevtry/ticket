@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { z } from "zod";
 import { ConfigError, defineEnv } from "../core/config";
 import type { IntakeLogger } from "../core/logger";
-import { skip, whenColumn, setPriority, comment } from "../backoffice";
+import { actions, skip, whenColumn } from "../backoffice";
 import { FakeItsaplan } from "../testing/fake-itsaplan";
 import { type CreateBotOptions, createBot } from "./create";
 import { type BotDefinition, BotDefinitionError, defineBot } from "./define";
@@ -36,6 +36,7 @@ const fastWorker = {
   minPollIntervalMs: 0,
   errorBackoff: { baseMs: 5, maxMs: 10 },
   drainTimeoutMs: 500,
+  fatalAfter: 2,
 };
 
 beforeEach(() => {
@@ -210,8 +211,7 @@ describe("createBot", () => {
 
   it("trigger chưa có handler → đóng success (không failed), run ngoài dự án bị bỏ qua", async () => {
     const issue = fake.addIssue({ title: "A" });
-    const foreign = fake.addIssue({ title: "B" });
-    foreign.identifier = "OTHER-9";
+    const foreign = fake.addIssue({ title: "B", projectId: 2, identifier: "OTHER-9" });
     const bot = make(
       defineBot({
         id: "skip",
@@ -259,7 +259,12 @@ describe("createBot", () => {
         id: "rules",
         tracker: { team: "tech", project: "TECH" },
         backoffice: {
-          rules: [whenColumn("Cần phân loại").do(comment("Đã nhận."), setPriority("high"))],
+          rules: [
+            whenColumn("Cần phân loại").do(
+              actions.comment("Đã nhận."),
+              actions.setPriority("high"),
+            ),
+          ],
         },
       }),
       { env: envFor(), healthServer: { port: 0 }, webhook: { port: 0 } },
@@ -339,6 +344,295 @@ describe("createBot", () => {
   });
 });
 
+describe("createBot: độ bền và an toàn", () => {
+  const reads = { trackerReads: { retries: 1, baseDelayMs: 1 } };
+  const quickEnv = (q: FakeItsaplan) => ({
+    ITSAPLAN_BASE_URL: q.baseUrl,
+    ITSAPLAN_AGENT_KEY: q.agentKey,
+    BOT_POLL_INTERVAL_MS: "0",
+  });
+
+  it("lỗi tạm thời của itsaplan (5xx) → run được thử lại chứ không failed ngay, rồi thành công", async () => {
+    const quick = new FakeItsaplan({ leaseMs: 50 });
+    quick.start();
+    try {
+      const issue = quick.addIssue({ title: "A" });
+      const run = quick.mention(issue.id, "x");
+      // lượt 1: đọc issue lỗi 503 hết số lần thử lại của tracker; lượt 2 trở lại bình thường
+      quick.fail(/^GET \/issues\/\d+$/, 503, 2);
+      let calls = 0;
+      const bot = make(
+        defineBot({
+          id: "transient",
+          tracker: { team: "tech", project: "TECH" },
+          backoffice: {
+            on: {
+              mention: async (ctx) => {
+                calls++;
+                return `xong ở lượt ${ctx.attempt}/${ctx.maxAttempts}`;
+              },
+            },
+          },
+        }),
+        { env: quickEnv(quick), ...reads },
+      );
+      await bot.start();
+      await until(() => quick.run(run.id).status === "success", 5000);
+      expect(calls).toBe(1); // handler chỉ chạy ở lượt 2: lượt 1 chết ở bước kiểm issue
+      expect(quick.run(run.id).output).toBe("xong ở lượt 2/3");
+      expect(quick.run(run.id).attempts).toBe(2);
+    } finally {
+      await quick.stop();
+    }
+  });
+
+  it("lỗi tạm thời ở handler cũng được thử lại; hết lượt thì failed kèm lý do (không im lặng)", async () => {
+    const quick = new FakeItsaplan({ leaseMs: 30 });
+    quick.start();
+    try {
+      const issue = quick.addIssue({ title: "A" });
+      const run = quick.mention(issue.id, "x");
+      const attempts: number[] = [];
+      const bot = make(
+        defineBot({
+          id: "exhaust",
+          tracker: { team: "tech", project: "TECH" },
+          backoffice: {
+            on: {
+              mention: async (ctx) => {
+                attempts.push(ctx.attempt);
+                // mô phỏng itsaplan sập khi ghi: 503 từ lệnh ghi (không được tự thử lại)
+                quick.fail(/^POST \/issues\/\d+\/comments$/, 503, 1);
+                await ctx.reply("không ghi được");
+                return "không tới đây";
+              },
+            },
+          },
+        }),
+        { env: quickEnv(quick), ...reads },
+      );
+      await bot.start();
+      await until(() => quick.run(run.id).status === "failed", 5000);
+      expect(attempts).toEqual([1, 2, 3]);
+      expect(quick.run(run.id).error).toContain("Hết lượt thử (3/3)");
+      expect(quick.run(run.id).error).toContain("503");
+    } finally {
+      await quick.stop();
+    }
+  });
+
+  it("lỗi thường (bug của handler) vẫn failed ngay, không thử lại", async () => {
+    const issue = fake.addIssue({ title: "A" });
+    const bot = make(
+      defineBot({
+        id: "bug",
+        tracker: { team: "tech", project: "TECH" },
+        backoffice: {
+          on: {
+            mention: async () => {
+              throw new TypeError("Cannot read properties of undefined");
+            },
+          },
+        },
+      }),
+      { env: envFor() },
+    );
+    const run = fake.mention(issue.id, "x");
+    await bot.start();
+    await until(() => fake.run(run.id).status === "failed");
+    expect(fake.run(run.id).attempts).toBe(1);
+  });
+
+  it("ctx.comment chỉ có ở mention (null ở trigger khác, đọc ctx.prompt); ctx.bot.ref là ref đủ", async () => {
+    const issue = fake.addIssue({ title: "A" });
+    const seen: Record<string, unknown> = {};
+    const bot = make(
+      defineBot({
+        id: "ctx",
+        tracker: { team: "tech", project: "TECH" },
+        backoffice: {
+          on: {
+            delegation: async (ctx) => {
+              seen.comment = ctx.comment;
+              seen.prompt = ctx.prompt;
+              seen.ref = ctx.bot.ref;
+              seen.attempt = [ctx.attempt, ctx.maxAttempts];
+            },
+          },
+        },
+      }),
+      { env: envFor() },
+    );
+    const run = fake.enqueueRun({ trigger: "delegation", prompt: "làm đi", issueId: issue.id });
+    await bot.start();
+    await until(() => fake.run(run.id).status === "success");
+    expect(seen).toEqual({ comment: null, prompt: "làm đi", ref: "tech.TECH", attempt: [1, 3] });
+  });
+
+  it("reply: khoá mặc định theo số thứ tự lần gọi: nhiều câu trong một run đều được ghi, chạy lại không ghi trùng", async () => {
+    const quick = new FakeItsaplan({ leaseMs: 50 });
+    quick.start();
+    try {
+      const issue = quick.addIssue({ title: "A" });
+      const run = quick.mention(issue.id, "x");
+      let calls = 0;
+      const bot = make(
+        defineBot({
+          id: "replies",
+          tracker: { team: "tech", project: "TECH" },
+          backoffice: {
+            on: {
+              mention: async (ctx) => {
+                calls++;
+                await ctx.reply("câu một");
+                await ctx.reply("câu hai");
+                return calls === 1 ? { status: "retry" } : "xong";
+              },
+            },
+          },
+        }),
+        { env: quickEnv(quick) },
+      );
+      await bot.start();
+      await until(() => quick.run(run.id).status === "success");
+      expect(calls).toBe(2);
+      const bodies = quick.comments
+        .filter((c) => c.actorUserId === "agent-user")
+        .map((c) => c.body);
+      expect(bodies).toHaveLength(2);
+      expect(bodies[0]).toContain("câu một");
+      expect(bodies[1]).toContain("câu hai");
+    } finally {
+      await quick.stop();
+    }
+  });
+
+  it("issue cùng tiền tố mã nhưng khác dự án (projectId) bị bỏ qua, handler không chạy", async () => {
+    const lookalike = fake.addIssue({ title: "Team khác", projectId: 9 });
+    let called = false;
+    const bot = make(
+      defineBot({
+        id: "scope",
+        tracker: { team: "tech", project: "TECH" },
+        backoffice: {
+          on: {
+            mention: async () => {
+              called = true;
+            },
+          },
+        },
+      }),
+      { env: envFor() },
+    );
+    const run = fake.mention(lookalike.id, "x");
+    await bot.start();
+    await until(() => fake.run(run.id).status === "success");
+    expect(called).toBe(false);
+    expect(fake.run(run.id).output).toContain("không thuộc dự án tech.TECH");
+  });
+
+  it("secret không lọt vào log, health, lỗi run gửi lên itsaplan hay thông báo preflight", async () => {
+    const issue = fake.addIssue({ title: "A" });
+    const key = fake.agentKey; // chuỗi tuỳ ý, không khớp mẫu secret nào
+    const bot = make(
+      defineBot({
+        id: "leak",
+        tracker: { team: "tech", project: "TECH" },
+        backoffice: {
+          on: {
+            mention: async (ctx) => {
+              ctx.logger.info(`đang dùng ${key}`, { key });
+              throw new Error(`gọi lỗi với khoá ${key}`);
+            },
+          },
+        },
+      }),
+      { env: envFor() },
+    );
+    const run = fake.mention(issue.id, "x");
+    await bot.start();
+    await until(() => fake.run(run.id).status === "failed");
+    expect(fake.run(run.id).error).toContain("[REDACTED]");
+    expect(fake.run(run.id).error).not.toContain(key);
+    expect(logs.join("\n")).not.toContain(key);
+    expect(JSON.stringify(bot.health())).not.toContain(key);
+
+    const bad = make(
+      defineBot({
+        id: "leak2",
+        tracker: { team: "tech", project: "NOPE" },
+        backoffice: { on: { mention: async () => "x" } },
+      }),
+      { env: envFor(), itsaplanClient: undefined },
+    );
+    await expect(bad.start()).rejects.toThrow(/Không truy cập được dự án/);
+  });
+
+  it("webhook nghe ngoài loopback mà không có secret thì từ chối khởi động", async () => {
+    const def = defineBot({
+      id: "wh",
+      tracker: { team: "tech", project: "TECH" },
+      backoffice: { rules: [whenColumn("A").do(actions.setPriority("low"))] },
+    });
+    const open = make(def, { env: envFor(), webhook: { port: 0, host: "0.0.0.0" } });
+    await expect(open.start()).rejects.toThrow(/ngoài loopback.*ITSAPLAN_WEBHOOK_SECRET/);
+    expect(open.state).toBe("failed");
+
+    const signed = make(def, {
+      env: envFor({ ITSAPLAN_WEBHOOK_SECRET: "whsec_test_test" }),
+      webhook: { port: 0, host: "127.0.0.1" },
+    });
+    await signed.start();
+    expect(signed.addresses().webhook?.port).toBeGreaterThan(0);
+  });
+
+  it("health: không báo 'chưa poll' khi đang bận hết concurrency (cố ý không poll)", async () => {
+    let now = Date.now();
+    const clock = { now: () => now };
+    const issue = fake.addIssue({ title: "A" });
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let started = false;
+    const bot = make(
+      defineBot({
+        id: "busy",
+        tracker: { team: "tech", project: "TECH" },
+        backoffice: {
+          on: {
+            mention: async () => {
+              started = true;
+              await gate;
+            },
+          },
+        },
+      }),
+      { env: envFor(), clock },
+    );
+    const run = fake.mention(issue.id, "x");
+    await bot.start();
+    await until(() => started);
+    now += 10 * 60_000; // 10 phút không poll vì đang bận
+    expect(bot.health().status).toBe("ok");
+    expect(bot.health().reasons).toEqual([]);
+    release();
+    await until(() => fake.run(run.id).status === "success");
+  });
+
+  it("stopBudgetMs: mặc định nằm trong hạn 10 giây của docker stop; BOT_DRAIN_TIMEOUT_MS đổi được", () => {
+    const def = defineBot({
+      id: "budget",
+      tracker: { team: "tech", project: "TECH" },
+      backoffice: { on: { mention: async () => "x" } },
+    });
+    const dflt = createBot(def, { env: envFor(), logger });
+    expect(dflt.stopBudgetMs).toBeLessThanOrEqual(10_000);
+    const long = createBot(def, { env: envFor({ BOT_DRAIN_TIMEOUT_MS: "60000" }), logger });
+    expect(long.stopBudgetMs).toBeGreaterThan(60_000);
+  });
+});
+
 describe("runBot", () => {
   it("start, chờ tín hiệu, dừng êm rồi trả về", async () => {
     const handlers = new Map<string, () => void>();
@@ -363,5 +657,38 @@ describe("runBot", () => {
     await running;
     expect(bot.state).toBe("stopped");
     expect(handlers.size).toBe(0);
+  });
+
+  it("lỗi chết (key bị từ chối liên tiếp): dừng êm rồi thoát mã 1; exitOnFatal=false thì ném lỗi", async () => {
+    const mkProc = () => {
+      const codes: number[] = [];
+      const proc = {
+        on() {},
+        off() {},
+        exit: (code?: number) => void codes.push(code ?? 0),
+      } as any;
+      return { proc, codes };
+    };
+    const badBot = (id: string) =>
+      make(
+        defineBot({
+          id,
+          tracker: { team: "tech", project: "TECH" },
+          backoffice: { on: { mention: async () => "x" } },
+        }),
+        { env: envFor({ ITSAPLAN_AGENT_KEY: "sai-key-123" }), preflight: false },
+      );
+
+    const a = mkProc();
+    const bot = badBot("fatal-exit");
+    await runBot(bot, { proc: a.proc });
+    expect(a.codes).toEqual([1]);
+    expect(bot.state).toBe("stopped");
+
+    const b = mkProc();
+    await expect(
+      runBot(badBot("fatal-throw"), { proc: b.proc, exitOnFatal: false }),
+    ).rejects.toThrow(/401/);
+    expect(b.codes).toEqual([]);
   });
 });

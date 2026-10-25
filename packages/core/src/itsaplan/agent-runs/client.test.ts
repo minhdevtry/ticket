@@ -104,20 +104,20 @@ describe("AgentRunsClient.heartbeat / report", () => {
   it("heartbeat ok, lost khi run không còn của ta, và retry khi 503", async () => {
     const queued = fake.enqueueRun({ trigger: "manual", prompt: "p" });
     const run = (await client().claim())!;
-    expect(await client().heartbeat(run.id, run.attempts)).toBe("ok");
+    expect(await client().heartbeat({ runId: run.id, attempt: run.attempts })).toBe("ok");
     fake.fail(/heartbeat/, 503, 2);
-    expect(await client().heartbeat(run.id, run.attempts)).toBe("ok");
+    expect(await client().heartbeat({ runId: run.id, attempt: run.attempts })).toBe("ok");
     expect(fake.count(`POST /agent-runs/${queued.id}/heartbeat`)).toBe(4);
     // sai attempt (đã đổi lượt) → lost
-    expect(await client().heartbeat(run.id, run.attempts + 1)).toBe("lost");
-    expect(await client().heartbeat(99999)).toBe("lost");
+    expect(await client().heartbeat({ runId: run.id, attempt: run.attempts + 1 })).toBe("lost");
+    expect(await client().heartbeat({ runId: 99999 })).toBe("lost");
   });
 
   it("tôn trọng Retry-After của 429", async () => {
     fake.enqueueRun({ trigger: "manual", prompt: "p" });
     const run = (await client().claim())!;
     fake.fail(/heartbeat/, 429, 1, { "retry-after": "0" });
-    expect(await client().heartbeat(run.id, run.attempts)).toBe("ok");
+    expect(await client().heartbeat({ runId: run.id, attempt: run.attempts })).toBe("ok");
   });
 
   it("hết retry thì ném lỗi", async () => {
@@ -127,7 +127,9 @@ describe("AgentRunsClient.heartbeat / report", () => {
     }).claim())!;
     fake.fail(/heartbeat/, 503, 10);
     await expect(
-      client({ retry: { maxRetries: 1, baseDelayMs: 1, maxDelayMs: 1 } }).heartbeat(run.id),
+      client({ retry: { maxRetries: 1, baseDelayMs: 1, maxDelayMs: 1 } }).heartbeat({
+        runId: run.id,
+      }),
     ).rejects.toMatchObject({ status: 503 });
     expect(fake.count(`POST /agent-runs/${run.id}/heartbeat`)).toBe(2);
   });
@@ -139,15 +141,15 @@ describe("AgentRunsClient.heartbeat / report", () => {
     const b = (await client().claim())!;
 
     expect(
-      await client().report(
-        a.id,
-        {
+      await client().report({
+        runId: a.id,
+        result: {
           status: "success",
           output: "x".repeat(20_000),
           usage: { inputTokens: 5, outputTokens: 2 },
         },
-        a.attempts,
-      ),
+        attempt: a.attempts,
+      }),
     ).toBe("recorded");
     expect(fake.run(a.id)).toMatchObject({
       status: "success",
@@ -156,19 +158,31 @@ describe("AgentRunsClient.heartbeat / report", () => {
     expect(fake.run(a.id).output?.length).toBe(10_000);
 
     expect(
-      await client().report(b.id, { status: "failed", error: "e".repeat(900) }, b.attempts),
+      await client().report({
+        runId: b.id,
+        result: { status: "failed", error: "e".repeat(900) },
+        attempt: b.attempts,
+      }),
     ).toBe("recorded");
     expect(fake.run(b.id).status).toBe("failed");
     expect(fake.run(b.id).error?.length).toBe(500);
 
     // đã kết thúc → server trả 404 → stale
-    expect(await client().report(a.id, { status: "success" }, a.attempts)).toBe("stale");
+    expect(
+      await client().report({ runId: a.id, result: { status: "success" }, attempt: a.attempts }),
+    ).toBe("stale");
   });
 
   it("report với attempt cũ bị từ chối (run đã sang lượt khác)", async () => {
     fake.enqueueRun({ trigger: "manual", prompt: "p" });
     const run = (await client().claim())!;
-    expect(await client().report(run.id, { status: "success" }, run.attempts + 1)).toBe("stale");
+    expect(
+      await client().report({
+        runId: run.id,
+        result: { status: "success" },
+        attempt: run.attempts + 1,
+      }),
+    ).toBe("stale");
     expect(fake.run(run.id).status).toBe("pending");
   });
 });
@@ -180,36 +194,36 @@ describe("AgentRunsClient.appendEvents", () => {
     const events = [{ type: "RUN_STARTED" as const }, { type: "RUN_FINISHED" as const }];
 
     expect(
-      await client().appendEvents(run.id, { attempt: run.attempts, offset: 0, events }),
+      await client().appendEvents({ runId: run.id, attempt: run.attempts, offset: 0, events }),
     ).toEqual({
       nextOffset: 2,
       truncated: false,
     });
     // gửi lại y hệt
     expect(
-      await client().appendEvents(run.id, { attempt: run.attempts, offset: 0, events }),
+      await client().appendEvents({ runId: run.id, attempt: run.attempts, offset: 0, events }),
     ).toEqual({
       nextOffset: 2,
       truncated: false,
     });
     expect(fake.run(run.id).events).toHaveLength(2);
     // nhảy cóc
-    expect(await client().appendEvents(run.id, { attempt: run.attempts, offset: 9, events })).toBe(
-      "conflict",
-    );
+    expect(
+      await client().appendEvents({ runId: run.id, attempt: run.attempts, offset: 9, events }),
+    ).toBe("conflict");
     // sai attempt
     expect(
-      await client().appendEvents(run.id, { attempt: run.attempts + 1, offset: 2, events }),
+      await client().appendEvents({ runId: run.id, attempt: run.attempts + 1, offset: 2, events }),
     ).toBe("lost");
   });
 
   it("từ chối lô rỗng hoặc quá 200 sự kiện ngay ở client", async () => {
-    await expect(client().appendEvents(1, { attempt: 1, offset: 0, events: [] })).rejects.toThrow(
-      RangeError,
-    );
+    await expect(
+      client().appendEvents({ runId: 1, attempt: 1, offset: 0, events: [] }),
+    ).rejects.toThrow(RangeError);
     const many = Array.from({ length: 201 }, () => ({ type: "RUN_STARTED" as const }));
-    await expect(client().appendEvents(1, { attempt: 1, offset: 0, events: many })).rejects.toThrow(
-      RangeError,
-    );
+    await expect(
+      client().appendEvents({ runId: 1, attempt: 1, offset: 0, events: many }),
+    ).rejects.toThrow(RangeError);
   });
 });

@@ -7,14 +7,20 @@
  *
  * Đảm bảo:
  *  - tối đa `concurrency` run cùng lúc (server còn tự tuần tự hoá run cùng issue);
- *  - claim lỗi: backoff luỹ thừa có jitter; 401/403/409 là lỗi CHẾT (dừng, báo `onFatal`);
+ *  - claim lỗi: backoff luỹ thừa có jitter; 401/403/409 chỉ là lỗi CHẾT sau `fatalAfter`
+ *    lần liên tiếp (một lần 401 do key đang xoay hoặc proxy chập chờn không giết bot);
  *  - heartbeat/result gắn `attempt` để run đã đổi lượt không bị ghi đè nhầm;
  *  - heartbeat trả `lost` → huỷ handler (`signal`) và không báo kết quả;
  *  - handler ném lỗi → báo `failed` (server KHÔNG thử lại run failed);
+ *  - handler trả `retry` → nhả lease để server giao lại; ở lượt cuối (`maxAttempts`) thì
+ *    báo `failed` kèm lý do thay vì để lease hết hạn trong im lặng;
  *  - kết quả đã tính xong mà báo thất bại → giữ trong `ledger`, lần nhận lại cùng run
  *    sẽ báo lại kết quả cũ thay vì chạy handler lần nữa (idempotency);
+ *  - run đang chạy mà bị giao lại (lease hết hạn khi heartbeat hỏng) → huỷ handler cũ và
+ *    chạy tiếp bằng lượt mới, không bỏ qua (nếu bỏ qua thì lượt mới trôi hết lease);
  *  - `stop()`: ngừng nhận việc, chờ run đang chạy tối đa `drainTimeoutMs`, quá hạn thì
  *    huỷ và KHÔNG báo gì (lease hết hạn → server giao lại, nên handler phải chạy lại được).
+ *    Handler không tuân thủ `signal` cũng không giữ `stop()` quá `abortGraceMs` nữa.
  */
 import { getLogger, type IntakeLogger } from "../../core/logger";
 import { AgentRunsApiError, type AgentRunsClient } from "./client";
@@ -45,6 +51,10 @@ export interface AgentRunHandlerContext {
   trace: RunTrace;
   /** Khoá ổn định cho một run, dùng để chống làm trùng việc ngoài (vd dấu trong comment). */
   idempotencyKey: string;
+  /** Lượt thử hiện tại (bắt đầu từ 1). */
+  attempt: number;
+  /** Số lượt tối đa server cho một run. Hết lượt thì `retry` bị đổi thành `failed`. */
+  maxAttempts: number;
 }
 
 export type AgentRunHandler = (ctx: AgentRunHandlerContext) => Promise<AgentRunHandlerResult>;
@@ -93,8 +103,20 @@ export interface AgentRunWorkerOptions {
   errorBackoff?: { baseMs?: number; maxMs?: number };
   /** Hạn một run (ms). Quá hạn thì huỷ và báo `failed`. Mặc định 30 phút. */
   runTimeoutMs?: number;
-  /** Thời gian chờ run đang chạy khi `stop()` (ms). Mặc định 30 000. */
+  /**
+   * Thời gian chờ run đang chạy khi `stop()` (ms). Mặc định 5 000: vừa trong hạn 10 giây
+   * mặc định của `docker stop`. Handler chạy lâu (gọi LLM) cần nâng số này và hạn dừng của
+   * orchestrator (`docker stop -t`, `TimeoutStopSec`); phần chưa xong bị huỷ và server giao lại.
+   */
   drainTimeoutMs?: number;
+  /** Sau khi huỷ vì quá hạn drain, chờ thêm tối đa bấy nhiêu ms rồi bỏ mặc. Mặc định 1 000. */
+  abortGraceMs?: number;
+  /** Số lượt thử tối đa của một run phía server. Mặc định 3. */
+  maxAttempts?: number;
+  /** Lease phía server (ms), chỉ để kiểm `heartbeatIntervalMs`. Mặc định 300 000. */
+  leaseMs?: number;
+  /** Số lần 401/403/409 liên tiếp ở `claim` mới coi là lỗi chết. Mặc định 3. */
+  fatalAfter?: number;
   ledger?: RunLedger;
   logger?: IntakeLogger;
   /** Có gửi trace không (khi server cũng muốn). Mặc định true. */
@@ -134,7 +156,23 @@ interface ActiveRun {
   controller: AbortController;
   promise: Promise<void>;
   /** Vì sao bị huỷ: quyết định có báo kết quả không. */
-  abortedFor: null | "lease-lost" | "shutdown";
+  abortedFor: null | "lease-lost" | "shutdown" | "superseded";
+  abort(reason: "lease-lost" | "shutdown" | "superseded"): void;
+}
+
+/** Chờ `promise` tới `ms`; trả `"done"` hoặc `"timeout"`. Không để timer treo process. */
+async function raceWithTimer(promise: Promise<unknown>, ms: number): Promise<"done" | "timeout"> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise.then(() => "done" as const),
+      new Promise<"timeout">((resolve) => {
+        timer = setTimeout(() => resolve("timeout"), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 function abortableSleep(ms: number, signal: AbortSignal): Promise<void> {
@@ -162,6 +200,9 @@ export class AgentRunWorker {
   private readonly backoffMaxMs: number;
   private readonly runTimeoutMs: number;
   private readonly drainTimeoutMs: number;
+  private readonly abortGraceMs: number;
+  private readonly maxAttempts: number;
+  private readonly fatalAfter: number;
   private readonly ledger: RunLedger;
   private readonly logger: IntakeLogger;
   private readonly traceEnabled: boolean;
@@ -176,6 +217,7 @@ export class AgentRunWorker {
   private lastClaimAt: number | null = null;
   private lastError: string | null = null;
   private consecutiveErrors = 0;
+  private consecutiveFatal = 0;
   private readonly totals = {
     claimed: 0,
     succeeded: 0,
@@ -197,7 +239,18 @@ export class AgentRunWorker {
     this.backoffBaseMs = options.errorBackoff?.baseMs ?? 5_000;
     this.backoffMaxMs = options.errorBackoff?.maxMs ?? 60_000;
     this.runTimeoutMs = options.runTimeoutMs ?? 30 * 60_000;
-    this.drainTimeoutMs = options.drainTimeoutMs ?? 30_000;
+    this.drainTimeoutMs = options.drainTimeoutMs ?? 5_000;
+    this.abortGraceMs = options.abortGraceMs ?? 1_000;
+    this.maxAttempts = Math.max(1, Math.floor(options.maxAttempts ?? 3));
+    this.fatalAfter = Math.max(1, Math.floor(options.fatalAfter ?? 3));
+    const leaseMs = options.leaseMs ?? 300_000;
+    if (!(this.heartbeatIntervalMs > 0) || this.heartbeatIntervalMs > leaseMs / 2) {
+      throw new RangeError(
+        `heartbeatIntervalMs phải > 0 và <= một nửa lease (${leaseMs / 2}ms), nhận ${this.heartbeatIntervalMs}`,
+      );
+    }
+    if (!(this.runTimeoutMs > 0)) throw new RangeError("runTimeoutMs phải > 0");
+    if (!(this.drainTimeoutMs >= 0)) throw new RangeError("drainTimeoutMs phải >= 0");
     this.ledger = options.ledger ?? new MemoryRunLedger();
     this.logger = options.logger ?? getLogger();
     this.traceEnabled = options.trace ?? true;
@@ -225,21 +278,20 @@ export class AgentRunWorker {
     if (this.state === "running") this.state = "stopping";
     this.loopAbort.abort();
     await this.loop;
-    const pending = () => Promise.allSettled([...this.active.values()].map((a) => a.promise));
     if (this.active.size > 0) {
-      const drained = new AbortController();
-      const timedOut = abortableSleep(this.drainTimeoutMs, drained.signal).then(() => "timeout");
-      const result = await Promise.race([pending().then(() => "done"), timedOut]);
-      drained.abort();
-      if (result === "timeout") {
+      const settled = () => Promise.allSettled([...this.active.values()].map((a) => a.promise));
+      if ((await raceWithTimer(settled(), this.drainTimeoutMs)) === "timeout") {
         this.logger.warn(
           `[agent-runs] ${this.active.size} run chưa xong sau ${this.drainTimeoutMs}ms, huỷ (lease sẽ hết hạn và server giao lại)`,
         );
-        for (const entry of this.active.values()) {
-          entry.abortedFor ??= "shutdown";
-          entry.controller.abort(new Error("shutdown"));
+        for (const entry of this.active.values()) entry.abort("shutdown");
+        if ((await raceWithTimer(settled(), this.abortGraceMs)) === "timeout") {
+          this.logger.error(
+            `[agent-runs] ${this.active.size} run không dừng sau ${this.abortGraceMs}ms kể từ khi huỷ (handler không tuân thủ signal); bỏ mặc`,
+          );
+          this.totals.dropped += this.active.size;
+          this.active.clear();
         }
-        await pending();
       }
     }
     if (this.state !== "failed") this.state = "stopped";
@@ -284,17 +336,26 @@ export class AgentRunWorker {
       }
       let run: ClaimedAgentRun | null;
       try {
-        run = await this.client.claim(signal);
+        run = await this.client.claim({ signal });
         this.lastPollAt = this.now();
         this.consecutiveErrors = 0;
+        this.consecutiveFatal = 0;
       } catch (err) {
         if (signal.aborted) break;
         this.lastError = errorMessage(err);
         if (err instanceof AgentRunsApiError && err.fatal) {
-          this.logger.error(`[agent-runs] dừng: ${err.message}`);
-          this.state = "failed";
-          this.onFatal?.(err);
-          return;
+          // Một lần 401/403 có thể do key đang xoay hoặc proxy: chỉ dừng khi lặp lại.
+          this.consecutiveFatal++;
+          if (this.consecutiveFatal >= this.fatalAfter) {
+            this.logger.error(
+              `[agent-runs] dừng: ${err.message} (${this.consecutiveFatal} lần liên tiếp)`,
+            );
+            this.state = "failed";
+            this.onFatal?.(err);
+            return;
+          }
+        } else {
+          this.consecutiveFatal = 0;
         }
         this.consecutiveErrors++;
         const delay = this.backoff(this.consecutiveErrors);
@@ -310,10 +371,15 @@ export class AgentRunWorker {
       }
       this.lastClaimAt = this.now();
       this.totals.claimed++;
-      if (this.active.has(run.id)) {
-        // Lease cũ hết hạn trong khi ta vẫn làm (heartbeat hỏng). Không chạy song song hai lần.
-        this.logger.warn(`[agent-runs] run #${run.id} được giao lại khi đang chạy, bỏ qua`);
-        continue;
+      const previous = this.active.get(run.id);
+      if (previous) {
+        // Lease cũ hết hạn trong khi ta vẫn làm (heartbeat hỏng) và server giao lại run này cho
+        // chính ta với lượt mới. Lượt cũ không còn báo được gì (server từ chối attempt cũ), nên
+        // huỷ nó và làm tiếp bằng lượt mới; bỏ qua thì lượt mới trôi hết lease vô ích.
+        this.logger.warn(
+          `[agent-runs] run #${run.id} được giao lại (lần ${run.attempts}) khi đang chạy: huỷ lượt cũ, nhận lượt mới`,
+        );
+        previous.abort("superseded");
       }
       this.dispatch(run);
     }
@@ -321,24 +387,46 @@ export class AgentRunWorker {
 
   private dispatch(run: ClaimedAgentRun): void {
     const controller = new AbortController();
-    const entry: ActiveRun = { controller, abortedFor: null, promise: Promise.resolve() };
-    entry.promise = this.process(run, entry).finally(() => this.active.delete(run.id));
+    const entry: ActiveRun = {
+      controller,
+      abortedFor: null,
+      promise: Promise.resolve(),
+      abort(reason) {
+        entry.abortedFor ??= reason;
+        controller.abort(new Error(reason));
+      },
+    };
+    entry.promise = this.process(run, entry).finally(() => {
+      // Lượt mới có thể đã thay chỗ của lượt này: chỉ xoá khi vẫn là mình.
+      if (this.active.get(run.id) === entry) this.active.delete(run.id);
+    });
     this.active.set(run.id, entry);
   }
 
+  /** Vỏ an toàn: không để lỗi bất ngờ nào thành unhandled rejection làm sập process. */
   private async process(run: ClaimedAgentRun, entry: ActiveRun): Promise<void> {
+    try {
+      await this.processRun(run, entry);
+    } catch (err) {
+      this.totals.dropped++;
+      this.logger.error(
+        `[agent-runs] run #${run.id}: lỗi nội bộ worker (${errorMessage(err)}); không báo kết quả, lease hết hạn sẽ giao lại`,
+      );
+    }
+  }
+
+  private async processRun(run: ClaimedAgentRun, entry: ActiveRun): Promise<void> {
     const label = run.issueIdentifier ?? `run #${run.id}`;
     const logger = this.logger;
     logger.info(`[agent-runs] ${label}: nhận run #${run.id} (${run.trigger}, lần ${run.attempts})`);
 
     const beat = setInterval(() => {
       this.client
-        .heartbeat(run.id, run.attempts)
+        .heartbeat({ runId: run.id, attempt: run.attempts })
         .then((outcome) => {
           if (outcome === "lost") {
             logger.warn(`[agent-runs] ${label}: mất lease, huỷ run`);
-            entry.abortedFor ??= "lease-lost";
-            entry.controller.abort(new Error("lease-lost"));
+            entry.abort("lease-lost");
           }
         })
         .catch((err) => logger.warn(`[agent-runs] ${label}: heartbeat lỗi: ${errorMessage(err)}`));
@@ -348,20 +436,32 @@ export class AgentRunWorker {
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       let result: AgentRunResult;
-      const remembered = await this.ledger.get(run.id);
+      const remembered = await (async () => this.ledger.get(run.id))().catch((err) => {
+        logger.warn(
+          `[agent-runs] ${label}: đọc ledger lỗi (${errorMessage(err)}), coi như chưa có`,
+        );
+        return undefined;
+      });
       if (remembered) {
         logger.info(
           `[agent-runs] ${label}: đã có kết quả từ lần trước, báo lại không chạy handler`,
         );
         result = remembered;
       } else {
-        const outcome = await this.invoke(run, entry, trace, (t) => {
+        let outcome = await this.invoke(run, entry, trace, (t) => {
           timer = t;
         });
         if (entry.abortedFor) {
           this.totals.dropped++;
           logger.warn(`[agent-runs] ${label}: bỏ kết quả (${entry.abortedFor})`);
           return;
+        }
+        if (outcome.status === "retry" && run.attempts >= this.maxAttempts) {
+          // Lượt cuối: nhả lease chỉ làm run chết im lặng sau khi hết hạn. Báo failed kèm lý do.
+          outcome = {
+            status: "failed",
+            error: `Hết lượt thử (${run.attempts}/${this.maxAttempts}): ${outcome.reason ?? "lỗi tạm thời"}`,
+          };
         }
         if (outcome.status === "retry") {
           this.totals.retried++;
@@ -371,7 +471,14 @@ export class AgentRunWorker {
           return;
         }
         result = toResult(outcome);
-        await this.ledger.set(run.id, result);
+        try {
+          await this.ledger.set(run.id, result);
+        } catch (err) {
+          // Không có ledger thì mất bảo đảm "không chạy lại handler" nếu báo lỗi, nhưng vẫn báo.
+          logger.warn(
+            `[agent-runs] ${label}: ghi ledger lỗi (${errorMessage(err)}), vẫn báo kết quả`,
+          );
+        }
       }
 
       await trace.emit(
@@ -382,8 +489,14 @@ export class AgentRunWorker {
       await trace.flush();
 
       try {
-        const reported = await this.client.report(run.id, result, run.attempts);
-        await this.ledger.delete(run.id);
+        const reported = await this.client.report({
+          runId: run.id,
+          result,
+          attempt: run.attempts,
+        });
+        await (async () => this.ledger.delete(run.id))().catch((err) => {
+          logger.warn(`[agent-runs] ${label}: xoá ledger lỗi (${errorMessage(err)})`);
+        });
         if (reported === "stale") {
           this.totals.dropped++;
           logger.warn(
@@ -423,6 +536,14 @@ export class AgentRunWorker {
         }, this.runTimeoutMs),
       );
     });
+    // Mất lease/tắt cưỡng bức/bị thay lượt: không chờ handler (có thể phớt lờ `signal`).
+    const aborted = new Promise<AgentRunOutcome>((resolve) => {
+      const onAbort = () => {
+        if (entry.abortedFor) resolve({ status: "retry", reason: entry.abortedFor });
+      };
+      if (entry.controller.signal.aborted) onAbort();
+      else entry.controller.signal.addEventListener("abort", onAbort, { once: true });
+    });
     const work = (async (): Promise<AgentRunOutcome> => {
       try {
         const raw = await this.handler({
@@ -431,6 +552,8 @@ export class AgentRunWorker {
           logger: this.logger,
           trace,
           idempotencyKey: `agent-run:${run.id}`,
+          attempt: run.attempts,
+          maxAttempts: this.maxAttempts,
         });
         if (raw === undefined || raw === null) return { status: "success" };
         if (typeof raw === "string") return { status: "success", output: raw };
@@ -439,7 +562,7 @@ export class AgentRunWorker {
         return { status: "failed", error: errorMessage(err) };
       }
     })();
-    return Promise.race([work, timeout]);
+    return Promise.race([work, timeout, aborted]);
   }
 }
 

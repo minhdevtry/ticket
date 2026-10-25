@@ -196,14 +196,24 @@ export class FakeItsaplan {
     this.faults.push({ match, status, times, headers });
   }
 
-  addIssue(input: { title: string; description?: string; columnId?: number }): FakeIssue {
+  /**
+   * Thêm issue. `projectId` khác 1 mô phỏng issue của dự án khác (mặc định dự án của fake có
+   * id 1); `identifier` ghi đè mã (vd issue đã chuyển sang `OTHER-1`).
+   */
+  addIssue(input: {
+    title: string;
+    description?: string;
+    columnId?: number;
+    projectId?: number;
+    identifier?: string;
+  }): FakeIssue {
     const seq = this.nextIssueSeq++;
     const now = new Date().toISOString();
     const issue: FakeIssue = {
       id: this.nextIssueId++,
-      projectId: 1,
+      projectId: input.projectId ?? 1,
       sequenceNumber: seq,
-      identifier: `${this.projectKey}-${seq}`,
+      identifier: input.identifier ?? `${this.projectKey}-${seq}`,
       title: input.title,
       description: input.description ?? "",
       priority: null,

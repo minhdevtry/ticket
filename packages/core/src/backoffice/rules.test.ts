@@ -4,10 +4,7 @@ import { ItsaplanClient, type ItsaplanWebhookEnvelope } from "../itsaplan";
 import { FakeItsaplan } from "../testing/fake-itsaplan";
 import {
   RuleEngine,
-  assign,
-  comment,
-  moveTo,
-  setPriority,
+  actions,
   whenColumn,
   whenCommentCreated,
   whenDone,
@@ -16,6 +13,7 @@ import {
 } from "./rules";
 import { createScopedTracker } from "./tracker";
 
+const { assign, comment, moveTo, setPriority } = actions;
 const silent: IntakeLogger = { debug() {}, info() {}, warn() {}, error() {} };
 let fake: FakeItsaplan;
 let ts = 1000;
@@ -26,6 +24,7 @@ const engine = (rules: ConstructorParameters<typeof RuleEngine>[0]["rules"]) =>
     tracker: createScopedTracker(
       new ItsaplanClient(fake.baseUrl, fake.agentKey, { retryOptions: { maxRetries: 0 } }),
       { team: "tech", project: "TECH" },
+      { readRetries: 0 },
     ),
     config: {},
     logger: silent,
@@ -161,11 +160,86 @@ describe("RuleEngine", () => {
       whenResolved().do(setPriority("low")),
       whenCommentCreated().do(setPriority("low")),
     ]);
-    expect(e.requiredEvents()).toEqual([
-      "comment.created",
-      "issue.column_changed",
-      "issue.state_changed",
-    ]);
+    // server thật không có `issue.column_changed`: đổi cột phát `issue.state_changed`
+    expect(e.requiredEvents()).toEqual(["comment.created", "issue.state_changed"]);
+  });
+
+  it("không lắng nghe issue.column_changed (sự kiện không tồn tại ở server)", async () => {
+    const issue = fake.addIssue({ title: "Lỗi" });
+    const e = engine([whenColumn("Cần phân loại").do(setPriority("high"))]);
+    const env = issueEvent("issue.column_changed" as any, issue, 2);
+    expect(await e.handle(env)).toEqual([]);
+    expect(fake.issues[0]!.priority).toBeNull();
+  });
+
+  it("chỉ đánh dấu đã thấy SAU khi xử lý không lỗi: giao lại sau lỗi vẫn chạy", async () => {
+    const issue = fake.addIssue({ title: "Lỗi" });
+    const e = engine([whenColumn("Cần phân loại").named("hong").do(moveTo("Cột không có"))]);
+    const env = issueEvent("issue.state_changed", issue, 2);
+    expect((await e.handle(env)).map((r) => r.status)).toEqual(["failed"]);
+    // cùng khoá webhook, nhưng lần trước lỗi nên KHÔNG bị coi là trùng
+    expect((await e.handle(env)).map((r) => r.status)).toEqual(["failed"]);
+
+    const ok = engine([whenColumn("Cần phân loại").do(setPriority("high"))]);
+    const env2 = issueEvent("issue.state_changed", issue, 2);
+    expect(await ok.handle(env2)).toHaveLength(1);
+    expect(await ok.handle(env2)).toEqual([]);
+  });
+
+  it("lỗi tạm thời khi xác minh dự án: không nuốt thành 'ngoài dự án', không đánh dấu đã thấy", async () => {
+    const issue = fake.addIssue({ title: "Lỗi" });
+    const e = engine([whenColumn("Cần phân loại").do(setPriority("high"))]);
+    fake.fail(/^GET \/issues\/\d+$/, 503, 1);
+    const env = issueEvent("issue.state_changed", issue, 2);
+    expect(await e.handle(env)).toEqual([]);
+    expect(fake.issues[0]!.priority).toBeNull();
+    // giao lại (cùng khoá) giờ xử lý được
+    expect(await e.handle(env)).toHaveLength(1);
+    expect(fake.issues[0]!.priority).toBe("high");
+  });
+
+  it("ranh giới theo projectId của payload, không theo tiền tố mã", async () => {
+    const issue = fake.addIssue({ title: "Lỗi" });
+    const e = engine([whenColumn("Cần phân loại").do(setPriority("high"))]);
+    // mã trùng tiền tố TECH nhưng thuộc dự án id 2 (team khác cùng khoá TECH)
+    const other = issueEvent("issue.state_changed", issue, 2);
+    other.data.projectId = 2;
+    expect(await e.handle(other)).toEqual([]);
+    expect(fake.count(/^GET \/issues\/\d+$/)).toBe(0);
+    const mine = issueEvent("issue.state_changed", issue, 2);
+    mine.data.projectId = 1;
+    expect(await e.handle(mine)).toHaveLength(1);
+    expect(fake.issues[0]!.priority).toBe("high");
+  });
+
+  it("comment mang mã TECH nhưng issue thuộc dự án khác: bị loại sau khi hỏi tracker", async () => {
+    const foreign = fake.addIssue({ title: "X", projectId: 2 });
+    const e = engine([whenCommentCreated().do(setPriority("urgent"))]);
+    const env: ItsaplanWebhookEnvelope = {
+      action: "create",
+      type: "Comment",
+      event: "comment.created",
+      data: {
+        id: ++ts,
+        issueId: foreign.id,
+        body: "hi",
+        issue: { id: foreign.id, identifier: foreign.identifier },
+      },
+      actor: { type: "human" },
+      createdAt: new Date().toISOString(),
+      webhookTimestamp: ++ts,
+    };
+    expect(await e.handle(env)).toEqual([]);
+    expect(foreign.priority).toBeNull();
+  });
+
+  it("không có webhookTimestamp: không dedupe và khoá chống trùng không nuốt nhầm sự kiện khác", async () => {
+    const issue = fake.addIssue({ title: "Lỗi" });
+    const e = engine([whenColumn("Cần phân loại").do(comment("Chào"))]);
+    const bare = () => issueEvent("issue.state_changed", issue, 2, { webhookTimestamp: undefined });
+    expect(await e.handle(bare())).toHaveLength(1);
+    expect(await e.handle(bare())).toHaveLength(1);
+    expect(fake.comments.filter((c) => c.body.includes("Chào"))).toHaveLength(2);
   });
 
   it("whenEvent/do yêu cầu đối số hợp lệ", () => {

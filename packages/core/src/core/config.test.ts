@@ -3,7 +3,16 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
-import { ConfigError, REDACTED, defineEnv, loadConfig, mergeEnv, secret } from "./config";
+import {
+  ConfigError,
+  REDACTED,
+  createScrubber,
+  defineEnv,
+  loadConfig,
+  mergeEnv,
+  redactUrlCredentials,
+  secret,
+} from "./config";
 
 const schema = defineEnv({
   BASE_URL: z.url(),
@@ -100,5 +109,66 @@ describe("loadConfig", () => {
     const merged = mergeEnv(defineEnv({ A: z.string() }), defineEnv({ B_TOKEN: z.string() }));
     expect(Object.keys(merged.shape)).toEqual(["A", "B_TOKEN"]);
     expect(merged.secrets.has("B_TOKEN")).toBe(true);
+  });
+
+  it("biến RỖNG trong env không che biến cùng tên trong file ('rỗng = chưa đặt')", () => {
+    const dir = mkdtempSync(join(tmpdir(), "cfg-"));
+    const file = join(dir, ".env");
+    writeFileSync(file, "BASE_URL=http://from-file.example.com\nAGENT_KEY=filekey12\n");
+    const cfg = loadConfig(schema, {
+      env: { BASE_URL: "", AGENT_KEY: "   " },
+      envFile: file,
+    });
+    expect(cfg.values.BASE_URL).toBe("http://from-file.example.com");
+    expect(cfg.values.AGENT_KEY).toBe("filekey12");
+    expect(cfg.envFile.applied.sort()).toEqual(["AGENT_KEY", "BASE_URL"]);
+  });
+
+  it("secretValues gồm giá trị thật của secret và mật khẩu nhúng trong URL; redacted che mật khẩu URL", () => {
+    const withUrl = defineEnv({
+      DATABASE_URL: z.string(),
+      AGENT_KEY: z.string(),
+      PLAIN: z.string().default("plain-value"),
+    });
+    const cfg = loadConfig(withUrl, {
+      env: {
+        DATABASE_URL: "postgres://app:s3cr3tpass@10.0.0.5:5432/db",
+        AGENT_KEY: "itsaplan_abcdef",
+      },
+    });
+    expect(cfg.secretValues).toContain("itsaplan_abcdef");
+    expect(cfg.secretValues).toContain("s3cr3tpass");
+    expect(String(cfg.redacted.DATABASE_URL)).toBe("postgres://app:[REDACTED]@10.0.0.5:5432/db");
+    expect(cfg.redacted.AGENT_KEY).toBe(REDACTED);
+    expect(cfg.redacted.PLAIN).toBe("plain-value");
+    expect(JSON.stringify(cfg.redacted)).not.toContain("s3cr3tpass");
+  });
+});
+
+describe("createScrubber / redactUrlCredentials", () => {
+  it("che giá trị secret trong chuỗi, mảng, object lồng nhau và Error", () => {
+    const scrub = createScrubber(["itsaplan_abcdef", "tok-123456"]);
+    expect(scrub("key=itsaplan_abcdef!")).toBe("key=[REDACTED]!");
+    expect(scrub(["a tok-123456 b", { nested: "itsaplan_abcdef x2 itsaplan_abcdef" }])).toEqual([
+      "a [REDACTED] b",
+      { nested: "[REDACTED] x2 [REDACTED]" },
+    ]);
+    expect(scrub(new Error("lỗi với tok-123456")) as unknown).toBe("Error: lỗi với [REDACTED]");
+    expect(scrub(42)).toBe(42);
+    expect(scrub(null)).toBeNull();
+  });
+
+  it("bỏ qua secret quá ngắn để không nuốt chuỗi thông dụng", () => {
+    const scrub = createScrubber(["ab", "12345"]);
+    expect(scrub("ab 12345 xy")).toBe("ab 12345 xy");
+  });
+
+  it("che mật khẩu trong URL với mọi scheme", () => {
+    expect(redactUrlCredentials("redis://:p4ss@cache.example.com:6379")).toBe(
+      "redis://:[REDACTED]@cache.example.com:6379",
+    );
+    expect(
+      redactUrlCredentials("log https://u:pw@host.example.com/x và http://host.example.com"),
+    ).toBe("log https://u:[REDACTED]@host.example.com/x và http://host.example.com");
   });
 });

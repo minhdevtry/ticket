@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { z } from "zod";
 import { defineEnv } from "../core/config";
-import { whenColumn, setPriority } from "../backoffice";
+import { actions, whenColumn } from "../backoffice";
 import { BotDefinitionError, defineBot, validateBotDefinition } from "./define";
 
 const handler = async () => "ok";
@@ -26,7 +26,7 @@ describe("defineBot", () => {
             return `${g}${n}`;
           },
         },
-        rules: [whenColumn("Cần phân loại").do(setPriority("high"))],
+        rules: [whenColumn("Cần phân loại").do(actions.setPriority("high"))],
       },
     });
     expect(Object.isFrozen(def)).toBe(true);
@@ -67,6 +67,32 @@ describe("defineBot", () => {
     expect(paths({ team: "tech", project: "TECH_2" })).toEqual(["tracker.project"]);
     expect(paths({ team: "tech", project: "2TECH" })).toEqual(["tracker.project"]);
     expect(paths({ team: "cm-support", project: "CM2" })).toEqual([]);
+    // team chưa có slug: itsaplan dùng id số trong ref `<id>.<KEY>`
+    expect(paths({ team: "12", project: "TECH2" })).toEqual([]);
+    expect(paths({ team: "12a", project: "TECH2" })).toEqual(["tracker.team"]);
+  });
+
+  it("kiểm các tuỳ chọn chu kỳ: heartbeat phải nhỏ hơn nửa lease, số không âm/không nguyên", () => {
+    const paths = (runs: unknown) =>
+      validateBotDefinition({
+        id: "iv",
+        tracker: { team: "tech", project: "TECH" },
+        backoffice: { on: { mention: handler }, runs: runs as any },
+      }).map((i) => i.path);
+    expect(paths({ heartbeatIntervalMs: 60_000, pollIntervalMs: 0, runTimeoutMs: 1000 })).toEqual(
+      [],
+    );
+    expect(paths({ heartbeatIntervalMs: 200_000 })).toEqual([
+      "backoffice.runs.heartbeatIntervalMs",
+    ]);
+    expect(paths({ heartbeatIntervalMs: 0 })).toEqual(["backoffice.runs.heartbeatIntervalMs"]);
+    expect(paths({ pollIntervalMs: -1 })).toEqual(["backoffice.runs.pollIntervalMs"]);
+    expect(paths({ runTimeoutMs: 0 })).toEqual(["backoffice.runs.runTimeoutMs"]);
+    expect(paths({ concurrency: 1.5 })).toEqual(["backoffice.runs.concurrency"]);
+    expect(paths({ maxAttempts: 0 })).toEqual(["backoffice.runs.maxAttempts"]);
+    expect(paths({ heartbeatIntervalMs: Number.NaN })).toEqual([
+      "backoffice.runs.heartbeatIntervalMs",
+    ]);
   });
 
   it("cần ít nhất một vai và ít nhất một handler/luật", () => {
@@ -88,7 +114,7 @@ describe("defineBot", () => {
   });
 
   it("chặn tên luật trùng và luật không hợp lệ", () => {
-    const rule = whenColumn("A").do(setPriority("low"));
+    const rule = whenColumn("A").do(actions.setPriority("low"));
     const issues = validateBotDefinition({
       id: "dup",
       tracker: { team: "tech", project: "TECH" },

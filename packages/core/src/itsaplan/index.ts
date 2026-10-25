@@ -11,6 +11,7 @@
  * `ownership.ts` (Telegram-coupled), CM `fields.ts` / `names.ts` (CM domain).
  */
 export * from "./http";
+export * from "./transient";
 export * from "./client";
 export * from "./project";
 export * from "./project-lock";

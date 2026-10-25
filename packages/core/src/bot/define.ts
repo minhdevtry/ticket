@@ -19,7 +19,7 @@ import type { BackofficeDefinition } from "../backoffice";
  * `tech.TECH2`); khoá trần dễ trùng giữa các team và server đoán theo dự án cũ nhất.
  */
 export interface TrackerRef {
-  /** Slug của team, vd `tech` (chữ thường, số, gạch ngang; bắt đầu bằng chữ). */
+  /** Slug của team, vd `tech` (chữ thường, số, gạch ngang; bắt đầu bằng chữ), hoặc id số (chuỗi `"12"`) với team chưa có slug. */
   team: string;
   /** Mã dự án trong team, vd `TECH2` (`^[A-Z][A-Z0-9]*$`). Bot chỉ đọc/ghi issue của dự án này. */
   project: string;
@@ -81,8 +81,13 @@ export class BotDefinitionError extends Error {
 }
 
 const ID = /^[a-z][a-z0-9-]{1,39}$/;
-/** Slug team theo đúng luật của itsaplan. */
-const TEAM_SLUG = /^[a-z][a-z0-9-]{0,38}[a-z0-9]$/;
+/**
+ * Ref team theo luật của itsaplan: slug (`tech`) hoặc, với team chưa có slug, id số (`12`);
+ * server chấp nhận cả hai trong `<team>.<KEY>`.
+ */
+const TEAM_SLUG = /^(?:[a-z][a-z0-9-]{0,38}[a-z0-9]|[0-9]+)$/;
+/** Lease mặc định của run phía server (ms). */
+const LEASE_MS = 300_000;
 const PROJECT_KEY = /^[A-Z][A-Z0-9]*$/;
 const TRIGGER_KEYS = new Set([
   "mention",
@@ -106,7 +111,7 @@ export function validateBotDefinition(def: BotDefinition<any>): BotDefinitionIss
   if (typeof def?.tracker?.team !== "string" || !TEAM_SLUG.test(def.tracker.team)) {
     bad(
       "tracker.team",
-      'bắt buộc, slug team itsaplan: chữ thường/số/gạch ngang, bắt đầu bằng chữ, 2–40 ký tự (vd "tech")',
+      'bắt buộc, slug team itsaplan (chữ thường/số/gạch ngang, bắt đầu bằng chữ, 2–40 ký tự, vd "tech") hoặc id số của team chưa có slug',
     );
   }
   if (typeof def?.tracker?.project !== "string" || !PROJECT_KEY.test(def.tracker.project)) {
@@ -157,11 +162,42 @@ export function validateBotDefinition(def: BotDefinition<any>): BotDefinitionIss
       seen.add(rule.name);
     });
     const runs = back.runs;
-    if (
-      runs?.concurrency !== undefined &&
-      !(Number.isInteger(runs.concurrency) && runs.concurrency >= 1)
-    ) {
-      bad("backoffice.runs.concurrency", "phải là số nguyên >= 1");
+    if (runs) {
+      const num = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+      if (
+        runs.concurrency !== undefined &&
+        !(Number.isInteger(runs.concurrency) && runs.concurrency >= 1)
+      ) {
+        bad("backoffice.runs.concurrency", "phải là số nguyên >= 1");
+      }
+      if (
+        runs.pollIntervalMs !== undefined &&
+        !(num(runs.pollIntervalMs) && runs.pollIntervalMs >= 0)
+      ) {
+        bad("backoffice.runs.pollIntervalMs", "phải là số >= 0 (ms)");
+      }
+      if (
+        runs.heartbeatIntervalMs !== undefined &&
+        !(
+          num(runs.heartbeatIntervalMs) &&
+          runs.heartbeatIntervalMs > 0 &&
+          runs.heartbeatIntervalMs <= LEASE_MS / 2
+        )
+      ) {
+        bad(
+          "backoffice.runs.heartbeatIntervalMs",
+          `phải > 0 và <= ${LEASE_MS / 2} ms (một nửa lease ${LEASE_MS / 1000} giây của server), không thì lease hết hạn giữa hai nhịp`,
+        );
+      }
+      if (runs.runTimeoutMs !== undefined && !(num(runs.runTimeoutMs) && runs.runTimeoutMs > 0)) {
+        bad("backoffice.runs.runTimeoutMs", "phải là số > 0 (ms)");
+      }
+      if (
+        runs.maxAttempts !== undefined &&
+        !(Number.isInteger(runs.maxAttempts) && runs.maxAttempts >= 1)
+      ) {
+        bad("backoffice.runs.maxAttempts", "phải là số nguyên >= 1");
+      }
     }
   }
   return issues;
@@ -173,7 +209,7 @@ export function validateBotDefinition(def: BotDefinition<any>): BotDefinitionIss
  * ```ts
  * export default defineBot({
  *   id: "tieulinh",
- *   tracker: { project: "TECH2" },
+ *   tracker: { team: "tech", project: "TECH2" },
  *   backoffice: { agent: "tieulinh2", on: { mention: answerMention } },
  * });
  * ```

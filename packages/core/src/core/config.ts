@@ -9,7 +9,11 @@
  *    luôn thắng file. Không bao giờ ghi ngược vào `process.env`.
  *  - Secret không bao giờ nằm trong thông báo lỗi hay log: `redacted` thay giá
  *    trị bằng `[REDACTED]`, thông báo lỗi chỉ nêu TÊN biến và lý do.
- *  - Chuỗi rỗng coi như chưa đặt (`FOO=` trong file .env là thói quen phổ biến).
+ *  - Chuỗi rỗng coi như chưa đặt (`FOO=` trong file .env là thói quen phổ biến), và biến
+ *    rỗng trong `env` KHÔNG che biến cùng tên trong file: "rỗng = chưa đặt" áp dụng nhất quán.
+ *  - Bun tự nạp `.env` của thư mục hiện tại vào `process.env` TRƯỚC khi code chạy, nên truyền
+ *    `process.env` không còn "tường minh" như mong muốn. Chạy bằng `bun --no-env-file` nếu muốn
+ *    chỉ đọc file qua `envFile`.
  *
  * ```ts
  * const schema = defineEnv({
@@ -34,6 +38,47 @@ export type InferEnv<S extends EnvShape> = { [K in keyof S]: z.output<S[K]> };
 
 /** Giá trị thay thế secret trong `redacted` và log. */
 export const REDACTED = "[REDACTED]";
+
+/** Giá trị secret ngắn hơn mức này không được lọc theo giá trị (tránh nuốt chuỗi thông dụng). */
+const MIN_SECRET_VALUE_LENGTH = 6;
+
+const URL_CREDENTIALS = /([a-z][a-z0-9+.-]*:\/\/[^\s:/@]*:)([^\s@/]+)(@)/gi;
+
+/** Che mật khẩu trong URL kiểu `postgres://user:pass@host/db` (DATABASE_URL, REDIS_URL…). */
+export function redactUrlCredentials(text: string): string {
+  return text.replace(URL_CREDENTIALS, `$1${REDACTED}$3`);
+}
+
+/** Mật khẩu nhúng trong URL (nếu có) để lọc theo giá trị. */
+function urlPasswords(text: string): string[] {
+  return [...text.matchAll(URL_CREDENTIALS)].map((m) => m[2] as string);
+}
+
+/**
+ * Dựng hàm che theo GIÁ TRỊ: thay mọi lần xuất hiện của các secret đã biết bằng `[REDACTED]`
+ * trong chuỗi, mảng, object và `Error`. Bổ sung cho lọc theo mẫu của `redactSecrets`: một key
+ * tuỳ ý (`itsaplan_xxx`) không khớp mẫu nào nhưng vẫn bị che nếu nó là secret đã khai.
+ */
+export function createScrubber(values: readonly string[]): <T>(input: T) => T {
+  const needles = [...new Set(values.filter((v) => v.length >= MIN_SECRET_VALUE_LENGTH))].sort(
+    (a, b) => b.length - a.length,
+  );
+  const text = (value: string): string => {
+    let out = redactUrlCredentials(value);
+    for (const needle of needles) if (out.includes(needle)) out = out.split(needle).join(REDACTED);
+    return out;
+  };
+  const walk = (value: unknown, depth: number): unknown => {
+    if (typeof value === "string") return text(value);
+    if (depth > 6 || value === null || typeof value !== "object") return value;
+    if (value instanceof Error) return `${value.name}: ${text(value.message)}`;
+    if (Array.isArray(value)) return value.map((v) => walk(v, depth + 1));
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, walk(v, depth + 1)]),
+    );
+  };
+  return ((input: unknown) => walk(input, 0)) as <T>(input: T) => T;
+}
 
 /** Tên biến trông như secret thì tự ẩn, kể cả khi quên bọc `secret()`. */
 const SECRET_NAME = /(?:^|_)(?:KEY|SECRET|TOKEN|PASSWORD|PASSWD|CREDENTIALS?|DSN)(?:$|_)/i;
@@ -127,6 +172,11 @@ export interface LoadedConfig<S extends EnvShape> {
   readonly redacted: Readonly<Record<string, unknown>>;
   /** File `.env` đã đọc (hoặc `null`) và các biến lấy từ file. Không có giá trị. */
   readonly envFile: { path: string | null; applied: string[] };
+  /**
+   * Giá trị THẬT của mọi secret (và mật khẩu nhúng trong URL) để dựng bộ che theo giá trị
+   * (`createScrubber`). Đừng log, đừng đưa vào lỗi.
+   */
+  readonly secretValues: readonly string[];
 }
 
 /**
@@ -147,7 +197,8 @@ export function loadConfig<S extends EnvShape>(
     for (const [key, value] of Object.entries(
       parseEnvFile(readFileSync(options.envFile, "utf8")),
     )) {
-      if (source[key] === undefined) {
+      // Biến rỗng trong env không che file ("rỗng = chưa đặt").
+      if (source[key] === undefined || source[key]?.trim() === "") {
         source[key] = value;
         applied.push(key);
       }
@@ -181,13 +232,26 @@ export function loadConfig<S extends EnvShape>(
   if (issues.length > 0) throw new ConfigError(issues, options.context);
 
   const redacted: Record<string, unknown> = {};
+  const secretValues = new Set<string>();
   for (const [name, value] of Object.entries(values)) {
-    redacted[name] = schema.secrets.has(name) && value !== undefined ? REDACTED : value;
+    const isSecret = schema.secrets.has(name) && value !== undefined;
+    if (isSecret) {
+      redacted[name] = REDACTED;
+      const raw = source[name]?.trim();
+      if (raw) secretValues.add(raw);
+      if (typeof value === "string") secretValues.add(value);
+    } else if (typeof value === "string") {
+      redacted[name] = redactUrlCredentials(value);
+      for (const password of urlPasswords(value)) secretValues.add(password);
+    } else {
+      redacted[name] = value;
+    }
   }
 
   return Object.freeze({
     values: Object.freeze(values) as Readonly<InferEnv<S>>,
     redacted: Object.freeze(redacted),
     envFile: { path: filePath, applied },
+    secretValues: Object.freeze([...secretValues]),
   });
 }

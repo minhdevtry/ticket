@@ -1,13 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { ItsaplanClient } from "../itsaplan";
 import { FakeItsaplan } from "../testing/fake-itsaplan";
-import { OutOfProjectError, createScopedTracker, idempotencyMarker } from "./tracker";
+import {
+  OutOfProjectError,
+  RunAbortedError,
+  createScopedTracker,
+  idempotencyMarker,
+} from "./tracker";
 
 let fake: FakeItsaplan;
 const mk = () =>
   createScopedTracker(
     new ItsaplanClient(fake.baseUrl, fake.agentKey, { retryOptions: { maxRetries: 0 } }),
     { team: "tech", project: "tech" },
+    { readRetries: 0 },
   );
 
 beforeEach(() => {
@@ -23,7 +29,7 @@ describe("createScopedTracker", () => {
     const t = mk();
     expect(t.projectKey).toBe("TECH");
     expect(t.team).toBe("tech");
-    expect(t.ref).toBe("tech.TECH");
+    expect(String(t.ref)).toBe("tech.TECH");
     const client = new ItsaplanClient(fake.baseUrl, "k");
     expect(() => createScopedTracker(client, { team: "tech", project: "  " })).toThrow();
     expect(() => createScopedTracker(client, { team: " ", project: "TECH" })).toThrow();
@@ -61,8 +67,7 @@ describe("createScopedTracker", () => {
 
   it("getIssue theo id và theo mã; issue dự án khác trả null", async () => {
     const a = fake.addIssue({ title: "A" });
-    const foreign = fake.addIssue({ title: "B" });
-    foreign.identifier = "OTHER-1";
+    const foreign = fake.addIssue({ title: "B", projectId: 2, identifier: "OTHER-1" });
     const t = mk();
     expect((await t.getIssue(a.id))?.identifier).toBe(a.identifier);
     expect((await t.getIssue(a.identifier))?.id).toBe(a.id);
@@ -72,8 +77,7 @@ describe("createScopedTracker", () => {
   });
 
   it("lệnh ghi lên issue ngoài dự án bị từ chối bằng OutOfProjectError", async () => {
-    const foreign = fake.addIssue({ title: "B" });
-    foreign.identifier = "OTHER-1";
+    const foreign = fake.addIssue({ title: "B", projectId: 2, identifier: "OTHER-1" });
     const t = mk();
     await expect(t.comment(foreign.id, "hi")).rejects.toBeInstanceOf(OutOfProjectError);
     await expect(t.moveTo(foreign.id, "Done")).rejects.toBeInstanceOf(OutOfProjectError);
@@ -119,5 +123,78 @@ describe("createScopedTracker", () => {
     expect(fake.issues[0]).toMatchObject({ assigneeUserId: "user-9", priority: "high" });
     await t.assign(issue.id, null);
     expect(fake.issues[0]!.assigneeUserId).toBeNull();
+  });
+
+  it("ranh giới là projectId: mã trùng tiền tố nhưng khác dự án vẫn bị loại, issue đã chuyển dự án bị loại", async () => {
+    // cùng khoá TECH ở team khác: mã giống hệt nhưng projectId khác
+    const lookalike = fake.addIssue({ title: "Team khác", projectId: 9 });
+    const mine = fake.addIssue({ title: "Của mình" });
+    const t = mk();
+    expect(await t.getIssue(lookalike.id)).toBeNull();
+    expect(await t.getIssue(lookalike.identifier)).toBeNull();
+    expect((await t.getIssue(mine.identifier))?.id).toBe(mine.id);
+    await expect(t.comment(lookalike.id, "x")).rejects.toBeInstanceOf(OutOfProjectError);
+    expect((await t.ready()).projectId).toBe(1);
+  });
+
+  it("chỉ 404 là 'không có': 5xx/429 nổi lên thành lỗi, không bị nuốt thành null", async () => {
+    const issue = fake.addIssue({ title: "A" });
+    const t = mk();
+    fake.fail(/^GET \/issues\/\d+$/, 503, 1);
+    await expect(t.getIssue(issue.id)).rejects.toMatchObject({ status: 503 });
+    fake.fail(/^GET \/projects\/tech\.TECH\/issues\/\d+$/, 429, 1);
+    await expect(t.getIssue(issue.identifier)).rejects.toMatchObject({ status: 429 });
+    expect(await t.getIssue(99999)).toBeNull(); // 404 thật
+  });
+
+  it("lệnh ĐỌC thử lại lỗi tạm thời rồi thành công; lệnh GHI không bao giờ thử lại", async () => {
+    const issue = fake.addIssue({ title: "A" });
+    const t = createScopedTracker(
+      new ItsaplanClient(fake.baseUrl, fake.agentKey, { retryOptions: { maxRetries: 0 } }),
+      { team: "tech", project: "TECH" },
+      { readRetries: 2, readRetryBaseMs: 1 },
+    );
+    fake.fail(/^GET \/issues\/\d+$/, 503, 2);
+    expect((await t.getIssue(issue.id))?.id).toBe(issue.id);
+    expect(fake.count(/^GET \/issues\/\d+$/)).toBe(3);
+
+    fake.fail(/^POST \/issues\/\d+\/comments$/, 503, 1);
+    await expect(t.comment(issue.id, "x")).rejects.toMatchObject({ status: 503 });
+    expect(fake.count(/^POST \/issues\/\d+\/comments$/)).toBe(1); // không thử lại
+    expect(fake.comments).toHaveLength(0);
+  });
+
+  it("ready() không nhớ thất bại, và từ chối dự án trả sai mã", async () => {
+    const t = mk();
+    fake.fail(/^GET \/projects\/tech\.TECH$/, 503, 1);
+    await expect(t.ready()).rejects.toMatchObject({ status: 503 });
+    expect((await t.ready()).projectId).toBe(1);
+    const nope = createScopedTracker(
+      new ItsaplanClient(fake.baseUrl, fake.agentKey, { retryOptions: { maxRetries: 0 } }),
+      { team: "tech", project: "NOPE" },
+      { readRetries: 0 },
+    );
+    await expect(nope.ready()).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("forSignal: ghi bị từ chối khi signal đã huỷ, kể cả huỷ giữa chừng; đọc vẫn được", async () => {
+    const issue = fake.addIssue({ title: "A" });
+    const controller = new AbortController();
+    const t = mk().forSignal(controller.signal);
+    await t.comment(issue.id, "trước khi huỷ");
+    controller.abort();
+    await expect(t.comment(issue.id, "sau khi huỷ")).rejects.toBeInstanceOf(RunAbortedError);
+    await expect(t.moveTo(issue.id, 2)).rejects.toBeInstanceOf(RunAbortedError);
+    await expect(t.assign(issue.id, "u")).rejects.toBeInstanceOf(RunAbortedError);
+    await expect(t.setPriority(issue.id, "low")).rejects.toBeInstanceOf(RunAbortedError);
+    expect(fake.comments.filter((c) => c.actorUserId === "agent-user")).toHaveLength(1);
+    expect((await t.getIssue(issue.id))?.id).toBe(issue.id);
+
+    // huỷ trong lúc đang kiểm quyền (trước lệnh ghi thật)
+    const c2 = new AbortController();
+    const t2 = mk().forSignal(c2.signal);
+    const pending = t2.comment(issue.id, "giữa chừng");
+    c2.abort();
+    await expect(pending).rejects.toBeInstanceOf(RunAbortedError);
   });
 });

@@ -151,8 +151,11 @@ export class AgentRunsClient {
    * (lease): phải gửi heartbeat hoặc báo kết quả, nếu không server giao lại.
    * Ném `AgentRunsApiError` (`fatal` khi 401/403/409).
    */
-  async claim(signal?: AbortSignal): Promise<ClaimedAgentRun | null> {
-    const res = await this.post("/agent-runs/claim", undefined, { retry: false, signal });
+  async claim(options: { signal?: AbortSignal } = {}): Promise<ClaimedAgentRun | null> {
+    const res = await this.post("/agent-runs/claim", undefined, {
+      retry: false,
+      signal: options.signal,
+    });
     const json = (await res.json().catch(() => null)) as { run?: unknown } | null;
     if (!json || typeof json !== "object" || !("run" in json)) {
       throw new AgentRunsProtocolError("/agent-runs/claim", "thiếu khoá `run`");
@@ -162,11 +165,13 @@ export class AgentRunsClient {
   }
 
   /** Gia hạn lease. `lost` khi run không còn của ta (đã xong, hoặc lease hết hạn và run đổi lượt). */
-  async heartbeat(
-    runId: number,
-    attempt?: number,
-    signal?: AbortSignal,
-  ): Promise<HeartbeatOutcome> {
+  async heartbeat(params: {
+    runId: number;
+    /** Lượt thử đang giữ lease; thiếu thì server không kiểm lượt. */
+    attempt?: number;
+    signal?: AbortSignal;
+  }): Promise<HeartbeatOutcome> {
+    const { runId, attempt, signal } = params;
     try {
       await this.post(
         `/agent-runs/${runId}/heartbeat`,
@@ -185,7 +190,12 @@ export class AgentRunsClient {
    * được thử lại thì đừng báo gì và để lease hết hạn.
    * `stale` (404) nghĩa là run đã kết thúc hoặc đã sang lượt khác; an toàn để bỏ qua.
    */
-  async report(runId: number, result: AgentRunResult, attempt?: number): Promise<ReportOutcome> {
+  async report(params: {
+    runId: number;
+    result: AgentRunResult;
+    attempt?: number;
+  }): Promise<ReportOutcome> {
+    const { runId, result, attempt } = params;
     const body = {
       ...(attempt === undefined ? {} : { attempt }),
       status: result.status,
@@ -212,9 +222,9 @@ export class AgentRunsClient {
    * `conflict` (409) khi `offset` lệch hoặc phiên đã gắn khác.
    */
   async appendEvents(
-    runId: number,
-    batch: AgentRunEventsBatch,
+    params: { runId: number } & AgentRunEventsBatch,
   ): Promise<AgentRunEventsAck | "lost" | "conflict"> {
+    const { runId, ...batch } = params;
     if (batch.events.length === 0 || batch.events.length > AGENT_RUN_LIMITS.eventsPerBatch) {
       throw new RangeError(`Lô sự kiện phải có 1–${AGENT_RUN_LIMITS.eventsPerBatch} phần tử`);
     }

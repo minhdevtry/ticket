@@ -89,7 +89,8 @@ export class RunTrace {
     for (let i = 0; i < events.length && !this.disabled; i += AGENT_RUN_LIMITS.eventsPerBatch) {
       const batch = events.slice(i, i + AGENT_RUN_LIMITS.eventsPerBatch);
       try {
-        const ack = await this.client.appendEvents(this.run.id, {
+        const ack = await this.client.appendEvents({
+          runId: this.run.id,
           attempt: this.run.attempts,
           offset: this.offset,
           events: batch,

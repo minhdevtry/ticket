@@ -9,7 +9,13 @@
  * exact fallback branch intake already keeps when no teamRef is available, so
  * nothing CM did is lost.
  */
-import type { ItsaplanClient, ItsaplanIssue, ItsaplanProject, ProjectColumn } from "./client";
+import {
+  ItsaplanApiError,
+  type ItsaplanClient,
+  type ItsaplanIssue,
+  type ItsaplanProject,
+  type ProjectColumn,
+} from "./client";
 
 export interface ResolvedProject {
   key: string;
@@ -185,13 +191,22 @@ export async function findIssueByIdentifier(
   client: Pick<ItsaplanClient, "getIssueByNumber">,
   identifier: string,
   projectKey?: string,
+  options: { strict?: boolean } = {},
 ): Promise<ItsaplanIssue | null> {
   const parsed = parseIdentifier(identifier);
   if (!parsed) return null;
   if (projectKey !== undefined && parsed.projectKey !== projectKey.trim().toUpperCase()) {
     return null;
   }
-  const issue = await client.getIssueByNumber(parsed.projectKey, parsed.sequence).catch(() => null);
+  const issue = await client
+    .getIssueByNumber(parsed.projectKey, parsed.sequence)
+    .catch((err: unknown) => {
+      // Mặc định (tương thích các bot cũ): mọi lỗi coi như "không thấy". `strict` chỉ nuốt
+      // 404; lỗi tạm thời (5xx/429/mạng) nổi lên để caller thử lại, nếu không "server đang
+      // lỗi" bị đọc nhầm thành "issue không tồn tại" (bot kit dùng `strict`).
+      if (!options.strict || (err instanceof ItsaplanApiError && err.status === 404)) return null;
+      throw err;
+    });
   if (!issue) return null;
   const expected = `${parsed.projectKey}-${parsed.sequence}`;
   if (typeof issue.identifier !== "string" || issue.identifier.trim().toUpperCase() !== expected) {

@@ -4,17 +4,26 @@
  *
  * ```ts
  * rules: [
- *   whenColumn("Cần phân loại").do(comment("Đã nhận, đang phân loại."), setPriority("medium")),
+ *   whenColumn("Cần phân loại").do(
+ *     actions.comment("Đã nhận, đang phân loại."),
+ *     actions.setPriority("medium"),
+ *   ),
  *   whenResolved().do(notifyOwner),
- *   whenCommentCreated((c) => c.text.includes("gấp")).do(setPriority("high")),
+ *   whenCommentCreated((c) => c.text.includes("gấp")).do(actions.setPriority("high")),
  * ]
  * ```
  *
  * Milestone 1: luật chạy ngay trong process nhận webhook, KHÔNG có hàng đợi bền hay
  * hẹn giờ (nên chưa có `closeAfter("48h")`: cần kho hẹn giờ bền, thuộc milestone 2).
- * Engine tự lọc sự kiện ngoài dự án, sự kiện do agent gây ra (chống vòng lặp), comment
- * của bot, và sự kiện trùng.
+ * Engine tự lọc sự kiện ngoài dự án (theo `projectId`), sự kiện do agent gây ra (chống vòng
+ * lặp), comment của bot, và sự kiện trùng (chỉ đánh dấu "đã thấy" SAU khi xử lý không lỗi).
+ *
+ * Tên sự kiện theo server thật: `issue.created|updated|deleted|assigned|state_changed|
+ * label_changed|link_changed`, `comment.created|updated|deleted`. Đổi cột phát
+ * `issue.state_changed` (payload có `columnId` và `state`, KHÔNG có cột cũ; không có
+ * `issue.column_changed`).
  */
+import { randomUUID } from "node:crypto";
 import { foldForComparison, isBotComment, stripCommentHtml } from "../core/formatting";
 import type { IntakeLogger } from "../core/logger";
 import { systemClock, type Clock } from "../intake/ports";
@@ -116,7 +125,7 @@ export function whenColumn<C = unknown>(name: string): RuleBuilder<C> {
   const wanted = foldForComparison(name);
   return new RuleBuilder<C>(
     `whenColumn(${name})`,
-    ["issue.created", "issue.state_changed", "issue.column_changed"],
+    ["issue.created", "issue.state_changed"],
     [(ctx) => !!ctx.event.column && foldForComparison(ctx.event.column.name) === wanted],
   );
 }
@@ -125,7 +134,7 @@ export function whenColumn<C = unknown>(name: string): RuleBuilder<C> {
 export function whenResolved<C = unknown>(): RuleBuilder<C> {
   return new RuleBuilder<C>(
     "whenResolved",
-    ["issue.state_changed", "issue.column_changed"],
+    ["issue.state_changed"],
     [(ctx) => ctx.event.column?.state === "resolved"],
   );
 }
@@ -134,7 +143,7 @@ export function whenResolved<C = unknown>(): RuleBuilder<C> {
 export function whenDone<C = unknown>(): RuleBuilder<C> {
   return new RuleBuilder<C>(
     "whenDone",
-    ["issue.state_changed", "issue.column_changed"],
+    ["issue.state_changed"],
     [(ctx) => ctx.event.column?.state === "done"],
   );
 }
@@ -153,6 +162,7 @@ export function whenCommentCreated<C = unknown>(
 }
 
 // ── hành động dựng sẵn ───────────────────────────────────────────────────────
+// Gom trong namespace `actions`: tên trần như `comment` dễ lẫn với `ctx.comment`.
 
 function requireIssueId(ctx: RuleContext<unknown>, action: string): number {
   if (ctx.event.issueId == null) {
@@ -162,7 +172,7 @@ function requireIssueId(ctx: RuleContext<unknown>, action: string): number {
 }
 
 /** Ghi comment lên issue của sự kiện (gắn dấu bot, chống trùng theo luật + sự kiện). */
-export function comment<C = unknown>(
+function comment<C = unknown>(
   text: string | ((ctx: RuleContext<C>) => string | Promise<string>),
 ): RuleAction<C> {
   return async (ctx) => {
@@ -174,14 +184,14 @@ export function comment<C = unknown>(
 }
 
 /** Chuyển issue sang cột theo tên. */
-export function moveTo<C = unknown>(column: string): RuleAction<C> {
+function moveTo<C = unknown>(column: string): RuleAction<C> {
   return async (ctx) => {
     await ctx.tracker.moveTo(requireIssueId(ctx, "moveTo"), column);
   };
 }
 
 /** Gán issue cho một người (`userId` itsaplan) hoặc bỏ gán (`null`). Nhận hàm để chọn theo ngữ cảnh. */
-export function assign<C = unknown>(
+function assign<C = unknown>(
   user: string | null | ((ctx: RuleContext<C>) => string | null | Promise<string | null>),
 ): RuleAction<C> {
   return async (ctx) => {
@@ -191,11 +201,14 @@ export function assign<C = unknown>(
 }
 
 /** Đặt mức ưu tiên. */
-export function setPriority<C = unknown>(priority: TrackerPriority): RuleAction<C> {
+function setPriority<C = unknown>(priority: TrackerPriority): RuleAction<C> {
   return async (ctx) => {
     await ctx.tracker.setPriority(requireIssueId(ctx, "setPriority"), priority);
   };
 }
+
+/** Hành động dựng sẵn cho `.do(...)`: `actions.comment`, `actions.moveTo`, `actions.assign`, `actions.setPriority`. */
+export const actions = { comment, moveTo, assign, setPriority } as const;
 
 // ── engine ───────────────────────────────────────────────────────────────────
 
@@ -229,14 +242,16 @@ const ISSUE_EVENTS = new Set([
   "issue.deleted",
   "issue.assigned",
   "issue.state_changed",
-  "issue.column_changed",
   "issue.label_changed",
   "issue.link_changed",
 ]);
 
 /** Chạy luật trên từng webhook envelope. */
 export class RuleEngine<C = unknown> {
+  /** Khoá sự kiện đã xử lý XONG không lỗi. */
   private readonly seen = new Set<string>();
+  /** Khoá đang xử lý (chặn hai lần giao đồng thời của cùng một sự kiện). */
+  private readonly inflight = new Set<string>();
   private readonly clock: Clock;
 
   constructor(private readonly o: RuleEngineOptions<C>) {
@@ -248,42 +263,71 @@ export class RuleEngine<C = unknown> {
     return [...new Set(this.o.rules.flatMap((r) => r.events))].sort();
   }
 
+  private markSeen(key: string): void {
+    this.seen.add(key);
+    if (this.seen.size > (this.o.dedupeSize ?? 2000)) {
+      const oldest = this.seen.values().next().value;
+      if (oldest !== undefined) this.seen.delete(oldest);
+    }
+  }
+
   /**
    * Xử lý một envelope. Không bao giờ ném: lỗi của từng luật được ghi vào kết quả và log,
    * các luật khác vẫn chạy. Trả danh sách luật đã khớp (rỗng nếu bị lọc/không khớp).
+   *
+   * Dedupe: chỉ khi payload có `webhookTimestamp` (không có thì không dedupe, và khoá chống
+   * trùng của hành động ghi mang một nonce để không nuốt nhầm sự kiện khác). Sự kiện chỉ được
+   * đánh dấu "đã thấy" SAU khi xử lý không lỗi, nên giao lại sau lỗi vẫn được chạy.
    */
   async handle(envelope: ItsaplanWebhookEnvelope): Promise<RuleRunSummary[]> {
-    const { logger, tracker } = this.o;
+    const { logger } = this.o;
     const candidates = this.o.rules.filter((r) => r.events.includes(envelope.event));
     if (candidates.length === 0) return [];
 
     const dedupeKey = webhookDedupeKey(envelope);
-    if (dedupeKey) {
-      if (this.seen.has(dedupeKey)) return [];
-      this.seen.add(dedupeKey);
-      if (this.seen.size > (this.o.dedupeSize ?? 2000)) {
-        const oldest = this.seen.values().next().value;
-        if (oldest !== undefined) this.seen.delete(oldest);
-      }
-    }
+    if (dedupeKey && (this.seen.has(dedupeKey) || this.inflight.has(dedupeKey))) return [];
 
     if (!this.o.reactToAgents && envelope.actor?.type === "agent") return [];
 
-    let event: RuleEvent | null;
+    if (dedupeKey) this.inflight.add(dedupeKey);
     try {
-      event = await this.normalize(envelope);
-    } catch (err) {
-      logger.warn(`[rules] ${envelope.event}: không đọc được sự kiện: ${errMsg(err)}`);
-      return [];
+      let normalized: { event: RuleEvent; issue: ItsaplanIssue | null } | null;
+      try {
+        normalized = await this.normalize(envelope);
+      } catch (err) {
+        // Chưa biết sự kiện có thuộc ta không (vd itsaplan đang lỗi): KHÔNG đánh dấu đã thấy.
+        logger.warn(`[rules] ${envelope.event}: không đọc được sự kiện: ${errMsg(err)}`);
+        return [];
+      }
+      if (!normalized) {
+        if (dedupeKey) this.markSeen(dedupeKey);
+        return [];
+      }
+      const results = await this.runRules(envelope, candidates, normalized);
+      if (dedupeKey && results.every((r) => r.status !== "failed")) this.markSeen(dedupeKey);
+      return results;
+    } finally {
+      if (dedupeKey) this.inflight.delete(dedupeKey);
     }
-    if (!event) return [];
+  }
 
-    let issueCache: Promise<ItsaplanIssue | null> | undefined;
+  private async runRules(
+    envelope: ItsaplanWebhookEnvelope,
+    candidates: readonly Rule<C>[],
+    normalized: { event: RuleEvent; issue: ItsaplanIssue | null },
+  ): Promise<RuleRunSummary[]> {
+    const { logger, tracker } = this.o;
+    const { event } = normalized;
+    let issueCache: Promise<ItsaplanIssue | null> | undefined =
+      normalized.issue === null ? undefined : Promise.resolve(normalized.issue);
     const loadIssue = () => {
       issueCache ??=
         event.issueId == null ? Promise.resolve(null) : tracker.getIssue(event.issueId);
       return issueCache;
     };
+    // Không có timestamp thì không thể phân biệt hai sự kiện giống nhau: dùng nonce để khoá
+    // chống trùng không nuốt nhầm sự kiện khác (đổi lại không chống được giao lại).
+    const delivery = envelope.webhookTimestamp ?? `nonce-${randomUUID()}`;
 
     const results: RuleRunSummary[] = [];
     for (const rule of candidates) {
@@ -294,7 +338,7 @@ export class RuleEngine<C = unknown> {
         config: this.o.config,
         logger,
         clock: this.clock,
-        idempotencyKey: `rule:${rule.name}:${event.name}:${event.issueId ?? ""}:${event.comment?.id ?? ""}:${envelope.webhookTimestamp ?? ""}`,
+        idempotencyKey: `rule:${rule.name}:${event.name}:${event.issueId ?? ""}:${event.comment?.id ?? ""}:${delivery}`,
         issue: loadIssue,
       };
       try {
@@ -317,8 +361,13 @@ export class RuleEngine<C = unknown> {
     return results;
   }
 
-  /** Chuẩn hoá envelope; `null` nếu sự kiện không thuộc dự án của bot hoặc không dùng được. */
-  private async normalize(envelope: ItsaplanWebhookEnvelope): Promise<RuleEvent | null> {
+  /**
+   * Chuẩn hoá envelope; `null` nếu sự kiện không thuộc dự án của bot hoặc không dùng được.
+   * Ném nếu không xác minh được dự án (lỗi tạm thời): caller KHÔNG được coi đó là "ngoài dự án".
+   */
+  private async normalize(
+    envelope: ItsaplanWebhookEnvelope,
+  ): Promise<{ event: RuleEvent; issue: ItsaplanIssue | null } | null> {
     const data = envelope.data ?? {};
     const name = envelope.event;
     const isComment = name.startsWith("comment.");
@@ -326,14 +375,20 @@ export class RuleEngine<C = unknown> {
     const identifierRaw = isComment ? data.issue?.identifier : data.identifier;
     let identifier = typeof identifierRaw === "string" ? identifierRaw : null;
 
-    // Khoá dự án: ưu tiên mã trong payload; không có thì hỏi tracker (đã tự khoá dự án).
-    if (identifier) {
-      if (!identifierInProject(identifier, this.o.tracker.projectKey)) return null;
+    // Lọc rẻ theo mã (itsaplan gửi sự kiện của MỌI dự án tới mọi webhook), rồi xác minh bằng
+    // projectId: mã chỉ duy nhất trong team và đổi khi issue chuyển dự án.
+    if (identifier && !identifierInProject(identifier, this.o.tracker.projectKey)) return null;
+    const { projectId } = await this.o.tracker.ready();
+    let issue: ItsaplanIssue | null = null;
+    const payloadProjectId = isComment ? null : numberOrNull(data.projectId);
+    if (payloadProjectId !== null) {
+      if (payloadProjectId !== projectId) return null;
     } else {
+      // Payload (comment) không có projectId: hỏi tracker (đã khoá theo projectId).
       if (issueId == null) return null;
-      const issue = await this.o.tracker.getIssue(issueId);
+      issue = await this.o.tracker.getIssue(issueId);
       if (!issue) return null;
-      identifier = issue.identifier;
+      identifier ??= issue.identifier;
     }
 
     let column: RuleColumn | null = null;
@@ -347,13 +402,16 @@ export class RuleEngine<C = unknown> {
     }
 
     return {
-      name,
-      envelope,
-      issueId,
-      identifier,
-      column,
-      comment: commentInfo,
-      actor: envelope.actor,
+      event: {
+        name,
+        envelope,
+        issueId,
+        identifier,
+        column,
+        comment: commentInfo,
+        actor: envelope.actor,
+      },
+      issue,
     };
   }
 
@@ -369,14 +427,18 @@ export class RuleEngine<C = unknown> {
       return { id: columnId, name: st.name, state: classifyColumn(column) };
     };
     if (columnId == null) return null;
+    // Payload của server thật mang `state` {name, type} của cột: dùng nó trước (đúng thời điểm
+    // sự kiện). Chỉ khi thiếu mới tra danh sách cột.
+    const direct = fromPayload();
+    if (direct) return direct;
     try {
       const columns = await this.o.tracker.columns();
       const hit = columns.find((c) => c.id === columnId);
       if (hit) return { id: hit.id, name: hit.name, state: classifyColumn(hit) };
     } catch {
-      // rơi xuống payload
+      // không tra được cột: luật dùng cột sẽ không khớp
     }
-    return fromPayload();
+    return null;
   }
 }
 

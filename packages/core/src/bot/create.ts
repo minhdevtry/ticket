@@ -12,15 +12,18 @@
  * |---|---|
  * | `ITSAPLAN_BASE_URL`, `ITSAPLAN_AGENT_KEY` | bắt buộc khi có `backoffice` |
  * | `BOT_RUN_CONCURRENCY`, `BOT_POLL_INTERVAL_MS` | ghi đè `backoffice.runs` |
+ * | `BOT_DRAIN_TIMEOUT_MS` | chờ run đang chạy khi dừng (mặc định 5000; xem `Bot.stopBudgetMs`) |
  * | `BOT_HEALTH_PORT`, `BOT_HEALTH_HOST` | bật `/healthz` |
  * | `BOT_WEBHOOK_PORT`, `BOT_WEBHOOK_HOST`, `ITSAPLAN_WEBHOOK_SECRET` | nhận webhook cho `rules` |
  */
+import { existsSync } from "node:fs";
 import { z } from "zod";
 import {
   type EnvShape,
   type InferEnv,
   type LoadedConfig,
   defineEnv,
+  createScrubber,
   loadConfig,
   mergeEnv,
   secret,
@@ -32,6 +35,7 @@ import {
   ItsaplanClient,
   ItsaplanWebhookServer,
   AgentRunsClient,
+  type AgentRunHandler,
   AgentRunWorker,
   type AgentRunWorkerHealth,
   type AgentRunWorkerOptions,
@@ -92,10 +96,20 @@ export interface CreateBotOptions {
   fetch?: typeof fetch;
   /** Tuỳ chỉnh worker run (drain, backoff, ledger…). */
   worker?: Partial<
-    Pick<AgentRunWorkerOptions, "drainTimeoutMs" | "errorBackoff" | "minPollIntervalMs" | "trace">
+    Pick<
+      AgentRunWorkerOptions,
+      | "drainTimeoutMs"
+      | "abortGraceMs"
+      | "errorBackoff"
+      | "minPollIntervalMs"
+      | "trace"
+      | "fatalAfter"
+    >
   > & { ledger?: RunLedger };
   /** Client itsaplan dựng sẵn (test). Mặc định dựng từ env, tắt retry cho lệnh ghi. */
   itsaplanClient?: ItsaplanClient;
+  /** Thử lại lệnh ĐỌC của tracker khi itsaplan lỗi tạm thời (lệnh ghi không bao giờ thử lại). */
+  trackerReads?: { retries?: number; baseDelayMs?: number };
 }
 
 /** Bot đang chạy được. */
@@ -107,6 +121,17 @@ export interface Bot {
   /** Dừng êm (chờ run đang chạy tới hạn drain). Gọi lại là an toàn. */
   stop(): Promise<void>;
   health(): BotHealth;
+  /**
+   * Tổng thời gian tối đa `stop()` cần trong trường hợp xấu (ms): drain + chờ sau khi huỷ + dọn
+   * server. `runBot` lấy số này làm hạn thoát cưỡng bức; đặt `docker stop -t` / `TimeoutStopSec`
+   * lớn hơn nó.
+   */
+  readonly stopBudgetMs: number;
+  /**
+   * Đăng ký nghe lỗi chết (worker bị từ chối key liên tiếp…): bot chuyển `failed` và `health()`
+   * là `down`. Trả hàm huỷ đăng ký. Host (`runBot`) dùng để thoát với mã khác 0.
+   */
+  onFatal(listener: (error: Error) => void): () => void;
   /**
    * Đưa một webhook envelope vào luật của bot (cho host đã có webhook server riêng, vd
    * Tiểu Linh hoặc OpenClaw). Trả danh sách luật đã chạy. Không ném.
@@ -132,11 +157,32 @@ function kitEnv(needsItsaplan: boolean) {
     BOT_WEBHOOK_PORT: portSchema.optional(),
     BOT_WEBHOOK_HOST: z.string().min(1).optional(),
     ITSAPLAN_WEBHOOK_SECRET: secret(z.string().min(1).optional()),
+    BOT_DRAIN_TIMEOUT_MS: z.coerce.number().int().min(0).optional(),
   });
 }
 
 const DEGRADED_ERRORS = 3;
 const STALE_FLOOR_MS = 30_000;
+const DEFAULT_DRAIN_MS = 5_000;
+const DEFAULT_ABORT_GRACE_MS = 1_000;
+/** Dọn webhook/health server tối đa bấy nhiêu ms khi dừng (không để một kết nối treo giữ bot). */
+const SERVER_STOP_MS = 1_000;
+
+const isLoopbackHost = (host: string | undefined): boolean =>
+  host === undefined ||
+  host === "localhost" ||
+  host === "::1" ||
+  host === "[::1]" ||
+  /^127(?:\.\d{1,3}){3}$/.test(host);
+
+/** Chờ `promise` tối đa `ms`; quá hạn thì bỏ mặc (không ném). */
+const bounded = (promise: Promise<unknown> | undefined, ms: number): Promise<unknown> =>
+  promise
+    ? Promise.race([
+        promise.catch(() => {}),
+        new Promise((resolve) => setTimeout(resolve, ms).unref?.()),
+      ])
+    : Promise.resolve();
 
 /**
  * Dựng bot. Ném `BotDefinitionError` (khai báo sai) hoặc `ConfigError` (env thiếu/sai, gom
@@ -150,7 +196,6 @@ export function createBot<E extends EnvShape = Record<never, never>>(
   if (issues.length > 0) throw new BotDefinitionError(def?.id, issues);
 
   const clock = options.clock ?? systemClock;
-  const logger = botLogger(def.id, options.logger ?? getLogger());
   const back = def.backoffice;
 
   const userEnv = def.env ?? (defineEnv({}) as unknown as NonNullable<typeof def.env>);
@@ -159,6 +204,14 @@ export function createBot<E extends EnvShape = Record<never, never>>(
     envFile: options.envFile,
     context: `bot ${def.id}`,
   });
+  // Che theo GIÁ TRỊ mọi secret đã khai (key agent, secret webhook, secret của bot) trong log,
+  // health và thông báo lỗi, ngoài việc lọc theo mẫu.
+  const scrub = createScrubber([
+    ...loaded.secretValues,
+    ...(options.webhook ? (options.webhook.secrets ?? []) : []),
+  ]);
+  const logger = botLogger(def.id, options.logger ?? getLogger(), scrub);
+  warnIfBunAutoLoadsEnv(options, logger);
   const kit = loaded.values as Record<string, any>;
   // Chỉ phần của bot (không kèm biến kit) tới tay handler.
   const userKeys = Object.keys(userEnv.shape);
@@ -177,6 +230,12 @@ export function createBot<E extends EnvShape = Record<never, never>>(
   let engine: RuleEngine<InferEnv<E>> | null = null;
   let tracker: ReturnType<typeof createScopedTracker> | null = null;
   let pollIntervalMs = 3000;
+  let fatalError: Error | null = null;
+  const fatalListeners = new Set<(error: Error) => void>();
+  const drainTimeoutMs =
+    options.worker?.drainTimeoutMs ?? kit.BOT_DRAIN_TIMEOUT_MS ?? DEFAULT_DRAIN_MS;
+  const abortGraceMs = options.worker?.abortGraceMs ?? DEFAULT_ABORT_GRACE_MS;
+  const stopBudgetMs = drainTimeoutMs + abortGraceMs + SERVER_STOP_MS + 500;
 
   if (back) {
     const baseUrl = kit.ITSAPLAN_BASE_URL as string;
@@ -185,8 +244,12 @@ export function createBot<E extends EnvShape = Record<never, never>>(
       options.itsaplanClient ??
       // Tắt retry: lệnh ghi (comment, tạo ticket) retry theo 5xx có thể ghi trùng.
       new ItsaplanClient(baseUrl, apiKey, { retryOptions: { maxRetries: 0 } });
-    tracker = createScopedTracker(client, def.tracker, { clock });
-    const handler = createRunDispatcher(back, {
+    tracker = createScopedTracker(client, def.tracker, {
+      clock,
+      readRetries: options.trackerReads?.retries,
+      readRetryBaseMs: options.trackerReads?.baseDelayMs,
+    });
+    const dispatcher = createRunDispatcher(back, {
       botId: def.id,
       projectKey: def.tracker.project,
       tracker,
@@ -194,6 +257,18 @@ export function createBot<E extends EnvShape = Record<never, never>>(
       logger,
       clock,
     });
+    // Thông điệp lỗi và output của run được gửi lên itsaplan: che secret trước khi đi.
+    const handler: AgentRunHandler = async (ctx) => {
+      try {
+        const outcome = await dispatcher(ctx);
+        return outcome && typeof outcome === "object" ? scrub(outcome) : outcome;
+      } catch (err) {
+        if (err instanceof Error && String(scrub(err.message)) !== err.message) {
+          throw new Error(String(scrub(err.message)));
+        }
+        throw err;
+      }
+    };
     const runs = back.runs ?? {};
     pollIntervalMs = kit.BOT_POLL_INTERVAL_MS ?? runs.pollIntervalMs ?? 3000;
     worker = new AgentRunWorker({
@@ -203,11 +278,22 @@ export function createBot<E extends EnvShape = Record<never, never>>(
       pollIntervalMs,
       heartbeatIntervalMs: runs.heartbeatIntervalMs,
       runTimeoutMs: runs.runTimeoutMs,
+      maxAttempts: runs.maxAttempts,
+      drainTimeoutMs,
+      abortGraceMs,
       logger,
       now: () => clock.now(),
       onFatal: (err) => {
         state = "failed";
+        fatalError = new Error(String(scrub(err.message)));
         logger.error(`dừng vì lỗi không thể tự hồi phục: ${err.message}`);
+        for (const listener of fatalListeners) {
+          try {
+            listener(fatalError);
+          } catch {
+            // listener hỏng không được che mất lỗi chết
+          }
+        }
       },
       ...options.worker,
     });
@@ -239,6 +325,7 @@ export function createBot<E extends EnvShape = Record<never, never>>(
       components.backoffice = {
         worker: {
           ...w,
+          lastError: w.lastError === null ? null : scrub(w.lastError),
           lastPollAt: w.lastPollAt === null ? null : new Date(w.lastPollAt).toISOString(),
           lastClaimAt: w.lastClaimAt === null ? null : new Date(w.lastClaimAt).toISOString(),
         },
@@ -247,11 +334,15 @@ export function createBot<E extends EnvShape = Record<never, never>>(
       if (state === "running") {
         if (w.state === "failed") reasons.push("worker run đã dừng vì lỗi chết");
         if (w.consecutiveErrors >= DEGRADED_ERRORS) {
-          reasons.push(`claim lỗi ${w.consecutiveErrors} lần liên tiếp: ${w.lastError ?? ""}`);
+          reasons.push(
+            `claim lỗi ${w.consecutiveErrors} lần liên tiếp: ${scrub(w.lastError ?? "")}`,
+          );
         }
         const stale = Math.max(STALE_FLOOR_MS, pollIntervalMs * 5 + STALE_FLOOR_MS);
         const since = w.lastPollAt ?? startedAt ?? now;
-        if (w.state === "running" && now - since > stale) {
+        // Đang bận hết `concurrency` thì worker cố ý không poll: không phải dấu hiệu hỏng.
+        const saturated = w.active >= w.concurrency;
+        if (w.state === "running" && !saturated && now - since > stale) {
           reasons.push(`chưa poll thành công trong ${Math.round((now - since) / 1000)}s`);
         }
       }
@@ -278,12 +369,16 @@ export function createBot<E extends EnvShape = Record<never, never>>(
       startedAt: startedAt === null ? null : new Date(startedAt).toISOString(),
       uptimeSec: startedAt === null ? 0 : Math.max(0, Math.floor((now - startedAt) / 1000)),
       components,
-      reasons: reasons.map((r) => String(r)),
+      reasons: reasons.map((r) => String(scrub(r))),
     };
   }
 
   async function teardown(): Promise<void> {
-    await Promise.allSettled([worker?.stop(), webhookServer?.stop?.(), healthHandle?.stop()]);
+    await Promise.allSettled([
+      worker?.stop(),
+      bounded(webhookServer?.stop?.(), SERVER_STOP_MS),
+      bounded(healthHandle?.stop(), SERVER_STOP_MS),
+    ]);
   }
 
   const bot: Bot = {
@@ -301,9 +396,9 @@ export function createBot<E extends EnvShape = Record<never, never>>(
 
         if (tracker && (options.preflight ?? true)) {
           // Fail-fast: key sai hoặc dự án không tồn tại thì dừng ở đây, không chờ poll đầu.
-          await tracker.columns().catch((err: unknown) => {
+          await tracker.ready().catch((err: unknown) => {
             throw new Error(
-              `Không truy cập được dự án ${def.tracker.team}.${def.tracker.project} trên itsaplan: ${err instanceof Error ? err.message : String(err)}`,
+              `Không truy cập được dự án ${tracker?.ref} trên itsaplan: ${scrub(err instanceof Error ? err.message : String(err))}`,
             );
           });
         }
@@ -321,9 +416,16 @@ export function createBot<E extends EnvShape = Record<never, never>>(
               ...(webhookOpt ? (webhookOpt.secrets ?? []) : []),
               ...(kit.ITSAPLAN_WEBHOOK_SECRET ? [kit.ITSAPLAN_WEBHOOK_SECRET as string] : []),
             ];
+            const listenHost = (webhookOpt ? webhookOpt.host : undefined) ?? kit.BOT_WEBHOOK_HOST;
+            if (secrets.length === 0 && !isLoopbackHost(listenHost)) {
+              // Không chữ ký mà nghe ngoài loopback = ai trong mạng cũng giả được webhook.
+              throw new Error(
+                `webhook nghe ở ${listenHost} (ngoài loopback) mà chưa đặt ITSAPLAN_WEBHOOK_SECRET: từ chối khởi động`,
+              );
+            }
             webhookServer = new ItsaplanWebhookServer({
               itsaplanSecrets: secrets,
-              listenHost: (webhookOpt ? webhookOpt.host : undefined) ?? kit.BOT_WEBHOOK_HOST,
+              listenHost,
             });
             const rules = engine;
             webhookServer.onEvent(async (envelope) => {
@@ -372,6 +474,15 @@ export function createBot<E extends EnvShape = Record<never, never>>(
     },
 
     health,
+    stopBudgetMs,
+
+    onFatal(listener) {
+      fatalListeners.add(listener);
+      if (fatalError) queueMicrotask(() => listener(fatalError as Error));
+      return () => {
+        fatalListeners.delete(listener);
+      };
+    },
 
     async handleEvent(envelope) {
       return engine ? engine.handle(envelope) : [];
@@ -386,6 +497,25 @@ export function createBot<E extends EnvShape = Record<never, never>>(
     },
   };
   return bot;
+}
+
+/**
+ * Bun tự nạp `.env` (và `.env.local`…) của thư mục hiện tại vào `process.env` trước khi code
+ * chạy, nên "env tường minh" chỉ đúng khi tắt việc đó. Ta không phát hiện được chắc chắn, chỉ
+ * cảnh báo khi có `.env` cạnh nơi chạy và không thấy cờ `--no-env-file`.
+ */
+function warnIfBunAutoLoadsEnv(options: CreateBotOptions, logger: IntakeLogger): void {
+  if (options.env !== process.env) return;
+  if (typeof (process.versions as Record<string, string | undefined>).bun !== "string") return;
+  if ([...process.execArgv, ...process.argv].includes("--no-env-file")) return;
+  try {
+    if (!existsSync(".env")) return;
+  } catch {
+    return;
+  }
+  logger.warn(
+    "thư mục hiện tại có `.env` và Bun tự nạp nó vào process.env dù `envFile` không được truyền; biến trong file này có thể che cấu hình bạn nghĩ là đang dùng. Chạy `bun --no-env-file run ...` để chỉ đọc file qua `envFile`.",
+  );
 }
 
 export type { LoadedConfig };

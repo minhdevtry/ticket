@@ -112,15 +112,19 @@ Gửi trace (tuỳ chọn) theo giao thức AG-UI để hiện trong lịch sử
 |---|---|
 | Timeout request | 30 giây (không lời gọi nào làm việc nặng ở server) |
 | `claim` | không retry trong client; worker backoff luỹ thừa có jitter (5 s → 60 s) |
+| Chữ ký client | tham số dạng object: `claim({ signal })`, `heartbeat({ runId, attempt, signal })`, `report({ runId, result, attempt })`, `appendEvents({ runId, attempt, offset, events })` |
 | `heartbeat`, `result`, `events` | idempotent nên retry lỗi mạng/429/5xx, tôn trọng `Retry-After` (tối đa 60 s) |
 | `attempt` | luôn gửi ở heartbeat/result/events để run đã đổi lượt không bị ghi đè |
-| 401/403, 409 ở `/claim` | lỗi chết: worker dừng poll, `health` là `failed`, gọi `onFatal` |
+| 401/403, 409 ở `/claim` | chỉ là lỗi chết sau `fatalAfter` lần liên tiếp (mặc định 3, có backoff giữa các lần): một lần 401 do key đang xoay hay proxy chập chờn không giết worker. Lỗi chết: worker dừng poll, `health` là `failed`, gọi `onFatal` |
 | `heartbeat` → 404 | mất lease: huỷ `signal` của handler, không báo kết quả |
 | Handler ném lỗi | báo `failed` với thông điệp |
-| Outcome `retry` | không báo gì, nhả lease; server giao lại sau khi lease hết (tối đa số lần thử của instance) |
+| Outcome `retry` | không báo gì, nhả lease; server giao lại sau khi lease hết (tối đa số lần thử của instance). Ở lượt cuối (`maxAttempts`, mặc định 3) worker đổi thành `failed` kèm lý do thay vì để lease hết hạn trong im lặng |
+| Run bị giao lại khi đang chạy | lease cũ hết hạn trong lúc heartbeat hỏng: worker huỷ handler cũ và chạy tiếp bằng lượt mới (không bỏ qua) |
+| Lỗi bất ngờ trong worker (kể cả `RunLedger` đọc/ghi lỗi) | ledger hỏng thì coi như không có ledger; mọi lỗi khác bị chặn ở vỏ ngoài, tính vào `dropped`, không làm sập process |
 | Báo kết quả lỗi sau mọi retry | kết quả giữ trong `RunLedger`; run được giao lại thì báo lại kết quả cũ, không chạy lại handler |
 | Hạn một run | 30 phút mặc định; quá hạn thì huỷ và báo `failed` |
-| `stop()` | ngừng claim, chờ run đang chạy tối đa `drainTimeoutMs` (30 s), quá hạn thì huỷ và **không báo**, để lease hết hạn và server giao lại |
+| `stop()` | ngừng claim, chờ run đang chạy tối đa `drainTimeoutMs` (mặc định 5 s, vừa trong hạn 10 s của `docker stop`), quá hạn thì huỷ và **không báo**, để lease hết hạn và server giao lại. Handler phớt lờ `signal` cũng chỉ giữ `stop()` thêm tối đa `abortGraceMs` (1 s) |
+| Tuỳ chọn chu kỳ | worker từ chối `heartbeatIntervalMs` không dương hoặc lớn hơn nửa lease, `runTimeoutMs <= 0` |
 | Concurrency | mặc định 1; server vẫn tuần tự hoá run cùng issue |
 | Poll rỗng | 3 s mặc định, sàn 1 s |
 
@@ -137,8 +141,8 @@ declare const apiKey: string;
 const worker = new AgentRunWorker({
   client: new AgentRunsClient({ baseUrl, apiKey }),
   concurrency: 2,
-  handler: async ({ run, signal, trace }) => {
-    await trace.text(`bắt đầu ${run.trigger}`);
+  handler: async ({ run, attempt, maxAttempts, trace }) => {
+    await trace.text(`bắt đầu ${run.trigger}, lượt ${attempt}/${maxAttempts}`);
     return "xong"; // hoặc { status: "failed", error } / { status: "retry" }
   },
 });

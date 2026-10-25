@@ -109,6 +109,8 @@ export {
   type LoadedConfig,
   REDACTED,
   ConfigError,
+  createScrubber,
+  redactUrlCredentials,
   secret,
   defineEnv,
   mergeEnv,
