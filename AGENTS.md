@@ -27,6 +27,7 @@ bun run docs:check                  # build site + TypeDoc + mẫu code + đối
 bun run --cwd packages/core test
 bun run --cwd apps/tieulinh-legacy test
 bun run --cwd apps/tieulinh test
+bun run --cwd apps/tieulinh-legacy golden:record   # ghi lại bản ghi vàng của lễ tân legacy (thêm --check để chỉ kiểm)
 ```
 
 ## Nguyên tắc
