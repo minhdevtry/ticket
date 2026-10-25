@@ -15,6 +15,7 @@
  * | `BOT_DRAIN_TIMEOUT_MS` | chờ run đang chạy khi dừng (mặc định 5000; xem `Bot.stopBudgetMs`) |
  * | `BOT_HEALTH_PORT`, `BOT_HEALTH_HOST` | bật `/healthz` |
  * | `BOT_WEBHOOK_PORT`, `BOT_WEBHOOK_HOST`, `ITSAPLAN_WEBHOOK_SECRET` | nhận webhook cho `rules` |
+ * | `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_API`, `LLM_TIMEOUT_MS`, `LLM_MAX_RETRIES`, `LLM_DEADLINE_MS` | bật `ctx.llm` (đặt đủ ba biến đầu, hoặc không đặt biến nào) |
  */
 import { existsSync } from "node:fs";
 import { z } from "zod";
@@ -29,6 +30,7 @@ import {
   secret,
 } from "../core/config";
 import { type IntakeLogger, getLogger } from "../core/logger";
+import { LLM_ENV_KEYS, type Llm, type LlmUsageEvent, llmEnv, llmFromConfig } from "../llm";
 import { type Clock, systemClock } from "../intake/ports";
 import {
   type ItsaplanWebhookEnvelope,
@@ -106,6 +108,12 @@ export interface CreateBotOptions {
       | "fatalAfter"
     >
   > & { ledger?: RunLedger };
+  /**
+   * LLM của bot. Mặc định dựng từ `LLM_*` trong env (không có thì `ctx.llm` là `undefined`).
+   * `false`: không bao giờ có LLM; `client`: dùng client dựng sẵn thay cho env (test, host tự
+   * quản); `onUsage`: nhận mỗi lời gọi thành công để ghi token/chi phí; `fetch`: thay `fetch`.
+   */
+  llm?: false | { client?: Llm; onUsage?: (event: LlmUsageEvent) => void; fetch?: typeof fetch };
   /** Client itsaplan dựng sẵn (test). Mặc định dựng từ env, tắt retry cho lệnh ghi. */
   itsaplanClient?: ItsaplanClient;
   /** Thử lại lệnh ĐỌC của tracker khi itsaplan lỗi tạm thời (lệnh ghi không bao giờ thử lại). */
@@ -116,6 +124,8 @@ export interface CreateBotOptions {
 export interface Bot {
   readonly id: string;
   readonly state: BotState;
+  /** Client LLM của bot (từ `LLM_*` hoặc `options.llm.client`), `undefined` nếu chưa cấu hình. */
+  readonly llm: Llm | undefined;
   /** Bắt đầu chạy. Ném (sau khi dọn) nếu kiểm tra kết nối hoặc bind cổng thất bại. */
   start(): Promise<void>;
   /** Dừng êm (chờ run đang chạy tới hạn drain). Gọi lại là an toàn. */
@@ -199,7 +209,7 @@ export function createBot<E extends EnvShape = Record<never, never>>(
   const back = def.backoffice;
 
   const userEnv = def.env ?? (defineEnv({}) as unknown as NonNullable<typeof def.env>);
-  const loaded = loadConfig(mergeEnv(kitEnv(!!back), userEnv), {
+  const loaded = loadConfig(mergeEnv(mergeEnv(kitEnv(!!back), llmEnv()), userEnv), {
     env: options.env,
     envFile: options.envFile,
     context: `bot ${def.id}`,
@@ -213,8 +223,25 @@ export function createBot<E extends EnvShape = Record<never, never>>(
   const logger = botLogger(def.id, options.logger ?? getLogger(), scrub);
   warnIfBunAutoLoadsEnv(options, logger);
   const kit = loaded.values as Record<string, any>;
-  // Chỉ phần của bot (không kèm biến kit) tới tay handler.
-  const userKeys = Object.keys(userEnv.shape);
+  // LLM: `false` tắt hẳn; `client` thắng env; còn lại dựng từ LLM_* (thiếu một phần thì ném ConfigError).
+  const llmOpt = options.llm;
+  const llm: Llm | undefined =
+    llmOpt === false
+      ? undefined
+      : (llmOpt?.client ??
+        llmFromConfig(kit, {
+          fetch: llmOpt?.fetch,
+          onUsage: (event) => {
+            logger.debug(
+              `llm ${event.model}${event.outcome === "error" ? " (phản hồi hỏng)" : ""}: ${event.usage.inputTokens} vào / ${event.usage.outputTokens} ra, ${event.durationMs} ms, lần gọi ${event.attempts}`,
+            );
+            llmOpt?.onUsage?.(event);
+          },
+        }));
+  // Chỉ phần của bot (không kèm biến kit) tới tay handler. `LLM_*` không bao giờ vào `ctx.config`
+  // (kể cả khi bot gộp `llmEnv()` vào env của mình để bắt buộc): handler dùng `ctx.llm`, và
+  // `LLM_API_KEY` không có lý do nằm trong tay handler.
+  const userKeys = Object.keys(userEnv.shape).filter((k) => !LLM_ENV_KEYS.includes(k));
   const config = Object.fromEntries(
     userKeys.map((k) => [k, (loaded.values as Record<string, unknown>)[k]]),
   ) as InferEnv<E>;
@@ -256,6 +283,8 @@ export function createBot<E extends EnvShape = Record<never, never>>(
       config,
       logger,
       clock,
+      llm,
+      scrub,
     });
     // Thông điệp lỗi và output của run được gửi lên itsaplan: che secret trước khi đi.
     const handler: AgentRunHandler = async (ctx) => {
@@ -386,6 +415,7 @@ export function createBot<E extends EnvShape = Record<never, never>>(
     get state() {
       return state;
     },
+    llm,
 
     async start() {
       if (state === "running" || state === "starting") return;

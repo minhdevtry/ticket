@@ -1,5 +1,6 @@
 /**
- * `@vuihoc/bot-core/testing` — công cụ test cho bot dùng thư viện: itsaplan giả chạy
- * trên HTTP thật. Chỉ dùng trong test; không import từ code chạy thật.
+ * `@vuihoc/bot-core/testing`: công cụ test cho bot dùng thư viện. Itsaplan giả (`FakeItsaplan`) và
+ * LLM giả (`FakeLlm`), cả hai chạy trên HTTP thật. Chỉ dùng trong test; không import từ code chạy thật.
  */
 export * from "./fake-itsaplan";
+export * from "../llm/fake-llm";

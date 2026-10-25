@@ -10,6 +10,7 @@ Mỗi trang là một việc cụ thể, làm theo từng bước. Trạng thái
 | [Chạy shadow](/how-to/run-shadow) | Một phần: công cụ parity đã có; chế độ shadow chung cho bot **đang viết** |
 | [Chạy bóng Tiểu Linh 2](/how-to/shadow-tl2) | Có: relay, proxy giữ secret và gateway Colab chạy song song với Tiểu Linh 1 |
 | [Deploy và đẩy secret qua SSH](/how-to/deploy) | Một phần: đẩy secret và cập nhật code đã viết; unit systemd và rollback **đang viết** |
+| [Gọi LLM trong handler hậu cần](/how-to/call-llm) | Đã viết, mẫu code được CI chạy với LLM giả |
 | [Chuyển project vào team](/how-to/move-project-to-team) | Một phần: phía code đã viết; quy trình trên itsaplan **đang viết** |
 | [Chuyển bot sang bot-core](/how-to/adopt-core) | Đã viết |
 | [Chuyển Tiểu Linh sang bot-core](/how-to/migrate-tieulinh) | Bản ghi lại việc đã làm |

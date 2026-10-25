@@ -4,7 +4,7 @@ Repo **công khai**. Trước mọi commit: không secret, không IP/host nội 
 
 ## Bản đồ
 
-- `packages/core`: `@vuihoc/bot-core`, import qua subpath (`@vuihoc/bot-core/core`, `/itsaplan`, `/intake`, `/identity`, `/openclaw`, `/telegram`, `/worker`, `/eval`, và bot kit: `/bot`, `/backoffice`, `/testing`). Logic dùng chung cho mọi bot đặt ở đây, không chép sang app.
+- `packages/core`: `@vuihoc/bot-core`, import qua subpath (`@vuihoc/bot-core/core`, `/itsaplan`, `/intake`, `/identity`, `/openclaw`, `/telegram`, `/worker`, `/eval`, và bot kit: `/bot`, `/backoffice`, `/llm`, `/testing`). Logic dùng chung cho mọi bot đặt ở đây, không chép sang app.
 - `apps/tieulinh-legacy` (`@vuihoc/tieulinh-legacy`): Tiểu Linh hiện tại, **bản tham chiếu đóng băng** (hành vi = production, dùng làm mốc so sánh shadow). Chỉ sửa lỗi nghiêm trọng; tính năng mới làm ở `apps/tieulinh` (app mới, `defineBot`, chưa có trong repo). Bot tiếp nhận sự cố kỹ thuật.
   - `mcp/tieulinh`: MCP server và domain (catalog, rules JSON, formatter).
   - `lib/intake-step`: engine hội thoại (`pipeline.ts`).

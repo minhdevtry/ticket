@@ -2,6 +2,7 @@
  * Kiểu của tầng hậu cần (back office): handler theo trigger và luật sự kiện.
  */
 import type { IntakeLogger } from "../core/logger";
+import type { Llm } from "../llm";
 import type { Clock } from "../intake/ports";
 import type { ItsaplanIssue } from "../itsaplan";
 import type { AgentRunOutcome, AgentRunTrigger, ClaimedAgentRun, RunTrace } from "../itsaplan";
@@ -33,6 +34,13 @@ export interface RunContext<C = unknown, M extends MentionComment | null = Menti
   readonly trace: RunTrace;
   /** Tracker khoá vào dự án của bot. */
   readonly tracker: ScopedTracker;
+  /**
+   * Client LLM khi bot đã cấu hình (`LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`), nếu không là
+   * `undefined`. Lời gọi bị huỷ theo `signal` của run. Xem `@vuihoc/bot-core/llm`:
+   * `runAgentLoop(ctx, ...)` chạy vòng lặp tool và ghi trace lên itsaplan, `requireLlm(ctx)`
+   * ném lỗi rõ ràng khi chưa cấu hình.
+   */
+  readonly llm: Llm | undefined;
   readonly clock: Clock;
   /** Khoá ổn định của run (`agent-run:<id>`). */
   readonly idempotencyKey: string;

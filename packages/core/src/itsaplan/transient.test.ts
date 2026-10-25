@@ -28,6 +28,12 @@ describe("isTransientError", () => {
     );
   });
 
+  it("lỗi tự khai `transient: true` (vd LlmError) là tạm thời, `false` thì không", () => {
+    const flagged = (transient: boolean) => Object.assign(new Error("lỗi từ LLM"), { transient });
+    expect(isTransientError(flagged(true))).toBe(true);
+    expect(isTransientError(flagged(false))).toBe(false);
+  });
+
   it("bug của chính ta và lỗi do ta huỷ KHÔNG phải tạm thời (thử lại cũng vô ích)", () => {
     expect(isTransientError(new TypeError("Cannot read properties of undefined"))).toBe(false);
     expect(isTransientError(new Error("hỏng rồi"))).toBe(false);

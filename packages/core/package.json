@@ -8,6 +8,7 @@
     "./itsaplan": "./src/itsaplan/index.ts",
     "./backoffice": "./src/backoffice/index.ts",
     "./bot": "./src/bot/index.ts",
+    "./llm": "./src/llm/index.ts",
     "./intake": "./src/intake/index.ts",
     "./identity": "./src/identity/index.ts",
     "./openclaw": "./src/openclaw/index.ts",
@@ -18,7 +19,7 @@
     "./prose/*": "./prose/*"
   },
   "scripts": {
-    "test": "bun test src examples/minimal-bot",
+    "test": "bun test src examples/minimal-bot examples/llm-bot",
     "check": "tsc --noEmit -p ."
   },
   "dependencies": {
