@@ -14,10 +14,41 @@ export type {
   BackofficeDefinition,
   BackofficeRunOptions,
   HandlerResult,
+  MissedPolicy,
   RunContext,
   RunHandler,
+  ScheduleContext,
+  ScheduleHandler,
+  ScheduleJob,
+  ScheduleOptions,
   TriggerHandlers,
 } from "./types";
+export { type CronSchedule, DEFAULT_TIMEZONE, assertTimezone, parseCron } from "./cron";
+export { MAX_DURATION_MS, parseDuration } from "./duration";
+export {
+  BOT_STORE_SCHEMA_VERSION,
+  BotStore,
+  type BotStoreOptions,
+  BotStoreVersionError,
+  type CronClaim,
+  type KeySet,
+  MemoryKeySet,
+  type TimerArmOutcome,
+  type TimerArmSpec,
+  type TimerRow,
+  type TimerState,
+} from "./store";
+export {
+  BotScheduler,
+  type BotSchedulerHealth,
+  type BotSchedulerOptions,
+  type ScheduleEntry,
+} from "./scheduler";
+export {
+  type EnsureRuleWebhookResult,
+  WebhookPermissionError,
+  ensureRuleWebhook,
+} from "./webhook-registration";
 export { type MentionComment, parseMentionPrompt } from "./mention";
 export {
   type CommentOptions,
@@ -34,6 +65,9 @@ export {
 } from "./tracker";
 export { type DispatcherDeps, createRunDispatcher, fail, retryLater, skip } from "./dispatch";
 export {
+  type AfterOptions,
+  type CancelToken,
+  type CloseAfterOptions,
   type Rule,
   type RuleAction,
   RuleBuilder,
@@ -44,7 +78,13 @@ export {
   type RuleEngineOptions,
   type RuleEvent,
   type RuleRunStatus,
+  type ReporterResolver,
   type RuleRunSummary,
+  type RuleTimers,
+  type TimerAction,
+  type TimerContext,
+  type TimerFireResult,
+  type TimerGuard,
   actions,
   whenColumn,
   whenCommentCreated,

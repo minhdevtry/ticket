@@ -104,13 +104,57 @@ describe("defineBot", () => {
     ).toThrow(/ít nhất một handler/);
   });
 
-  it("schedule dạng bản đồ cron báo là milestone 2", () => {
+  it("on.schedule dạng bản đồ cron chỉ sang backoffice.schedule", () => {
     const issues = validateBotDefinition({
       id: "sched",
       tracker: { team: "tech", project: "TECH" },
       backoffice: { on: { schedule: { "0 8 * * *": handler } as any } },
     });
-    expect(issues[0]?.message).toContain("milestone 2");
+    expect(issues[0]?.message).toContain("backoffice.schedule");
+  });
+
+  it("backoffice.schedule hợp lệ: chỉ cần lịch là đủ vai hậu cần", () => {
+    expect(() =>
+      defineBot({
+        id: "cron-only",
+        tracker: { team: "tech", project: "TECH" },
+        backoffice: {
+          schedule: {
+            "0 8 * * *": handler,
+            "*/5 * * * *": { run: handler, missed: "catch-up-once" },
+          },
+          scheduleOptions: { timezone: "UTC", missed: "skip", graceMs: 1000 },
+        },
+      }),
+    ).not.toThrow();
+  });
+
+  it("backoffice.schedule sai: gom đủ lỗi cron, múi giờ, chính sách, handler, lịch trùng", () => {
+    const issues = validateBotDefinition({
+      id: "bad-sched",
+      tracker: { team: "tech", project: "TECH" },
+      backoffice: {
+        schedule: {
+          "0 25 * * *": handler,
+          "* * *": handler,
+          "0 8 * * *": "không phải hàm" as any,
+          "0 9 * * *": { run: handler, missed: "nope" as any },
+          "0 10 * * *": handler,
+          "0  10 * * *": handler,
+        },
+        scheduleOptions: { timezone: "Mars/Olympus", missed: "x" as any, graceMs: -1 },
+      },
+    });
+    const paths = issues.map((i) => i.path);
+    expect(paths).toContain('backoffice.schedule["0 25 * * *"]');
+    expect(paths).toContain('backoffice.schedule["* * *"]');
+    expect(paths).toContain('backoffice.schedule["0 8 * * *"]');
+    expect(paths).toContain('backoffice.schedule["0 9 * * *"].missed');
+    expect(paths).toContain('backoffice.schedule["0  10 * * *"]');
+    expect(paths).toContain("backoffice.scheduleOptions.timezone");
+    expect(paths).toContain("backoffice.scheduleOptions.missed");
+    expect(paths).toContain("backoffice.scheduleOptions.graceMs");
+    expect(issues.find((i) => i.path.endsWith('["0 25 * * *"]'))?.message).toContain("giờ");
   });
 
   it("chặn tên luật trùng và luật không hợp lệ", () => {
