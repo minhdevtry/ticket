@@ -25,6 +25,8 @@ LLM_MODEL=MiniMax-M3.1-Flash
 # riêng Tiểu Linh 2 (đều tuỳ chọn)
 TIEULINH_TEAM=tech
 TIEULINH_PROJECT=TECH2                  # chạy thật: TECH
+TIEULINH_AGENT=tieulinh2                # username của agent, khớp user của ITSAPLAN_AGENT_KEY
+ITSAPLAN_WEB_URL=https://itsaplan.example.com   # để cảnh báo SLA có link ticket
 TIEULINH_SANDBOX_CHAT=-1000000000001    # gắn ticket chưa liên kết vào chat thử
 ```
 
@@ -40,8 +42,8 @@ Bot đọc thêm file `.env` ở thư mục chạy (biến trong môi trường 
 
 | File | Nội dung |
 |---|---|
-| `tieulinh.sqlite` | kho của bot kit: ledger run, khoá chống trùng, mốc cron |
-| `tieulinh-app.sqlite` | liên kết ticket-người báo, tuyến tin, trạng thái vòng đời, dấu "đã nhắc" SLA |
+| `tieulinh.sqlite` | kho của bot kit: ledger run, khoá chống trùng (cả dấu "đã chuyển comment" và "đã nhắc SLA"), mốc cron |
+| `tieulinh-app.sqlite` | liên kết ticket-người báo, tuyến tin, trạng thái vòng đời, mốc theo dõi SLA |
 | `tieulinh-channel.jsonl` | nhật ký kênh: mọi tin bot muốn gửi người báo và mọi cảnh báo trực ca |
 
 ## 4. Kiểm tra
@@ -49,6 +51,7 @@ Bot đọc thêm file `.env` ở thư mục chạy (biến trong môi trường 
 1. Gọi `@tieulinh2` trên một ticket TECH2: bot trả lời trong luồng comment; nếu ticket có liên kết (hoặc đặt `TIEULINH_SANDBOX_CHAT`) thì lời nhắn xuất hiện trong nhật ký.
 2. Kéo ticket sang Resolved: nhật ký có một bản ghi `state` với `withReporterOkButton: true`; ticket **vẫn ở Resolved**.
 3. Để một ticket chưa giao quá hạn: nhật ký có bản ghi `alert`, đúng một lần.
+4. Giả lập người báo (kênh nhật ký, không cần Telegram): `curl -s -X POST http://127.0.0.1:3110/internal/reporter-ok -H 'content-type: application/json' -d '{"issueId":123,"chatId":"-1000000000001","userName":"An"}'` ghi đúng một comment "đã ổn" lên ticket; `/internal/reporter-reply` với `replyToMessageId` là `messageId` của một bản ghi `state` trong nhật ký ghi comment trả lời tự do.
 
 Đọc nhật ký trong code (cùng định dạng test của app dùng):
 
@@ -64,8 +67,8 @@ Hoặc chỉ cần `jq 'select(.kind=="alert")' /var/lib/tieulinh2/tieulinh-chan
 
 ## 5. Chuyển sang gửi thật và sang TECH
 
-- Gửi Telegram thật: đặt `TELEGRAM_BOT_TOKEN` (và `TIEULINH_ONCALL_CHAT_ID` cho cảnh báo trực ca). Cần liên kết ticket-chat thật, tức lễ tân (chưa làm), hoặc `TIEULINH_SANDBOX_CHAT` cho chat thử.
-- Đổi dự án: `TIEULINH_PROJECT=TECH`. Không có gì khác phải sửa; kho dữ liệu nên dùng thư mục riêng cho mỗi dự án.
+- Gửi Telegram thật: đặt `TELEGRAM_BOT_TOKEN` **và** `TIEULINH_ONCALL_CHAT_ID` (thiếu một trong hai thì bot dừng với `ConfigError`: cảnh báo SLA không được nuốt im). Cần liên kết ticket-chat thật, tức lễ tân (chưa làm), hoặc `TIEULINH_SANDBOX_CHAT` cho chat thử. Để nút "Đã ổn" và trả lời tự do của người báo có người nghe: giữ `BOT_WEBHOOK_PORT`, rồi hoặc `setWebhook` của Telegram trỏ tới `/telegram-webhook` với `secret_token` bằng `TELEGRAM_WEBHOOK_SECRET` (bắt buộc nếu nghe ngoài loopback), hoặc để plugin Telegram cùng máy gọi `/internal/reporter-ok` và `/internal/reporter-reply` (chỉ loopback). Chế độ Telegram mới được kiểm bằng Telegram giả, chưa chạy với bot thật: thử trên một chat riêng trước.
+- Đổi dự án: `TIEULINH_PROJECT=TECH`. Không có gì khác phải sửa trong code; kho dữ liệu nên dùng thư mục riêng cho mỗi dự án.
 
 ## Test không cần mạng
 
