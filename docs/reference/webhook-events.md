@@ -26,7 +26,7 @@ Cột "Tự đăng ký" là danh sách mặc định `REQUIRED_WEBHOOK_EVENTS`: 
 - **Comment gắn cờ nội bộ** (`#noibo`, `#nộibộ`, `#internal`, `[nội bộ]`, `[noi bo]`) ở lại trên tracker, không gửi người báo.
 - **`commentForwardPolicy`**: `all` (mặc định) đẩy mọi comment của người; `mention` chỉ đẩy comment có tag bot.
 - **Thiếu binding thì cảnh báo to**, không im lặng: thường do worker trỏ nhầm file SQLite.
-- Bot không bao giờ tự đóng ticket: chỉ người xử lý chuyển sang hoàn tất. Khi ticket sang "đã xử lý", người báo nhận nút "Đã ổn" chỉ để ghi comment.
+- Bot không bao giờ tự đóng ticket, và worker hậu cần không đổi cột nào: chỉ người xử lý chuyển sang hoàn tất. Khi ticket sang "đã xử lý", người báo nhận nút "Đã ổn" chỉ để ghi comment. (Ngoại lệ thuộc lễ tân, không thuộc worker: khi chính người báo nhắn yêu cầu huỷ hoặc đóng ticket của mình và tự xác nhận, bot chuyển cột; xem [RFC 0002](/rfc/0002-receptionist), PR 12.)
 
 ## Phong bì
 

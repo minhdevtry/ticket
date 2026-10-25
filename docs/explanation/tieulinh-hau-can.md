@@ -20,6 +20,7 @@ Bot khai báo trên `tech.TECH2` (đổi bằng `TIEULINH_TEAM`/`TIEULINH_PROJEC
 | Người báo bấm "Đã ổn" | ghi comment | `inbound` -> `TicketClosure.recordReporterOk`: ghi đúng một comment, không đóng ticket | 0006 |
 | Người báo trả lời tự do vào tin thông báo | ghi comment (`recordReporterReply`) | cùng đường `inbound`; ghi một comment, từ chối khi ticket đã hoàn tất/huỷ | 0006 |
 | Done / mở lại | báo, gỡ nút cũ | như nhau | 0006 |
+| Người báo nhắn chat yêu cầu huỷ hoặc đóng ticket của mình | xem trước + nút xác nhận, bấm xong bot chuyển cột Canceled/Done | **chưa làm**: là việc của lễ tân, thuộc PR 12 của [RFC 0002](/rfc/0002-receptionist) | 0006, 0008 |
 | Quá hạn SLA | bảng `sla_trackers`, quét theo chu kỳ | cron `backoffice.schedule`, quét không trạng thái, chỉ đánh dấu khi đã giao được | |
 | Ticket trùng | LLM phán khi người xử lý nhắc mã ticket anh em, gộp tự động | cùng tín hiệu; mặc định chỉ gợi ý; gộp kiểu legacy sau cờ, mặc định tắt, và chỉ khi comment là của người xử lý được giao | 0006, 0010 |
 | Mô tả ticket | nguyên văn người báo | bot không bao giờ sửa mô tả | 0010 |
@@ -27,7 +28,12 @@ Bot khai báo trên `tech.TECH2` (đổi bằng `TIEULINH_TEAM`/`TIEULINH_PROJEC
 
 ## Quyết định đáng nói
 
-**Bot không đóng ticket.** ADR-0006 cho người xử lý toàn quyền chuyển cột. Vì thế "người báo bấm Đã ổn" chỉ để lại một comment cho người xử lý tham khảo; bot không có hẹn giờ đóng, và luật dùng `closeAfter` bị cấm trong app này. `backoffice.reporter` vẫn được khai (ticket đã liên kết chat thì người comment trên itsaplan không phải người báo; chưa liên kết thì coi mọi người là người báo, thận trọng) làm điểm cắm cho luật sau này, nhưng hiện chưa luật nào dùng nó.
+**Bot không bao giờ tự đóng ticket; hậu cần không đổi cột nào.** ADR-0006 (bản 10/10) có hai nửa, và trang này từng chỉ ghi nửa đầu:
+
+1. Bot không tự quyết đóng hay huỷ. Người xử lý giữ quyền chuyển cột; "người báo bấm Đã ổn" chỉ để lại một comment cho người xử lý tham khảo; không có hẹn giờ đóng, và luật dùng `closeAfter` bị cấm trong app này. `backoffice.reporter` vẫn được khai (ticket đã liên kết chat thì người comment trên itsaplan không phải người báo; chưa liên kết thì coi mọi người là người báo, thận trọng) làm điểm cắm cho luật sau này, nhưng hiện chưa luật nào dùng nó.
+2. Khi **chính người báo** nhắn yêu cầu huỷ hoặc đóng ticket của mình và tự bấm xác nhận (nút "Hủy ..." hoặc "Đóng ..." kèm "Giữ lại"), bot **chuyển cột** giúp họ: Canceled nếu chưa có chuyên viên xử lý, Done nếu đã có. Người báo là người quyết định; bot không bao giờ làm việc này vì tự thấy ticket nên đóng.
+
+Nửa 2 là việc của **lễ tân** (nó đi qua hội thoại chat và bước xem trước, theo ADR-0008), và lễ tân chưa có trong Tiểu Linh 2. Nó sẽ vào ở PR 12 của [RFC 0002](/rfc/0002-receptionist) (quyết định của chủ, mục 8). Vì vậy hôm nay, ở Tiểu Linh 2 (chỉ hậu cần), không có đường nào làm bot đổi cột, và bản legacy (`apps/tieulinh-legacy`) vẫn là nơi duy nhất đang làm nửa 2.
 
 **Phát hiện trùng đi theo comment của người.** Brief ban đầu nghĩ tới phát hiện lúc tạo ticket. Legacy không làm vậy: tín hiệu là người xử lý nhắc mã ticket anh em trong một comment, rồi LLM xác nhận comment đó tuyên bố trùng chứ không chỉ tham chiếu. Bản mới giữ nguyên tín hiệu (dò lúc tạo ticket cần truy hồi ticket liên quan, tức KG/Onyx, đang ngoài phạm vi) và thêm một chốt: `evidence` LLM trả về phải là đoạn trích thật từ comment, không thì coi như không trùng. Mặc định bot chỉ để một comment gợi ý. Cờ `TIEULINH_DUPLICATE_MERGE=true` bật hành vi legacy (chép mô tả nguyên văn sang ticket đích, nối link, huỷ ticket trùng) vì nó là việc duy nhất bot tự huỷ ticket.
 
@@ -49,4 +55,4 @@ Những gì không riêng Tiểu Linh được đưa vào `packages/core` (xem `
 
 ## Việc để lại
 
-Chạy thử chế độ Telegram với bot thật, lễ tân, nạp tri thức KG/Onyx/Memgraph, `related-curator`, ingest, gửi media thật, phát hiện trùng lúc tạo ticket. Danh sách đầy đủ ở `apps/tieulinh/README.md`.
+Chạy thử chế độ Telegram với bot thật, lễ tân (kể cả việc huỷ/đóng ticket theo yêu cầu người báo, PR 12 của RFC 0002), nạp tri thức KG/Onyx/Memgraph, `related-curator`, ingest, gửi media thật, phát hiện trùng lúc tạo ticket. Danh sách đầy đủ ở `apps/tieulinh/README.md`.
