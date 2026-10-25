@@ -19,8 +19,10 @@
  *
  * NGUỒN: intake `worker/ticket-closure.ts` (bỏ phần nạp tri thức KG/Onyx và phần riêng của PO).
  */
+import { createHash } from "node:crypto";
+import { escapeItsaplanMarkdown } from "../core/formatting";
 import { getLogger } from "../core/logger";
-import { classifyColumn, projectOfIdentifier } from "../itsaplan";
+import { classifyColumn, identifierInProject, projectOfIdentifier } from "../itsaplan";
 import type {
   ChannelPort,
   Clock,
@@ -51,6 +53,21 @@ export interface ReporterOkCopy {
   reopened(vars: { identifier: string }): string;
 }
 
+/** Chữ của luồng "người báo trả lời tự do vào tin thông báo". */
+export interface ReporterReplyCopy {
+  /** Thân comment ghi lên ticket; `text` đã được escape cho itsaplan (bot tự gắn dấu bot). */
+  comment(vars: { who: string; text: string; time: string }): string;
+  /** Câu bot nói với người báo sau khi đã ghi. */
+  ack(vars: { identifier: string }): string;
+  /** Ticket đã hoàn tất/huỷ: từ chối ghi và hướng dẫn mở ticket mới. */
+  closed(vars: { identifier: string }): string;
+}
+
+/** Kết quả `recordReporterReply`: `handled: false` thì tin KHÔNG phải trả lời một tin thông báo đã biết. */
+export type ReporterReplyResult =
+  | { handled: true; outcome: "recorded" | "closed" | "error"; replyText: string }
+  | { handled: false };
+
 export interface TicketClosureOptions {
   states: TicketStateStore;
   bindings: NotifyBindingReader;
@@ -59,6 +76,10 @@ export interface TicketClosureOptions {
   /** Lời báo mỗi lần đổi trạng thái; trả `null` = không báo gì. */
   copy: StateChangeCopyMap;
   okCopy: ReporterOkCopy;
+  /** Cần cho `recordReporterReply`. */
+  replyCopy?: ReporterReplyCopy;
+  /** `channelType` mà tin thông báo được ghi route (mặc định `telegram`). */
+  channelType?: string;
   clock?: Clock;
   /** Định dạng giờ trong comment "Đã ổn". Mặc định ISO. */
   formatTime?: (ms: number) => string;
@@ -195,6 +216,58 @@ export class TicketClosure {
     }
     if (row?.promptMessageId) await this.clearButtons(binding, row.promptMessageId);
     return { outcome: "recorded", replyText: okCopy.ack() };
+  }
+
+  /**
+   * Người báo nhắn tự do vào đúng MỘT tin thông báo của bot ("chưa ổn ạ, vẫn lỗi y như cũ").
+   * Tin được ghi thành comment trên ticket tra theo `message_routes` (thử cả hai dạng chat id vì
+   * cột có thể mang tiền tố `telegram:`). Không đổi cột, không mở lại (ADR-0006). Ticket đã
+   * hoàn tất/huỷ thì từ chối và hướng dẫn mở ticket mới. NGUỒN: intake `recordReporterReply`.
+   */
+  async recordReporterReply(
+    tracker: Pick<ScopedTracker, "getIssue" | "columns" | "comment" | "projectKey">,
+    request: {
+      chatId: string | number;
+      messageId: string | number;
+      text: string;
+      userName?: string;
+    },
+  ): Promise<ReporterReplyResult> {
+    const copy = this.o.replyCopy;
+    if (!copy) throw new Error("TicketClosure: thiếu replyCopy cho recordReporterReply");
+    const bare = rawChat(request.chatId);
+    const channelType = this.o.channelType ?? "telegram";
+    const messageId = String(request.messageId);
+    const route =
+      this.o.routes.getMessageRoute(messageId, channelType, bare) ??
+      this.o.routes.getMessageRoute(messageId, channelType, `telegram:${bare}`);
+    if (!route || !identifierInProject(route.identifier, tracker.projectKey)) {
+      return { handled: false };
+    }
+    const issue = await tracker.getIssue(route.issueId);
+    if (!issue) return { handled: false };
+
+    const id = route.identifier;
+    const state = await this.liveState(tracker, issue.columnId, route.issueId);
+    if (state === "done" || state === "canceled") {
+      return { handled: true, outcome: "closed", replyText: copy.closed({ identifier: id }) };
+    }
+    const text = request.text.trim();
+    if (!text) return { handled: false };
+    const now = this.clock.now();
+    await tracker.comment(
+      route.issueId,
+      copy.comment({
+        who: request.userName?.trim() || "Người báo",
+        text: escapeItsaplanMarkdown(text),
+        time: this.formatTime(now),
+      }),
+      {
+        // Telegram giao lại cùng một update thì chỉ ghi một comment.
+        idempotencyKey: `reporter-reply:${route.issueId}:${messageId}:${createHash("sha1").update(text).digest("hex").slice(0, 12)}`,
+      },
+    );
+    return { handled: true, outcome: "recorded", replyText: copy.ack({ identifier: id }) };
   }
 
   private async clearButtons(binding: NotifyBinding, messageId: string): Promise<void> {

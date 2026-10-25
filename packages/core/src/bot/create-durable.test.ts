@@ -407,6 +407,39 @@ describe("closeAfter qua createBot", () => {
   });
 });
 
+describe("ctx.keys", () => {
+  it("bền qua restart khi có BOT_DATA_DIR", async () => {
+    const answers: boolean[] = [];
+    const mk = () =>
+      defineBot({
+        id: "keys-a",
+        tracker: { team: "tech", project: "TECH" },
+        backoffice: {
+          schedule: {
+            "0 8 * * *": (ctx: any) => {
+              const done = ctx.keys("forwarded");
+              answers.push(done.has("k1"));
+              done.add("k1");
+            },
+          },
+        },
+      });
+    const env = envFor({ BOT_DATA_DIR: dir });
+    const day1 = new FakeClock(Date.parse("2026-10-25T00:30:00Z"));
+    const first = make(mk(), { env, clock: day1 });
+    await first.start();
+    day1.t = Date.parse("2026-10-25T01:00:05Z");
+    await until(() => answers.length === 1);
+    await first.stop();
+    const day2 = new FakeClock(Date.parse("2026-10-26T00:30:00Z"));
+    const second = make(mk(), { env, clock: day2 });
+    await second.start();
+    day2.t = Date.parse("2026-10-26T01:00:05Z");
+    await until(() => answers.length === 2);
+    expect(answers).toEqual([false, true]);
+  });
+});
+
 describe("sức khoẻ và vòng đời của bộ chạy lịch", () => {
   const def = (id: string) =>
     defineBot({

@@ -66,6 +66,13 @@ describe("TelegramNotifyChannel (ChannelPort cho Telegram)", () => {
     expect(calls[0]!.payload.text).toContain("![](https://x/a.png)");
   });
 
+  it("sendComment nối video dưới dạng link trần (markdown không có cú pháp video)", async () => {
+    const { transport, calls } = fakeTransport();
+    const ch = new TelegramNotifyChannel({ transport });
+    await ch.sendComment({ binding, authorName: "KTV", text: "", videos: ["https://x/a.mp4"] });
+    expect(calls[0]!.payload.text).toBe("https://x/a.mp4");
+  });
+
   it("sendComment rỗng (không text, không ảnh) → không gửi, trả null", async () => {
     const { transport, calls } = fakeTransport();
     const ch = new TelegramNotifyChannel({ transport });
@@ -133,7 +140,7 @@ describe("TelegramNotifyChannel.sendAlert (kênh trực ca)", () => {
   it("gửi tới alertChatId", async () => {
     const { transport, calls } = fakeTransport();
     const ch = new TelegramNotifyChannel({ transport, alertChatId: "-1000000000001" });
-    await ch.sendAlert("TECH2-7 quá hạn SLA");
+    expect(await ch.sendAlert("TECH2-7 quá hạn SLA")).toBe(true);
     expect(calls).toHaveLength(1);
     expect(calls[0]!.method).toBe("sendMessage");
     expect(calls[0]!.payload.chat_id).toBe("-1000000000001");
@@ -143,7 +150,8 @@ describe("TelegramNotifyChannel.sendAlert (kênh trực ca)", () => {
   it("thiếu alertChatId: không gọi mạng, không ném", async () => {
     const { transport, calls } = fakeTransport();
     const ch = new TelegramNotifyChannel({ transport });
-    await ch.sendAlert("không có chỗ gửi");
+    // false = chưa báo được: nơi gọi không được đánh dấu "đã báo"
+    expect(await ch.sendAlert("không có chỗ gửi")).toBe(false);
     expect(calls).toHaveLength(0);
   });
 });

@@ -42,7 +42,9 @@ import { parseDuration } from "./duration";
 import {
   type BotStore,
   type KeySet,
+  type KeysProvider,
   MemoryKeySet,
+  createKeysProvider,
   type TimerArmOutcome,
   type TimerArmSpec,
   type TimerRow,
@@ -182,6 +184,8 @@ export interface RuleContext<C = unknown> {
    */
   readonly llm: Llm | undefined;
   readonly clock: Clock;
+  /** Tập khoá có tên để chống trùng việc đã làm, bền khi bot có `BOT_DATA_DIR`. */
+  readonly keys: KeysProvider;
   /** Khoá ổn định cho (luật, sự kiện): dùng làm khoá chống trùng cho hành động ghi ra ngoài. */
   readonly idempotencyKey: string;
   /** Issue của sự kiện (đọc một lần rồi nhớ). */
@@ -634,6 +638,8 @@ export interface RuleEngineOptions<C> {
   seen?: KeySet;
   /** Kho bền cho hẹn giờ (`after`, `closeAfter`). Không có thì hành động hẹn giờ ném lỗi rõ ràng. */
   store?: BotStore;
+  /** Nguồn `RuleContext.keys` (mặc định: tập in-memory của riêng engine). */
+  keys?: KeysProvider;
   /** LLM của bot, đưa vào `RuleContext.llm` và `TimerContext.llm` (cái sau gắn `signal` của từng lần chạy hẹn). */
   llm?: Llm;
   /**
@@ -678,6 +684,7 @@ export class RuleEngine<C = unknown> {
   /** Khoá đang xử lý (chặn hai lần giao đồng thời của cùng một sự kiện). */
   private readonly inflight = new Set<string>();
   private readonly clock: Clock;
+  private readonly keysProvider: KeysProvider;
   private readonly watched: Set<string>;
   private readonly reporter: ReporterResolver | undefined;
 
@@ -689,6 +696,7 @@ export class RuleEngine<C = unknown> {
       );
     }
     this.clock = o.clock ?? systemClock;
+    this.keysProvider = o.keys ?? createKeysProvider(null);
     this.seen = o.seen ?? new MemoryKeySet(o.dedupeSize ?? 2000);
     this.reporter = o.reporter;
     this.watched = new Set(o.rules.flatMap((r) => r.watches ?? []));
@@ -786,6 +794,7 @@ export class RuleEngine<C = unknown> {
         logger,
         llm: this.o.llm,
         clock: this.clock,
+        keys: this.keysProvider,
         idempotencyKey: `rule:${rule.name}:${event.name}:${event.issueId ?? ""}:${event.comment?.id ?? ""}:${delivery}`,
         issue: loadIssue,
       };

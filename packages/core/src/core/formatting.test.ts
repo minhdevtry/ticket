@@ -8,6 +8,8 @@ import {
   cleanMediaTags,
   extractMediaAttachments,
   stripCommentHtml,
+  decodeHtmlEntities,
+  escapeItsaplanMarkdown,
   formatIctTimestamp,
   formatIctDate,
   foldForComparison,
@@ -175,5 +177,37 @@ describe("stripBotMentions — options (cho bot cần hành vi intake cũ)", () 
     ).toBe("Nhờ @vh_teacher_sp_bot xem");
     // handle có _bot trong danh sách (vhticket_bot) vẫn bị lọc.
     expect(stripBotMentions("@vhticket_bot xem", [], { stripBotSuffixHandles: false })).toBe("xem");
+  });
+});
+
+describe("decodeHtmlEntities", () => {
+  test("giải mã tên, số thập phân và thập lục phân", () => {
+    expect(decodeHtmlEntities("a &lt; b &gt;= c &amp; d &quot;e&quot; &#39;f&#39; &#x3C;")).toBe(
+      "a < b >= c & d \"e\" 'f' <",
+    );
+  });
+  test("chỉ giải mã MỘT lần: &amp;lt; thành &lt;, không thành <", () => {
+    expect(decodeHtmlEntities("&amp;lt;script&amp;gt;")).toBe("&lt;script&gt;");
+  });
+  test("giữ nguyên entity lạ, & trần, mã điểm ngoài miền và tiếng Việt", () => {
+    expect(decodeHtmlEntities("Toán & Văn &foo; &#0; &#x110000; đã xử lý")).toBe(
+      "Toán & Văn &foo; &#0; &#x110000; đã xử lý",
+    );
+  });
+  test("rỗng/không phải chuỗi thì trả chuỗi rỗng", () => {
+    expect(decodeHtmlEntities(undefined)).toBe("");
+    expect(decodeHtmlEntities(null)).toBe("");
+  });
+});
+
+describe("escapeItsaplanMarkdown", () => {
+  test("mã hoá < và > ngoài code, giữ & và nội dung trong code", () => {
+    expect(escapeItsaplanMarkdown("lỗi <NullPointerException> & a > b")).toBe(
+      "lỗi &lt;NullPointerException&gt; & a &gt; b",
+    );
+    expect(escapeItsaplanMarkdown("`<tag>` và ```\n<x>\n``` và <y>")).toBe(
+      "`<tag>` và ```\n<x>\n``` và &lt;y&gt;",
+    );
+    expect(escapeItsaplanMarkdown(undefined)).toBe("");
   });
 });

@@ -13,6 +13,7 @@ import {
   isTransientError,
 } from "../itsaplan";
 import { parseMentionPrompt } from "./mention";
+import { type KeysProvider, createKeysProvider } from "./store";
 import type { ScopedTracker } from "./tracker";
 import type { BackofficeDefinition, HandlerResult, RunContext, RunHandler } from "./types";
 
@@ -38,6 +39,8 @@ export interface DispatcherDeps<C> {
   config: C;
   logger: IntakeLogger;
   clock?: Clock;
+  /** Nguồn `ctx.keys` (mặc định: tập in-memory của riêng dispatcher). */
+  keys?: KeysProvider;
   /** Client LLM của bot (nếu đã cấu hình); handler nhận bản gắn `signal` của run. */
   llm?: Llm;
   /**
@@ -93,6 +96,7 @@ export function createRunDispatcher<C>(
   const handlers = def.on ?? {};
   const botHandles = [def.agent, ...(def.handles ?? [])].filter((h): h is string => !!h);
   const clock = deps.clock ?? systemClock;
+  const keys = deps.keys ?? createKeysProvider(null);
 
   return async (workerCtx) => {
     const { run } = workerCtx;
@@ -131,6 +135,7 @@ export function createRunDispatcher<C>(
       tracker,
       llm: deps.llm ? withSignal(deps.llm, workerCtx.signal) : undefined,
       clock,
+      keys,
       idempotencyKey: workerCtx.idempotencyKey,
       attempt: workerCtx.attempt,
       maxAttempts: workerCtx.maxAttempts,

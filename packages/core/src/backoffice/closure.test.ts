@@ -80,6 +80,12 @@ beforeEach(() => {
       canceled: ({ identifier }) => `${identifier} đã huỷ`,
       reopened: ({ identifier }) => `${identifier} xử lý lại`,
     },
+    channelType: "log",
+    replyCopy: {
+      comment: ({ who, text, time }) => `${who} phản hồi: ${text} (${time})`,
+      ack: ({ identifier }) => `đã chuyển vào ${identifier}`,
+      closed: ({ identifier }) => `${identifier} đã đóng, hãy tạo ticket mới`,
+    },
     clock: { now: () => clockMs },
     formatTime: () => "T",
   });
@@ -249,5 +255,66 @@ describe("TicketClosure.recordReporterOk (người báo không đóng được t
     fake.issues[0]!.columnId = 6;
     expect(await press(issue.id)).toMatchObject({ outcome: "canceled" });
     expect(fake.comments).toHaveLength(0);
+  });
+});
+
+describe("TicketClosure.recordReporterReply (trả lời tự do vào tin thông báo)", () => {
+  async function notified() {
+    const issue = fake.addIssue({ title: "T", columnId: 3 });
+    bind(issue);
+    await moved(issue, 4); // tin thông báo m1, route (m1, log, CHAT)
+    return issue;
+  }
+  const reply = (over: Partial<{ chatId: string; messageId: string; text: string }> = {}) =>
+    closure.recordReporterReply(tracker, {
+      chatId: CHAT,
+      messageId: "m1",
+      text: "chưa ổn ạ, vẫn lỗi <NullPointerException>",
+      userName: "An",
+      ...over,
+    });
+
+  it("ghi một comment (escape < >), không đổi cột, không mở lại", async () => {
+    const issue = await notified();
+    const out = await reply();
+    expect(out).toEqual({
+      handled: true,
+      outcome: "recorded",
+      replyText: `đã chuyển vào ${issue.identifier}`,
+    });
+    const mine = fake.comments.filter((c) => c.issueId === issue.id);
+    expect(mine).toHaveLength(1);
+    expect(mine[0]!.body).toContain(
+      "An phản hồi: chưa ổn ạ, vẫn lỗi &lt;NullPointerException&gt; (T)",
+    );
+    expect(fake.issues[0]!.columnId).toBe(4);
+    expect(fake.count(/^PATCH /)).toBe(0);
+  });
+
+  it("chat id có tiền tố telegram: vẫn khớp route; cùng update giao lại chỉ ghi một comment", async () => {
+    await notified();
+    db.run("UPDATE message_routes SET chat_id = ?", [`telegram:${CHAT}`]);
+    await reply();
+    await reply();
+    expect(fake.comments).toHaveLength(1);
+  });
+
+  it("tin không phải trả lời một tin đã biết, chat lạ, hoặc ticket dự án khác: handled false, không comment", async () => {
+    const issue = await notified();
+    expect(await reply({ messageId: "m999" })).toEqual({ handled: false });
+    expect(await reply({ chatId: "-1000000000002" })).toEqual({ handled: false });
+    expect(await reply({ text: "   " })).toEqual({ handled: false });
+    db.run("UPDATE message_routes SET identifier = 'OTHER-1'");
+    expect(await reply()).toEqual({ handled: false });
+    expect(fake.comments.filter((c) => c.issueId === issue.id)).toHaveLength(0);
+  });
+
+  it("ticket đã hoàn tất hoặc huỷ: từ chối ghi và hướng dẫn tạo ticket mới", async () => {
+    const issue = await notified();
+    fake.issues[0]!.columnId = 5;
+    expect(await reply()).toMatchObject({ handled: true, outcome: "closed" });
+    fake.issues[0]!.columnId = 6;
+    expect(await reply()).toMatchObject({ handled: true, outcome: "closed" });
+    expect(fake.comments.filter((c) => c.issueId === issue.id)).toHaveLength(0);
   });
 });

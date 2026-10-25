@@ -56,6 +56,7 @@ import {
   type RunLedger,
 } from "../itsaplan";
 import {
+  type InboundContext,
   type RuleRunSummary,
   BotScheduler,
   type BotSchedulerHealth,
@@ -66,6 +67,7 @@ import {
   type ScheduleEntry,
   WebhookPermissionError,
   assertTimezone,
+  createKeysProvider,
   createRunDispatcher,
   createScopedTracker,
   ensureRuleWebhook,
@@ -132,6 +134,8 @@ export interface CreateBotOptions {
         port?: number;
         host?: string;
         secrets?: string[];
+        /** `secret_token` đã khai khi `setWebhook` của Telegram (ghi đè `TELEGRAM_WEBHOOK_SECRET`). */
+        telegramSecret?: string;
         /** URL mà itsaplan gọi tới được, để tự đăng ký (ghi đè `BOT_WEBHOOK_URL`). */
         url?: string;
         /**
@@ -242,6 +246,7 @@ function kitEnv(needsItsaplan: boolean) {
     BOT_WEBHOOK_PORT: portSchema.optional(),
     BOT_WEBHOOK_HOST: z.string().min(1).optional(),
     ITSAPLAN_WEBHOOK_SECRET: secret(z.string().min(1).optional()),
+    TELEGRAM_WEBHOOK_SECRET: secret(z.string().min(1).optional()),
     BOT_DRAIN_TIMEOUT_MS: z.coerce.number().int().min(0).optional(),
     BOT_DATA_DIR: z.string().min(1).optional(),
     BOT_TIMEZONE: z
@@ -393,6 +398,7 @@ export function createBot<E extends EnvShape = Record<never, never>>(
     }
   }
   const durable = store?.durable === true;
+  const keysProvider = createKeysProvider(store, () => clock.now());
   const closeStore = () => {
     if (ownsStore) store?.close();
   };
@@ -435,6 +441,7 @@ export function createBot<E extends EnvShape = Record<never, never>>(
       logger,
       clock,
       llm,
+      keys: keysProvider,
       scrub,
     });
     // Thông điệp lỗi và output của run được gửi lên itsaplan: che secret trước khi đi.
@@ -488,6 +495,7 @@ export function createBot<E extends EnvShape = Record<never, never>>(
         clock,
         store: store ?? undefined,
         llm,
+        keys: keysProvider,
         reporter: back.reporter,
         // Sự kiện webhook đã xử lý xong sống qua restart khi có kho bền.
         seen: durable ? store?.keys("rule-seen", { ttlMs: 7 * 86_400_000, now: nowMs }) : undefined,
@@ -522,6 +530,7 @@ export function createBot<E extends EnvShape = Record<never, never>>(
             llm: llm ? withSignal(llm, signal) : undefined,
             clock,
             idempotencyKey: `cron:${cron.expression}:${info.scheduledFor}`,
+            keys: keysProvider,
           };
           await job.run(ctx);
         },
@@ -736,10 +745,18 @@ export function createBot<E extends EnvShape = Record<never, never>>(
         const webhookOpt = options.webhook;
         const webhookPort =
           webhookOpt === false ? undefined : (webhookOpt?.port ?? kit.BOT_WEBHOOK_PORT);
-        if (engine) {
+        const inbound = back?.inbound;
+        const hasInbound = !!(
+          inbound?.reporterOk ||
+          inbound?.reporterReply ||
+          inbound?.telegramUpdate
+        );
+        if (engine || hasInbound) {
           if (webhookPort === undefined) {
             logger.warn(
-              "có `rules` nhưng không nghe webhook (đặt BOT_WEBHOOK_PORT, hoặc host tự gọi bot.handleEvent)",
+              engine
+                ? "có `rules` nhưng không nghe webhook (đặt BOT_WEBHOOK_PORT, hoặc host tự gọi bot.handleEvent)"
+                : "có `inbound` nhưng không nghe webhook (đặt BOT_WEBHOOK_PORT): tin của người báo không tới được bot",
             );
           } else {
             const secrets = [
@@ -753,14 +770,57 @@ export function createBot<E extends EnvShape = Record<never, never>>(
                 `webhook nghe ở ${listenHost} (ngoài loopback) mà chưa đặt ITSAPLAN_WEBHOOK_SECRET: từ chối khởi động`,
               );
             }
+            const telegramSecret =
+              (webhookOpt ? webhookOpt.telegramSecret : undefined) ??
+              (kit.TELEGRAM_WEBHOOK_SECRET as string | undefined);
+            if (inbound?.telegramUpdate && !telegramSecret && !isLoopbackHost(listenHost)) {
+              // `/telegram-webhook` mở ra ngoài mà không có secret_token = ai cũng giả được tin người báo.
+              throw new Error(
+                `webhook nghe ở ${listenHost} (ngoài loopback) và nhận tin Telegram mà chưa đặt TELEGRAM_WEBHOOK_SECRET: từ chối khởi động`,
+              );
+            }
             webhookServer = new ItsaplanWebhookServer({
               itsaplanSecrets: secrets,
+              telegramSecret,
               listenHost,
             });
-            const rules = engine;
-            webhookServer.onEvent(async (envelope) => {
-              await rules.handle(envelope);
-            });
+            if (engine) {
+              const rules = engine;
+              webhookServer.onEvent(async (envelope) => {
+                await rules.handle(envelope);
+              });
+            }
+            if (inbound && tracker) {
+              const scoped = tracker;
+              const inboundCtx: InboundContext<InferEnv<E>> = {
+                bot: {
+                  id: def.id,
+                  project: def.tracker.project,
+                  ref: scoped.ref,
+                  agent: back?.agent,
+                },
+                config,
+                logger,
+                tracker: scoped,
+                llm,
+                clock,
+                keys: keysProvider,
+              };
+              if (inbound.reporterOk) {
+                const handle = inbound.reporterOk;
+                webhookServer.onReporterOk((req) => Promise.resolve(handle(inboundCtx, req)));
+              }
+              if (inbound.reporterReply) {
+                const handle = inbound.reporterReply;
+                webhookServer.onReporterReply((req) => Promise.resolve(handle(inboundCtx, req)));
+              }
+              if (inbound.telegramUpdate) {
+                const handle = inbound.telegramUpdate;
+                webhookServer.onTelegramUpdate(async (update) => {
+                  await handle(inboundCtx, update);
+                });
+              }
+            }
             await webhookServer.start(webhookPort);
           }
         }

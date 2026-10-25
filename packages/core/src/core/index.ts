@@ -75,6 +75,8 @@ export {
   cleanMediaTags,
   extractMediaAttachments,
   stripCommentHtml,
+  decodeHtmlEntities,
+  escapeItsaplanMarkdown,
   formatIctTimestamp,
   formatIctDate,
   foldForComparison,

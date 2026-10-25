@@ -568,6 +568,85 @@ describe("createBot: độ bền và an toàn", () => {
     await expect(bad.start()).rejects.toThrow(/Không truy cập được dự án/);
   });
 
+  it("inbound: /internal/reporter-ok, /internal/reporter-reply và /telegram-webhook (secret) tới handler của bot", async () => {
+    const seen: string[] = [];
+    const def = defineBot({
+      id: "inb",
+      tracker: { team: "tech", project: "TECH" },
+      backoffice: {
+        inbound: {
+          reporterOk: async (ctx, req) => {
+            seen.push(`ok:${req.issueId}:${req.chatId}:${req.userName}:${ctx.bot.project}`);
+            return { outcome: "recorded", replyText: "đã ghi" };
+          },
+          reporterReply: async (ctx, req) => {
+            seen.push(`reply:${req.chatId}:${req.messageId}:${req.text}:${typeof ctx.keys}`);
+            return { handled: true, outcome: "recorded", replyText: "đã chuyển" };
+          },
+          telegramUpdate: async (_ctx, update) => {
+            seen.push(`tg:${JSON.stringify(update)}`);
+          },
+        },
+      },
+    });
+    const bot = make(def, {
+      env: envFor({ TELEGRAM_WEBHOOK_SECRET: "tg-secret-test" }),
+      webhook: { port: 0 },
+    });
+    await bot.start();
+    const base = `http://127.0.0.1:${bot.addresses().webhook!.port}`;
+    const post = (path: string, body: unknown, headers: Record<string, string> = {}) =>
+      fetch(base + path, {
+        method: "POST",
+        headers: { "content-type": "application/json", ...headers },
+        body: JSON.stringify(body),
+      });
+
+    const ok = await post("/internal/reporter-ok", {
+      issueId: 7,
+      chatId: "-1000000000001",
+      userName: "An",
+    });
+    expect(await ok.json()).toEqual({ outcome: "recorded", replyText: "đã ghi" });
+    const reply = await post("/internal/reporter-reply", {
+      chatId: "-1000000000001",
+      replyToMessageId: 41,
+      text: "chưa ổn",
+      senderName: "An",
+    });
+    expect(await reply.json()).toMatchObject({ handled: true, outcome: "recorded" });
+
+    expect((await post("/telegram-webhook", { update_id: 1 })).status).toBe(401);
+    expect(
+      (
+        await post(
+          "/telegram-webhook",
+          { update_id: 2 },
+          { "x-telegram-bot-api-secret-token": "tg-secret-test" },
+        )
+      ).status,
+    ).toBe(200);
+    await until(() => seen.some((x) => x.startsWith("tg:")));
+    expect(seen).toEqual([
+      "ok:7:-1000000000001:An:TECH",
+      "reply:-1000000000001:41:chưa ổn:function",
+      'tg:{"update_id":2}',
+    ]);
+  });
+
+  it("inbound: nhận tin Telegram ngoài loopback mà thiếu TELEGRAM_WEBHOOK_SECRET thì từ chối khởi động", async () => {
+    const def = defineBot({
+      id: "inb2",
+      tracker: { team: "tech", project: "TECH" },
+      backoffice: { inbound: { telegramUpdate: async () => {} } },
+    });
+    const bot = make(def, {
+      env: envFor({ ITSAPLAN_WEBHOOK_SECRET: "whsec_test_test" }),
+      webhook: { port: 0, host: "0.0.0.0" },
+    });
+    await expect(bot.start()).rejects.toThrow(/TELEGRAM_WEBHOOK_SECRET/);
+  });
+
   it("webhook nghe ngoài loopback mà không có secret thì từ chối khởi động", async () => {
     const def = defineBot({
       id: "wh",

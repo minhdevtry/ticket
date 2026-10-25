@@ -104,6 +104,29 @@ describe("defineBot", () => {
     ).toThrow(/ít nhất một handler/);
   });
 
+  it("backoffice.inbound: chỉ nhận hàm đã biết; một mình nó đủ làm vai hậu cần", () => {
+    expect(() =>
+      defineBot({
+        id: "inb-ok",
+        tracker: { team: "tech", project: "TECH" },
+        backoffice: { inbound: { telegramUpdate: async () => {} } },
+      }),
+    ).not.toThrow();
+    let issues: Array<{ path: string }> = [];
+    try {
+      defineBot({
+        id: "inb-bad",
+        tracker: { team: "tech", project: "TECH" },
+        backoffice: { inbound: { reporterOk: "x", reporterRely: () => {} } as any },
+      });
+    } catch (err) {
+      issues = (err as BotDefinitionError).issues as any;
+    }
+    const paths = issues.map((i) => i.path);
+    expect(paths).toContain("backoffice.inbound.reporterOk");
+    expect(paths).toContain("backoffice.inbound.reporterRely");
+  });
+
   it("on.schedule dạng bản đồ cron chỉ sang backoffice.schedule", () => {
     const issues = validateBotDefinition({
       id: "sched",

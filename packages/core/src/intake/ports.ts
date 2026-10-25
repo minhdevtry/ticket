@@ -396,9 +396,10 @@ export interface ChannelPort {
   /**
    * Báo động tới kênh trực ca (không gắn với một người báo): vd ticket quá hạn SLA chưa ai nhận.
    * Tuỳ chọn: kênh không có chỗ trực ca thì bỏ trống, nơi gọi phải chịu được việc thiếu.
-   * NGUỒN: intake `Notifier.broadcastAlert`.
+   * Trả `false` = KHÔNG gửi được mà không ném (vd chưa cấu hình chat trực ca): nơi gọi không được
+   * coi là đã báo. Trả `void`/`true` hoặc không ném = đã giao cho kênh. NGUỒN: intake `Notifier.broadcastAlert`.
    */
-  sendAlert?(text: string): Promise<void>;
+  sendAlert?(text: string): Promise<void | boolean>;
 }
 
 /**

@@ -185,10 +185,12 @@ export function validateBotDefinition(def: BotDefinition<any>): BotDefinitionIss
     const schedule = back.schedule;
     const hasSchedule =
       !!schedule && typeof schedule === "object" && Object.keys(schedule).length > 0;
-    if (Object.keys(on).length === 0 && rules.length === 0 && !hasSchedule) {
+    const hasInbound =
+      !!back.inbound && typeof back.inbound === "object" && Object.keys(back.inbound).length > 0;
+    if (Object.keys(on).length === 0 && rules.length === 0 && !hasSchedule && !hasInbound) {
       bad(
         "backoffice",
-        "cần ít nhất một handler trong `on`, một luật trong `rules` hoặc một lịch trong `schedule`",
+        "cần ít nhất một handler trong `on`, một luật trong `rules`, một lịch trong `schedule` hoặc một handler trong `inbound`",
       );
     }
     for (const [key, handler] of Object.entries(on)) {
@@ -204,6 +206,29 @@ export function validateBotDefinition(def: BotDefinition<any>): BotDefinitionIss
       }
     }
     validateSchedule(back, bad);
+    if (back.inbound !== undefined) {
+      if (back.inbound === null || typeof back.inbound !== "object") {
+        bad(
+          "backoffice.inbound",
+          "phải là object { reporterOk?, reporterReply?, telegramUpdate? }",
+        );
+      } else {
+        for (const key of ["reporterOk", "reporterReply", "telegramUpdate"] as const) {
+          const handler = (back.inbound as Record<string, unknown>)[key];
+          if (handler !== undefined && typeof handler !== "function") {
+            bad(`backoffice.inbound.${key}`, "phải là hàm");
+          }
+        }
+        for (const key of Object.keys(back.inbound)) {
+          if (!["reporterOk", "reporterReply", "telegramUpdate"].includes(key)) {
+            bad(
+              `backoffice.inbound.${key}`,
+              "không biết (hợp lệ: reporterOk, reporterReply, telegramUpdate)",
+            );
+          }
+        }
+      }
+    }
     const seen = new Set<string>();
     rules.forEach((rule, i) => {
       const at = `backoffice.rules[${i}]`;

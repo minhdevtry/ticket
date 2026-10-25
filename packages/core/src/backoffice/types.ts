@@ -9,6 +9,7 @@ import type { AgentRunOutcome, AgentRunTrigger, ClaimedAgentRun, RunTrace } from
 import type { MentionComment } from "./mention";
 import type { CommentOptions, CommentResult, ProjectRef, ScopedTracker } from "./tracker";
 import type { ReporterResolver, Rule } from "./rules";
+import type { KeysProvider } from "./store";
 
 /** Kết quả handler được phép trả: chuỗi (= success + output), `void`, hoặc outcome đầy đủ. */
 // biome-ignore lint/suspicious/noConfusingVoidType: handler async không trả gì là hợp lệ
@@ -44,6 +45,8 @@ export interface RunContext<C = unknown, M extends MentionComment | null = Menti
   readonly clock: Clock;
   /** Khoá ổn định của run (`agent-run:<id>`). */
   readonly idempotencyKey: string;
+  /** Tập khoá có tên để chống trùng việc đã làm, bền khi bot có `BOT_DATA_DIR`. */
+  keys: KeysProvider;
   /** Lượt thử hiện tại (bắt đầu từ 1) và số lượt tối đa server cho một run. */
   readonly attempt: number;
   readonly maxAttempts: number;
@@ -147,6 +150,51 @@ export interface ScheduleContext<C = unknown> {
   readonly clock: Clock;
   /** Khoá ổn định của mốc: `cron:<biểu thức>:<mốc ms>`. Dùng cho thao tác ghi chống trùng. */
   readonly idempotencyKey: string;
+  /** Tập khoá có tên để chống trùng việc đã làm, bền khi bot có `BOT_DATA_DIR`. */
+  readonly keys: KeysProvider;
+}
+
+/** Ngữ cảnh của một lời gọi vào bot từ ngoài (nút bấm, tin trả lời của người báo). */
+export interface InboundContext<C = unknown> {
+  readonly bot: RunContext<C>["bot"];
+  readonly config: C;
+  readonly logger: IntakeLogger;
+  /** Tracker khoá vào dự án của bot. */
+  readonly tracker: ScopedTracker;
+  readonly llm: Llm | undefined;
+  readonly clock: Clock;
+  readonly keys: KeysProvider;
+}
+
+/** Yêu cầu "người báo bấm Đã ổn" tới `/internal/reporter-ok` hoặc nút Telegram. */
+export interface ReporterOkRequest {
+  issueId: number;
+  chatId: string;
+  userName: string;
+}
+
+/** Yêu cầu "người báo trả lời tự do vào tin thông báo" tới `/internal/reporter-reply`. */
+export interface ReporterReplyRequest {
+  chatId: string;
+  messageId: string;
+  text: string;
+  userName: string;
+}
+
+/**
+ * Điểm vào từ ngoài của bot hậu cần: tin của NGƯỜI BÁO từ kênh chat tới bot. Cần `BOT_WEBHOOK_PORT`
+ * (cùng server nhận webhook itsaplan). `reporterOk`/`reporterReply` là hai đường `/internal/*` CHỈ
+ * nhận từ loopback (plugin trên cùng máy gọi, như bản legacy); `telegramUpdate` nhận `update` của
+ * Telegram ở `/telegram-webhook` (kiểm `TELEGRAM_WEBHOOK_SECRET`). Giá trị trả về của hai hàm đầu
+ * được trả nguyên cho bên gọi (JSON).
+ */
+export interface InboundDefinition<C = unknown> {
+  reporterOk?: (ctx: InboundContext<C>, request: ReporterOkRequest) => Promise<unknown> | unknown;
+  reporterReply?: (
+    ctx: InboundContext<C>,
+    request: ReporterReplyRequest,
+  ) => Promise<unknown> | unknown;
+  telegramUpdate?: (ctx: InboundContext<C>, update: unknown) => Promise<void> | void;
 }
 
 /** Handler của lịch. Giá trị trả về được bỏ qua; ném lỗi thì ghi log (mốc không chạy lại). */
@@ -196,4 +244,6 @@ export interface BackofficeDefinition<C = unknown> {
    */
   reporter?: ReporterResolver;
   runs?: BackofficeRunOptions;
+  /** Tin của người báo từ kênh chat tới bot (nút "Đã ổn", trả lời tự do). Xem {@link InboundDefinition}. */
+  inbound?: InboundDefinition<C>;
 }

@@ -455,7 +455,19 @@ export class FakeItsaplan {
     }
     if (is(/^GET \/projects\/([^/]+)\/issues$/)) {
       if (!this.resolves(m![1])) return this.json({ error: "Project not found" }, 404);
-      return this.json(this.issues);
+      // Như itsaplan fork: lọc theo query, sắp updatedAt GIẢM dần, `limit` 1-500 (mặc định 50), bỏ qua `page`.
+      const p = url.searchParams;
+      const from = p.get("createdFrom") ? Date.parse(p.get("createdFrom")!) : null;
+      const to = p.get("createdTo") ? Date.parse(p.get("createdTo")!) : null;
+      const limit = Math.min(500, Math.max(1, Number(p.get("limit") ?? 50) || 50));
+      const rows = this.issues
+        .filter((i) => p.get("columnId") === null || i.columnId === Number(p.get("columnId")))
+        .filter((i) => !p.get("assigneeUserId") || i.assigneeUserId === p.get("assigneeUserId"))
+        .filter((i) => !p.get("priority") || i.priority === p.get("priority"))
+        .filter((i) => from === null || Date.parse(i.createdAt) >= from)
+        .filter((i) => to === null || Date.parse(i.createdAt) < to)
+        .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt) || b.id - a.id);
+      return this.json(rows.slice(0, limit));
     }
     if (is(/^GET \/projects\/([^/]+)\/issues\/search$/)) {
       if (!this.resolves(m![1])) return this.json({ error: "Project not found" }, 404);
