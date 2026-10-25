@@ -60,6 +60,17 @@ export interface FakeRun {
   sessionId: string | null;
 }
 
+/** Webhook đăng ký trên dự án của fake. */
+export interface FakeWebhook {
+  id: number;
+  projectId: number;
+  url: string;
+  secret: string;
+  events: string[];
+  isActive: boolean;
+  createdAt: string;
+}
+
 export interface FakeRequest {
   method: string;
   path: string;
@@ -86,6 +97,13 @@ export interface FakeItsaplanOptions {
   invocationUrl?: boolean;
   /** Username của agent trong khung prompt mention. Mặc định `testbot`. */
   agentUsername?: string;
+  /**
+   * Key agent có quyền quản lý webhook không. Mặc định false như server thật (key agent thường
+   * không có quyền này): `/webhooks` trả 403 cho key agent.
+   */
+  agentCanManageWebhooks?: boolean;
+  /** Key thứ hai có quyền webhook (mô phỏng `ITSAPLAN_WEBHOOK_KEY`). Không đặt thì không có. */
+  webhookKey?: string;
 }
 
 export interface FaultRule {
@@ -145,6 +163,7 @@ export class FakeItsaplan {
   readonly comments: FakeComment[] = [];
   readonly columns: FakeColumn[] = DEFAULT_COLUMNS.map((c) => ({ ...c }));
   readonly requests: FakeRequest[] = [];
+  readonly webhooks: FakeWebhook[] = [];
   readonly faults: FaultRule[] = [];
   /** Số lần mỗi key `<METHOD> <path>` được gọi. */
   readonly hits = new Map<string, number>();
@@ -154,6 +173,9 @@ export class FakeItsaplan {
   private readonly maxAttempts: number;
   private readonly invocationUrl: boolean;
   private readonly agentUsername: string;
+  private readonly agentCanManageWebhooks: boolean;
+  private readonly webhookKey: string | null;
+  private nextWebhookId = 1;
   private server: ReturnType<typeof Bun.serve> | null = null;
   private nextRunId = 1;
   private nextIssueSeq = 1;
@@ -169,6 +191,8 @@ export class FakeItsaplan {
     this.maxAttempts = options.maxAttempts ?? 3;
     this.invocationUrl = options.invocationUrl ?? false;
     this.agentUsername = options.agentUsername ?? "testbot";
+    this.agentCanManageWebhooks = options.agentCanManageWebhooks ?? false;
+    this.webhookKey = options.webhookKey ?? null;
   }
 
   /** Bật server, trả URL gốc. */
@@ -326,7 +350,9 @@ export class FakeItsaplan {
     this.requests.push({ method: req.method, path, body, apiKey });
     this.hits.set(key, (this.hits.get(key) ?? 0) + 1);
 
-    if (apiKey !== this.agentKey) return this.json({ error: "Unauthorized" }, 401);
+    const isWebhookKey = this.webhookKey !== null && apiKey === this.webhookKey;
+    if (apiKey !== this.agentKey && !isWebhookKey) return this.json({ error: "Unauthorized" }, 401);
+    const canWebhook = isWebhookKey || this.agentCanManageWebhooks;
 
     const fault = this.faults.find((f) => f.times > 0 && f.match.test(key));
     if (fault) {
@@ -350,6 +376,40 @@ export class FakeItsaplan {
     }
     if (is(/^POST \/agent-runs\/(\d+)\/result$/)) return this.result(Number(m![1]), b);
     if (is(/^POST \/agent-runs\/(\d+)\/events$/)) return this.events(Number(m![1]), b);
+
+    // ── webhook (cần quyền riêng) ──
+    if (
+      is(/^(?:GET|POST) \/projects\/([^/]+)\/webhooks$/) ||
+      is(/^(?:PATCH|DELETE) \/webhooks\/(\d+)$/)
+    ) {
+      if (!canWebhook) return this.json({ error: "Forbidden: webhook permission required" }, 403);
+      if (key.startsWith("GET ")) {
+        if (!this.resolves(m![1])) return this.json({ error: "Project not found" }, 404);
+        return this.json(this.webhooks);
+      }
+      if (key.startsWith("POST ")) {
+        if (!this.resolves(m![1])) return this.json({ error: "Project not found" }, 404);
+        const hook: FakeWebhook = {
+          id: this.nextWebhookId++,
+          projectId: 1,
+          url: String(b.url ?? ""),
+          secret: `whsec_fake${this.nextWebhookId}`,
+          events: Array.isArray(b.events) ? b.events.map(String) : [],
+          isActive: b.isActive !== false,
+          createdAt: new Date().toISOString(),
+        };
+        this.webhooks.push(hook);
+        return this.json(hook, 201);
+      }
+      const hook = this.webhooks.find((w) => w.id === Number(m![1]));
+      if (!hook) return this.json({ error: "Not found" }, 404);
+      if (key.startsWith("DELETE ")) {
+        this.webhooks.splice(this.webhooks.indexOf(hook), 1);
+        return new Response(null, { status: 204 });
+      }
+      Object.assign(hook, b);
+      return this.json(hook);
+    }
 
     // ── tracker tối thiểu ──
     if (is(/^GET \/projects\/([^/]+)$/)) {
