@@ -50,6 +50,18 @@ export function readEnvFile(path: string): Record<string, string> {
   return parseEnvFile(readFileSync(path, "utf8"));
 }
 
+/**
+ * Nạp `ITSAPLAN_WEBHOOK_SECRET` từ `tieulinh2.env` (nếu file và khoá có) vào env, không ghi đè
+ * biến đã đặt. Chỉ relay gọi hàm này; không đọc file khác.
+ */
+export function loadWebhookSecret(env: Env = process.env): void {
+  if (env.ITSAPLAN_WEBHOOK_SECRET !== undefined) return;
+  const path = env.TIEULINH2_ENV_FILE || join(configDir(env), "tieulinh2.env");
+  if (!existsSync(path)) return;
+  const v = parseEnvFile(readFileSync(path, "utf8")).ITSAPLAN_WEBHOOK_SECRET;
+  if (v) env.ITSAPLAN_WEBHOOK_SECRET = v;
+}
+
 /** Nạp `tl2-shadow.env` (nếu có) vào env, không ghi đè biến đã đặt sẵn. */
 export function loadLocalEnv(env: Env = process.env): void {
   const path = env.TL2_SHADOW_ENV || join(configDir(env), "tl2-shadow.env");
@@ -70,6 +82,16 @@ export function intEnv(env: Env, key: string, def: number, min = 1, max = Number
   return n;
 }
 const int = intEnv;
+
+/** Webhook itsaplan của bot hậu cần: relay kiểm chữ ký rồi chuyển tiếp tới app trên Colab. */
+export interface WebhookConfig {
+  /** `ITSAPLAN_WEBHOOK_SECRET` (nằm ở máy dev; app trên Colab không giữ). */
+  secret: string;
+  /** URL loopback của server webhook của app (qua `ssh -L`), gồm cả `/webhook`. */
+  forwardUrl: string;
+  /** Chỉ chuyển tiếp các sự kiện này; sự kiện khác được nhận (202) rồi bỏ. */
+  events: string[];
+}
 
 export interface RelayConfig {
   host: string;
@@ -95,6 +117,8 @@ export interface RelayConfig {
   /** Tối đa chờ Tiểu Linh 1 trả lời (không trả lời thì vẫn ghi cặp). */
   tl1WaitMaxMs: number;
   tickMs: number;
+  /** `null` khi chưa có `ITSAPLAN_WEBHOOK_SECRET`: đường `/itsaplan-webhook` trả 404. */
+  webhook: WebhookConfig | null;
 }
 
 const isLoopbackIp = (ip: string) => ip === "::1" || /^127\.\d+\.\d+\.\d+$/.test(ip);
@@ -134,8 +158,32 @@ export function relayConfig(env: Env = process.env): RelayConfig {
   } catch {
     throw new ConfigError("TL2_GATEWAY_URL phải là http://<loopback>:<cổng> (đi qua tunnel)");
   }
+  const webhookSecret = env.ITSAPLAN_WEBHOOK_SECRET?.trim() || null;
+  if (webhookSecret && webhookSecret.length < 16) {
+    throw new ConfigError("ITSAPLAN_WEBHOOK_SECRET phải có ít nhất 16 ký tự");
+  }
+  const appUrl = (
+    env.TL2_APP_URL || `http://127.0.0.1:${int(env, "TL2_APP_PORT", 3120, 1, 65535)}`
+  ).replace(/\/+$/, "");
+  try {
+    const u = new URL(appUrl);
+    if (u.protocol !== "http:" || !isLoopbackIp(u.hostname.replace(/^\[|\]$/g, "")))
+      throw new Error();
+  } catch {
+    throw new ConfigError("TL2_APP_URL phải là http://<loopback>:<cổng> (đi qua tunnel)");
+  }
   const dir = dataDir(env);
   return {
+    webhook: webhookSecret
+      ? {
+          secret: webhookSecret,
+          forwardUrl: `${appUrl}/webhook`,
+          events: (env.TL2_WEBHOOK_EVENTS || "comment.created,issue.state_changed")
+            .split(",")
+            .map((e) => e.trim())
+            .filter(Boolean),
+        }
+      : null,
     host,
     port: int(env, "SHADOW_PORT", 3106),
     allowFrom,
