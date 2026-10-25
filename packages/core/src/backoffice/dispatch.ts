@@ -2,6 +2,7 @@
  * Điều phối run của itsaplan tới handler theo trigger.
  */
 import type { IntakeLogger } from "../core/logger";
+import { type Llm, withSignal } from "../llm";
 import { systemClock, type Clock } from "../intake/ports";
 import {
   type AgentRunHandler,
@@ -36,6 +37,8 @@ export interface DispatcherDeps<C> {
   config: C;
   logger: IntakeLogger;
   clock?: Clock;
+  /** Client LLM của bot (nếu đã cấu hình); handler nhận bản gắn `signal` của run. */
+  llm?: Llm;
 }
 
 function normalize(result: HandlerResult): AgentRunOutcome {
@@ -96,6 +99,7 @@ export function createRunDispatcher<C>(
       signal: workerCtx.signal,
       trace: workerCtx.trace,
       tracker,
+      llm: deps.llm ? withSignal(deps.llm, workerCtx.signal) : undefined,
       clock,
       idempotencyKey: workerCtx.idempotencyKey,
       attempt: workerCtx.attempt,

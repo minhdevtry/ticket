@@ -41,6 +41,8 @@ export function isTransientError(err: unknown): boolean {
   if (err instanceof HttpError) return isTransientStatus(err.status);
   if (err instanceof ItsaplanMalformedResponseError) return true;
   if (!(err instanceof Error)) return false;
+  // Lỗi tự khai báo là tạm thời (vd `LlmError` của `@vuihoc/bot-core/llm` sau khi hết lần thử lại).
+  if ((err as { transient?: unknown }).transient === true) return true;
   const code = (err as { code?: unknown }).code;
   if (typeof code === "string" && NETWORK_CODES.has(code)) return true;
   if (err.name === "TimeoutError") return true;
