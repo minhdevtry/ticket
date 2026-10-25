@@ -1,0 +1,245 @@
+{
+  "format": 1,
+  "scenario": "cancel-then-new",
+  "description": "Huỷ giữa chừng, rồi tin sau mở tờ khai mới và vẫn nhớ thông tin các lượt sau (bug 2).",
+  "source": "apps/tieulinh-legacy/lib/intake-step/pipeline.flow.test.ts: \"sau khi huỷ, lượt tiếp theo mở tài liệu mới và KHÔNG quên thông tin các lượt sau\"",
+  "startMs": 1767225600000,
+  "minConfirmDelayMs": 5000,
+  "turns": [
+    {
+      "advanceMs": 0,
+      "message": "Lỗi app Duo học sinh 0900000005 không làm bài được",
+      "extract": {
+        "userIntent": "report_issue",
+        "title": "Lỗi app Duo không làm bài được",
+        "symptoms": [
+          "không làm bài được"
+        ],
+        "identifiers": {
+          "studentAccount": "0900000005"
+        },
+        "values": {
+          "van_de": "không làm bài được"
+        }
+      },
+      "action": "ask_missing_field",
+      "voiceText": "Anh/chị bổ sung giúp em: bộ phận của anh/chị.",
+      "buttons": [
+        [
+          {
+            "text": "🔹 Vận hành",
+            "callbackData": "Vận hành"
+          },
+          {
+            "text": "🔹 Vận đơn",
+            "callbackData": "Vận đơn"
+          }
+        ],
+        [
+          {
+            "text": "🔹 CSKH",
+            "callbackData": "CSKH"
+          },
+          {
+            "text": "🔹 CSHV",
+            "callbackData": "CSHV"
+          }
+        ],
+        [
+          {
+            "text": "🔹 Chuyên môn",
+            "callbackData": "Chuyên môn"
+          },
+          {
+            "text": "🔹 Sale",
+            "callbackData": "Sale"
+          }
+        ],
+        [
+          {
+            "text": "🔹 Quản lý lớp",
+            "callbackData": "Quản lý lớp"
+          }
+        ]
+      ]
+    },
+    {
+      "advanceMs": 10000,
+      "message": "máy iPad iOS 17",
+      "extract": {
+        "userIntent": "provide_info",
+        "symptoms": [
+          "máy iPad iOS 17"
+        ]
+      },
+      "action": "ask_missing_field",
+      "voiceText": "Anh/chị bổ sung giúp em: bộ phận của anh/chị.",
+      "buttons": [
+        [
+          {
+            "text": "🔹 Vận hành",
+            "callbackData": "Vận hành"
+          },
+          {
+            "text": "🔹 Vận đơn",
+            "callbackData": "Vận đơn"
+          }
+        ],
+        [
+          {
+            "text": "🔹 CSKH",
+            "callbackData": "CSKH"
+          },
+          {
+            "text": "🔹 CSHV",
+            "callbackData": "CSHV"
+          }
+        ],
+        [
+          {
+            "text": "🔹 Chuyên môn",
+            "callbackData": "Chuyên môn"
+          },
+          {
+            "text": "🔹 Sale",
+            "callbackData": "Sale"
+          }
+        ],
+        [
+          {
+            "text": "🔹 Quản lý lớp",
+            "callbackData": "Quản lý lớp"
+          }
+        ]
+      ]
+    },
+    {
+      "advanceMs": 10000,
+      "message": "máy iPad iOS 17",
+      "extract": {
+        "userIntent": "provide_info",
+        "symptoms": [
+          "máy iPad iOS 17"
+        ]
+      },
+      "action": "confirm_summary",
+      "voiceText": "Em tóm tắt lại sự cố nhé: Lỗi app Duo học sinh 0900000005 không làm bài được, thuộc hệ thống DUO_Vuihoc, mức ưu tiên Trung bình. Anh/chị kiểm tra chuẩn rồi thì xác nhận giúp em nhé!",
+      "buttons": [
+        [
+          {
+            "text": "✅ Đúng rồi, tạo ticket",
+            "callbackData": "đúng rồi"
+          }
+        ]
+      ]
+    },
+    {
+      "advanceMs": 10000,
+      "message": "máy iPad iOS 17",
+      "extract": {
+        "userIntent": "provide_info",
+        "symptoms": [
+          "máy iPad iOS 17"
+        ]
+      },
+      "action": "confirm_summary",
+      "voiceText": "Em tóm tắt lại sự cố nhé: Lỗi app Duo học sinh 0900000005 không làm bài được, thuộc hệ thống DUO_Vuihoc, mức ưu tiên Trung bình. Anh/chị kiểm tra chuẩn rồi thì xác nhận giúp em nhé!",
+      "buttons": [
+        [
+          {
+            "text": "✅ Đúng rồi, tạo ticket",
+            "callbackData": "đúng rồi"
+          }
+        ]
+      ]
+    },
+    {
+      "advanceMs": 10000,
+      "message": "thôi hủy đi em",
+      "extract": {
+        "userIntent": "cancel"
+      },
+      "action": "canceled",
+      "voiceText": "Dạ vâng, em đã hủy yêu cầu ghi nhận sự cố này rồi ạ. Khi nào cần hỗ trợ anh/chị cứ nhắn em nhé!",
+      "buttons": null
+    },
+    {
+      "advanceMs": 10000,
+      "message": "CRM bị lỗi 500 khi mở đơn hàng của phụ huynh 0900000014",
+      "extract": {
+        "userIntent": "report_issue",
+        "title": "CRM lỗi 500 khi mở đơn hàng",
+        "symptoms": [
+          "lỗi 500 khi mở đơn hàng"
+        ],
+        "identifiers": {
+          "studentAccount": "0900000014"
+        },
+        "values": {
+          "van_de": "lỗi 500 khi mở đơn hàng"
+        }
+      },
+      "action": "ask_missing_field",
+      "voiceText": "Anh/chị bổ sung giúp em: bộ phận của anh/chị.",
+      "buttons": [
+        [
+          {
+            "text": "🔹 Vận hành",
+            "callbackData": "Vận hành"
+          },
+          {
+            "text": "🔹 Vận đơn",
+            "callbackData": "Vận đơn"
+          }
+        ],
+        [
+          {
+            "text": "🔹 CSKH",
+            "callbackData": "CSKH"
+          },
+          {
+            "text": "🔹 CSHV",
+            "callbackData": "CSHV"
+          }
+        ],
+        [
+          {
+            "text": "🔹 Chuyên môn",
+            "callbackData": "Chuyên môn"
+          },
+          {
+            "text": "🔹 Sale",
+            "callbackData": "Sale"
+          }
+        ],
+        [
+          {
+            "text": "🔹 Quản lý lớp",
+            "callbackData": "Quản lý lớp"
+          }
+        ]
+      ]
+    },
+    {
+      "advanceMs": 10000,
+      "message": "Em bên Sale ạ",
+      "extract": {
+        "userIntent": "provide_info",
+        "symptoms": [],
+        "values": {
+          "bo_phan": "Sale"
+        }
+      },
+      "action": "confirm_summary",
+      "voiceText": "Em tóm tắt lại sự cố nhé: CRM bị lỗi 500 khi mở đơn hàng của phụ huynh 0900000014, thuộc hệ thống CRM_Vuihoc, mức ưu tiên Trung bình. Anh/chị kiểm tra chuẩn rồi thì xác nhận giúp em nhé!",
+      "buttons": [
+        [
+          {
+            "text": "✅ Đúng rồi, tạo ticket",
+            "callbackData": "đúng rồi"
+          }
+        ]
+      ]
+    }
+  ]
+}

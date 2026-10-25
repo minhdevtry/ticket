@@ -1,0 +1,115 @@
+{
+  "format": 1,
+  "scenario": "premature-confirm",
+  "description": "Model tự bấm xác nhận 1,1 giây sau tóm tắt: không tạo ticket. Người thật xác nhận sau đó thì tạo (bug 24/09).",
+  "source": "apps/tieulinh-legacy/lib/intake-step/pipeline.flow.test.ts: \"xác nhận tới ngay sau tóm tắt (model tự gọi) KHÔNG tạo ticket; người thật xác nhận sau đó thì tạo\"",
+  "startMs": 1767225600000,
+  "minConfirmDelayMs": 5000,
+  "turns": [
+    {
+      "advanceMs": 0,
+      "message": "Lỗi app Duo học sinh 0900000005 không làm bài được",
+      "extract": {
+        "userIntent": "report_issue",
+        "title": "Lỗi app Duo không làm bài được",
+        "symptoms": [
+          "không làm bài được"
+        ],
+        "identifiers": {
+          "studentAccount": "0900000005"
+        },
+        "values": {
+          "van_de": "không làm bài được"
+        }
+      },
+      "action": "ask_missing_field",
+      "voiceText": "Anh/chị bổ sung giúp em: bộ phận của anh/chị.",
+      "buttons": [
+        [
+          {
+            "text": "🔹 Vận hành",
+            "callbackData": "Vận hành"
+          },
+          {
+            "text": "🔹 Vận đơn",
+            "callbackData": "Vận đơn"
+          }
+        ],
+        [
+          {
+            "text": "🔹 CSKH",
+            "callbackData": "CSKH"
+          },
+          {
+            "text": "🔹 CSHV",
+            "callbackData": "CSHV"
+          }
+        ],
+        [
+          {
+            "text": "🔹 Chuyên môn",
+            "callbackData": "Chuyên môn"
+          },
+          {
+            "text": "🔹 Sale",
+            "callbackData": "Sale"
+          }
+        ],
+        [
+          {
+            "text": "🔹 Quản lý lớp",
+            "callbackData": "Quản lý lớp"
+          }
+        ]
+      ]
+    },
+    {
+      "advanceMs": 10000,
+      "message": "Em bên Vận hành nhé",
+      "extract": {
+        "userIntent": "provide_info",
+        "symptoms": [],
+        "values": {
+          "bo_phan": "Vận hành"
+        }
+      },
+      "action": "confirm_summary",
+      "voiceText": "Em tóm tắt lại sự cố nhé: Lỗi app Duo học sinh 0900000005 không làm bài được, thuộc hệ thống DUO_Vuihoc, mức ưu tiên Trung bình. Anh/chị kiểm tra chuẩn rồi thì xác nhận giúp em nhé!",
+      "buttons": [
+        [
+          {
+            "text": "✅ Đúng rồi, tạo ticket",
+            "callbackData": "đúng rồi"
+          }
+        ]
+      ]
+    },
+    {
+      "advanceMs": 1100,
+      "message": "đúng rồi",
+      "extract": {
+        "userIntent": "confirm"
+      },
+      "action": "awaiting_user_confirmation",
+      "voiceText": "Anh/chị xem lại bản tóm tắt phía trên, đúng thì bấm nút xác nhận giúp em nhé ạ.",
+      "buttons": [
+        [
+          {
+            "text": "✅ Đúng rồi, tạo ticket",
+            "callbackData": "đúng rồi"
+          }
+        ]
+      ]
+    },
+    {
+      "advanceMs": 8000,
+      "message": "đúng rồi",
+      "extract": {
+        "userIntent": "confirm"
+      },
+      "action": "ticket_created",
+      "voiceText": "Em đã tạo thành công ticket {identifier} cho anh/chị rồi ạ. Đội Kỹ thuật sẽ tiếp nhận và xử lý ngay nhé!",
+      "buttons": null
+    }
+  ]
+}
