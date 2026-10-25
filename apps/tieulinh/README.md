@@ -41,6 +41,8 @@ export BOT_WEBHOOK_PORT=3110 ITSAPLAN_WEBHOOK_SECRET=whsec_...                 #
 bun run apps/tieulinh/main.ts
 ```
 
+Chạy thử trên Colab không để secret ở đó (proxy trên dev, webhook qua relay): `deploy/colab/cup-tieulinh.sh`, xem [Chạy bóng Tiểu Linh 2](../../docs/how-to/shadow-tl2.md#chay-app-hau-can-tren-colab).
+
 Test không cần mạng: `bun run --cwd apps/tieulinh test` (itsaplan giả, LLM giả, đồng hồ giả).
 
 ## Cấu trúc
