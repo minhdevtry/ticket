@@ -13,11 +13,12 @@ const verdict = (duplicate: boolean, evidence = "") => ({
 });
 const botComments = () => h.fake.comments.filter((c) => c.actorUserId === "agent-user");
 
-function twoTickets() {
+function twoTickets(sourceAssignee: string | null = null) {
   const x = h.fake.addIssue({
     title: "App treo khi đăng nhập",
     description: "Mô tả gốc của người báo.",
     columnId: 2,
+    assigneeUserId: sourceAssignee,
   });
   const y = h.fake.addIssue({
     title: "Đăng nhập bị treo",
@@ -136,7 +137,7 @@ describe("gộp ticket (TIEULINH_DUPLICATE_MERGE=true, hành vi legacy)", () => 
 
   test("chép mô tả gốc sang ticket đích, nối link duplicates, huỷ ticket trùng, báo cả hai bên", async () => {
     h.fake.columns.push({ id: 6, name: "Canceled", stateType: "canceled", position: 5 });
-    const { x, y } = twoTickets();
+    const { x, y } = twoTickets("staff-1");
     const { bot } = h.boot({ env });
     h.llm.script(verdict(true, `trùng ${y.identifier}`));
     await bot.handleEvent(commentCreated(x, `Ticket này trùng ${y.identifier}.`));
@@ -155,7 +156,7 @@ describe("gộp ticket (TIEULINH_DUPLICATE_MERGE=true, hành vi legacy)", () => 
 
   test("webhook giao lại: ticket đích chỉ nhận một comment gộp", async () => {
     h.fake.columns.push({ id: 6, name: "Canceled", stateType: "canceled", position: 5 });
-    const { x, y } = twoTickets();
+    const { x, y } = twoTickets("staff-1");
     const { bot } = h.boot({ env });
     h.llm.script(verdict(true, `trùng ${y.identifier}`), verdict(true, `trùng ${y.identifier}`));
     const body = `trùng ${y.identifier}`;
@@ -165,12 +166,52 @@ describe("gộp ticket (TIEULINH_DUPLICATE_MERGE=true, hành vi legacy)", () => 
   });
 
   test("dự án không có cột huỷ: vẫn chép mô tả và nối link, không chuyển cột", async () => {
-    const { x, y } = twoTickets();
+    const { x, y } = twoTickets("staff-1");
     const { bot } = h.boot({ env });
     h.llm.script(verdict(true, `trùng ${y.identifier}`));
     await bot.handleEvent(commentCreated(x, `trùng ${y.identifier}`));
     expect(h.fake.links).toHaveLength(1);
     expect(h.fake.issues.find((i) => i.id === x.id)!.columnId).toBe(2);
+  });
+
+  test("chỉ người xử lý được giao mới kích hoạt gộp: nhân viên khác chỉ ra gợi ý", async () => {
+    h.fake.columns.push({ id: 6, name: "Canceled", stateType: "canceled", position: 5 });
+    const { x, y } = twoTickets("staff-1");
+    const { bot } = h.boot({ env });
+    h.llm.script(verdict(true, `trùng ${y.identifier}`));
+    await bot.handleEvent(
+      commentCreated(x, `trùng ${y.identifier}`, {
+        actor: { type: "human", id: "staff-2", name: "Anh Minh" },
+      }),
+    );
+    expect(h.fake.links).toHaveLength(0);
+    expect(h.fake.issues.find((i) => i.id === x.id)!.columnId).toBe(2);
+    expect(botComments().map((c) => c.body)).toEqual([expect.stringContaining("Gợi ý")]);
+  });
+
+  test("ticket chưa ai nhận và chưa liên kết người báo: không đoán được ai là người báo nên chỉ gợi ý", async () => {
+    const { x, y } = twoTickets(null);
+    const { bot } = h.boot({ env });
+    h.llm.script(verdict(true, `trùng ${y.identifier}`));
+    await bot.handleEvent(commentCreated(x, `trùng ${y.identifier}`));
+    expect(h.fake.links).toHaveLength(0);
+    expect(botComments().map((c) => c.body)).toEqual([expect.stringContaining("Gợi ý")]);
+  });
+
+  test("tài khoản hệ thống (bot, admin, onyx) không kích hoạt gì", async () => {
+    const { x, y } = twoTickets("staff-1");
+    const { bot } = h.boot({ env });
+    for (const [i, name] of ["Onyx", "Admin", "Support Bot", ""].entries()) {
+      await bot.handleEvent(
+        commentCreated(x, `trùng ${y.identifier}`, {
+          id: 9300 + i,
+          actor: { type: "human", id: "staff-1", name },
+        }),
+      );
+    }
+    expect(h.llm.requests).toHaveLength(0);
+    expect(h.fake.links).toHaveLength(0);
+    expect(botComments()).toHaveLength(0);
   });
 });
 

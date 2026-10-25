@@ -41,7 +41,13 @@ export interface Harness {
   dir: string;
   clock: FakeClock;
   /** Dựng app + bot (chưa start). `env` ghi đè/ bổ sung; `llm: false` bỏ cấu hình LLM. */
-  boot(opts?: { env?: Record<string, string>; llm?: boolean; appOptions?: TieulinhBotOptions }): {
+  boot(opts?: {
+    env?: Record<string, string>;
+    llm?: boolean;
+    appOptions?: TieulinhBotOptions;
+    /** Nghe webhook thật trên cổng ngẫu nhiên (cho đường `/internal/*` và `/telegram-webhook`). */
+    webhook?: boolean;
+  }): {
     app: TieulinhBot;
     bot: Bot;
   };
@@ -95,6 +101,7 @@ export function harness(): Harness {
           errorBackoff: { baseMs: 5, maxMs: 10 },
         },
         scheduler: { tickMs: 20 },
+        ...(opts.webhook ? { webhook: { port: 0 } } : {}),
       });
       bots.push(bot);
       return { app, bot };

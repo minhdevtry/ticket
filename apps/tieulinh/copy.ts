@@ -2,8 +2,9 @@
  * Lời của Tiểu Linh với người báo (tiếng Việt). Logic không chứa chuỗi hiển thị: mọi câu nằm ở
  * đây và được tiêm vào `TicketClosure` / dispatcher.
  */
-import type { ReporterOkCopy } from "@vuihoc/bot-core/backoffice";
+import type { ReporterOkCopy, ReporterReplyCopy } from "@vuihoc/bot-core/backoffice";
 import type { StateChangeCopyMap } from "@vuihoc/bot-core/intake";
+import { resolveFriendlyStatusName } from "@vuihoc/bot-core/itsaplan";
 
 /** Nhãn nút và tiền tố callback của nút "Đã ổn" (ADR-0006: nút chỉ ghi comment). */
 export const REPORTER_OK_LABEL = "👍 Đã ổn";
@@ -13,6 +14,7 @@ export const reporterOkCallback = (issueId: number): string => `${REPORTER_OK_PR
 
 export const stateCopy: StateChangeCopyMap = {
   describe: ({ state, columnName, identifier }) => {
+    // Cột khác (không phải Resolved/Done/Canceled): tên thân thiện như legacy, cột lạ giữ nguyên tên.
     switch (state) {
       case "resolved":
         return `Ticket ${identifier} đã được xử lý. Anh/chị kiểm tra giúp em; nếu ổn thì bấm nút dưới đây, còn chưa ổn thì cứ nhắn lại vào tin này ạ.`;
@@ -21,7 +23,7 @@ export const stateCopy: StateChangeCopyMap = {
       case "canceled":
         return `Ticket ${identifier} đã được huỷ.`;
       default:
-        return `${identifier} chuyển sang: "${columnName}"`;
+        return `${identifier} chuyển sang: "${resolveFriendlyStatusName(columnName)}"`;
     }
   },
 };
@@ -52,17 +54,33 @@ export const reporterOkCopy: ReporterOkCopy = {
     `Dạ ticket ${identifier} đang được xử lý lại, em sẽ báo anh/chị khi xong ạ.`,
 };
 
-/** Cảnh báo trực ca khi ticket quá hạn SLA mà chưa ai nhận. */
+/** Phản hồi tự do của người báo (trả lời vào tin thông báo) và câu lỗi khi chưa ghi được. */
+export const reporterReplyCopy: ReporterReplyCopy = {
+  comment: ({ who, text, time }) => `**${who}** phản hồi: ${text} (${time}).`,
+  ack: ({ identifier }) =>
+    `Dạ em đã chuyển phản hồi của anh/chị vào ${identifier} cho đội Kỹ thuật ạ.`,
+  closed: ({ identifier }) =>
+    `Dạ ticket ${identifier} hiện đã đóng trên hệ thống rồi nên không thể ghi bổ sung được nữa ạ. Nếu cần hỗ trợ sự cố mới, anh/chị vui lòng tạo ticket mới giúp em nhé ạ.`,
+};
+
+export const inboundErrorCopy = {
+  ok: "Dạ em chưa ghi nhận được, anh/chị bấm lại giúp em sau ít phút nhé.",
+  reply: "Dạ em chưa ghi nhận được, anh/chị nhắn lại giúp em sau ít phút nhé.",
+};
+
+/** Cảnh báo trực ca khi ticket quá hạn SLA mà chưa ai nhận. `url` có khi đã cấu hình `ITSAPLAN_WEB_URL`. */
 export function slaAlertText(v: {
   identifier: string;
   title: string;
   priority: string;
   slaHours: number;
   elapsedHours: number;
+  url?: string;
 }): string {
   return (
     `[CẢNH BÁO SLA QUÁ HẠN] ${v.identifier}: ${v.title}\n` +
-    `Mức ưu tiên ${v.priority.toUpperCase()} (cam kết ${v.slaHours}h), đã ${v.elapsedHours}h mà chưa có người nhận.`
+    `Mức ưu tiên ${v.priority.toUpperCase()} (cam kết ${v.slaHours}h), đã ${v.elapsedHours}h mà chưa có người nhận.` +
+    (v.url ? `\nLink: ${v.url}` : "")
   );
 }
 

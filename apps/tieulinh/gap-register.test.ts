@@ -1,8 +1,10 @@
 /**
- * Bảng đối chiếu hành vi: test legacy hậu cần (apps/tieulinh-legacy) -> test của Tiểu Linh mới.
+ * SỔ ĐỐI CHIẾU (gap register): test legacy hậu cần (apps/tieulinh-legacy) -> test của Tiểu Linh mới.
  *
- * Bảng này KIỂM ĐƯỢC: mỗi dòng phải trỏ tới một test legacy có thật (theo tên) và, nếu đã port hoặc
- * do core phủ, tới test mới có thật. Xoá/đổi tên một test mà quên cập nhật bảng thì test này đỏ.
+ * File này KHÔNG tự kiểm hành vi. Nó chỉ giữ cho sổ khỏi nói dối: mỗi dòng phải trỏ tới một test
+ * legacy có thật (theo tên) và, nếu đã port hoặc do core phủ, tới test mới có thật (theo tên). Hành
+ * vi thật được kiểm ở các test được trỏ tới (`mention/lifecycle/sla/duplicates/inbound.test.ts` và test
+ * của core). Xoá/đổi tên một test mà quên cập nhật sổ thì test này đỏ.
  * Dòng `deferred`/`by-design` phải nêu lý do (và nằm trong danh sách việc sau của README).
  */
 import { describe, expect, test } from "bun:test";
@@ -98,7 +100,7 @@ const ROWS: Row[] = [
   {
     legacy: L("notification-dispatcher.test.ts", "có tag thì vẫn gỡ tag ra khỏi câu gửi đi"),
     status: "ported",
-    to: [A("lifecycle.test.ts", "policy mention: chỉ comment có gắn thẻ bot")],
+    to: [A("lifecycle.test.ts", "policy mention: webhook không chuyển gì")],
   },
   {
     legacy: L("notification-dispatcher.test.ts", "comment gắn cờ nội bộ thì giữ lại trên tracker"),
@@ -122,8 +124,8 @@ const ROWS: Row[] = [
   },
   {
     legacy: L("notification-dispatcher.test.ts", "skips telegram echoes in comment"),
-    status: "deferred",
-    why: "echo từ chính Telegram đi qua kênh vào (lễ tân), chưa có; chống echo của bot đã có",
+    status: "core",
+    to: [C("intake/notify/dispatcher.test.ts", "echo từ chính Telegram")],
   },
   {
     legacy: L(
@@ -146,8 +148,8 @@ const ROWS: Row[] = [
       "notification-dispatcher.test.ts",
       "forwards extracted videos to adapter.notifyComment",
     ),
-    status: "deferred",
-    why: "dispatcher của core chưa tách video; việc của lớp render Telegram (việc sau)",
+    status: "core",
+    to: [C("intake/notify/dispatcher.test.ts", "comment CHỈ có video vẫn được chuyển")],
   },
   {
     legacy: L("notification-dispatcher.test.ts", "gỡ thẻ <mark> và <span> tô màu của Tiptap"),
@@ -187,8 +189,8 @@ const ROWS: Row[] = [
   },
   {
     legacy: L("notification-dispatcher.test.ts", "rewrites 127.0.0.1 URLs to itsaplanWebUrl"),
-    status: "deferred",
-    why: "viết lại URL ảnh cho Telegram thật (việc sau cùng với render Telegram)",
+    status: "core",
+    to: [C("intake/notify/dispatcher.test.ts", "link localhost/127.0.0.1 và link tương đối")],
   },
   {
     legacy: L(
@@ -276,8 +278,11 @@ const ROWS: Row[] = [
   },
   {
     legacy: L("ticket-closure.test.ts", "reply đúng tin route (chatId gọn, không tiền tố)"),
-    status: "deferred",
-    why: "người báo trả lời tự do vào tin thông báo cần kênh vào (ReplyRouter) của lễ tân",
+    status: "ported",
+    to: [
+      A("inbound.test.ts", "trả lời tự do vào tin thông báo: thành MỘT comment"),
+      C("backoffice/closure.test.ts", "chat id có tiền tố telegram: vẫn khớp route"),
+    ],
   },
   // ── duplicate-merger.test.ts ───────────────────────────────────────────────
   {
@@ -375,7 +380,7 @@ const ROWS: Row[] = [
   },
 ];
 
-describe("bảng đối chiếu legacy -> Tiểu Linh mới", () => {
+describe("sổ đối chiếu legacy -> Tiểu Linh mới", () => {
   const cache = new Map<string, string>();
   const text = (file: string) => {
     let t = cache.get(file);

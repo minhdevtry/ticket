@@ -1,7 +1,7 @@
 /**
- * Handler `mention`: người xử lý @tieulinh2 trên một ticket TECH2.
+ * Handler `mention`: người xử lý @agent (`TIEULINH_AGENT`) trên một ticket TECH2.
  *
- *  1. Chuyển lời nhắn về người báo qua kênh (chung khoá chống trùng với luật comment).
+ *  1. Chuyển lời nhắn về người báo qua kênh (đường duy nhất cho comment có @agent: luật comment bỏ qua chúng).
  *  2. Trả lời trên ticket bằng LLM (`runAgentLoop`, tối đa vài bước) trong đúng luồng comment.
  *
  * LLM chỉ có tool ĐỌC (`get_issue`, `get_comments`, `search_issues`). Nó không đổi cột, không đóng,
@@ -42,8 +42,11 @@ export function answerMention(svc: TieulinhServices) {
     if (issueId !== null) {
       try {
         await forwardOnce(svc, {
+          keys: ctx.keys,
           issueId,
-          commentKey: ctx.comment.replyToId ?? `run:${ctx.run.id}`,
+          // Khoá theo RUN: giao lại run không gửi lần hai. Luật comment bỏ qua comment có @agent
+          // (`relayComment`), nên đây là đường duy nhất chuyển comment này về người báo.
+          commentKey: `run:${ctx.run.id}`,
           envelope: {
             action: "create",
             type: "Comment",

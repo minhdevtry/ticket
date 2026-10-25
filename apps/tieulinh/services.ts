@@ -3,6 +3,9 @@
  * thư mục 0700, file 0600) chứa liên kết ticket-người báo, tuyến tin nhắn, trạng thái vòng đời,
  * khoá chống trùng và `app_kv`; cộng kênh gửi tin (Telegram khi có token, không thì nhật ký JSONL).
  *
+ * Dấu "đã làm rồi" (đã chuyển comment, đã nhắc SLA) KHÔNG nằm đây mà ở `ctx.keys(...)` của bot kit
+ * (bền trong kho của kit khi có `BOT_DATA_DIR`); `app_kv` chỉ còn giữ mốc `sla:since`.
+ *
  * File này tách khỏi kho của bộ kit (`<BOT_DATA_DIR>/<bot.id>.sqlite`: ledger run, cron, hẹn giờ) vì
  * binding và route là dữ liệu NGHIỆP VỤ mà lễ tân (sau này) cũng ghi vào.
  */
@@ -23,29 +26,43 @@ import {
   notifyApplySchema,
   systemClock,
 } from "@vuihoc/bot-core/intake";
-import { SqliteWebhookDedupeStore, webhookDedupeApplySchema } from "@vuihoc/bot-core/itsaplan";
-import { TelegramNotifyChannel, TelegramTransport } from "@vuihoc/bot-core/telegram";
-import { REPORTER_OK_LABEL, reporterOkCallback, reporterOkCopy, stateCopy, vnTime } from "./copy";
-import { AGENT_USERNAME, type TieulinhConfig } from "./env";
+import {
+  TelegramNotifyChannel,
+  TelegramTransport,
+  type TelegramTransportOptions,
+} from "@vuihoc/bot-core/telegram";
+import {
+  REPORTER_OK_LABEL,
+  reporterOkCallback,
+  reporterOkCopy,
+  reporterReplyCopy,
+  stateCopy,
+  vnTime,
+} from "./copy";
+import { type TieulinhConfig, assertTieulinhConfig } from "./env";
 
 export const APP_DB_FILE = "tieulinh-app.sqlite";
 export const CHANNEL_LOG_FILE = "tieulinh-channel.jsonl";
 
 export const SLA_SINCE_KEY = "sla:since";
 
-const CLAIM_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+/** Tên và hạn của tập khoá chống trùng (`ctx.keys`): 90 ngày, như bản legacy. */
+export const FORWARD_KEYS = "forwarded";
+export const SLA_ALERTED_KEYS = "sla-alerted";
+export const KEYS_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 
 /** Tuỳ chọn tiêm cho test: kênh dựng sẵn, đồng hồ. */
 export interface ServiceOptions {
   clock?: Clock;
   /** Dùng kênh này thay cho lựa chọn theo env (test). */
   channel?: ChannelPort;
+  /** Tuỳ chọn cho `TelegramTransport` (test: `fetch`/`baseUrl` giả). Chỉ dùng khi có token. */
+  telegram?: Omit<TelegramTransportOptions, "botToken">;
 }
 
 function appSchema(db: Database, opts: { wal: boolean }): void {
   intakeApplySchema(db, opts);
   notifyApplySchema(db, opts);
-  webhookDedupeApplySchema(db, opts);
   db.run("CREATE TABLE IF NOT EXISTS app_kv (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
 }
 
@@ -58,7 +75,8 @@ export class TieulinhServices {
   readonly routes: SqliteMessageRouteStore;
   readonly closure: TicketClosure;
   readonly dispatcher: NotificationDispatcher;
-  private readonly claims: SqliteWebhookDedupeStore;
+  /** Có khi chạy bằng Telegram (có token và không bị tiêm kênh khác): để bot nói lại với người báo. */
+  readonly transport: TelegramTransport | undefined;
 
   constructor(
     readonly config: TieulinhConfig,
@@ -70,12 +88,16 @@ export class TieulinhServices {
     this.bindingStore = new SqliteChannelBindingStore(this.db);
     this.bindings = new SqliteNotifyBindingReader(this.db);
     this.routes = new SqliteMessageRouteStore(this.db);
-    this.claims = new SqliteWebhookDedupeStore(this.db, CLAIM_TTL_MS);
+    assertTieulinhConfig(config);
+    this.transport =
+      !options.channel && config.TELEGRAM_BOT_TOKEN
+        ? new TelegramTransport({ botToken: config.TELEGRAM_BOT_TOKEN, ...options.telegram })
+        : undefined;
     this.channel =
       options.channel ??
-      (config.TELEGRAM_BOT_TOKEN
+      (this.transport
         ? new TelegramNotifyChannel({
-            transport: new TelegramTransport({ botToken: config.TELEGRAM_BOT_TOKEN }),
+            transport: this.transport,
             reporterOkButton: { label: REPORTER_OK_LABEL, callbackData: reporterOkCallback },
             alertChatId: config.TIEULINH_ONCALL_CHAT_ID,
           })
@@ -89,6 +111,7 @@ export class TieulinhServices {
       channel: this.channel,
       copy: stateCopy,
       okCopy: reporterOkCopy,
+      replyCopy: reporterReplyCopy,
       clock: this.clock,
       formatTime: vnTime,
     });
@@ -98,14 +121,10 @@ export class TieulinhServices {
       channel: this.channel,
       copy: stateCopy,
       projectKey: config.TIEULINH_PROJECT,
-      agentHandles: [AGENT_USERNAME],
+      agentHandles: [config.TIEULINH_AGENT],
+      webUrl: config.ITSAPLAN_WEB_URL,
       commentForwardPolicy: config.TIEULINH_COMMENT_FORWARD,
     });
-  }
-
-  /** `true` đúng một lần cho mỗi khoá (nguyên tử, bền qua restart và giữa hai process). */
-  claim(key: string): boolean {
-    return this.claims.claim(key);
   }
 
   kvGet(key: string): string | null {

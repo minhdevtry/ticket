@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { createKeysProvider } from "@vuihoc/bot-core/backoffice";
+import { ConfigError } from "@vuihoc/bot-core/core";
 import { HOUR, type Harness, T0, harness, sleep, until } from "./testkit";
-import { slaHoursFor, slaSweep } from "./sla";
+import type { TieulinhServices } from "./services";
+import { SLA_PAGE, slaHoursFor, slaSweep } from "./sla";
 
 let h: Harness;
 beforeEach(() => {
@@ -103,6 +106,7 @@ describe("nhắc quá hạn tiếp nhận (SLA)", () => {
     const ctx = {
       tracker: slow,
       clock: h.clock,
+      keys: createKeysProvider(null),
       logger: { debug() {}, info() {}, warn: (m: string) => warns.push(m), error() {} },
     } as never;
     const sweep = slaSweep(svc);
@@ -118,5 +122,127 @@ describe("nhắc quá hạn tiếp nhận (SLA)", () => {
     expect(["urgent", "high", "medium", "low", null, "weird"].map(slaHoursFor)).toEqual([
       1, 2, 4, 24, 4, 4,
     ]);
+  });
+
+  /** Chạy thẳng một lượt quét với tracker thật và bộ khoá do test giữ (để quét lại nhiều lượt). */
+  function direct(svc: TieulinhServices) {
+    const keys = createKeysProvider(null);
+    const warns: string[] = [];
+    const ctx = {
+      tracker: h.tracker(),
+      clock: h.clock,
+      keys,
+      logger: { debug() {}, info() {}, warn: (m: string) => warns.push(m), error() {} },
+    } as never;
+    return { run: () => slaSweep(svc)(ctx), warns };
+  }
+
+  const overdue = (title: string, extra: object = {}) =>
+    h.fake.addIssue({
+      title,
+      priority: "urgent",
+      columnId: 1,
+      createdAt: new Date(T0 + 1000).toISOString(),
+      ...extra,
+    } as never);
+
+  test("nhiều hơn một trang ticket: cửa sổ chạm trần chia đôi, không sót ticket nào", async () => {
+    const { app } = h.boot();
+    const svc0 = app.services(); // ghim mốc theo dõi tại T0
+    const n = SLA_PAGE + 20;
+    for (let i = 0; i < n; i++) {
+      // trải đều trong 10 phút để chia đôi cửa sổ tách được
+      overdue(`Quá hạn ${i}`, { createdAt: new Date(T0 + 1000 + i * 1000).toISOString() });
+    }
+    h.clock.t = T0 + 3 * HOUR;
+    const { run } = direct(svc0);
+    await run();
+    expect(alerts()).toHaveLength(n);
+    // ticket đã giao hoặc ngoài cột chờ vẫn không bị nhắc dù nằm giữa kho lớn
+    expect(new Set(alerts().map((a) => a.text)).size).toBe(n);
+  });
+
+  test("kênh báo chưa giao được (false): không đánh dấu, lượt sau giao được thì nhắc", async () => {
+    let deliver = false;
+    const sent: string[] = [];
+    const { app } = h.boot({
+      appOptions: {
+        channel: {
+          channelType: "test",
+          sendComment: async () => "c",
+          sendStateChange: async () => "s",
+          sendAlert: async (text: string) => {
+            if (!deliver) return false;
+            sent.push(text);
+          },
+        },
+      },
+    });
+    const svc = app.services(); // ghim mốc theo dõi tại T0
+    overdue("Quá hạn");
+    h.clock.t = T0 + 3 * HOUR;
+    const { run } = direct(svc);
+    await run();
+    expect(sent).toHaveLength(0);
+    deliver = true;
+    await run();
+    expect(sent).toHaveLength(1);
+    await run();
+    expect(sent).toHaveLength(1);
+  });
+
+  test("kênh ném lỗi: không đánh dấu, lượt sau thử lại", async () => {
+    let fail = true;
+    const sent: string[] = [];
+    const { app } = h.boot({
+      appOptions: {
+        channel: {
+          channelType: "test",
+          sendComment: async () => "c",
+          sendStateChange: async () => "s",
+          sendAlert: async (text: string) => {
+            if (fail) throw new Error("telegram sập");
+            sent.push(text);
+          },
+        },
+      },
+    });
+    const svc = app.services(); // ghim mốc theo dõi tại T0
+    overdue("Quá hạn");
+    h.clock.t = T0 + 3 * HOUR;
+    const { run } = direct(svc);
+    await run();
+    fail = false;
+    await run();
+    expect(sent).toHaveLength(1);
+  });
+
+  test("cảnh báo có link ticket khi đặt ITSAPLAN_WEB_URL, không có thì không bịa link", async () => {
+    const withUrl = h.boot({ env: { ITSAPLAN_WEB_URL: "https://itsaplan.example.com/" } });
+    const svc = withUrl.app.services();
+    const t = overdue("Quá hạn");
+    h.clock.t = T0 + 3 * HOUR;
+    await direct(svc).run();
+    expect(alerts()[0]!.text).toContain(
+      `Link: https://itsaplan.example.com/tech/issue/${t.identifier}`,
+    );
+  });
+
+  test("không đặt ITSAPLAN_WEB_URL: cảnh báo không có dòng Link", async () => {
+    const svc = h.boot().app.services();
+    overdue("Quá hạn");
+    h.clock.t = T0 + 3 * HOUR;
+    await direct(svc).run();
+    expect(alerts()[0]!.text).not.toContain("Link:");
+  });
+
+  test("có TELEGRAM_BOT_TOKEN mà thiếu TIEULINH_ONCALL_CHAT_ID: ConfigError ngay lúc dựng bot", () => {
+    expect(() => h.boot({ env: { TELEGRAM_BOT_TOKEN: "123456:fake-token" } })).toThrow(ConfigError);
+    expect(() =>
+      h.boot({
+        env: { TELEGRAM_BOT_TOKEN: "123456:fake-token", TIEULINH_ONCALL_CHAT_ID: "-1000000000009" },
+        appOptions: { telegram: { fetch: (async () => new Response("{}")) as never } },
+      }),
+    ).not.toThrow();
   });
 });

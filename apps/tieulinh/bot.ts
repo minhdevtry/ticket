@@ -6,6 +6,7 @@
  *   comment.created ────────► relay-comment  (chuyển comment người xử lý về người báo)
  *   comment.created ────────► duplicates     (nhắc mã ticket anh em + LLM phán: gợi ý, hoặc gộp khi bật cờ)
  *   cron (TIEULINH_SLA_CRON) ► slaSweep      (nhắc trực ca khi ticket chưa ai nhận quá hạn)
+ *   inbound ────────────────► reporter-inbound (nút "Đã ổn" + trả lời tự do của người báo: CHỈ ghi comment)
  *
  * Mọi thứ bền (liên kết người báo, tuyến tin, dấu đã nhắc, nhật ký kênh) nằm trong `BOT_DATA_DIR`.
  * Nửa LỄ TÂN (nhận sự cố qua chat, tạo ticket) chưa có: xem README.
@@ -15,7 +16,9 @@
 import { type BotDefinition, defineBot } from "@vuihoc/bot-core/bot";
 import { whenCommentCreated, whenEvent } from "@vuihoc/bot-core/backoffice";
 import { loadConfig } from "@vuihoc/bot-core/core";
-import { AGENT_USERNAME, type TieulinhConfig, tieulinhEnv } from "./env";
+import { createReporterInbound } from "@vuihoc/bot-core/telegram";
+import { inboundErrorCopy } from "./copy";
+import { type TieulinhConfig, assertTieulinhConfig, tieulinhEnv } from "./env";
 import { detectDuplicate, siblingIdentifiers } from "./duplicates";
 import { relayComment } from "./forward";
 import { answerMention } from "./mention";
@@ -46,18 +49,27 @@ export function tieulinhBot(
     envFile: options.envFile,
     context: "tieulinh",
   }).values as TieulinhConfig;
+  assertTieulinhConfig(config);
 
   let svc: TieulinhServices | null = null;
   const services = () => {
     svc ??= new TieulinhServices(config, options);
     return svc;
   };
+  // Tin của người báo (nút "Đã ổn", trả lời tự do): luôn chỉ GHI COMMENT (ADR-0006).
+  let inbound: ReturnType<typeof createReporterInbound> | null = null;
+  const reporterInbound = () =>
+    (inbound ??= createReporterInbound({
+      closure: services().closure,
+      transport: services().transport,
+      errorCopy: inboundErrorCopy,
+    }));
   const bot = defineBot({
     id: "tieulinh",
     tracker: { team: config.TIEULINH_TEAM, project: config.TIEULINH_PROJECT },
     env: tieulinhEnv,
     backoffice: {
-      agent: AGENT_USERNAME,
+      agent: config.TIEULINH_AGENT,
       on: {
         mention: (ctx) => answerMention(services())(ctx),
       },
@@ -72,12 +84,17 @@ export function tieulinhBot(
           (comment, ctx) => siblingIdentifiers(comment.text, ctx.tracker.projectKey).length > 0,
         )
           .named("duplicates")
-          .do(detectDuplicate()),
+          .do((ctx) => detectDuplicate(services())(ctx)),
       ],
       schedule: {
         [config.TIEULINH_SLA_CRON]: (ctx) => slaSweep(services())(ctx),
       },
       reporter: (info) => reporterResolver(services())(info),
+      inbound: {
+        reporterOk: (ctx, req) => reporterInbound().reporterOk(ctx, req),
+        reporterReply: (ctx, req) => reporterInbound().reporterReply(ctx, req),
+        telegramUpdate: (ctx, update) => reporterInbound().telegramUpdate(ctx, update),
+      },
     },
   });
 

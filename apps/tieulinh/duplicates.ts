@@ -9,18 +9,32 @@
  * cột huỷ. Cờ TẮT mặc định vì nó làm bot huỷ ticket, trái tinh thần ADR-0006 nếu không có người
  * xác nhận (ở đây "xác nhận" là chính comment của người xử lý).
  *
+ * Chỉ GỘP khi comment là của người xử lý được giao ticket (hoặc, ticket chưa ai nhận, của một nhân
+ * viên không phải người báo); comment của người khác chỉ cho ra gợi ý. Comment của bot/agent/tài khoản
+ * hệ thống (`bot|admin|onyx|tieulinh`) không kích hoạt gì. Link nối bằng `ctx.tracker.link`.
+ *
  * Chặn thêm so với legacy: `evidence` do LLM trả phải là đoạn TRÍCH THẬT từ comment của người xử
  * lý. Không có trích dẫn khớp thì coi như không trùng (chống phán bừa và chống chỉ dẫn gài trong mô tả).
  */
-import type { RuleAction } from "@vuihoc/bot-core/backoffice";
+import type { RuleAction, RuleContext } from "@vuihoc/bot-core/backoffice";
 import { foldForComparison } from "@vuihoc/bot-core/core";
+import type { ItsaplanIssue } from "@vuihoc/bot-core/itsaplan";
 import { extract } from "@vuihoc/bot-core/llm";
 import type { Llm } from "@vuihoc/bot-core/llm";
 import { z } from "zod";
 import { duplicateSuggestionText, mergedFromText, mergedIntoText } from "./copy";
 import type { TieulinhConfig } from "./env";
+import { reporterResolver } from "./reporter";
+import type { TieulinhServices } from "./services";
 
 const MAX_SIBLINGS = 3;
+
+/** Bot, agent, tài khoản hệ thống: comment của họ không bao giờ là "xác nhận của người xử lý" (như legacy). */
+const SYSTEM_ACTOR = /ti[eể]u\s*linh|tieulinh|onyx|bot|^admin$/i;
+export const isSystemActor = (name: unknown): boolean => {
+  const n = String(name ?? "").trim();
+  return !n || SYSTEM_ACTOR.test(n);
+};
 const MAX_TEXT = 1500;
 
 const Verdict = z.object({
@@ -80,11 +94,24 @@ async function judge(
   return data;
 }
 
+/** Người viết comment có quyền "xác nhận trùng" để bot gộp không (xem đầu file). */
+async function mayMerge(
+  svc: TieulinhServices,
+  ctx: RuleContext<TieulinhConfig>,
+  source: ItsaplanIssue,
+): Promise<boolean> {
+  const actorId = ctx.event.actor?.id == null ? null : String(ctx.event.actor.id);
+  if (!actorId) return false;
+  if (source.assigneeUserId) return source.assigneeUserId === actorId;
+  return !(await reporterResolver(svc)({ issue: source, actorId }));
+}
+
 /** Hành động của luật `comment.created`; cờ merge đọc từ `ctx.config.TIEULINH_DUPLICATE_MERGE`. */
-export function detectDuplicate(): RuleAction<TieulinhConfig> {
+export function detectDuplicate(svc: TieulinhServices): RuleAction<TieulinhConfig> {
   return async (ctx) => {
     const comment = ctx.event.comment;
     if (!comment) return;
+    if (isSystemActor(ctx.event.actor?.name) || ctx.event.actor?.type === "agent") return;
     const source = await ctx.issue();
     if (!source) return;
     const siblings = siblingIdentifiers(
@@ -117,7 +144,7 @@ export function detectDuplicate(): RuleAction<TieulinhConfig> {
       }
       if (!verdict.duplicate || !evidenceInComment(verdict.evidence, comment.text)) continue;
 
-      if (!ctx.config.TIEULINH_DUPLICATE_MERGE) {
+      if (!ctx.config.TIEULINH_DUPLICATE_MERGE || !(await mayMerge(svc, ctx, source))) {
         await ctx.tracker.comment(
           source.id,
           duplicateSuggestionText({ target: target.identifier, evidence: verdict.evidence }),
@@ -133,7 +160,7 @@ export function detectDuplicate(): RuleAction<TieulinhConfig> {
         { idempotencyKey: `dup-merge:${source.id}:${target.id}` },
       );
       try {
-        await ctx.tracker.unscopedClient.linkIssues(source.id, target.id, "duplicates");
+        await ctx.tracker.link(source.id, target.id, "duplicates");
       } catch (err) {
         ctx.logger.warn(
           `[duplicates] không nối link ${source.identifier} -> ${identifier}: ${err instanceof Error ? err.message : String(err)}`,

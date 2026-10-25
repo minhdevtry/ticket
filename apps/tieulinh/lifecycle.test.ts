@@ -9,6 +9,7 @@ import {
   commentCreated,
   harness,
   stateChanged,
+  until,
 } from "./testkit";
 
 let h: Harness;
@@ -155,14 +156,27 @@ describe("chuyển comment về người báo", () => {
     expect(sent[0]!.text).toBe("Đã sửa xong lỗi đăng nhập");
   });
 
-  test("policy mention: chỉ comment có gắn thẻ bot mới tới người báo", async () => {
+  test("policy mention: webhook không chuyển gì; chỉ lời nhắn gọi @agent (qua run mention) tới người báo", async () => {
     const { issue, bot } = setup({ TIEULINH_COMMENT_FORWARD: "mention" });
     await bot.handleEvent(commentCreated(issue, "ghi chú nội bộ, chưa chắc nguyên nhân"));
-    expect(h.channelLog()).toEqual([]);
     await bot.handleEvent(commentCreated(issue, "@tieulinh2 báo anh ấy đã sửa xong"));
+    // luật comment bỏ qua comment có @agent: đường duy nhất là run mention
+    expect(h.channelLog()).toEqual([]);
+    h.llm.script({ text: "Đã nhắn." });
+    const run = h.fake.mention(issue.id, "báo anh ấy đã sửa xong");
+    await bot.start();
+    await until(() => h.fake.run(run.id).status !== "pending");
     const sent = h.channelLog().filter((r) => r.kind === "comment");
     expect(sent).toHaveLength(1);
     expect(sent[0]!.text).toBe("báo anh ấy đã sửa xong");
+  });
+
+  test("TIEULINH_AGENT đổi tên agent: gỡ đúng tên đó khỏi lời nhắn và bỏ qua comment gọi nó ở luật", async () => {
+    const { issue, bot } = setup({ TIEULINH_AGENT: "@linh_hau_can" });
+    await bot.handleEvent(commentCreated(issue, "@linh_hau_can nhắc anh ấy kiểm tra lại"));
+    expect(h.channelLog()).toEqual([]); // đã đi đường mention (không có run trong test này)
+    await bot.handleEvent(commentCreated(issue, "@tieulinh2 không phải agent này nữa"));
+    expect(h.channelLog().filter((r) => r.kind === "comment")).toHaveLength(1);
   });
 
   test("comment gắn cờ nội bộ #noibo giữ lại trên tracker", async () => {
