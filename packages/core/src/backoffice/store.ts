@@ -18,11 +18,30 @@
  * `BotStore.memory()` dùng cùng mã trên SQLite `:memory:`: là mặc định của test và của bot
  * không đặt `dataDir`.
  */
-import { Database } from "bun:sqlite";
+import type { Database } from "bun:sqlite";
 import { randomUUID } from "node:crypto";
-import { mkdirSync } from "node:fs";
+import { chmodSync, closeSync, existsSync, mkdirSync, openSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import type { AgentRunResult, RunLedger } from "../itsaplan";
+
+/**
+ * `bun:sqlite` chỉ nạp khi thật sự mở kho (lazy), để barrel `@vuihoc/bot-core/backoffice` vẫn
+ * import được dưới Node: chỉ `BotStore.open/memory` cần Bun.
+ */
+let sqliteModule: typeof import("bun:sqlite") | undefined;
+function sqlite(): typeof import("bun:sqlite") {
+  if (!sqliteModule) {
+    try {
+      sqliteModule = createRequire(import.meta.url)("bun:sqlite") as typeof import("bun:sqlite");
+    } catch (err) {
+      throw new Error(
+        `BotStore cần runtime Bun (bun:sqlite): ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+  return sqliteModule;
+}
 
 type Migration = (db: Database) => void;
 
@@ -78,6 +97,24 @@ const MIGRATIONS: readonly Migration[] = [
       PRIMARY KEY (key, token)
     )`);
   },
+  // v2: định danh hành động của hẹn, cờ yêu cầu huỷ khi đang chạy, hẹn xếp hàng khi hẹn lại lúc đang chạy.
+  (db) => {
+    db.run("ALTER TABLE timers ADD COLUMN action_id TEXT");
+    db.run("ALTER TABLE timers ADD COLUMN cancel_requested TEXT");
+    db.run(`CREATE TABLE timer_queued (
+      key TEXT PRIMARY KEY,
+      rule TEXT NOT NULL,
+      step INTEGER NOT NULL,
+      issue_id INTEGER,
+      identifier TEXT,
+      due_at INTEGER NOT NULL,
+      payload TEXT,
+      action_id TEXT,
+      cancel_on TEXT NOT NULL,
+      queued_at INTEGER NOT NULL
+    )`);
+    db.run("CREATE INDEX idx_timer_queued_issue ON timer_queued (issue_id)");
+  },
 ];
 
 /** Phiên bản schema mà code này hiểu (= số migration). */
@@ -102,8 +139,12 @@ export interface KeySet {
   add(key: string): void;
 }
 
-/** Kết quả `arm`: hẹn mới, hẹn lại (hẹn cũ đã xong/huỷ), giữ nguyên hẹn đang chờ, hoặc thay hẹn đang chờ. */
-export type TimerArmOutcome = "new" | "rearmed" | "kept" | "replaced";
+/**
+ * Kết quả `arm`: hẹn mới, hẹn lại (hẹn cũ đã xong/huỷ), giữ nguyên hẹn đang chờ, thay hẹn đang
+ * chờ, hoặc `queued` (hẹn cũ ĐANG chạy: lần hẹn này được xếp hàng và tự thành hẹn mới khi lần chạy
+ * kia kết thúc, không bị mất).
+ */
+export type TimerArmOutcome = "new" | "rearmed" | "kept" | "replaced" | "queued";
 
 export type TimerState = "pending" | "firing" | "done" | "cancelled" | "failed";
 
@@ -127,6 +168,10 @@ export interface TimerRow {
   leaseUntil: number;
   lastError: string | null;
   cancelOn: string[];
+  /** Định danh hành động lúc hẹn (xem `TimerArmSpec.actionId`); `null` với hẹn cũ chưa ghi. */
+  actionId: string | null;
+  /** Lý do một yêu cầu huỷ tới khi hẹn đang chạy (hành động phải dừng trước khi ghi); `null` nếu không. */
+  cancelRequested: string | null;
 }
 
 /** Thông tin để hẹn một timer (xem `RuleContext.timers`). */
@@ -139,6 +184,11 @@ export interface TimerArmSpec {
   identifier?: string | null;
   cancelOn?: readonly string[];
   payload?: unknown;
+  /**
+   * Định danh ổn định của HÀNH ĐỘNG được hẹn (khác với vị trí `step`): bộ chạy bỏ qua hẹn nếu hành
+   * động hiện tại ở (luật, bước) có định danh khác, tránh chạy nhầm hành động sau khi sửa luật.
+   */
+  actionId?: string;
   /** Hẹn lại đang chờ: `true` dời hẹn và thay payload; mặc định `false` (giữ hẹn cũ, nên webhook giao trùng không dời hạn). */
   replace?: boolean;
 }
@@ -167,9 +217,105 @@ interface RawTimer {
   owner: string | null;
   lease_until: number;
   last_error: string | null;
+  action_id: string | null;
+  cancel_requested: string | null;
 }
 
 const DAY = 86_400_000;
+/** Chu kỳ dọn ledger/khoá chống trùng cũ trong tiến trình sống lâu (ms). */
+const PRUNE_EVERY_MS = 3_600_000;
+
+const readVersion = (db: Database): number =>
+  (db.query("PRAGMA user_version").get() as { user_version: number }).user_version;
+
+function migrate(db: Database): void {
+  const apply = db.transaction(() => {
+    // Đọc LẠI trong transaction: hai process cùng nâng cấp một file thì chỉ một bên chạy migration.
+    const current = readVersion(db);
+    if (current > MIGRATIONS.length) throw new BotStoreVersionError(current, MIGRATIONS.length);
+    for (let v = current; v < MIGRATIONS.length; v++) {
+      MIGRATIONS[v](db);
+      db.run(`PRAGMA user_version = ${v + 1}`);
+    }
+  });
+  apply.immediate();
+}
+
+const isBusy = (err: unknown): boolean =>
+  /database is locked|SQLITE_BUSY|SQLITE_LOCKED|database table is locked/i.test(
+    err instanceof Error
+      ? `${err.name} ${err.message} ${(err as { code?: string }).code ?? ""}`
+      : String(err),
+  );
+
+function sleepSync(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+/** Thời gian tối đa thử lại khi file đang bị process khác khoá lúc mở (ms). */
+const OPEN_RETRY_BUDGET_MS = 20_000;
+
+function secureFiles(path: string): void {
+  for (const f of [path, `${path}-wal`, `${path}-shm`]) {
+    try {
+      if (existsSync(f)) chmodSync(f, 0o600);
+    } catch {
+      // best effort (vd hệ thống file không hỗ trợ chmod)
+    }
+  }
+}
+
+/**
+ * Mở file kho: `busy_timeout` đặt TRƯỚC mọi thứ khác (kể cả chuyển WAL, vốn cần khoá độc quyền),
+ * rồi bọc mở + WAL + migration trong vòng thử lại ngắn với backoff ngẫu nhiên: nhiều process khởi
+ * động cùng lúc trên một file mới có thể gặp "database is locked" ngay cả khi có busy_timeout
+ * (SQLite tránh deadlock bằng cách báo lỗi tức thì). Thư mục dữ liệu 0700, file kho 0600.
+ */
+function initDatabase(path: string, durable: boolean): Database {
+  const { Database: Sqlite } = sqlite();
+  if (durable) {
+    const dir = dirname(path);
+    const createdDir = !existsSync(dir);
+    mkdirSync(dir, { recursive: true, mode: 0o700 });
+    if (createdDir) {
+      try {
+        chmodSync(dir, 0o700);
+      } catch {
+        // best effort
+      }
+    }
+    if (!existsSync(path)) {
+      try {
+        closeSync(openSync(path, "a", 0o600));
+      } catch {
+        // để SQLite tự tạo
+      }
+    }
+  }
+  const deadline = Date.now() + OPEN_RETRY_BUDGET_MS;
+  for (let attempt = 0; ; attempt++) {
+    let db: Database | undefined;
+    try {
+      db = new Sqlite(path, { create: true });
+      db.run("PRAGMA busy_timeout = 5000");
+      if (durable) {
+        db.run("PRAGMA journal_mode = WAL");
+        db.run("PRAGMA synchronous = NORMAL");
+      }
+      migrate(db);
+      if (durable) secureFiles(path);
+      return db;
+    } catch (err) {
+      try {
+        db?.close();
+      } catch {
+        // đã hỏng thì thôi
+      }
+      if (!isBusy(err) || Date.now() >= deadline) throw err;
+      sleepSync(Math.min(500, 5 + Math.random() * 25 * (attempt + 1)));
+    }
+  }
+}
 
 /**
  * Kho bền của một bot. Mở bằng {@link BotStore.open} (file) hoặc {@link BotStore.memory}.
@@ -189,19 +335,7 @@ export class BotStore {
     this.path = path;
     this.durable = durable;
     this.instanceId = options.instanceId ?? randomUUID();
-    if (durable) mkdirSync(dirname(path), { recursive: true });
-    this.db = new Database(path, { create: true });
-    try {
-      if (durable) {
-        this.db.run("PRAGMA journal_mode = WAL");
-        this.db.run("PRAGMA synchronous = NORMAL");
-      }
-      this.db.run("PRAGMA busy_timeout = 5000");
-      this.migrate();
-    } catch (err) {
-      this.db.close();
-      throw err;
-    }
+    this.db = initDatabase(path, durable);
   }
 
   /** Mở (tạo nếu chưa có) file kho, áp migration còn thiếu. Ném nếu file mới hơn code. */
@@ -216,20 +350,7 @@ export class BotStore {
 
   /** Phiên bản schema đang ở trong file. */
   schemaVersion(): number {
-    return (this.db.query("PRAGMA user_version").get() as { user_version: number }).user_version;
-  }
-
-  private migrate(): void {
-    const apply = this.db.transaction(() => {
-      // Đọc LẠI trong transaction: hai process cùng nâng cấp một file thì chỉ một bên chạy migration.
-      const current = this.schemaVersion();
-      if (current > MIGRATIONS.length) throw new BotStoreVersionError(current, MIGRATIONS.length);
-      for (let v = current; v < MIGRATIONS.length; v++) {
-        MIGRATIONS[v](this.db);
-        this.db.run(`PRAGMA user_version = ${v + 1}`);
-      }
-    });
-    apply.immediate();
+    return readVersion(this.db);
   }
 
   close(): void {
@@ -243,7 +364,10 @@ export class BotStore {
   /** `RunLedger` bền cho `AgentRunWorker`: kết quả đã tính xong nhưng chưa báo được. */
   ledger(options: { now?: () => number; retentionMs?: number } = {}): RunLedger {
     const now = options.now ?? Date.now;
-    this.db.run("DELETE FROM run_ledger WHERE at < ?", [now() - (options.retentionMs ?? 14 * DAY)]);
+    const retention = options.retentionMs ?? 14 * DAY;
+    const prune = () => this.db.run("DELETE FROM run_ledger WHERE at < ?", [now() - retention]);
+    prune();
+    let lastPrune = now();
     return {
       get: (runId) => {
         const row = this.db.query("SELECT result FROM run_ledger WHERE run_id = ?").get(runId) as {
@@ -257,6 +381,11 @@ export class BotStore {
           JSON.stringify(result),
           now(),
         ]);
+        // Tiến trình sống lâu: dọn định kỳ, không chỉ lúc mở.
+        if (now() - lastPrune > PRUNE_EVERY_MS) {
+          lastPrune = now();
+          prune();
+        }
       },
       delete: (runId) => {
         this.db.run("DELETE FROM run_ledger WHERE run_id = ?", [runId]);
@@ -277,6 +406,7 @@ export class BotStore {
       this.db.run("DELETE FROM dedupe_keys WHERE ns = ? AND at < ?", [ns, now() - ttl]);
     prune();
     let adds = 0;
+    let lastPrune = now();
     return {
       has: (key) =>
         this.db.query("SELECT 1 FROM dedupe_keys WHERE ns = ? AND key = ?").get(ns, key) !== null,
@@ -286,7 +416,10 @@ export class BotStore {
           key,
           now(),
         ]);
-        if (++adds % 500 === 0) prune();
+        if (++adds % 500 === 0 || now() - lastPrune > PRUNE_EVERY_MS) {
+          lastPrune = now();
+          prune();
+        }
       },
     };
   }
@@ -400,6 +533,26 @@ export class BotStore {
     this.releaseLease(`cron:${job}`, owner);
   }
 
+  /**
+   * Xoá mốc và lease của các lịch KHÔNG còn trong `keepJobs` (lịch bị gỡ khỏi khai báo, hoặc đổi
+   * múi giờ nên id đổi), để bảng không tích rác và lịch được thêm lại bắt đầu từ baseline mới.
+   */
+  pruneCronJobs(keepJobs: readonly string[]): number {
+    const txn = this.db.transaction((): number => {
+      const keep = new Set(keepJobs);
+      const rows = this.db.query("SELECT job FROM cron_jobs").all() as { job: string }[];
+      let removed = 0;
+      for (const { job } of rows) {
+        if (keep.has(job)) continue;
+        this.db.run("DELETE FROM cron_jobs WHERE job = ?", [job]);
+        this.db.run("DELETE FROM leases WHERE name = ?", [`cron:${job}`]);
+        removed++;
+      }
+      return removed;
+    });
+    return txn.immediate();
+  }
+
   cronStatus(job: string): { lastSlot: number; status: string | null } | null {
     const row = this.db
       .query("SELECT last_slot, last_status FROM cron_jobs WHERE job = ?")
@@ -442,94 +595,190 @@ export class BotStore {
       leaseUntil: raw.lease_until,
       lastError: raw.last_error,
       cancelOn,
+      actionId: raw.action_id,
+      cancelRequested: raw.cancel_requested,
     };
+  }
+
+  private setCancelOn(key: string, tokens: Iterable<string>): void {
+    this.db.run("DELETE FROM timer_cancel_on WHERE key = ?", [key]);
+    for (const token of new Set(tokens)) {
+      this.db.run("INSERT INTO timer_cancel_on (key, token) VALUES (?, ?)", [key, token]);
+    }
+  }
+
+  /** Ghi đè hàng `key` bằng một lần hẹn MỚI (gen + 1 nếu đã có). Gọi trong transaction. */
+  private writeArmed(
+    key: string,
+    gen: number,
+    spec: {
+      rule: string;
+      step: number;
+      issueId: number | null;
+      identifier: string | null;
+      armedAt: number;
+      dueAt: number;
+      payload: string | null;
+      actionId: string | null;
+      cancelOn: Iterable<string>;
+    },
+    insert: boolean,
+  ): void {
+    if (insert) {
+      this.db.run(
+        `INSERT INTO timers (key, gen, rule, step, issue_id, identifier, armed_at, due_at, payload, state, updated_at, action_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+        [
+          key,
+          gen,
+          spec.rule,
+          spec.step,
+          spec.issueId,
+          spec.identifier,
+          spec.armedAt,
+          spec.dueAt,
+          spec.payload,
+          spec.armedAt,
+          spec.actionId,
+        ],
+      );
+    } else {
+      this.db.run(
+        `UPDATE timers SET gen = ?, rule = ?, step = ?, issue_id = ?, identifier = ?, armed_at = ?, due_at = ?,
+           payload = ?, state = 'pending', attempts = 0, owner = NULL, lease_until = 0, last_error = NULL,
+           cancel_requested = NULL, action_id = ?, updated_at = ?
+         WHERE key = ?`,
+        [
+          gen,
+          spec.rule,
+          spec.step,
+          spec.issueId,
+          spec.identifier,
+          spec.armedAt,
+          spec.dueAt,
+          spec.payload,
+          spec.actionId,
+          spec.armedAt,
+          key,
+        ],
+      );
+    }
+    this.setCancelOn(key, spec.cancelOn);
   }
 
   /**
    * Hẹn một timer theo `spec.key`:
    *  - chưa có → `"new"`;
-   *  - đã có và đang `pending`/`firing` → `"kept"` (hoặc `"replaced"` nếu `replace` và còn `pending`);
+   *  - đang `pending` → `"kept"` (hoặc `"replaced"` nếu `replace`);
+   *  - đang `firing` → `"queued"`: lần hẹn này được xếp hàng, tự thành hẹn mới (gen + 1) khi lần
+   *    chạy hiện tại kết thúc, nên không bị mất;
    *  - đã `done`/`cancelled`/`failed` → `"rearmed"` (tăng `gen`, nên khoá chống trùng của lần chạy mới khác lần trước).
    */
   armTimer(spec: TimerArmSpec, now: number): { outcome: TimerArmOutcome; gen: number } {
     const txn = this.db.transaction((): { outcome: TimerArmOutcome; gen: number } => {
       const payload = spec.payload === undefined ? null : JSON.stringify(spec.payload);
+      const full = {
+        rule: spec.rule,
+        step: spec.step,
+        issueId: spec.issueId ?? null,
+        identifier: spec.identifier ?? null,
+        armedAt: now,
+        dueAt: spec.dueAt,
+        payload,
+        actionId: spec.actionId ?? null,
+        cancelOn: spec.cancelOn ?? [],
+      };
       const existing = this.db
         .query("SELECT * FROM timers WHERE key = ?")
         .get(spec.key) as RawTimer | null;
-      let outcome: TimerArmOutcome;
-      let gen = 1;
-      const setCancel = () => {
-        this.db.run("DELETE FROM timer_cancel_on WHERE key = ?", [spec.key]);
-        for (const token of new Set(spec.cancelOn ?? [])) {
-          this.db.run("INSERT INTO timer_cancel_on (key, token) VALUES (?, ?)", [spec.key, token]);
-        }
-      };
       if (!existing) {
-        this.db.run(
-          `INSERT INTO timers (key, gen, rule, step, issue_id, identifier, armed_at, due_at, payload, state, updated_at)
-           VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
-          [
-            spec.key,
-            spec.rule,
-            spec.step,
-            spec.issueId ?? null,
-            spec.identifier ?? null,
-            now,
-            spec.dueAt,
-            payload,
-            now,
-          ],
-        );
-        setCancel();
-        outcome = "new";
-      } else if (existing.state === "pending" || existing.state === "firing") {
-        gen = existing.gen;
-        if (spec.replace && existing.state === "pending") {
+        this.writeArmed(spec.key, 1, full, true);
+        return { outcome: "new", gen: 1 };
+      }
+      if (existing.state === "pending") {
+        if (spec.replace) {
           this.db.run(
-            "UPDATE timers SET armed_at = ?, due_at = ?, payload = ?, rule = ?, step = ?, issue_id = ?, identifier = ?, updated_at = ? WHERE key = ?",
+            "UPDATE timers SET armed_at = ?, due_at = ?, payload = ?, rule = ?, step = ?, issue_id = ?, identifier = ?, action_id = ?, updated_at = ? WHERE key = ?",
             [
               now,
               spec.dueAt,
               payload,
               spec.rule,
               spec.step,
-              spec.issueId ?? null,
-              spec.identifier ?? null,
+              full.issueId,
+              full.identifier,
+              full.actionId,
               now,
               spec.key,
             ],
           );
-          setCancel();
-          outcome = "replaced";
-        } else {
-          outcome = "kept";
+          this.setCancelOn(spec.key, full.cancelOn);
+          return { outcome: "replaced", gen: existing.gen };
         }
-      } else {
-        gen = existing.gen + 1;
+        return { outcome: "kept", gen: existing.gen };
+      }
+      if (existing.state === "firing") {
         this.db.run(
-          `UPDATE timers SET gen = ?, rule = ?, step = ?, issue_id = ?, identifier = ?, armed_at = ?, due_at = ?,
-             payload = ?, state = 'pending', attempts = 0, owner = NULL, lease_until = 0, last_error = NULL, updated_at = ?
-           WHERE key = ?`,
+          `INSERT OR REPLACE INTO timer_queued (key, rule, step, issue_id, identifier, due_at, payload, action_id, cancel_on, queued_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
-            gen,
+            spec.key,
             spec.rule,
             spec.step,
-            spec.issueId ?? null,
-            spec.identifier ?? null,
-            now,
+            full.issueId,
+            full.identifier,
             spec.dueAt,
             payload,
+            full.actionId,
+            JSON.stringify([...new Set(full.cancelOn)]),
             now,
-            spec.key,
           ],
         );
-        setCancel();
-        outcome = "rearmed";
+        return { outcome: "queued", gen: existing.gen };
       }
-      return { outcome, gen };
+      const gen = existing.gen + 1;
+      this.writeArmed(spec.key, gen, full, false);
+      return { outcome: "rearmed", gen };
     });
     return txn.immediate();
+  }
+
+  /** Nếu có hẹn xếp hàng cho `key` (hẹn lại lúc đang chạy), biến nó thành hẹn mới. Gọi trong transaction. */
+  private applyQueued(key: string): boolean {
+    const q = this.db.query("SELECT * FROM timer_queued WHERE key = ?").get(key) as {
+      rule: string;
+      step: number;
+      issue_id: number | null;
+      identifier: string | null;
+      due_at: number;
+      payload: string | null;
+      action_id: string | null;
+      cancel_on: string;
+      queued_at: number;
+    } | null;
+    if (!q) return false;
+    this.db.run("DELETE FROM timer_queued WHERE key = ?", [key]);
+    const cur = this.db.query("SELECT gen FROM timers WHERE key = ?").get(key) as {
+      gen: number;
+    } | null;
+    if (!cur) return false;
+    this.writeArmed(
+      key,
+      cur.gen + 1,
+      {
+        rule: q.rule,
+        step: q.step,
+        issueId: q.issue_id,
+        identifier: q.identifier,
+        armedAt: q.queued_at,
+        dueAt: q.due_at,
+        payload: q.payload,
+        actionId: q.action_id,
+        cancelOn: JSON.parse(q.cancel_on) as string[],
+      },
+      false,
+    );
+    return true;
   }
 
   getTimer(key: string): TimerRow | null {
@@ -553,38 +802,100 @@ export class BotStore {
     return (this.db.query(sql).all(...args) as RawTimer[]).map((r) => this.toRow(r));
   }
 
-  countTimers(state: TimerState): number {
+  /** Số timer ở một trạng thái; `updatedSince` chỉ đếm timer cập nhật từ mốc đó (vd `failed` gần đây). */
+  countTimers(state: TimerState, updatedSince?: number): number {
     return (
-      this.db.query("SELECT COUNT(*) AS n FROM timers WHERE state = ?").get(state) as { n: number }
+      this.db
+        .query("SELECT COUNT(*) AS n FROM timers WHERE state = ? AND updated_at >= ?")
+        .get(state, updatedSince ?? 0) as { n: number }
     ).n;
   }
 
-  /** Huỷ timer `pending` theo khoá. `true` nếu có timer bị huỷ. */
+  /**
+   * Huỷ timer theo khoá: `pending` thì huỷ ngay; `firing` thì chỉ ĐÁNH DẤU yêu cầu huỷ (hành động
+   * đang chạy phải kiểm trước khi ghi, xem `timerBlocked`); hẹn xếp hàng của khoá cũng bị bỏ.
+   * `true` nếu có gì bị huỷ hoặc đánh dấu.
+   */
   cancelTimer(key: string, reason: string, now: number): boolean {
-    return (
-      this.db.run(
+    const txn = this.db.transaction((): boolean => {
+      this.db.run("DELETE FROM timer_queued WHERE key = ?", [key]);
+      const a = this.db.run(
         "UPDATE timers SET state = 'cancelled', last_error = ?, updated_at = ? WHERE key = ? AND state = 'pending'",
         [reason, now, key],
-      ).changes > 0
-    );
+      ).changes;
+      const b = this.db.run(
+        "UPDATE timers SET cancel_requested = COALESCE(cancel_requested, ?), updated_at = ? WHERE key = ? AND state = 'firing'",
+        [reason, now, key],
+      ).changes;
+      return a + b > 0;
+    });
+    return txn.immediate();
   }
 
-  /** Huỷ mọi timer `pending` của issue có khai `token` trong `cancelOn`. Trả số timer đã huỷ. */
+  /**
+   * Huỷ mọi timer của issue có khai `token` trong `cancelOn`: `pending` huỷ ngay, `firing` đánh dấu
+   * yêu cầu huỷ, hẹn xếp hàng có token đó bị bỏ. Trả số timer bị huỷ hoặc đánh dấu.
+   */
   cancelByToken(issueId: number, token: string, reason: string, now: number): number {
-    return this.db.run(
-      `UPDATE timers SET state = 'cancelled', last_error = ?, updated_at = ?
-       WHERE issue_id = ? AND state = 'pending'
-         AND key IN (SELECT key FROM timer_cancel_on WHERE token = ?)`,
-      [reason, now, issueId, token],
-    ).changes;
+    const txn = this.db.transaction((): number => {
+      this.db.run(
+        `DELETE FROM timer_queued WHERE issue_id = ?
+           AND EXISTS (SELECT 1 FROM json_each(timer_queued.cancel_on) WHERE value = ?)`,
+        [issueId, token],
+      );
+      const a = this.db.run(
+        `UPDATE timers SET state = 'cancelled', last_error = ?, updated_at = ?
+         WHERE issue_id = ? AND state = 'pending'
+           AND key IN (SELECT key FROM timer_cancel_on WHERE token = ?)`,
+        [reason, now, issueId, token],
+      ).changes;
+      const b = this.db.run(
+        `UPDATE timers SET cancel_requested = COALESCE(cancel_requested, ?), updated_at = ?
+         WHERE issue_id = ? AND state = 'firing'
+           AND key IN (SELECT key FROM timer_cancel_on WHERE token = ?)`,
+        [reason, now, issueId, token],
+      ).changes;
+      return a + b;
+    });
+    return txn.immediate();
   }
 
-  /** Huỷ MỌI timer `pending` của issue (issue bị xoá). */
+  /** Huỷ (hoặc đánh dấu huỷ, nếu đang chạy) MỌI timer của issue (issue bị xoá). */
   cancelAllForIssue(issueId: number, reason: string, now: number): number {
-    return this.db.run(
-      "UPDATE timers SET state = 'cancelled', last_error = ?, updated_at = ? WHERE issue_id = ? AND state = 'pending'",
-      [reason, now, issueId],
-    ).changes;
+    const txn = this.db.transaction((): number => {
+      this.db.run("DELETE FROM timer_queued WHERE issue_id = ?", [issueId]);
+      const a = this.db.run(
+        "UPDATE timers SET state = 'cancelled', last_error = ?, updated_at = ? WHERE issue_id = ? AND state = 'pending'",
+        [reason, now, issueId],
+      ).changes;
+      const b = this.db.run(
+        "UPDATE timers SET cancel_requested = COALESCE(cancel_requested, ?), updated_at = ? WHERE issue_id = ? AND state = 'firing'",
+        [reason, now, issueId],
+      ).changes;
+      return a + b;
+    });
+    return txn.immediate();
+  }
+
+  /**
+   * Lần chạy `(key, gen)` của `owner` còn được phép ghi không? Trả `null` nếu còn; ngược lại trả
+   * lý do phải dừng: có yêu cầu huỷ, hoặc hẹn không còn đang chạy ở process này (lease đã bị
+   * process khác tiếp quản, đã bị huỷ hoặc hẹn lại). Hành động hẹn giờ gọi trước MỖI thao tác ghi.
+   */
+  timerBlocked(key: string, gen: number, owner = this.instanceId): string | null {
+    const row = this.db
+      .query("SELECT state, gen, owner, cancel_requested FROM timers WHERE key = ?")
+      .get(key) as {
+      state: string;
+      gen: number;
+      owner: string | null;
+      cancel_requested: string | null;
+    } | null;
+    if (!row || row.gen !== gen) return "hẹn đã bị thay hoặc xoá";
+    if (row.state !== "firing" || row.owner !== owner) {
+      return `hẹn không còn đang chạy ở process này (${row.state})`;
+    }
+    return row.cancel_requested;
   }
 
   /** Timer đến hạn: `pending` quá hạn, hoặc `firing` mà lease của process đang chạy nó đã hết (process đó sập). */
@@ -633,7 +944,10 @@ export class BotStore {
     );
   }
 
-  /** Kết thúc timer đang chạy (`done`, hoặc `cancelled` khi điều kiện không còn). */
+  /**
+   * Kết thúc timer đang chạy (`done`, hoặc `cancelled` khi điều kiện không còn). Nếu trong lúc
+   * chạy có lần hẹn lại (xếp hàng), nó trở thành hẹn mới ngay trong cùng transaction.
+   */
   finishTimer(
     key: string,
     gen: number,
@@ -642,15 +956,22 @@ export class BotStore {
     now: number,
     owner = this.instanceId,
   ): boolean {
-    return (
-      this.db.run(
-        "UPDATE timers SET state = ?, last_error = ?, updated_at = ? WHERE key = ? AND gen = ? AND owner = ? AND state = 'firing'",
-        [state, note, now, key, gen, owner],
-      ).changes > 0
-    );
+    const txn = this.db.transaction((): boolean => {
+      const changed =
+        this.db.run(
+          "UPDATE timers SET state = ?, last_error = ?, updated_at = ? WHERE key = ? AND gen = ? AND owner = ? AND state = 'firing'",
+          [state, note, now, key, gen, owner],
+        ).changes > 0;
+      if (changed) this.applyQueued(key);
+      return changed;
+    });
+    return txn.immediate();
   }
 
-  /** Báo lỗi một lần chạy: `retryAt` đặt thì hẹn lại lúc đó, không thì đánh `failed`. */
+  /**
+   * Báo lỗi một lần chạy: `retryAt` đặt thì hẹn lại lúc đó, không thì đánh `failed` (và áp hẹn
+   * xếp hàng nếu có). Nếu có yêu cầu huỷ đang chờ thì huỷ luôn thay vì thử lại.
+   */
   failTimer(
     key: string,
     gen: number,
@@ -659,19 +980,49 @@ export class BotStore {
     now: number,
     owner = this.instanceId,
   ): boolean {
-    return (
+    const txn = this.db.transaction((): boolean => {
+      const row = this.db
+        .query(
+          "SELECT cancel_requested FROM timers WHERE key = ? AND gen = ? AND owner = ? AND state = 'firing'",
+        )
+        .get(key, gen, owner) as { cancel_requested: string | null } | null;
+      if (!row) return false;
+      if (retryAt !== null && row.cancel_requested !== null) {
+        this.db.run(
+          "UPDATE timers SET state = 'cancelled', last_error = ?, updated_at = ? WHERE key = ?",
+          [row.cancel_requested, now, key],
+        );
+        this.applyQueued(key);
+        return true;
+      }
       this.db.run(
         `UPDATE timers SET state = ?, due_at = COALESCE(?, due_at), last_error = ?, updated_at = ?
+         WHERE key = ? AND gen = ?`,
+        [retryAt === null ? "failed" : "pending", retryAt, error.slice(0, 500), now, key, gen],
+      );
+      if (retryAt === null) this.applyQueued(key);
+      return true;
+    });
+    return txn.immediate();
+  }
+
+  /**
+   * Trả timer về `pending` mà KHÔNG tính là một lần thử (bot đang tắt nên lần chạy bị huỷ):
+   * hoàn lại lượt `attempts` đã cộng lúc claim, giữ nguyên hạn.
+   */
+  releaseTimer(
+    key: string,
+    gen: number,
+    note: string,
+    now: number,
+    owner = this.instanceId,
+  ): boolean {
+    return (
+      this.db.run(
+        `UPDATE timers SET state = 'pending', attempts = MAX(attempts - 1, 0), owner = NULL, lease_until = 0,
+           last_error = ?, updated_at = ?
          WHERE key = ? AND gen = ? AND owner = ? AND state = 'firing'`,
-        [
-          retryAt === null ? "failed" : "pending",
-          retryAt,
-          error.slice(0, 500),
-          now,
-          key,
-          gen,
-          owner,
-        ],
+        [note, now, key, gen, owner],
       ).changes > 0
     );
   }

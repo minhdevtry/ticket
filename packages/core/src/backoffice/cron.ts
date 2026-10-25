@@ -29,9 +29,14 @@ export interface CronSchedule {
    */
   next(afterMs: number): number | null;
   /**
+   * Thời điểm khớp CUỐI CÙNG nhỏ hơn hoặc bằng `atOrBeforeMs` (chẵn phút), hoặc `null` nếu không
+   * có trong 8 năm trước đó. Tìm ngược từ `atOrBeforeMs` nên không tốn theo thời gian đã trôi.
+   */
+  prev(atOrBeforeMs: number): number | null;
+  /**
    * Đếm các thời điểm khớp trong `(afterMs, untilMs]` và trả thời điểm cuối cùng (hoặc `null`
-   * nếu không có). Dừng ở `maxCount` (mặc định 100 000) để lịch mỗi phút không quét mãi sau
-   * một thời gian dài tắt máy; khi đó `capped` là `true` và `last` là mốc cuối đã đếm.
+   * nếu không có). Đếm theo ngày bằng tìm nhị phân, không duyệt từng mốc; dừng ở `maxCount`
+   * (mặc định 100 000), khi đó `capped` là `true` và `count` bằng `maxCount`.
    */
   between(
     afterMs: number,
@@ -199,6 +204,65 @@ const daysIn = (month: number, leap: boolean): number =>
   month === 2 ? (leap ? 29 : 28) : [4, 6, 9, 11].includes(month) ? 30 : 31;
 
 const MAX_SCAN_DAYS = 366 * 8;
+const HOUR = 3_600_000;
+const DAY_MS = 86_400_000;
+
+/**
+ * Độ lệch múi giờ quanh một ngày địa phương (y, m, d): `before` áp dụng trước thời điểm `at`,
+ * `after` từ `at` trở đi. Ngày thường `before === after` (không gọi `Intl` cho từng phút); ngày
+ * chuyển giờ thì `at` là phút chuyển (tìm bằng chia đôi, ~12 lần gọi `Intl`). `null` nếu cửa sổ
+ * có hơn một lần chuyển (không xảy ra trên thực tế): caller rơi về cách tính từng giờ. Nhớ theo ngày.
+ * Cửa sổ 50 giờ phủ mọi thời điểm có thể thuộc ngày địa phương đó.
+ */
+interface DayOffsets {
+  before: number;
+  after: number;
+  at: number;
+}
+const offsetCache = new Map<string, DayOffsets | null>();
+function dayOffsets(y: number, m: number, d: number, tz: string): DayOffsets | null {
+  const key = `${tz}|${y}-${m}-${d}`;
+  const hit = offsetCache.get(key);
+  if (hit !== undefined) return hit;
+  const asUtc0 = Date.UTC(y, m - 1, d);
+  const lo = asUtc0 - 14 * HOUR;
+  const hi = asUtc0 + DAY_MS + 12 * HOUR;
+  const before = offsetAt(lo, tz);
+  const after = offsetAt(hi, tz);
+  let value: DayOffsets | null;
+  if (before === after) {
+    value = { before, after, at: Number.POSITIVE_INFINITY };
+  } else {
+    // Nhỏ nhất t (chẵn phút) trong (lo, hi] mà độ lệch đã là `after`.
+    let a = Math.floor(lo / MINUTE);
+    let b = Math.floor(hi / MINUTE);
+    while (b - a > 1) {
+      const mid = Math.floor((a + b) / 2);
+      if (offsetAt(mid * MINUTE, tz) === after) b = mid;
+      else a = mid;
+    }
+    const at = b * MINUTE;
+    value =
+      offsetAt(at - MINUTE, tz) === before && offsetAt(at, tz) === after
+        ? { before, after, at }
+        : null;
+  }
+  if (offsetCache.size > 4000) offsetCache.clear();
+  offsetCache.set(key, value);
+  return value;
+}
+
+/** Vị trí đầu tiên trong `arr` (đã sắp tăng) có giá trị >= `x`. */
+function lowerBound(arr: readonly number[], x: number): number {
+  let lo = 0;
+  let hi = arr.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (arr[mid] < x) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
 
 /**
  * Phân tích một biểu thức cron. Ném `RangeError` (thông báo tiếng Việt, nêu rõ trường sai)
@@ -239,43 +303,115 @@ export function parseCron(expression: string, timezone: string = DEFAULT_TIMEZON
     return domOk && dowOk;
   };
 
+  /**
+   * Các mốc (epoch ms, tăng dần) của một ngày địa phương. Ngày thường: cộng trừ độ lệch cố định,
+   * không gọi `Intl`. Ngày chuyển giờ: tính từng giờ treo tường (bỏ giờ không tồn tại, giờ lặp
+   * chỉ tính một lần).
+   */
+  const dayCache = new Map<string, number[]>();
+  const slotsOfDay = (y: number, m: number, d: number): number[] => {
+    const key = `${y}-${m}-${d}`;
+    const hit = dayCache.get(key);
+    if (hit) return hit;
+    const out: number[] = [];
+    const offs = dayOffsets(y, m, d, timezone);
+    if (offs !== null) {
+      for (const h of hour.values) {
+        for (const mi of minute.values) {
+          const local = Date.UTC(y, m - 1, d, h, mi);
+          const first = local - offs.before;
+          if (first < offs.at)
+            out.push(first); // giờ lặp (lùi giờ): lấy lần đầu, chạy một lần
+          else if (offs.before === offs.after) out.push(first);
+          else {
+            const second = local - offs.after;
+            if (second >= offs.at) out.push(second);
+          }
+          // else: giờ không tồn tại (nhảy giờ mùa hè) bị bỏ qua
+        }
+      }
+      out.sort((p, q) => p - q);
+    } else {
+      const set = new Set<number>();
+      for (const h of hour.values) {
+        for (const mi of minute.values) {
+          const t = wallToInstant(y, m, d, h, mi, timezone);
+          if (t !== null) set.add(t);
+        }
+      }
+      out.push(...[...set].sort((p, q) => p - q));
+    }
+    if (dayCache.size >= 8) {
+      const oldest = dayCache.keys().next().value;
+      if (oldest !== undefined) dayCache.delete(oldest);
+    }
+    dayCache.set(key, out);
+    return out;
+  };
+
+  const ymd = (startDay: Wall, offsetDays: number) => {
+    const day = new Date(Date.UTC(startDay.year, startDay.month - 1, startDay.day + offsetDays));
+    return { y: day.getUTCFullYear(), m: day.getUTCMonth() + 1, d: day.getUTCDate() };
+  };
+
   const next = (afterMs: number): number | null => {
     const from = (Math.floor(afterMs / MINUTE) + 1) * MINUTE;
     const start = wall(from, timezone);
     for (let i = 0; i < MAX_SCAN_DAYS; i++) {
-      const day = new Date(Date.UTC(start.year, start.month - 1, start.day + i));
-      const y = day.getUTCFullYear();
-      const m = day.getUTCMonth() + 1;
-      const d = day.getUTCDate();
+      const { y, m, d } = ymd(start, i);
       if (!dayMatches(y, m, d)) continue;
-      let best: number | null = null;
-      for (const h of hour.values) {
-        for (const mi of minute.values) {
-          const t = wallToInstant(y, m, d, h, mi, timezone);
-          if (t !== null && t >= from && (best === null || t < best)) best = t;
-        }
-      }
-      if (best !== null) return best;
+      const slots = slotsOfDay(y, m, d);
+      const k = lowerBound(slots, from);
+      if (k < slots.length) return slots[k];
     }
     return null;
+  };
+
+  const prev = (atOrBeforeMs: number): number | null => {
+    const t = Math.floor(atOrBeforeMs / MINUTE) * MINUTE;
+    const start = wall(t, timezone);
+    for (let i = 0; i < MAX_SCAN_DAYS; i++) {
+      const { y, m, d } = ymd(start, -i);
+      if (!dayMatches(y, m, d)) continue;
+      const slots = slotsOfDay(y, m, d);
+      const k = lowerBound(slots, t + 1) - 1;
+      if (k >= 0) return slots[k];
+    }
+    return null;
+  };
+
+  const count = (afterMs: number, untilMs: number, maxCount: number) => {
+    if (untilMs <= afterMs) return { count: 0, capped: false };
+    const from = (Math.floor(afterMs / MINUTE) + 1) * MINUTE;
+    const until = Math.floor(untilMs / MINUTE) * MINUTE;
+    if (until < from) return { count: 0, capped: false };
+    const start = wall(from, timezone);
+    const end = wall(until, timezone);
+    const span = Math.round(
+      (Date.UTC(end.year, end.month - 1, end.day) -
+        Date.UTC(start.year, start.month - 1, start.day)) /
+        DAY_MS,
+    );
+    let total = 0;
+    for (let i = 0; i <= Math.min(span, MAX_SCAN_DAYS); i++) {
+      const { y, m, d } = ymd(start, i);
+      if (!dayMatches(y, m, d)) continue;
+      const slots = slotsOfDay(y, m, d);
+      total += lowerBound(slots, until + 1) - lowerBound(slots, from);
+      if (total >= maxCount) return { count: maxCount, capped: true };
+    }
+    return { count: total, capped: span > MAX_SCAN_DAYS };
   };
 
   return {
     expression: raw,
     timezone,
     next,
+    prev,
     between(afterMs, untilMs, maxCount = 100_000) {
-      let count = 0;
-      let last: number | null = null;
-      let cursor = afterMs;
-      while (count < maxCount) {
-        const t = next(cursor);
-        if (t === null || t > untilMs) return { count, last, capped: false };
-        count++;
-        last = t;
-        cursor = t;
-      }
-      return { count, last, capped: true };
+      const last = prev(untilMs);
+      if (last === null || last <= afterMs) return { count: 0, last: null, capped: false };
+      return { ...count(afterMs, untilMs, maxCount), last };
     },
   };
 }

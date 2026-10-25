@@ -44,28 +44,42 @@ All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded
   - `backoffice`: `BotStore` (kho SQLite bền, `bun:sqlite`, WAL, schema có phiên bản qua
     `PRAGMA user_version`, từ chối file do bản code mới hơn tạo: `BotStoreVersionError`) gồm
     `RunLedger` bền (`store.ledger()`), tập khoá chống trùng (`KeySet`, `MemoryKeySet`), lease, mốc
-    cron và hẹn giờ. `createScopedTracker({ keys })`: khoá `idempotencyKey` của comment sống qua
+    cron và hẹn giờ. `bun:sqlite` nạp lười (barrel import được dưới Node; mở kho cần Bun);
+    `busy_timeout` đặt trước WAL kèm thử lại khi mở đồng thời nhiều process; thư mục 0700, file 0600;
+    schema v2 (định danh hành động, cờ yêu cầu huỷ, hẹn xếp hàng); ledger/khoá cũ dọn định kỳ. `createScopedTracker({ keys })`: khoá `idempotencyKey` của comment sống qua
     restart. `RuleEngine({ seen, store, reporter })`: dedupe sự kiện luật bền.
   - `backoffice.schedule: { "<cron>": handler | { run, missed, timezone } }` (trước đây bị
     `defineBot` từ chối) và `scheduleOptions` (`timezone`, `missed`, `graceMs`): lịch do bot giữ.
     `parseCron` (5 trường, tên tháng/thứ, bí danh `@daily`…, múi giờ IANA qua `Intl`, mặc định
-    `Asia/Ho_Chi_Minh`), `BotScheduler`, `ScheduleContext`. Mốc được chiếm nguyên tử trong kho
-    trước khi chạy (at-most-once, hai process cùng kho chỉ một bên chạy); lease chống chạy chồng;
-    mốc lỡ theo `skip` (mặc định) hoặc `catch-up-once`.
+    `Asia/Ho_Chi_Minh`), `BotScheduler`, `ScheduleContext` (có `llm` như `RunContext`, ràng với
+    `signal`). Mốc được chiếm nguyên tử trong kho trước khi chạy (at-most-once, hai process cùng kho
+    chỉ một bên chạy); lease chống chạy chồng; mốc lỡ theo `skip` (mặc định) hoặc `catch-up-once`.
+    `CronSchedule.prev`, đếm mốc theo ngày (không duyệt từng phút, độ lệch múi giờ nhớ theo ngày):
+    bot tắt bao lâu cũng không chặn event loop. Id lịch trong kho là `<biểu thức>@<múi giờ>`; lịch bị
+    gỡ khỏi khai báo bị dọn. Health: `firingTimers`, `failedTimers`, `tickLagMs`, lỗi tự hết sau 15
+    phút, và lịch/hẹn giờ lỗi làm bot `degraded`.
   - Hẹn giờ cho luật: `actions.after(duration, fn, { key, cancelOn, guard, replace })`,
     `actions.closeAfter("48h", { to, comment })`, `actions.cancelTimer(key)`, `parseDuration`.
     Token huỷ `comment`, `reporter-comment`, `state-change`, `reopened`, `assigned` (và mọi hẹn của
-    issue bị xoá); `closeAfter` kiểm lại itsaplan lúc tới hạn; `backoffice.reporter` xác định người
-    báo. `RuleContext` thêm `step`, `timers`; `Rule.watches`; `RuleEngine.fireTimer`,
+    issue bị xoá); `closeAfter` kiểm lại itsaplan lúc tới hạn (mốc `statusSince` của server, đọc lại
+    issue ngay trước khi ghi và trước `moveTo`); yêu cầu huỷ tới lúc hẹn đang chạy được đánh dấu và
+    mọi lệnh ghi của `ctx.tracker` dừng (`TimerCancelled`, `ctx.assertActive()`, `ctx.freshIssue()`);
+    hẹn lại lúc đang chạy được xếp hàng. Hẹn ghi định danh hành động (`id` tường minh hoặc loại +
+    thời hạn): lệch thì hẹn bị bỏ; `after` từ chối `key` thiếu `{issue}`. `backoffice.reporter` là
+    BẮT BUỘC cho `closeAfter`/`reporter-comment` (itsaplan không trả người báo; `anyHumanIsReporter`
+    để chọn "mọi người comment là người báo"). `TimerContext.llm`. `RuleContext` thêm `step`, `timers`; `Rule.watches`; `RuleEngine.fireTimer`,
     `hasTimers()`; `requiredEvents()` gồm cả sự kiện chỉ để huỷ hẹn. Hẹn at-least-once, thử lại
     5 lần với backoff.
   - `ensureRuleWebhook` + `WebhookPermissionError`: đăng ký webhook theo `rules`, chỉ trên dự án
-    của bot, không xoá/sửa webhook URL khác.
+    của bot, không sửa webhook URL khác, không bật lại webhook bị tắt (báo `disabled`, health
+    `degraded`), liệt kê lại sau khi tạo và xoá bản vừa tạo của mình nếu trùng (khởi động đồng
+    thời), gửi `ITSAPLAN_WEBHOOK_SECRET` khi tạo nếu API nhận và cảnh báo khi secret lệch.
   - `bot`: `createBot` nhận `dataDir`, `store`, `scheduler`, `webhook.url`, `webhook.autoRegister`;
     biến `BOT_DATA_DIR`, `BOT_TIMEZONE`, `BOT_WEBHOOK_AUTO_REGISTER`, `BOT_WEBHOOK_URL`,
     `ITSAPLAN_WEBHOOK_KEY`; `Bot.store`; `health().components.scheduler|store`.
     Tự đăng ký webhook mặc định TẮT; thiếu quyền thì `start()` ném lỗi rõ ràng.
-  - `testing`: `FakeItsaplan` có endpoint webhook (`agentCanManageWebhooks`, `webhookKey`).
+  - `testing`: `FakeItsaplan` có endpoint webhook (`agentCanManageWebhooks`, `webhookKey`,
+    `webhookSecretMode`) và `statusSince` của issue.
   - Docs: how-to "Lịch chạy và hẹn giờ"; cập nhật RFC (trạng thái các mục M2), config-env, bot-kit.
   - Chưa có: runtime lễ tân (2b), `X-Itsaplan-Event-Id` xuống handler, thử lại riêng từng luật.
 - **Bot kit, milestone 1** (RFC `docs/rfc/0001-bot-kit.md`). Additive; không đổi API hiện có.

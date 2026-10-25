@@ -682,7 +682,7 @@ export class ItsaplanClient {
 
   async createWebhook(
     projectKey: string,
-    payload: { url: string; events: string[]; isActive?: boolean },
+    payload: { url: string; events: string[]; isActive?: boolean; secret?: string },
   ): Promise<WebhookSubscription> {
     return this.request<WebhookSubscription>(
       `/projects/${encodeURIComponent(projectKey)}/webhooks`,

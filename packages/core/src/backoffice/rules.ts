@@ -37,6 +37,7 @@ import {
   identifierInProject,
   webhookDedupeKey,
 } from "../itsaplan";
+import { type Llm, withSignal } from "../llm";
 import { parseDuration } from "./duration";
 import {
   type BotStore,
@@ -111,6 +112,8 @@ export interface TimerContext<C = unknown> {
   /** Tracker khoá dự án; ghi bị từ chối khi `signal` huỷ (bot đang tắt). */
   readonly tracker: ScopedTracker;
   readonly signal: AbortSignal;
+  /** Client LLM khi bot đã cấu hình (`LLM_*`), nếu không `undefined`; bị huỷ theo `signal`. */
+  readonly llm: Llm | undefined;
   /**
    * Khoá ổn định của (hẹn giờ, lần hẹn): `timer:<key>#<gen>`. Chạy lại sau sập thì vẫn là khoá
    * này, nên truyền cho `tracker.comment({ idempotencyKey })` để không ghi trùng.
@@ -118,8 +121,27 @@ export interface TimerContext<C = unknown> {
   readonly idempotencyKey: string;
   /** Issue (đọc một lần rồi nhớ); `null` nếu không còn hoặc ngoài dự án. */
   issue(): Promise<ItsaplanIssue | null>;
+  /** Đọc issue LẠI từ itsaplan, không dùng bản nhớ: dùng ngay trước một thao tác ghi quyết định. */
+  freshIssue(): Promise<ItsaplanIssue | null>;
+  /**
+   * Ném {@link TimerCancelled} nếu hẹn này đã bị yêu cầu huỷ (người báo vừa trả lời, ticket vừa mở
+   * lại…) hoặc không còn đang chạy ở process này. Mọi lệnh ghi của `ctx.tracker` đã tự gọi hàm này
+   * trước khi ghi; gọi thêm khi hành động ghi ra ngoài bằng đường khác.
+   */
+  assertActive(): void;
   /** `actorId` có phải người báo của issue này không (theo `BackofficeDefinition.reporter`). */
   isReporter(actorId: string | null | undefined): Promise<boolean>;
+}
+
+/**
+ * Ném từ hành động hẹn giờ (hoặc từ `ctx.assertActive()`) để HUỶ hẹn một cách có chủ ý: bộ chạy
+ * đánh hẹn `cancelled` kèm lý do, không thử lại và không tính là lỗi.
+ */
+export class TimerCancelled extends Error {
+  constructor(readonly reason: string) {
+    super(reason);
+    this.name = "TimerCancelled";
+  }
 }
 
 /** Hành động chạy khi hẹn giờ đến hạn. Ném lỗi thì được thử lại (có giới hạn). */
@@ -174,6 +196,11 @@ export interface Rule<C = unknown> {
    * hành động `after`/`closeAfter`.
    */
   readonly watches?: readonly string[];
+  /**
+   * Luật có hành động cần biết ai là người báo (`closeAfter`, hoặc `cancelOn: ["reporter-comment"]`).
+   * Khi có, `backoffice.reporter` là BẮT BUỘC (xem `ReporterResolver`).
+   */
+  readonly needsReporter?: boolean;
 }
 
 /** Dựng luật theo kiểu chuỗi; bất biến. Kết thúc bằng `.do(...)`. */
@@ -200,12 +227,14 @@ export class RuleBuilder<C = unknown> {
     const watches = [
       ...new Set(actions.flatMap((a) => (delayedOf(a) ? (delayedOf(a)?.watches ?? []) : []))),
     ].sort();
+    const needsReporter = actions.some((a) => delayedOf(a)?.usesReporter === true);
     return Object.freeze({
       name: this.ruleName,
       events: this.events,
       conditions: this.conditions,
       actions,
       ...(watches.length > 0 ? { watches } : {}),
+      ...(needsReporter ? { needsReporter } : {}),
     });
   }
 }
@@ -316,6 +345,10 @@ interface DelayedAction<C> {
   readonly replace: boolean;
   /** Sự kiện cần nghe để huỷ hẹn. */
   readonly watches: readonly string[];
+  /** Định danh ổn định của hành động (ghi vào hẹn; lệch lúc đến hạn thì bỏ hẹn). */
+  readonly actionId: string;
+  /** Hành động cần `backoffice.reporter`. */
+  readonly usesReporter: boolean;
 }
 
 type DelayedFn<C> = RuleAction<C> & { readonly [DELAYED]?: DelayedAction<C> };
@@ -327,11 +360,20 @@ function delayedOf<C>(action: RuleAction<C>): DelayedAction<C> | undefined {
 /** Tuỳ chọn của `actions.after` và `actions.closeAfter`. */
 export interface AfterOptions<C = unknown> {
   /**
-   * Khoá của hẹn giờ, duy nhất trong bot. Mẫu có thể chứa `{issue}` (id issue) và `{rule}`.
-   * Mặc định `{rule}#<bước>:{issue}`: mỗi (luật, bước, issue) có đúng một hẹn đang chờ. Đặt khoá
-   * chung để luật khác huỷ được bằng `actions.cancelTimer(khoá)`.
+   * Khoá của hẹn giờ, duy nhất trong bot. Mẫu BẮT BUỘC chứa `{issue}` (id issue; thiếu thì mọi
+   * issue dùng chung một hẹn), có thể chứa thêm `{rule}`, `{step}`. Mặc định `{rule}#{step}:{issue}`:
+   * mỗi (luật, bước, issue) có đúng một hẹn đang chờ. Đặt khoá chung để luật khác huỷ được bằng
+   * `actions.cancelTimer(khoá)`. Mặc định khoá chứa vị trí bước: thêm/xoá/đổi thứ tự hành động
+   * của luật làm khoá của hẹn đang chờ không còn khớp (hẹn cũ bị bỏ lúc đến hạn); đặt `key` và
+   * `id` tường minh nếu cần chịu được việc sửa luật.
    */
   key?: string;
+  /**
+   * Định danh ổn định của hành động này. Mặc định suy từ loại và thời hạn (`after:172800000`).
+   * Hẹn ghi định danh lúc hẹn; lúc đến hạn, nếu hành động hiện ở (luật, bước) đó có định danh khác
+   * (luật đã bị sửa) thì hẹn bị bỏ thay vì chạy nhầm hành động khác.
+   */
+  id?: string;
   /** Token huỷ (xem `CancelToken`). Mặc định không có: chỉ huỷ bằng khoá hoặc khi issue bị xoá. */
   cancelOn?: readonly CancelToken[];
   /** Kiểm tra ngay trước khi chạy (huỷ hẹn nếu không còn đúng). */
@@ -357,18 +399,34 @@ const DEFAULT_KEY = "{rule}#{step}:{issue}";
  * bền và tự chạy lại sau khi bot khởi động lại. `run` phải TẤT ĐỊNH và chạy lại được (có thể chạy
  * hai lần nếu bot sập giữa chừng): dùng `ctx.idempotencyKey` cho thao tác ghi.
  *
- * Hàm `run` không được ghi vào kho, chỉ vị trí (tên luật, bước) của nó; vì vậy KHÔNG đổi tên hay
- * đổi thứ tự hành động của luật khi còn hẹn đang chờ (hẹn mồ côi bị huỷ kèm log).
+ * Hàm `run` không được ghi vào kho, chỉ vị trí (tên luật, bước) và định danh (`id`) của nó; vì
+ * vậy KHÔNG đổi tên hay đổi thứ tự hành động của luật khi còn hẹn đang chờ (hẹn mồ côi hoặc lệch
+ * định danh bị huỷ kèm log).
  */
 function after<C = unknown>(
   duration: string | number,
   run: TimerAction<C>,
   options: AfterOptions<C> = {},
 ): RuleAction<C> {
+  return buildDelayed("after", duration, run, options, {});
+}
+
+function buildDelayed<C>(
+  kind: string,
+  duration: string | number,
+  run: TimerAction<C>,
+  options: AfterOptions<C>,
+  extra: { idSuffix?: string; usesReporter?: boolean },
+): RuleAction<C> {
   const delayMs = parseDuration(duration);
   const cancelOn = [...new Set(options.cancelOn ?? [])];
   for (const token of cancelOn) {
     if (!(token in TOKEN_EVENT)) throw new Error(`cancelOn: token không biết "${token}"`);
+  }
+  if (options.key !== undefined && !options.key.includes("{issue}")) {
+    throw new Error(
+      `${kind}: key "${options.key}" thiếu {issue}: mọi issue sẽ dùng chung một hẹn (ví dụ đúng: "nhac:{issue}")`,
+    );
   }
   const watches = [...new Set(["issue.deleted", ...cancelOn.map((t) => TOKEN_EVENT[t])])];
   const meta: DelayedAction<C> = {
@@ -379,10 +437,15 @@ function after<C = unknown>(
     key: options.key,
     replace: options.replace ?? false,
     watches,
+    actionId:
+      options.id !== undefined
+        ? `id:${options.id}`
+        : `${kind}:${delayMs}${extra.idSuffix ? `:${extra.idSuffix}` : ""}`,
+    usesReporter: extra.usesReporter === true || cancelOn.includes("reporter-comment"),
   };
   const action: RuleAction<C> = (ctx) => {
     if (ctx.event.issueId == null) {
-      throw new Error(`after: sự kiện ${ctx.event.name} không gắn issue`);
+      throw new Error(`${kind}: sự kiện ${ctx.event.name} không gắn issue`);
     }
     const key = expandKey(meta.key ?? DEFAULT_KEY, ctx.rule, ctx.step, ctx.event.issueId);
     const outcome = ctx.timers.arm({
@@ -392,6 +455,7 @@ function after<C = unknown>(
       identifier: ctx.event.identifier,
       cancelOn: meta.cancelOn,
       replace: meta.replace,
+      actionId: meta.actionId,
     });
     ctx.logger.info(
       `[rules] ${ctx.rule}: hẹn ${key} sau ${Math.round(meta.delayMs / 1000)}s (${outcome})`,
@@ -414,35 +478,57 @@ export interface CloseAfterOptions<C = unknown> extends AfterOptions<C> {
  *
  * - Mặc định huỷ khi issue đổi cột (`state-change`) hoặc người báo comment (`reporter-comment`).
  * - Ngay trước khi đóng, bot kiểm lại bằng itsaplan (phòng lỡ webhook lúc tắt): issue còn ở cột
- *   Resolved và không có comment của người báo kể từ lúc hẹn; không thì huỷ hẹn, không đóng.
- * - Không xác định được người báo (`BackofficeDefinition.reporter`, hoặc issue không có trường
- *   người tạo) thì MỌI comment không phải của bot đều tính là của người báo: thà không đóng.
+ *   Resolved và không có comment của người báo kể từ lúc issue VÀO cột Resolved (`statusSince` của
+ *   server, không phải lúc bot hẹn); không thì huỷ hẹn, không đóng. Comment không có `createdAt`
+ *   được coi là mới. Issue được đọc LẠI (không dùng bản nhớ) ngay trước comment và trước khi chuyển
+ *   cột, và hành động dừng nếu có yêu cầu huỷ tới trong lúc chạy.
+ * - BẮT BUỘC có `backoffice.reporter`: itsaplan không trả người báo trên issue, nên bot không tự
+ *   biết. Dùng `anyHumanIsReporter` để tuyên bố rõ "mọi người comment đều tính là người báo".
  */
 function closeAfter<C = unknown>(
   duration: string | number,
   options: CloseAfterOptions<C> = {},
 ): RuleAction<C> {
   const { to, comment: note, ...rest } = options;
-  const guard: TimerGuard<C> = async (ctx) => {
-    const issue = await ctx.issue();
+  /** Lý do KHÔNG được đóng nữa, hoặc `null` nếu issue vẫn đang Resolved. */
+  const notResolved = async (ctx: TimerContext<C>, issue: ItsaplanIssue | null) => {
     if (!issue) return "issue không còn hoặc ngoài dự án";
     const columns = await ctx.tracker.columns();
     const column = columns.find((c) => c.id === issue.columnId);
     if (!column || classifyColumn(column) !== "resolved") {
       return `issue không còn ở cột Resolved (${column?.name ?? issue.columnId})`;
     }
+    return null;
+  };
+  const guard: TimerGuard<C> = async (ctx) => {
+    const issue = await ctx.freshIssue();
+    const why = await notResolved(ctx, issue);
+    if (why !== null || !issue) return why ?? "issue không còn";
+    // Mốc "đã Resolved": thời điểm issue vào cột hiện tại theo server; thiếu thì lúc bot hẹn.
+    const since = issue.statusSince ? Date.parse(issue.statusSince) : Number.NaN;
+    const resolvedAt = Number.isFinite(since) ? since : ctx.armedAt;
     for (const c of await ctx.tracker.comments(issue.id)) {
+      if (isBotComment(c.body)) continue;
       const at = c.createdAt ? Date.parse(c.createdAt) : Number.NaN;
-      if (!(at > ctx.armedAt) || isBotComment(c.body)) continue;
+      // Không biết comment từ khi nào: coi là mới (thà không đóng còn hơn đóng nhầm).
+      if (Number.isFinite(at) && !(at > resolvedAt)) continue;
       if (await ctx.isReporter(c.author?.id)) return "người báo đã trả lời sau khi Resolved";
     }
     return rest.guard ? rest.guard(ctx) : true;
   };
-  return after<C>(
+  return buildDelayed<C>(
+    "closeAfter",
     duration,
     async (ctx) => {
-      const issue = await ctx.issue();
-      if (!issue) return;
+      /** Đọc LẠI issue (không dùng bản nhớ) và dừng nếu hết Resolved hoặc có yêu cầu huỷ. */
+      const recheck = async (): Promise<ItsaplanIssue> => {
+        ctx.assertActive();
+        const latest = await ctx.freshIssue();
+        const why = await notResolved(ctx, latest);
+        if (why !== null || !latest) throw new TimerCancelled(why ?? "issue không còn");
+        return latest;
+      };
+      const issue = await recheck();
       const columns = await ctx.tracker.columns();
       const wanted = to === undefined ? undefined : foldForComparison(to);
       const target = columns.find((c) =>
@@ -457,8 +543,11 @@ function closeAfter<C = unknown>(
       }
       if (note !== undefined) {
         const text = typeof note === "function" ? await note(ctx) : note;
+        await recheck(); // người dùng có thể vừa mở lại trong lúc dựng nội dung
         await ctx.tracker.comment(issue.id, text, { idempotencyKey: ctx.idempotencyKey });
       }
+      // Ngay trước khi chuyển cột: đọc lại lần cuối (không cache).
+      await recheck();
       await ctx.tracker.moveTo(issue.id, target.id);
     },
     {
@@ -466,6 +555,7 @@ function closeAfter<C = unknown>(
       cancelOn: rest.cancelOn ?? ["state-change", "reporter-comment"],
       guard,
     },
+    { idSuffix: to === undefined ? undefined : `to=${foldForComparison(to)}`, usesReporter: true },
   );
 }
 
@@ -493,6 +583,18 @@ export const actions = {
   closeAfter,
   cancelTimer,
 } as const;
+
+/** Bọc tracker: mọi lệnh ghi gọi `gate()` (ném `TimerCancelled`) ngay trước khi ghi. */
+function gateWrites(tracker: ScopedTracker, gate: () => void): ScopedTracker {
+  return {
+    ...tracker,
+    forSignal: (signal) => gateWrites(tracker.forSignal(signal), gate),
+    comment: (...a) => (gate(), tracker.comment(...a)),
+    moveTo: (...a) => (gate(), tracker.moveTo(...a)),
+    assign: (...a) => (gate(), tracker.assign(...a)),
+    setPriority: (...a) => (gate(), tracker.setPriority(...a)),
+  };
+}
 
 // ── engine ───────────────────────────────────────────────────────────────────
 
@@ -526,10 +628,13 @@ export interface RuleEngineOptions<C> {
   seen?: KeySet;
   /** Kho bền cho hẹn giờ (`after`, `closeAfter`). Không có thì hành động hẹn giờ ném lỗi rõ ràng. */
   store?: BotStore;
+  /** LLM của bot, đưa vào `TimerContext.llm` (gắn `signal` của từng lần chạy hẹn). */
+  llm?: Llm;
   /**
-   * `actorId` có phải người báo của issue không (để token huỷ `reporter-comment` và
-   * `closeAfter` biết người báo đã trả lời). Mặc định đọc trường người tạo của issue
-   * (`reporterUserId`, `creatorUserId`, `createdByUserId`); không có thì coi MỌI người là người báo.
+   * `actorId` có phải người báo của issue không (để token huỷ `reporter-comment` và `closeAfter`
+   * biết người báo đã trả lời). BẮT BUỘC khi có luật dùng chúng (`Rule.needsReporter`): itsaplan
+   * không trả người báo trên issue nên bot không tự đoán được. Muốn "mọi người comment đều tính là
+   * người báo" thì truyền `anyHumanIsReporter` (thận trọng: không tự đóng khi ai đó nói gì).
    */
   reporter?: ReporterResolver;
 }
@@ -543,14 +648,12 @@ export type ReporterResolver = (info: {
 /** Kết quả chạy một hẹn giờ đến hạn: `skipped` nghĩa là điều kiện không còn, hẹn bị huỷ. */
 export type TimerFireResult = { status: "done" } | { status: "skipped"; reason: string };
 
-const defaultReporter: ReporterResolver = ({ issue, actorId }) => {
-  const raw = issue as unknown as Record<string, unknown>;
-  const creator = [raw.reporterUserId, raw.creatorUserId, raw.createdByUserId].find(
-    (v) => typeof v === "string" && v !== "",
-  );
-  // Không biết ai là người báo: coi mọi người là người báo (an toàn: không tự đóng ticket).
-  return creator === undefined ? true : actorId !== null && String(creator) === actorId;
-};
+/**
+ * Tuyên bố "MỌI người (không phải bot) comment đều tính là người báo": `closeAfter` chỉ đóng khi
+ * hoàn toàn không ai nói gì sau lúc Resolved. An toàn nhưng thận trọng; nếu bot biết danh sách
+ * nhân viên thì viết hàm riêng loại họ ra.
+ */
+export const anyHumanIsReporter: ReporterResolver = () => true;
 
 const ISSUE_EVENTS = new Set([
   "issue.created",
@@ -570,12 +673,18 @@ export class RuleEngine<C = unknown> {
   private readonly inflight = new Set<string>();
   private readonly clock: Clock;
   private readonly watched: Set<string>;
-  private readonly reporter: ReporterResolver;
+  private readonly reporter: ReporterResolver | undefined;
 
   constructor(private readonly o: RuleEngineOptions<C>) {
+    const needing = o.rules.filter((r) => r.needsReporter).map((r) => r.name);
+    if (needing.length > 0 && !o.reporter) {
+      throw new Error(
+        `luật ${needing.map((n) => `"${n}"`).join(", ")} dùng closeAfter/reporter-comment nên cần \`reporter\` (backoffice.reporter): itsaplan không trả người báo trên issue. Truyền một hàm xác định người báo, hoặc \`anyHumanIsReporter\` để coi mọi người comment là người báo`,
+      );
+    }
     this.clock = o.clock ?? systemClock;
     this.seen = o.seen ?? new MemoryKeySet(o.dedupeSize ?? 2000);
-    this.reporter = o.reporter ?? defaultReporter;
+    this.reporter = o.reporter;
     this.watched = new Set(o.rules.flatMap((r) => r.watches ?? []));
   }
 
@@ -753,7 +862,7 @@ export class RuleEngine<C = unknown> {
           cancel("comment", "có comment của người");
           const actorId = event.actor?.id == null ? null : String(event.actor.id);
           const known = issue ?? (await this.o.tracker.getIssue(id));
-          if (known && (await this.reporter({ issue: known, actorId }))) {
+          if (known && this.reporter && (await this.reporter({ issue: known, actorId }))) {
             cancel("reporter-comment", "người báo trả lời");
           }
           break;
@@ -780,15 +889,29 @@ export class RuleEngine<C = unknown> {
         reason: `luật "${row.rule}" bước ${row.step} không còn trong khai báo`,
       };
     }
-    const tracker = this.o.tracker.forSignal(signal);
+    if (row.actionId !== null && row.actionId !== meta.actionId) {
+      return {
+        status: "skipped",
+        reason: `hành động của luật "${row.rule}" bước ${row.step} đã đổi (${row.actionId} → ${meta.actionId}): hẹn bị bỏ`,
+      };
+    }
+    const store = this.o.store;
+    const gate = (): void => {
+      const why = store?.timerBlocked(row.key, row.gen);
+      if (why) throw new TimerCancelled(why);
+    };
+    const tracker = gateWrites(this.o.tracker.forSignal(signal), gate);
     let issueCache: Promise<ItsaplanIssue | null> | undefined;
+    const freshIssue = () =>
+      row.issueId == null ? Promise.resolve(null) : tracker.getIssue(row.issueId);
     const issue = () => {
-      issueCache ??= row.issueId == null ? Promise.resolve(null) : tracker.getIssue(row.issueId);
+      issueCache ??= freshIssue();
       issueCache.catch(() => {
         issueCache = undefined;
       });
       return issueCache;
     };
+    const reporter = this.reporter;
     const ctx: TimerContext<C> = {
       key: row.key,
       rule: row.rule,
@@ -802,24 +925,34 @@ export class RuleEngine<C = unknown> {
       clock: this.clock,
       tracker,
       signal,
+      llm: this.o.llm ? withSignal(this.o.llm, signal) : undefined,
       idempotencyKey: `timer:${row.key}#${row.gen}`,
       issue,
+      freshIssue,
+      assertActive: gate,
       isReporter: async (actorId) => {
+        if (!reporter) return true; // không có hàm xác định: thận trọng, coi là người báo
         const known = await issue();
-        return known ? this.reporter({ issue: known, actorId: actorId ?? null }) : false;
+        return known ? reporter({ issue: known, actorId: actorId ?? null }) : false;
       },
     };
-    if (meta.guard) {
-      const verdict = await meta.guard(ctx);
-      if (verdict !== true) {
-        return {
-          status: "skipped",
-          reason: typeof verdict === "string" ? verdict : "guard trả false",
-        };
+    try {
+      gate();
+      if (meta.guard) {
+        const verdict = await meta.guard(ctx);
+        if (verdict !== true) {
+          return {
+            status: "skipped",
+            reason: typeof verdict === "string" ? verdict : "guard trả false",
+          };
+        }
       }
+      await meta.run(ctx);
+      return { status: "done" };
+    } catch (err) {
+      if (err instanceof TimerCancelled) return { status: "skipped", reason: err.reason };
+      throw err;
     }
-    await meta.run(ctx);
-    return { status: "done" };
   }
 
   /**

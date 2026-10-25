@@ -13,6 +13,8 @@ Trang này hướng dẫn cho bot hậu cần hai việc cần có đồng hồ:
 
 Hai cách dùng song song được. Trang này nói về cách thứ nhất và về hẹn giờ của luật.
 
+**Runtime.** Kho dùng `bun:sqlite`, nên mở kho (`BotStore.open`/`memory`, tức `createBot` có lịch hoặc hẹn giờ) cần chạy dưới Bun. Module này chỉ nạp `bun:sqlite` khi thật sự mở kho, nên import `@vuihoc/bot-core/backoffice` dưới Node không lỗi (kiểu, luật, `parseCron`… dùng được); mở kho dưới Node ném lỗi "BotStore cần runtime Bun".
+
 ## Bước 1: bật kho bền
 
 Đặt `BOT_DATA_DIR` (hoặc tuỳ chọn `dataDir` của `createBot`) trỏ tới một thư mục ghi được, nên là đường dẫn tuyệt đối. Bot mở file `<thư mục>/<bot.id>.sqlite` (WAL, schema có phiên bản). Khi có kho bền:
@@ -23,7 +25,9 @@ Hai cách dùng song song được. Trang này nói về cách thứ nhất và 
 
 Không đặt thì mọi thứ nằm trong bộ nhớ như milestone 1 (mặc định của test). Lịch và hẹn giờ vẫn chạy trong lúc bot sống, nhưng mất khi process chết. Không mở được thư mục thì `createBot` ném lỗi nêu đường dẫn, không âm thầm hạ xuống bộ nhớ: nếu bạn đã yêu cầu kho bền thì mất kho là lỗi cấu hình, không phải chuyện nên che.
 
-Mỗi bot một file; hai bot khác `id` dùng chung thư mục được. Hai process cùng `id` và cùng thư mục là cách chạy dự phòng hợp lệ: kho bảo đảm chỉ một bên chạy mỗi mốc và mỗi hẹn giờ (xem "Chạy hai process" dưới đây).
+Quyền: thư mục dữ liệu do bot tạo có mode 0700, file kho cùng `-wal`/`-shm` là 0600 (kho chứa kết quả run và nội dung hẹn). Thư mục đã có sẵn thì bot không đổi quyền của nó. Khi nhiều process khởi động cùng lúc trên một file mới, bot đặt `busy_timeout` trước mọi thao tác và thử lại ngắn (tối đa 20 giây) khi gặp "database is locked", nên khởi động đồng thời không làm process nào chết.
+
+Mỗi bot một file; hai bot khác `id` dùng chung thư mục được. Hai process cùng `id` và cùng thư mục là cách chạy dự phòng dùng được, với các bảo đảm nêu ở "Chạy hai process" dưới đây (đọc kỹ phần hẹn giờ: không phải đúng-một-lần).
 
 ## Bước 2: khai báo lịch cron
 
@@ -60,7 +64,7 @@ Mỗi khoá là một biểu thức cron 5 trường `phút giờ ngày-trong-th
 - ngày-trong-tháng và thứ cùng bị giới hạn thì khớp một trong hai (như cron cổ điển);
 - sai cú pháp, múi giờ lạ hoặc lịch không bao giờ chạy (`0 0 30 2 *`) làm `defineBot` ném `BotDefinitionError` nêu rõ trường sai, nên lỗi lộ ngay khi nạp module.
 
-Handler nhận `ScheduleContext`: `tracker` khoá vào dự án của bot (cùng ranh giới với handler run), `logger`, `config`, `signal` (huỷ khi bot đang tắt quá hạn drain), `clock`, `scheduledFor` (mốc lịch đại diện), `missed`/`missedCount`, `timezone` và `idempotencyKey` (`cron:<biểu thức>:<mốc>`) để thao tác ghi chống trùng. Kiểu đầy đủ: [API](/reference/api/). Giá trị handler trả về bị bỏ qua; ném lỗi thì ghi log và mốc đó không chạy lại.
+Handler nhận `ScheduleContext`: `tracker` khoá vào dự án của bot (cùng ranh giới với handler run), `logger`, `config`, `signal` (huỷ khi bot đang tắt quá hạn drain), `llm` (client LLM nếu bot cấu hình `LLM_*`, đã ràng với `signal`; dùng cho tổng hợp định kỳ, xem [Gọi LLM trong handler hậu cần](/how-to/call-llm)), `clock`, `scheduledFor` (mốc lịch đại diện), `missed`/`missedCount`, `timezone` và `idempotencyKey` (`cron:<biểu thức>:<mốc>`) để thao tác ghi chống trùng. Kiểu đầy đủ: [API](/reference/api/). Giá trị handler trả về bị bỏ qua; ném lỗi thì ghi log và mốc đó không chạy lại.
 
 ### Múi giờ
 
@@ -92,6 +96,8 @@ Mỗi lịch nhớ mốc đã xử lý gần nhất. Lần đầu bot thấy m�
 | `skip` (mặc định) | bỏ các mốc đã lỡ, ghi log, chạy từ mốc kế tiếp | "đúng giờ hoặc thôi": nhắc 8 giờ sáng mà tới trưa mới bật máy thì không nhắc nữa |
 | `catch-up-once` | chạy bù đúng MỘT lần cho mốc gần nhất, dù đã lỡ bao nhiêu mốc; `ctx.missed` là `true`, `ctx.missedCount` là số mốc đã gộp | "ít nhất một lần mỗi chu kỳ": tổng hợp cuối ngày |
 
+Lưu ý với lịch dày: nếu chu kỳ ngắn hơn `graceMs` (mặc định 2 phút, ví dụ `* * * * *`) thì mốc gần nhất luôn "đúng giờ" nên luôn chạy dù chính sách là `skip`; các mốc trước đó trong lúc tắt được gộp và bỏ qua (có log, `missedCount` cho biết số mốc). Việc tìm mốc gần nhất đi ngược từ bây giờ và đếm theo ngày, nên bot tắt bao lâu cũng không làm tick chậm.
+
 Đặt chính sách chung ở `scheduleOptions.missed`, hoặc riêng từng lịch ở `{ run, missed }`.
 
 ### Bảo đảm chạy
@@ -100,7 +106,9 @@ Bot chiếm mốc trong kho TRƯỚC khi chạy handler, nên mỗi mốc chạy
 
 ### Chạy hai process
 
-Hai process cùng `id` và cùng `BOT_DATA_DIR` (cùng file kho) dùng được làm dự phòng nóng. Mỗi mốc chỉ một bên chiếm được (cập nhật có điều kiện trong transaction `IMMEDIATE`). Mỗi lịch còn có một lease (hàng trong bảng `leases`, gia hạn khi handler còn chạy): nếu handler chạy lâu hơn chu kỳ thì process kia không chạy chồng mốc kế tiếp mà chờ lease nhả; process giữ lease sập thì lease hết hạn sau 2 phút và bên kia tiếp quản. Hai process phải thấy cùng một file (cùng máy hoặc cùng ổ đĩa chia sẻ có khoá file đúng); đừng đặt file kho trên chia sẻ mạng không bảo đảm khoá.
+Hai process cùng `id` và cùng `BOT_DATA_DIR` (cùng file kho) dùng được làm dự phòng nóng. **Lịch cron**: mỗi mốc chỉ một bên chiếm được (cập nhật có điều kiện trong transaction `IMMEDIATE`) và chiếm TRƯỚC khi chạy, nên mỗi mốc chạy tối đa một lần. Mỗi lịch còn có một lease (hàng trong bảng `leases`, gia hạn khi handler còn chạy): nếu handler chạy lâu hơn chu kỳ thì process kia không chạy chồng mốc kế tiếp mà chờ lease nhả; process giữ lease sập thì lease hết hạn sau 2 phút và bên kia tiếp quản.
+
+**Hẹn giờ KHÔNG đúng-một-lần.** Lúc đến hạn chỉ một bên claim được (CAS), nhưng claim có lease 120 giây gia hạn mỗi 40 giây. Nếu process đang chạy hẹn bị đứng quá lease (treo, kho bị khoá lâu, máy mất điện) thì process kia tiếp quản và chạy hành động lần nữa: hành động có thể chạy hai lần. Bản cũ nếu còn sống bị chặn ở lệnh ghi kế tiếp của `ctx.tracker` (kiểm chủ sở hữu và lần hẹn), nhưng việc nó đã làm không rút lại được. Vì vậy hành động hẹn giờ luôn phải idempotent (`ctx.idempotencyKey`). Hai process phải thấy cùng một file (cùng máy hoặc cùng ổ đĩa chia sẻ có khoá file đúng); đừng đặt file kho trên chia sẻ mạng không bảo đảm khoá.
 
 ```ts run
 import { strict as assert } from "node:assert";
@@ -147,7 +155,7 @@ Luật phản ứng với webhook ngay lập tức. Khi cần làm gì đó SAU 
 
 ```ts check
 import { defineBot } from "@vuihoc/bot-core/bot";
-import { actions, whenColumn, whenResolved } from "@vuihoc/bot-core/backoffice";
+import { actions, anyHumanIsReporter, whenColumn, whenResolved } from "@vuihoc/bot-core/backoffice";
 
 const rules = [
   // Resolved 48 giờ mà không mở lại và người báo không trả lời thì chuyển sang Done
@@ -175,7 +183,8 @@ const rules = [
 export default defineBot({
   id: "tu-dong-dong",
   tracker: { team: "tech", project: "TECH" },
-  backoffice: { agent: "tudongdong", rules },
+  // closeAfter cần biết ai là người báo (xem "Ai là người báo?" dưới đây).
+  backoffice: { agent: "tudongdong", rules, reporter: anyHumanIsReporter },
 });
 ```
 
@@ -183,12 +192,14 @@ Cách hoạt động:
 
 1. Luật chạy như thường. Hành động `after`/`closeAfter` ghi một hẹn vào kho: khoá, hạn, tên luật và vị trí hành động trong luật, id issue, các token huỷ.
 2. Bộ chạy hẹn giờ (cùng vòng tick với lịch cron) lấy hẹn đến hạn, chiếm nó bằng cập nhật có điều kiện, rồi chạy hành động. Bot khởi động lại thì hẹn chưa tới hạn vẫn còn, hẹn đã quá hạn lúc tắt chạy ngay khi bot lên.
-3. Hành động không được ghi vào kho, chỉ vị trí của nó. Vì vậy đừng đổi tên luật hay chèn/xoá hành động trong luật khi còn hẹn đang chờ: hẹn mồ côi bị huỷ kèm log "không còn trong khai báo".
+3. Hành động không được ghi vào kho, chỉ vị trí của nó (tên luật, số thứ tự bước) và một **định danh** (`id` tường minh, hoặc suy từ loại và thời hạn như `closeAfter:172800000`). Lúc đến hạn: luật hoặc bước không còn thì hẹn bị huỷ ("không còn trong khai báo"); bước còn nhưng định danh khác (bạn đã đổi thời hạn hay thay hành động) thì cũng bị huỷ ("đã đổi") thay vì chạy nhầm hành động khác.
+
+   **Bẫy dịch bước (step shift).** Khoá mặc định `{rule}#{step}:{issue}` chứa số thứ tự bước. Chèn, xoá hoặc đổi thứ tự hành động trong luật khi còn hẹn đang chờ làm bước đó đổi chỗ: hẹn cũ ghi ở bước cũ nên khoá không còn khớp (hẹn mới tạo thêm theo khoá mới, hẹn cũ bị bỏ lúc đến hạn hoặc, nếu bước cũ nay là một hành động hẹn giờ khác, bị bỏ vì định danh lệch). Nếu cần sửa luật khi còn hẹn đang chờ, đặt `key` và `id` tường minh cho hành động hẹn giờ, đừng đổi tên luật, và để hẹn cũ chạy hết trước khi đổi thời hạn.
 4. Hành động chạy lỗi thì thử lại với backoff (30 giây, nhân đôi) tối đa 5 lần rồi đánh `failed`; sập giữa chừng thì lease hết hạn và lần sau chạy lại. Tức là at-least-once, nên hành động phải chạy lại được: truyền `ctx.idempotencyKey` (`timer:<khoá>#<lần hẹn>`) cho `tracker.comment`.
 
 ### Khoá hẹn và khoá huỷ
 
-Một hẹn được định danh bằng **khoá** (mặc định `<tên luật>#<bước>:<id issue>`, đổi bằng `key`, mẫu có `{issue}`, `{rule}`, `{step}`). Cùng khoá thì chỉ có một hẹn đang chờ: webhook giao lại không đẩy lùi hạn (đặt `replace: true` nếu muốn dời hạn kiểu debounce). Hẹn đã xong hoặc đã huỷ thì hẹn lại tạo lần mới (`gen` tăng).
+Một hẹn được định danh bằng **khoá** (mặc định `<tên luật>#<bước>:<id issue>`, đổi bằng `key`; mẫu BẮT BUỘC có `{issue}` (thiếu thì mọi issue chung một hẹn, nên `after` từ chối ngay), có thể thêm `{rule}`, `{step}`). Cùng khoá thì chỉ có một hẹn đang chờ: webhook giao lại không đẩy lùi hạn (đặt `replace: true` nếu muốn dời hạn kiểu debounce). Hẹn đã xong hoặc đã huỷ thì hẹn lại tạo lần mới (`gen` tăng). Hẹn lại lúc hẹn cũ ĐANG chạy thì được xếp hàng và thành hẹn mới ngay khi lần chạy kia kết thúc (không bị mất), trừ khi token huỷ của nó xảy ra trước đó.
 
 Có ba cách huỷ:
 
@@ -227,11 +238,16 @@ assert.deepEqual(store.armTimer({ key: "dong:7", rule: "tu-dong-dong", step: 0, 
 store.close();
 ```
 
+**Huỷ lúc hẹn đang chạy.** Token huỷ hoặc xoá issue tới đúng lúc hẹn đang `firing` thì không huỷ được ngay (hành động đã chạy). Kho đánh dấu "yêu cầu huỷ" và hành động phải dừng trước khi ghi: mọi lệnh ghi của `ctx.tracker` (`comment`, `moveTo`, `assign`, `setPriority`) tự kiểm và ném `TimerCancelled` (hẹn thành `cancelled`, không thử lại, không tính là lỗi). Ghi bằng đường khác (HTTP riêng, `unscopedClient`) thì gọi `ctx.assertActive()` trước. Cần dữ liệu mới nhất thì dùng `ctx.freshIssue()` (luôn đọc lại, khác `ctx.issue()` nhớ lần đầu).
+
 ### `closeAfter`
 
-`closeAfter("48h")` là "Resolved thì sau 48 giờ chuyển sang Done, trừ khi được mở lại hoặc người báo trả lời". Mặc định huỷ khi đổi cột (`state-change`) hoặc người báo comment (`reporter-comment`). Lúc tới hạn bot đọc lại itsaplan: issue phải còn ở cột Resolved và không có comment của người báo kể từ lúc hẹn, nếu không hẹn bị huỷ và không đóng. Cột đích mặc định là cột đầu tiên thuộc nhóm Done; đổi bằng `to: "Tên cột"`; `comment` ghi một comment (chống trùng theo lần hẹn) trước khi đóng.
+`closeAfter("48h")` là "Resolved thì sau 48 giờ chuyển sang Done, trừ khi được mở lại hoặc người báo trả lời". Mặc định huỷ khi đổi cột (`state-change`) hoặc người báo comment (`reporter-comment`). Lúc tới hạn bot đọc lại itsaplan: issue phải còn ở cột Resolved và không có comment của người báo kể từ lúc issue VÀO cột Resolved (`statusSince` do server trả, không phải lúc bot hẹn nên webhook trễ không làm lọt comment; thiếu `statusSince` thì dùng lúc hẹn); comment không có `createdAt` được coi là mới (thà không đóng). Nếu không thì hẹn bị huỷ và không đóng. Issue được đọc LẠI (không cache) trước comment và ngay trước khi chuyển cột, và hành động dừng nếu có yêu cầu huỷ tới giữa chừng, nên ticket vừa được mở lại không bị đóng nhầm. Cột đích mặc định là cột đầu tiên thuộc nhóm Done; đổi bằng `to: "Tên cột"`; `comment` ghi một comment (chống trùng theo lần hẹn) trước khi đóng.
 
-**Ai là người báo?** Itsaplan không trả người báo trên issue, và bot lễ tân (giữ liên kết ticket với chat) ở milestone sau. Mặc định bot đọc trường người tạo của issue (`reporterUserId`, `creatorUserId`, `createdByUserId`) nếu có; không có thì coi MỌI người comment (trừ bot) là người báo, tức là thà không đóng còn hơn đóng nhầm. Có cách xác định chính xác hơn thì khai `backoffice.reporter`:
+**Ai là người báo?** Itsaplan không trả người báo trên issue (`ItsaplanIssue` không có trường nào như vậy), và bot lễ tân (giữ liên kết ticket với chat) ở milestone sau, nên bot không tự đoán được. Vì thế `backoffice.reporter` là **bắt buộc** khi có luật dùng `closeAfter` hoặc token `reporter-comment`: thiếu thì `defineBot` ném `BotDefinitionError` (và `RuleEngine` ném khi dựng). Hai lựa chọn:
+
+- `reporter: anyHumanIsReporter`: tuyên bố rõ "MỌI người (không phải bot) comment đều tính là người báo". An toàn nhưng thận trọng: chỉ cần ai đó nhân viên hay khách nói một câu sau lúc Resolved là bot không tự đóng.
+- Một hàm tự viết, ví dụ loại nhân viên ra:
 
 ```ts check
 import { defineBot } from "@vuihoc/bot-core/bot";
@@ -265,20 +281,23 @@ ITSAPLAN_WEBHOOK_SECRET=whsec_...                 # secret của webhook, để 
 
 Khi `start()`, bot đọc webhook của dự án `tracker` (ref đủ `<team>.<KEY>`):
 
-- chưa có webhook nào cùng URL thì tạo; có nhưng thiếu sự kiện hoặc đang tắt thì bổ sung sự kiện (giữ sự kiện sẵn có) và bật lại;
-- không bao giờ xoá webhook, không sửa webhook có URL khác, và không đụng dự án khác: bot chỉ gọi endpoint của dự án mình và loại mọi webhook không thuộc `projectId` của dự án;
+- chưa có webhook nào cùng URL thì tạo (kèm `ITSAPLAN_WEBHOOK_SECRET` nếu API nhận trường `secret`; API từ chối thì tạo lại để server tự cấp secret); có nhưng thiếu sự kiện thì bổ sung sự kiện (giữ sự kiện sẵn có);
+- webhook cùng URL đang bị **tắt** thì bot KHÔNG bật lại (có thể ai đó tắt có chủ ý) và không sửa nó: bot ghi cảnh báo, `health().components.webhook.disabledWebhookId` có id và bot ở trạng thái `degraded` cho tới khi người vận hành bật nó;
+- hai bot khởi động đồng thời có thể cùng thấy "chưa có" và cùng tạo: sau khi tạo bot liệt kê lại và giữ webhook có id nhỏ nhất, xoá bản VỪA TẠO của chính mình nếu nó không phải bản nhỏ nhất;
+- ngoài trường hợp vừa nói, bot không bao giờ xoá webhook, không sửa webhook có URL khác, và không đụng dự án khác: bot chỉ gọi endpoint của dự án mình và loại mọi webhook không thuộc `projectId` của dự án;
 - key thiếu quyền (401, 403) thì `start()` ném `WebhookPermissionError` nói rõ phải đặt `ITSAPLAN_WEBHOOK_KEY` hoặc tắt tính năng, và bot ở trạng thái `failed`; itsaplan chập chờn (5xx, mạng) chỉ cảnh báo, lần khởi động sau đăng ký lại;
 - cấu hình thiếu (không có `BOT_WEBHOOK_URL`, không có `rules`, `webhook: false`) bị chặn ngay ở `createBot`.
 
-Webhook mới tạo mang secret do itsaplan cấp; lấy nó trên itsaplan và đặt `ITSAPLAN_WEBHOOK_SECRET` để bot kiểm chữ ký (log nhắc việc này khi tạo mới).
+Secret: nếu server nhận secret do bot gửi thì webhook dùng đúng `ITSAPLAN_WEBHOOK_SECRET`. Nếu không, webhook mang secret do itsaplan cấp: lấy nó trên itsaplan và đặt `ITSAPLAN_WEBHOOK_SECRET`. Bot so secret của webhook với biến này (không bao giờ ghi giá trị vào log) và cảnh báo khi lệch, vì lệch thì mọi sự kiện bị từ chối chữ ký.
 
 ## Vận hành
 
-- `bot.health().components.scheduler` cho biết số lịch, số hẹn đang chờ, tick gần nhất và lỗi gần nhất; `components.store.durable` cho biết có kho bền không; `components.webhook.autoRegistered` khi bật tự đăng ký.
+- `bot.health().components.scheduler` cho biết số lịch, số hẹn đang chờ (`pendingTimers`), đang chạy (`firingTimers`), đã bỏ cuộc trong 24 giờ qua (`failedTimers`), tick gần nhất và độ trễ của nó (`tickLagMs`) và lỗi trong 15 phút qua (`lastError`, tự hết sau cửa sổ đó). Bot chuyển `degraded` khi vòng tick kẹt, có lỗi gần đây hoặc có hẹn đã bỏ cuộc. `components.store.durable` cho biết có kho bền không; `components.webhook.autoRegistered` khi bật tự đăng ký.
+- Lịch bị gỡ khỏi khai báo (hoặc đổi múi giờ: id lịch là `<biểu thức>@<múi giờ>`) bị dọn khỏi kho ở tick đầu; ledger và khoá chống trùng cũ được dọn định kỳ mỗi giờ trong process sống lâu, không chỉ lúc mở.
 - `bot.store?.listTimers({ state: "pending" })` liệt kê hẹn (khoá, hạn, issue, token huỷ); `state: "failed"` cho hẹn đã bỏ cuộc kèm `lastError`.
 - Schema kho có phiên bản: bot mở file do bản code **mới hơn** tạo ra sẽ từ chối (`BotStoreVersionError`) thay vì ghi đè. Khi nâng cấp, chạy bản mới trước; đừng chạy lại bản cũ trên file đã nâng.
 - Itsaplan vẫn là nguồn sự thật ([ADR-0003](/explanation/adr-index)): xoá file kho chỉ làm mất hẹn đang chờ và mốc cron (lịch mới bắt đầu lại từ lúc đó), không làm hỏng dữ liệu ticket. Không commit file kho (`.gitignore` đã loại `*.sqlite`).
-- Tắt êm: `bot.stop()` chờ việc lịch đang dở tới hạn drain như run thường, rồi huỷ `ctx.signal`; hẹn bị huỷ giữa chừng được đặt lại ngay để chạy khi bot lên.
+- Tắt êm: `bot.stop()` chờ việc lịch đang dở tới hạn drain như run thường, rồi huỷ `ctx.signal`; hẹn bị huỷ giữa chừng được đặt lại ngay để chạy khi bot lên và không bị tính một lần thử. Bot đã `stop()` không `start()` lại được (ném "hãy createBot lại").
 
 ## Test
 

@@ -10,6 +10,7 @@ import {
   type Rule,
   type ReporterResolver,
   actions,
+  anyHumanIsReporter,
   whenResolved,
   whenColumn,
 } from "./rules";
@@ -69,7 +70,7 @@ function build(
     logger,
     clock,
     store,
-    reporter: opts.reporter,
+    reporter: opts.reporter ?? anyHumanIsReporter,
     seen: opts.durableSeen ? store.keys("rule-seen") : undefined,
   });
   const scheduler = new BotScheduler({
@@ -212,7 +213,7 @@ describe("closeAfter", () => {
     expect(store.getTimer(keyOf(issue))?.lastError).toContain("người báo");
   });
 
-  it("không biết người báo là ai thì MỌI comment của người đều huỷ hẹn (an toàn)", async () => {
+  it("anyHumanIsReporter: MỌI comment của người đều huỷ hẹn (an toàn)", async () => {
     const issue = fake.addIssue({ title: "Lỗi", columnId: 4 });
     const { engine, store } = build([closeRule()]);
     await engine.handle(resolved(issue));
@@ -455,9 +456,210 @@ describe("after / cancelTimer", () => {
       ),
       config: {},
       logger,
+      reporter: anyHumanIsReporter,
     });
     const out = await engine.handle(resolved(issue));
     expect(out[0]).toMatchObject({ status: "failed" });
     expect(out[0].detail).toContain("kho bền");
+  });
+});
+
+describe("closeAfter: chống đóng nhầm", () => {
+  it("issue bị mở lại ngay lúc đang dựng comment: không comment, không đóng, hẹn bị huỷ", async () => {
+    const issue = fake.addIssue({ title: "Lỗi", columnId: 4 });
+    const { engine, scheduler, store } = build([
+      closeRule({
+        comment: async () => {
+          fake.issues[0].columnId = 3; // người dùng mở lại đúng lúc này
+          return "Tự đóng.";
+        },
+      }),
+    ]);
+    await engine.handle(resolved(issue));
+    await advance(scheduler, 49 * HOUR);
+    expect(fake.issues[0].columnId).toBe(3);
+    expect(fake.comments.some((c) => c.body.includes("Tự đóng."))).toBe(false);
+    expect(store.getTimer(keyOf(issue))).toMatchObject({ state: "cancelled" });
+    expect(store.getTimer(keyOf(issue))?.lastError).toContain("không còn ở cột Resolved");
+  });
+
+  it("issue bị mở lại ngay SAU khi comment đã ghi: không chuyển cột (đọc lại ngay trước moveTo)", async () => {
+    const issue = fake.addIssue({ title: "Lỗi", columnId: 4 });
+    const { engine, scheduler, store } = build([closeRule({ comment: "Tự đóng." })]);
+    await engine.handle(resolved(issue));
+    const original = fake.addComment.bind(fake);
+    fake.addComment = (...args: Parameters<typeof original>) => {
+      const c = original(...args);
+      fake.issues[0].columnId = 3; // mở lại giữa comment và moveTo
+      return c;
+    };
+    await advance(scheduler, 49 * HOUR);
+    expect(fake.issues[0].columnId).toBe(3);
+    expect(store.getTimer(keyOf(issue))?.state).toBe("cancelled");
+  });
+
+  it("yêu cầu huỷ (webhook) tới lúc hẹn đang chạy: hành động dừng trước khi ghi", async () => {
+    const issue = fake.addIssue({ title: "Lỗi", columnId: 4 });
+    let engineRef!: RuleEngine<any>;
+    const rules = [
+      closeRule({
+        comment: async () => {
+          // người báo comment đúng lúc hẹn đang chạy: webhook tới engine
+          await engineRef.handle(commentCreated(issue, "reporter-1"));
+          return "Tự đóng.";
+        },
+      }),
+    ];
+    const { engine, scheduler, store } = build(rules);
+    engineRef = engine;
+    await engine.handle(resolved(issue));
+    await advance(scheduler, 49 * HOUR);
+    expect(fake.issues[0].columnId).toBe(4);
+    expect(fake.comments.some((c) => c.body.includes("Tự đóng."))).toBe(false);
+    expect(store.getTimer(keyOf(issue))).toMatchObject({ state: "cancelled" });
+    expect(store.getTimer(keyOf(issue))?.lastError).toContain("người báo trả lời");
+  });
+
+  it("mọi lệnh ghi của ctx.tracker trong hành động `after` bị chặn khi có yêu cầu huỷ", async () => {
+    const issue = fake.addIssue({ title: "Lỗi", columnId: 2 });
+    let engineRef!: RuleEngine<any>;
+    const rule = whenColumn("Cần phân loại")
+      .named("nhac")
+      .do(
+        actions.after(
+          "1h",
+          async (ctx) => {
+            await engineRef.handle(stateChanged(issue, 3, { name: "Đang xử lý", type: "started" }));
+            await ctx.tracker.comment(ctx.issueId as number, "Nhắc nhở muộn.");
+          },
+          { cancelOn: ["state-change"] },
+        ),
+      );
+    const { engine, scheduler, store } = build([rule]);
+    engineRef = engine;
+    await engine.handle(stateChanged(issue, 2, { name: "Cần phân loại", type: "unstarted" }));
+    await advance(scheduler, 2 * HOUR);
+    expect(fake.comments.some((c) => c.body.includes("Nhắc nhở muộn."))).toBe(false);
+    expect(store.getTimer(`nhac#0:${issue.id}`)?.state).toBe("cancelled");
+  });
+
+  it("kiểm lại lúc tới hạn lấy mốc từ statusSince của server: comment sau lúc Resolved nhưng trước lúc bot hẹn vẫn chặn", async () => {
+    const issue = fake.addIssue({ title: "Lỗi", columnId: 4 });
+    const { engine, scheduler, store } = build([closeRule()]);
+    await engine.handle(resolved(issue));
+    const armedAt = clock.t;
+    (fake.issues[0] as any).statusSince = new Date(armedAt - 3 * HOUR).toISOString();
+    const c = fake.addComment(issue.id, "vẫn lỗi nha");
+    c.createdAt = new Date(armedAt - HOUR).toISOString(); // sau Resolved, trước lúc bot hẹn
+    await advance(scheduler, 49 * HOUR);
+    expect(fake.issues[0].columnId).toBe(4);
+    expect(store.getTimer(keyOf(issue))?.lastError).toContain("người báo đã trả lời");
+  });
+
+  it("comment từ TRƯỚC lúc Resolved không chặn việc đóng", async () => {
+    const issue = fake.addIssue({ title: "Lỗi", columnId: 4 });
+    const { engine, scheduler } = build([closeRule()]);
+    await engine.handle(resolved(issue));
+    const armedAt = clock.t;
+    (fake.issues[0] as any).statusSince = new Date(armedAt - HOUR).toISOString();
+    const c = fake.addComment(issue.id, "đang xem");
+    c.createdAt = new Date(armedAt - 5 * HOUR).toISOString();
+    await advance(scheduler, 49 * HOUR);
+    expect(fake.issues[0].columnId).toBe(5);
+  });
+
+  it("comment không có createdAt được coi là mới (thà không đóng)", async () => {
+    const issue = fake.addIssue({ title: "Lỗi", columnId: 4 });
+    const { engine, scheduler, store } = build([closeRule()]);
+    await engine.handle(resolved(issue));
+    const c = fake.addComment(issue.id, "không rõ giờ");
+    (c as any).createdAt = undefined;
+    await advance(scheduler, 49 * HOUR);
+    expect(fake.issues[0].columnId).toBe(4);
+    expect(store.getTimer(keyOf(issue))?.lastError).toContain("người báo đã trả lời");
+  });
+});
+
+describe("hẹn giờ: định danh hành động, khoá, người báo", () => {
+  it("luật bị sửa (đổi thời hạn) khi còn hẹn đang chờ: hẹn bị bỏ, không chạy nhầm hành động mới", async () => {
+    const path = dbPath();
+    const issue = fake.addIssue({ title: "Lỗi", columnId: 4 });
+    const first = build([closeRule()], { path });
+    await first.engine.handle(resolved(issue));
+    first.store.close();
+    const second = build([whenResolved().named("auto-close").do(actions.closeAfter("24h"))], {
+      path,
+    });
+    await advance(second.scheduler, 49 * HOUR);
+    expect(fake.issues[0].columnId).toBe(4);
+    expect(second.store.getTimer(keyOf(issue))).toMatchObject({ state: "cancelled" });
+    expect(second.store.getTimer(keyOf(issue))?.lastError).toContain("đã đổi");
+  });
+
+  it("id tường minh giữ hẹn chạy được dù đổi thời hạn", async () => {
+    const path = dbPath();
+    const issue = fake.addIssue({ title: "Lỗi", columnId: 2 });
+    const ran: string[] = [];
+    const mk = (d: string) =>
+      whenColumn("Cần phân loại")
+        .named("nhac")
+        .do(actions.after(d, () => void ran.push(d), { id: "nhac-v1" }));
+    const first = build([mk("2h")], { path });
+    await first.engine.handle(stateChanged(issue, 2, { name: "Cần phân loại", type: "unstarted" }));
+    first.store.close();
+    const second = build([mk("3h")], { path });
+    await advance(second.scheduler, 2.5 * HOUR);
+    expect(ran).toEqual(["3h"]);
+  });
+
+  it("hẹn lại lúc hẹn đang chạy được xếp hàng, không bị mất", async () => {
+    const issue = fake.addIssue({ title: "Lỗi", columnId: 2 });
+    let engineRef!: RuleEngine<any>;
+    let reArmed = false;
+    const rule = whenColumn("Cần phân loại")
+      .named("nhac")
+      .do(
+        actions.after("2h", async () => {
+          if (reArmed) return;
+          reArmed = true;
+          await engineRef.handle(
+            stateChanged(issue, 2, { name: "Cần phân loại", type: "unstarted" }),
+          );
+        }),
+      );
+    const { engine, scheduler, store } = build([rule]);
+    engineRef = engine;
+    await engine.handle(stateChanged(issue, 2, { name: "Cần phân loại", type: "unstarted" }));
+    await advance(scheduler, 3 * HOUR);
+    const row = store.getTimer(`nhac#0:${issue.id}`);
+    expect(row).toMatchObject({ state: "pending", gen: 2 });
+    expect(row?.dueAt).toBe(clock.t + 2 * HOUR);
+  });
+
+  it("after từ chối khoá tuỳ chọn thiếu {issue}", () => {
+    expect(() => actions.after("1h", () => {}, { key: "nhac-chung" })).toThrow(/thiếu \{issue\}/);
+    expect(() => actions.closeAfter("1h", { key: "dong" })).toThrow(/thiếu \{issue\}/);
+    expect(() => actions.after("1h", () => {}, { key: "nhac:{issue}" })).not.toThrow();
+  });
+
+  it("closeAfter (hoặc cancelOn reporter-comment) cần reporter: thiếu thì RuleEngine ném", () => {
+    const tracker = createScopedTracker(
+      new ItsaplanClient(fake.baseUrl, fake.agentKey),
+      { team: "tech", project: "TECH" },
+      { readRetries: 0 },
+    );
+    const mk = (rule: Rule<any>, reporter?: ReporterResolver) =>
+      new RuleEngine({ rules: [rule], tracker, config: {}, logger, reporter });
+    const close = whenResolved().do(actions.closeAfter("1h"));
+    expect(close.needsReporter).toBe(true);
+    expect(() => mk(close)).toThrow(/cần `reporter`/);
+    expect(() => mk(close, anyHumanIsReporter)).not.toThrow();
+    const viaToken = whenResolved().do(
+      actions.after("1h", () => {}, { cancelOn: ["reporter-comment"] }),
+    );
+    expect(() => mk(viaToken)).toThrow(/cần `reporter`/);
+    const plain = whenResolved().do(actions.after("1h", () => {}, { cancelOn: ["state-change"] }));
+    expect(plain.needsReporter).toBeUndefined();
+    expect(() => mk(plain)).not.toThrow();
   });
 });

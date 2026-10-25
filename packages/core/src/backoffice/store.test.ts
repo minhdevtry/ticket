@@ -1,8 +1,8 @@
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { BOT_STORE_SCHEMA_VERSION, BotStore, BotStoreVersionError, MemoryKeySet } from "./store";
 
 const dirs: string[] = [];
@@ -246,17 +246,82 @@ describe("BotStore: hẹn giờ", () => {
     expect(b.finishTimer("k", 1, "done", null, 160)).toBe(true);
   });
 
-  it("huỷ không chạm timer đang firing; failTimer hẹn lại hoặc đánh failed", () => {
+  it("failTimer hẹn lại hoặc đánh failed", () => {
     const s = open(tmp(), "A");
     s.armTimer(spec("k", 0), 0);
     s.claimTimer("k", 1, 0, 100);
-    expect(s.cancelTimer("k", "x", 1)).toBe(false);
-    expect(s.cancelByToken(7, "comment", "x", 1)).toBe(0);
     expect(s.failTimer("k", 1, "lỗi", 500, 2)).toBe(true);
     expect(s.getTimer("k")).toMatchObject({ state: "pending", dueAt: 500, lastError: "lỗi" });
     s.claimTimer("k", 1, 500, 100);
     s.failTimer("k", 1, "lại lỗi", null, 501);
     expect(s.getTimer("k")?.state).toBe("failed");
+  });
+
+  it("huỷ lúc timer đang firing chỉ đánh dấu; timerBlocked báo cho hành động dừng trước khi ghi", () => {
+    const s = open(tmp(), "A");
+    s.armTimer(spec("k", 0, { cancelOn: ["reporter-comment"] }), 0);
+    s.claimTimer("k", 1, 0, 100);
+    expect(s.timerBlocked("k", 1)).toBeNull();
+    expect(s.cancelByToken(7, "comment", "x", 1)).toBe(0); // timer không khai token này
+    expect(s.timerBlocked("k", 1)).toBeNull();
+    expect(s.cancelByToken(7, "reporter-comment", "người báo trả lời", 2)).toBe(1);
+    expect(s.getTimer("k")).toMatchObject({
+      state: "firing",
+      cancelRequested: "người báo trả lời",
+    });
+    expect(s.timerBlocked("k", 1)).toBe("người báo trả lời");
+    // lỗi sau khi có yêu cầu huỷ: huỷ luôn, không thử lại
+    s.failTimer("k", 1, "lỗi", 500, 3);
+    expect(s.getTimer("k")).toMatchObject({ state: "cancelled", lastError: "người báo trả lời" });
+    // lần chạy không còn là của process này
+    s.armTimer(spec("k", 0), 4);
+    s.claimTimer("k", 2, 4, 100);
+    expect(s.timerBlocked("k", 2, "khac")).toContain("không còn đang chạy ở process này");
+    expect(s.timerBlocked("k", 1)).toContain("đã bị thay");
+  });
+
+  it("hẹn lại lúc đang chạy được xếp hàng và thành hẹn mới khi lần chạy kết thúc", () => {
+    const s = open(tmp(), "A");
+    s.armTimer(spec("k", 0, { cancelOn: ["state-change"], actionId: "after:1" }), 0);
+    s.claimTimer("k", 1, 0, 100);
+    expect(s.armTimer(spec("k", 5000, { cancelOn: ["comment"], actionId: "after:2" }), 10)).toEqual(
+      {
+        outcome: "queued",
+        gen: 1,
+      },
+    );
+    expect(s.getTimer("k")).toMatchObject({ state: "firing", gen: 1 });
+    s.finishTimer("k", 1, "done", null, 20);
+    expect(s.getTimer("k")).toMatchObject({
+      state: "pending",
+      gen: 2,
+      dueAt: 5000,
+      armedAt: 10,
+      attempts: 0,
+      actionId: "after:2",
+      cancelOn: ["comment"],
+    });
+    // hẹn xếp hàng bị bỏ nếu token huỷ của nó xảy ra trước khi lần chạy kết thúc
+    s.claimTimer("k", 2, 5000, 100);
+    s.armTimer(spec("k", 9000, { cancelOn: ["state-change"] }), 5001);
+    expect(s.cancelByToken(7, "state-change", "đổi cột", 5002)).toBeGreaterThanOrEqual(0);
+    s.finishTimer("k", 2, "done", null, 5003);
+    expect(s.getTimer("k")).toMatchObject({ state: "done", gen: 2 });
+    // hẹn xếp hàng cũng được áp khi lần chạy hiện tại bỏ cuộc (failed)
+    s.armTimer(spec("k", 6000), 5004);
+    s.claimTimer("k", 3, 6000, 100);
+    s.armTimer(spec("k", 7000), 6001);
+    s.failTimer("k", 3, "hỏng", null, 6002);
+    expect(s.getTimer("k")).toMatchObject({ state: "pending", gen: 4, dueAt: 7000 });
+  });
+
+  it("releaseTimer hoàn lại lượt thử đã tính lúc claim (bot dừng giữa chừng)", () => {
+    const s = open(tmp(), "A");
+    s.armTimer(spec("k", 0), 0);
+    s.claimTimer("k", 1, 0, 100);
+    expect(s.getTimer("k")?.attempts).toBe(1);
+    expect(s.releaseTimer("k", 1, "bot dừng", 1)).toBe(true);
+    expect(s.getTimer("k")).toMatchObject({ state: "pending", attempts: 0, dueAt: 0, owner: null });
   });
 
   it("purgeTimers dọn timer đã kết thúc cũ", () => {
@@ -266,5 +331,116 @@ describe("BotStore: hẹn giờ", () => {
     s.armTimer(spec("live", 0), 0);
     expect(s.purgeTimers(1000, 5000)).toBe(1);
     expect(s.listTimers().map((t) => t.key)).toEqual(["live"]);
+  });
+});
+
+describe("BotStore: mở file, quyền, di trú", () => {
+  it("dataDir 0700, file kho và wal/shm 0600", () => {
+    const base = mkdtempSync(join(tmpdir(), "botstore-perm-"));
+    dirs.push(join(base, "x"));
+    const path = join(base, "nested", "data", "bot.sqlite");
+    const s = open(path);
+    s.armTimer(spec("k", 0), 0);
+    expect(statSync(dirname(path)).mode & 0o777).toBe(0o700);
+    for (const f of [path, `${path}-wal`, `${path}-shm`]) {
+      expect(statSync(f).mode & 0o777).toBe(0o600);
+    }
+    rmSync(base, { recursive: true, force: true });
+  });
+
+  it("nâng schema v1 lên v2 giữ nguyên dữ liệu", () => {
+    const path = tmp();
+    const a = open(path);
+    a.armTimer(spec("k", 100, { cancelOn: ["comment"] }), 0);
+    a.close();
+    const raw = new Database(path);
+    raw.run("DROP TABLE timer_queued");
+    raw.run("ALTER TABLE timers DROP COLUMN action_id");
+    raw.run("ALTER TABLE timers DROP COLUMN cancel_requested");
+    raw.run("PRAGMA user_version = 1");
+    raw.close();
+    const b = open(path);
+    expect(b.schemaVersion()).toBe(BOT_STORE_SCHEMA_VERSION);
+    expect(b.getTimer("k")).toMatchObject({ dueAt: 100, actionId: null, cancelOn: ["comment"] });
+    b.armTimer(spec("k", 0, { actionId: "x" }), 1);
+    expect(b.armTimer(spec("q", 0), 0).outcome).toBe("new");
+  });
+
+  it("barrel không nạp bun:sqlite lúc import (chỉ import kiểu); Node import được barrel", () => {
+    const src = readFileSync(join(import.meta.dir, "store.ts"), "utf8");
+    expect(src).not.toMatch(/^import\s+(?!type\b)[^;]*from\s+["']bun:sqlite["']/m);
+    expect(src).toMatch(/^import type \{ Database \} from "bun:sqlite"/m);
+  });
+
+  it("nhiều process mở CÙNG một file mới đồng thời: không process nào lỗi 'database is locked'", async () => {
+    const storeUrl = new URL("./store.ts", import.meta.url).pathname;
+    const ROUNDS = 3;
+    const PROCS = 12;
+    for (let round = 0; round < ROUNDS; round++) {
+      const path = tmp();
+      const startAt = Date.now() + 1500; // mọi process chờ tới cùng một mốc rồi mở
+      const code = `
+        const { BotStore } = await import(${JSON.stringify(storeUrl)});
+        while (Date.now() < ${startAt}) {}
+        try {
+          const s = BotStore.open(${JSON.stringify(path)}, { instanceId: "p" + process.pid });
+          s.armTimer({ key: "k" + process.pid, rule: "r", step: 0, dueAt: 1, issueId: 1 }, 0);
+          s.close();
+          console.log("OK");
+        } catch (e) {
+          console.log("ERR " + (e && e.message));
+          process.exit(1);
+        }`;
+      const procs = Array.from({ length: PROCS }, () =>
+        Bun.spawn([process.execPath, "-e", code], { stdout: "pipe", stderr: "pipe" }),
+      );
+      const outs = await Promise.all(
+        procs.map(async (p) => ({
+          code: await p.exited,
+          out: await new Response(p.stdout).text(),
+        })),
+      );
+      expect(outs.filter((o) => o.code !== 0 || !o.out.includes("OK")).map((o) => o.out)).toEqual(
+        [],
+      );
+      const check = open(path);
+      expect(check.schemaVersion()).toBe(BOT_STORE_SCHEMA_VERSION);
+      expect(check.listTimers()).toHaveLength(PROCS);
+      check.close();
+    }
+  }, 60_000);
+});
+
+describe("BotStore: dọn dẹp", () => {
+  it("pruneCronJobs xoá lịch không còn khai báo cùng lease của nó", () => {
+    const s = open(tmp(), "A");
+    s.registerCron("a@UTC", 1);
+    s.registerCron("b@UTC", 1);
+    s.claimCronSlot({ job: "b@UTC", slot: 5, now: 5, leaseMs: 100, run: true });
+    expect(s.pruneCronJobs(["a@UTC"])).toBe(1);
+    expect(s.cronStatus("b@UTC")).toBeNull();
+    expect(s.leaseInfo("cron:b@UTC")).toBeNull();
+    expect(s.cronStatus("a@UTC")).not.toBeNull();
+  });
+
+  it("ledger tự dọn định kỳ trong tiến trình sống lâu, không chỉ lúc mở", () => {
+    const s = open(tmp(), "A");
+    let t = 0;
+    const ledger = s.ledger({ now: () => t, retentionMs: 1000 });
+    const result = { status: "success", output: "x" } as never;
+    ledger.set(1, result);
+    t = 10 * 3_600_000;
+    ledger.set(2, result); // quá chu kỳ dọn: run 1 (cũ hơn retention) bị xoá
+    expect(ledger.get(1)).toBeUndefined();
+    expect(ledger.get(2)).toBeDefined();
+  });
+
+  it("countTimers đếm theo mốc cập nhật", () => {
+    const s = open(tmp());
+    s.armTimer(spec("a", 0), 0);
+    s.claimTimer("a", 1, 0, 100);
+    s.failTimer("a", 1, "x", null, 10);
+    expect(s.countTimers("failed")).toBe(1);
+    expect(s.countTimers("failed", 11)).toBe(0);
   });
 });

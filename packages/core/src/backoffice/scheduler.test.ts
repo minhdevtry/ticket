@@ -445,3 +445,227 @@ describe("BotScheduler: hẹn giờ", () => {
     expect(store.getTimer("k")).toMatchObject({ state: "pending", dueAt: 0 });
   });
 });
+
+describe("BotScheduler: hiệu năng quét mốc lỡ", () => {
+  it("lịch mỗi phút sau 4 ngày tắt máy (skip): một tick, dưới 50 ms, không chặn event loop", async () => {
+    const path = dbPath();
+    const clock = new FakeClock(at("2026-10-25T00:00:30Z"));
+    const a = setup({ path, clock, expr: "* * * * *", missed: "skip" });
+    await a.scheduler.tick(); // đăng ký baseline
+    a.store.close();
+    clock.t = at("2026-10-29T00:00:30Z"); // tắt 4 ngày
+    const b = setup({ path, clock, expr: "* * * * *", missed: "skip" });
+    const t0 = performance.now();
+    await b.scheduler.tick();
+    expect(performance.now() - t0).toBeLessThan(50);
+    await b.scheduler.idle();
+    // Mốc gần nhất (00:00) trễ 30 giây, trong hạn graceMs: chạy đúng giờ; các mốc trước bị bỏ.
+    expect(b.fires).toHaveLength(1);
+    expect(b.fires[0]).toMatchObject({ missed: false, missedCount: 4 * 24 * 60 - 1 });
+    expect(logs.some((l) => /mốc trước đó đã lỡ và bị bỏ/.test(l))).toBe(true);
+  });
+
+  it("lịch giờ một lần/ngày sau 4 ngày tắt (skip, trễ quá hạn): bỏ qua, không chạy, tick nhanh", async () => {
+    const path = dbPath();
+    const clock = new FakeClock(at("2026-10-25T00:00:30Z"));
+    const a = setup({ path, clock, expr: "0 8 * * *", missed: "skip" });
+    await a.scheduler.tick();
+    a.store.close();
+    clock.t = at("2026-10-29T12:00:00Z");
+    const b = setup({ path, clock, expr: "0 8 * * *", missed: "skip" });
+    const t0 = performance.now();
+    await b.scheduler.tick();
+    expect(performance.now() - t0).toBeLessThan(50);
+    await b.scheduler.idle();
+    expect(b.fires).toEqual([]);
+    expect(logs.some((l) => /bỏ qua \d+ mốc đã lỡ/.test(l))).toBe(true);
+  });
+
+  it("6 giờ tắt máy với catch-up-once: một lần chạy bù, missedCount đúng, tick nhanh", async () => {
+    const path = dbPath();
+    const clock = new FakeClock(at("2026-10-25T00:00:30Z"));
+    const a = setup({ path, clock, expr: "* * * * *", missed: "catch-up-once" });
+    await a.scheduler.tick();
+    a.store.close();
+    clock.t = at("2026-10-25T06:00:30Z");
+    const b = setup({ path, clock, expr: "* * * * *", missed: "catch-up-once" });
+    const t0 = performance.now();
+    await b.scheduler.tick();
+    await b.scheduler.idle();
+    expect(performance.now() - t0).toBeLessThan(50);
+    expect(b.fires).toHaveLength(1);
+    // Mốc 06:00 trễ 30 giây (trong hạn): chạy đúng giờ, 359 mốc trước đó được gộp.
+    expect(b.fires[0]).toMatchObject({ missed: false, missedCount: 359 });
+  });
+
+  it("tick thường (không có mốc nào đến hạn) gần như không tốn gì: nhớ mốc kế tiếp", async () => {
+    const clock = new FakeClock(at("2026-10-25T00:00:30Z"));
+    const { scheduler } = setup({ clock, expr: "0 8 * * *" });
+    await scheduler.tick();
+    const t0 = performance.now();
+    for (let i = 0; i < 2000; i++) {
+      clock.t += 1000;
+      await scheduler.tick();
+    }
+    expect(performance.now() - t0).toBeLessThan(500);
+  });
+});
+
+describe("BotScheduler: không để lỗi lọt thành unhandled rejection", () => {
+  async function noUnhandled(body: () => Promise<void>): Promise<unknown[]> {
+    const seen: unknown[] = [];
+    const handler = (reason: unknown) => void seen.push(reason);
+    process.on("unhandledRejection", handler);
+    try {
+      await body();
+      await new Promise((r) => setTimeout(r, 30));
+    } finally {
+      process.off("unhandledRejection", handler);
+    }
+    return seen;
+  }
+
+  it("kho ném khi ghi kết quả timer (done): thử lại thay vì unhandled", async () => {
+    const clock = new FakeClock(0);
+    const { scheduler, store } = setup({
+      clock,
+      timers: { fire: async () => ({ status: "done" }) },
+    });
+    store.armTimer({ key: "k", rule: "r", step: 0, dueAt: 0, issueId: 1 }, 0);
+    store.finishTimer = () => {
+      throw new Error("database is locked");
+    };
+    const seen = await noUnhandled(async () => {
+      await scheduler.tick();
+      await scheduler.idle();
+    });
+    expect(seen).toEqual([]);
+    // finishTimer lỗi sau khi hành động xong: coi như lần chạy lỗi, thử lại có backoff (at-least-once)
+    expect(store.getTimer("k")).toMatchObject({ state: "pending", attempts: 1 });
+    expect(store.getTimer("k")?.lastError).toContain("database is locked");
+  });
+
+  it("kho ném cả trong nhánh xử lý lỗi của timer (failTimer): ghi log, hẹn ở firing chờ hết lease", async () => {
+    const clock = new FakeClock(0);
+    const { scheduler, store } = setup({
+      clock,
+      timers: {
+        fire: async () => {
+          throw new Error("itsaplan lỗi");
+        },
+      },
+    });
+    store.armTimer({ key: "k", rule: "r", step: 0, dueAt: 0, issueId: 1 }, 0);
+    store.failTimer = () => {
+      throw new Error("database is locked");
+    };
+    const seen = await noUnhandled(async () => {
+      await scheduler.tick();
+      await scheduler.idle();
+    });
+    expect(seen).toEqual([]);
+    expect(scheduler.health().lastError).toContain("database is locked");
+    expect(logs.some((l) => l.includes("không ghi được kết quả"))).toBe(true);
+    expect(store.getTimer("k")?.state).toBe("firing");
+  });
+
+  it("handler lịch lỗi và kho ném khi finishCron", async () => {
+    const clock = new FakeClock(at("2026-10-25T00:00:30Z"));
+    const { scheduler, store } = setup({
+      clock,
+      expr: "*/5 * * * *",
+      handler: async () => {
+        throw new Error("hỏng");
+      },
+    });
+    await scheduler.tick();
+    store.finishCron = () => {
+      throw new Error("locked");
+    };
+    clock.set("2026-10-25T00:05:05Z");
+    const seen = await noUnhandled(async () => {
+      await scheduler.tick();
+      await scheduler.idle();
+    });
+    expect(seen).toEqual([]);
+  });
+});
+
+describe("BotScheduler: vòng đời, health, dọn dẹp", () => {
+  it("start() sau stop() ném lỗi rõ ràng", async () => {
+    const clock = new FakeClock(0);
+    const { scheduler } = setup({ clock });
+    scheduler.start();
+    await scheduler.stop();
+    expect(() => scheduler.start()).toThrow(/đã dừng/);
+  });
+
+  it("timer bị huỷ vì bot dừng không bị tính một lần thử", async () => {
+    const clock = new FakeClock(0);
+    const { scheduler, store } = setup({
+      clock,
+      timers: {
+        fire: (_row, signal) =>
+          new Promise((_, reject) =>
+            signal.addEventListener("abort", () => reject(new Error("aborted"))),
+          ),
+      },
+    });
+    store.armTimer({ key: "k", rule: "r", step: 0, dueAt: 0, issueId: 1 }, 0);
+    await scheduler.tick();
+    await scheduler.stop(10, 200);
+    expect(store.getTimer("k")).toMatchObject({ state: "pending", attempts: 0 });
+  });
+
+  it("health đếm hẹn đang chạy và hẹn đã bỏ cuộc gần đây; lỗi tự hết sau cửa sổ 15 phút", async () => {
+    const clock = new FakeClock(1_000_000);
+    const { scheduler, store } = setup({
+      clock,
+      timerMaxAttempts: 1,
+      timers: {
+        fire: async (row) => {
+          if (row.key === "bad") throw new Error("hỏng nặng");
+          return new Promise(() => {}); // treo: giữ ở firing
+        },
+      },
+    });
+    store.armTimer({ key: "bad", rule: "r", step: 0, dueAt: 0, issueId: 1 }, 0);
+    store.armTimer({ key: "hang", rule: "r", step: 0, dueAt: 0, issueId: 2 }, 0);
+    await scheduler.tick();
+    await new Promise((r) => setTimeout(r, 20));
+    let h = scheduler.health();
+    expect(h).toMatchObject({ failedTimers: 1, firingTimers: 1 });
+    expect(h.lastError).toContain("hỏng nặng");
+    clock.t += 16 * 60_000;
+    h = scheduler.health();
+    expect(h.lastError).toBeNull();
+    expect(h.failedTimers).toBe(1); // vẫn trong 24 giờ
+    clock.t += 25 * 3_600_000;
+    expect(scheduler.health().failedTimers).toBe(0);
+  });
+
+  it("tickLagMs báo vòng tick bị kẹt", async () => {
+    const clock = new FakeClock(5000);
+    const { scheduler } = setup({ clock });
+    scheduler.start();
+    await new Promise((r) => setTimeout(r, 30));
+    expect(scheduler.health().tickLagMs).toBe(0);
+    clock.t += 60_000;
+    expect(scheduler.health().tickLagMs).toBe(60_000);
+    await scheduler.stop();
+    expect(scheduler.health().tickLagMs).toBeNull();
+  });
+
+  it("lịch bị gỡ khỏi khai báo (hoặc đổi múi giờ/id) bị dọn khỏi kho", async () => {
+    const path = dbPath();
+    const clock = new FakeClock(at("2026-10-25T00:00:30Z"));
+    const a = setup({ path, clock, expr: "0 8 * * *" });
+    await a.scheduler.tick();
+    expect(a.store.cronStatus("0 8 * * *")).not.toBeNull();
+    a.store.close();
+    const b = setup({ path, clock, expr: "0 9 * * *" });
+    await b.scheduler.tick();
+    expect(b.store.cronStatus("0 8 * * *")).toBeNull();
+    expect(b.store.cronStatus("0 9 * * *")).not.toBeNull();
+  });
+});

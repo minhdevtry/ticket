@@ -224,6 +224,12 @@ export function validateBotDefinition(def: BotDefinition<any>): BotDefinitionIss
         );
       }
       seen.add(rule.name);
+      if (rule.needsReporter && typeof back.reporter !== "function") {
+        bad(
+          `${at}`,
+          `luật "${rule.name}" dùng closeAfter/reporter-comment nên cần \`backoffice.reporter\`: itsaplan không trả người báo trên issue. Khai một hàm xác định người báo, hoặc \`reporter: anyHumanIsReporter\` (từ @vuihoc/bot-core/backoffice) để coi mọi người comment là người báo`,
+        );
+      }
     });
     const runs = back.runs;
     if (runs) {

@@ -137,6 +137,13 @@ export interface ScheduleContext<C = unknown> {
   readonly signal: AbortSignal;
   /** Tracker khoá vào dự án của bot; ghi bị từ chối (`RunAbortedError`) khi `signal` huỷ. */
   readonly tracker: ScopedTracker;
+  /**
+   * Client LLM khi bot đã cấu hình (`LLM_*`), nếu không là `undefined`. Lời gọi bị huỷ theo
+   * `signal` của lần chạy lịch (cùng cách ràng với `RunContext.llm`). Dùng cho tổng hợp định kỳ
+   * (`createLlm`/`runToolLoop`/`extract` trong `@vuihoc/bot-core/llm`); lịch không có run của
+   * itsaplan nên không có trace lên itsaplan.
+   */
+  readonly llm: Llm | undefined;
   readonly clock: Clock;
   /** Khoá ổn định của mốc: `cron:<biểu thức>:<mốc ms>`. Dùng cho thao tác ghi chống trùng. */
   readonly idempotencyKey: string;

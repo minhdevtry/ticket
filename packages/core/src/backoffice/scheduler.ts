@@ -22,7 +22,7 @@ import type { MissedPolicy } from "./types";
 
 /** Một lịch đã sẵn sàng chạy (handler đã được bọc để tự dựng ngữ cảnh). */
 export interface ScheduleEntry {
-  /** Biểu thức cron (khoá của lịch trong kho). */
+  /** Khoá của lịch trong kho: biểu thức cron VÀ múi giờ (đổi múi giờ là một lịch mới), vd `0 8 * * *@Asia/Ho_Chi_Minh`. */
   id: string;
   cron: CronSchedule;
   missed: MissedPolicy;
@@ -63,15 +63,28 @@ export interface BotSchedulerHealth {
   running: boolean;
   jobs: number;
   pendingTimers: number;
+  /** Số hẹn đang chạy (hoặc đang chờ tiếp quản vì process chạy nó đã sập). */
+  firingTimers: number;
+  /** Số hẹn đã bỏ cuộc (hết số lần thử) trong 24 giờ qua: cần người xem. */
+  failedTimers: number;
   /** Số lần chạy lịch/timer đang dở. */
   inflight: number;
   lastTickAt: number | null;
+  /** Trễ của tick gần nhất so với bây giờ (ms), `null` khi chưa chạy hoặc đã dừng. Lớn = vòng tick bị kẹt. */
+  tickLagMs: number | null;
+  /** Lỗi gần đây (trong 15 phút qua); tự hết khi qua cửa sổ đó. */
   lastError: string | null;
+  lastErrorAt: number | null;
 }
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const MAX_TIMER_BACKOFF_MS = 30 * 60_000;
 const PURGE_AFTER_MS = 7 * 86_400_000;
+/** Lỗi cũ hơn mức này không còn hiện trong health. */
+const ERROR_WINDOW_MS = 15 * 60_000;
+const FAILED_WINDOW_MS = 24 * 3_600_000;
+/** Đếm mốc lỡ tối đa chừng này (chỉ để ghi log/`missedCount`). */
+const MAX_MISSED_COUNT = 10_000;
 
 /** Bộ chạy lịch cron và hẹn giờ. Xem mô tả đầu file. */
 export class BotScheduler {
@@ -92,7 +105,12 @@ export class BotScheduler {
   private ticking: Promise<void> | null = null;
   private lastTickAt: number | null = null;
   private lastError: string | null = null;
+  private lastErrorAt: number | null = null;
   private lastPurge = 0;
+  private stopped = false;
+  private pruned = false;
+  /** Mốc kế tiếp của từng lịch (nhớ theo mốc đã xử lý): hầu hết tick không phải tính gì. */
+  private readonly nextDue = new Map<string, { last: number; at: number | null }>();
   private readonly controller = new AbortController();
   private readonly inflightJobs = new Set<string>();
   private readonly inflight = new Set<Promise<void>>();
@@ -115,6 +133,9 @@ export class BotScheduler {
   /** Bắt đầu vòng tick (tick đầu chạy ngay: bù các mốc/timer đến hạn lúc bot tắt). */
   start(): void {
     if (this.running) return;
+    if (this.stopped) {
+      throw new Error("BotScheduler đã dừng, không chạy lại được: tạo bộ chạy mới (createBot lại)");
+    }
     this.running = true;
     const next = () => {
       if (!this.running) return;
@@ -132,6 +153,7 @@ export class BotScheduler {
    */
   async stop(drainMs = 5000, graceMs = 1000): Promise<void> {
     this.running = false;
+    this.stopped = true;
     if (this.loop) clearTimeout(this.loop);
     this.loop = null;
     await this.ticking;
@@ -161,14 +183,26 @@ export class BotScheduler {
   }
 
   health(): BotSchedulerHealth {
+    const now = this.clock.now();
+    const recent = this.lastErrorAt !== null && now - this.lastErrorAt <= ERROR_WINDOW_MS;
     return {
       running: this.running,
       jobs: this.entries.length,
       pendingTimers: this.store.countTimers("pending"),
+      firingTimers: this.store.countTimers("firing"),
+      failedTimers: this.store.countTimers("failed", now - FAILED_WINDOW_MS),
       inflight: this.inflight.size,
       lastTickAt: this.lastTickAt,
-      lastError: this.lastError,
+      tickLagMs:
+        this.running && this.lastTickAt !== null ? Math.max(0, now - this.lastTickAt) : null,
+      lastError: recent ? this.lastError : null,
+      lastErrorAt: recent ? this.lastErrorAt : null,
     };
+  }
+
+  private noteError(err: unknown): void {
+    this.lastError = errMsg(err);
+    this.lastErrorAt = this.clock.now();
   }
 
   /**
@@ -181,11 +215,17 @@ export class BotScheduler {
       await null; // để `ticking` được gán trước khi thân hàm chạy
       try {
         const now = this.clock.now();
+        if (!this.pruned) {
+          this.pruned = true;
+          // Lịch bị gỡ khỏi khai báo (hoặc đổi múi giờ) không để rác trong kho.
+          const removed = this.store.pruneCronJobs(this.entries.map((e) => e.id));
+          if (removed > 0) this.logger.info(`[schedule] dọn ${removed} lịch không còn khai báo`);
+        }
         for (const entry of this.entries) {
           try {
             this.tickJob(entry, now);
           } catch (err) {
-            this.lastError = errMsg(err);
+            this.noteError(err);
             this.logger.error(`[schedule] ${entry.id}: lỗi khi xét lịch: ${errMsg(err)}`);
           }
         }
@@ -196,7 +236,7 @@ export class BotScheduler {
         }
         this.lastTickAt = now;
       } catch (err) {
-        this.lastError = errMsg(err);
+        this.noteError(err);
         this.logger.error(`[schedule] tick lỗi: ${errMsg(err)}`);
       }
     })().finally(() => {
@@ -206,9 +246,21 @@ export class BotScheduler {
     return current;
   }
 
-  private track(promise: Promise<void>): void {
-    this.inflight.add(promise);
-    void promise.finally(() => this.inflight.delete(promise));
+  /** Theo dõi một việc nền. Việc nền KHÔNG BAO GIỜ làm sập process: lỗi lọt ra bị bắt và ghi log. */
+  private track(work: Promise<void>): void {
+    const safe: Promise<void> = work
+      .catch((err) => {
+        this.noteError(err);
+        try {
+          this.logger.error(`[schedule] việc nền lỗi ngoài dự kiến: ${errMsg(err)}`);
+        } catch {
+          // logger hỏng cũng không được làm sập
+        }
+      })
+      .finally(() => {
+        this.inflight.delete(safe);
+      });
+    this.inflight.add(safe);
   }
 
   // ── cron ───────────────────────────────────────────────────────────────────
@@ -216,8 +268,18 @@ export class BotScheduler {
   private tickJob(entry: ScheduleEntry, now: number): void {
     if (this.inflightJobs.has(entry.id) || this.controller.signal.aborted) return;
     const last = this.store.registerCron(entry.id, now);
-    const { count, last: latest, capped } = entry.cron.between(last, now);
-    if (count === 0 || latest === null) return;
+    let memo = this.nextDue.get(entry.id);
+    if (!memo || memo.last !== last) {
+      memo = { last, at: entry.cron.next(last) };
+      this.nextDue.set(entry.id, memo);
+    }
+    if (memo.at === null || now < memo.at) return;
+    // Có mốc đến hạn. Tìm NGƯỢC từ bây giờ mốc gần nhất (không tốn theo thời gian bot tắt); chỉ
+    // việc đếm số mốc lỡ (để ghi log) mới đi qua cả khoảng, và có trần.
+    const latest = entry.cron.prev(now);
+    if (latest === null || latest <= last) return;
+    const { count, capped } = entry.cron.between(last, latest, MAX_MISSED_COUNT);
+    if (count === 0) return;
     const onTime = now - latest <= this.graceMs;
     const run = onTime || entry.missed === "catch-up-once";
     const claim = this.store.claimCronSlot({
@@ -271,7 +333,7 @@ export class BotScheduler {
       await entry.run({ scheduledFor: slot, firedAt, missed, missedCount }, this.controller.signal);
     } catch (err) {
       status = "failed";
-      this.lastError = errMsg(err);
+      this.noteError(err);
       this.logger.error(`[schedule] ${entry.id}: handler lỗi (mốc không chạy lại): ${errMsg(err)}`);
     } finally {
       clearInterval(renew);
@@ -293,11 +355,7 @@ export class BotScheduler {
     for (const row of this.store.dueTimers(now, room)) {
       if (!this.store.claimTimer(row.key, row.gen, now, this.leaseMs)) continue; // process khác nhanh tay hơn
       this.timersInflight++;
-      this.track(
-        this.runTimer({ ...row, attempts: row.attempts + 1 }).finally(() => {
-          this.timersInflight--;
-        }),
-      );
+      this.track(this.runTimer({ ...row, attempts: row.attempts + 1 }));
     }
   }
 
@@ -315,32 +373,39 @@ export class BotScheduler {
     renew.unref?.();
     const signal = this.controller.signal;
     try {
-      const result = await (this.timers as NonNullable<typeof this.timers>).fire(row, signal);
-      const now = this.clock.now();
-      if (result.status === "done") {
-        this.store.finishTimer(row.key, row.gen, "done", null, now);
-      } else {
-        this.store.finishTimer(row.key, row.gen, "cancelled", result.reason, now);
-        this.logger.info(`[timers] ${row.key}: huỷ lúc đến hạn: ${result.reason}`);
+      try {
+        const result = await (this.timers as NonNullable<typeof this.timers>).fire(row, signal);
+        const now = this.clock.now();
+        if (result.status === "done") {
+          this.store.finishTimer(row.key, row.gen, "done", null, now);
+        } else {
+          this.store.finishTimer(row.key, row.gen, "cancelled", result.reason, now);
+          this.logger.info(`[timers] ${row.key}: huỷ lúc đến hạn: ${result.reason}`);
+        }
+      } catch (err) {
+        const now = this.clock.now();
+        if (signal.aborted) {
+          // Bot đang tắt: không tính là lỗi và không mất lượt thử, hẹn lại ngay để chạy khi bot lên.
+          this.store.releaseTimer(row.key, row.gen, "bị huỷ khi bot dừng", now);
+          return;
+        }
+        const giveUp = row.attempts >= this.maxAttempts;
+        const delay = Math.min(MAX_TIMER_BACKOFF_MS, this.backoffMs * 2 ** (row.attempts - 1));
+        this.noteError(err);
+        this.store.failTimer(row.key, row.gen, errMsg(err), giveUp ? null : now + delay, now);
+        this.logger[giveUp ? "error" : "warn"](
+          giveUp
+            ? `[timers] ${row.key}: lỗi lần ${row.attempts}/${this.maxAttempts}, bỏ cuộc: ${errMsg(err)}`
+            : `[timers] ${row.key}: lỗi lần ${row.attempts}/${this.maxAttempts}, thử lại sau ${Math.round(delay / 1000)}s: ${errMsg(err)}`,
+        );
       }
     } catch (err) {
-      const now = this.clock.now();
-      if (signal.aborted) {
-        // Bot đang tắt: không tính là lỗi, hẹn lại ngay để chạy khi bot lên.
-        this.store.failTimer(row.key, row.gen, "bị huỷ khi bot dừng", now, now);
-        return;
-      }
-      const giveUp = row.attempts >= this.maxAttempts;
-      const delay = Math.min(MAX_TIMER_BACKOFF_MS, this.backoffMs * 2 ** (row.attempts - 1));
-      this.lastError = errMsg(err);
-      this.store.failTimer(row.key, row.gen, errMsg(err), giveUp ? null : now + delay, now);
-      this.logger[giveUp ? "error" : "warn"](
-        giveUp
-          ? `[timers] ${row.key}: lỗi lần ${row.attempts}/${this.maxAttempts}, bỏ cuộc: ${errMsg(err)}`
-          : `[timers] ${row.key}: lỗi lần ${row.attempts}/${this.maxAttempts}, thử lại sau ${Math.round(delay / 1000)}s: ${errMsg(err)}`,
-      );
+      // Ghi trạng thái vào kho cũng lỗi (vd kho bị khoá): hẹn ở `firing`, hết lease thì được claim lại.
+      this.noteError(err);
+      this.logger.error(`[timers] ${row.key}: không ghi được kết quả: ${errMsg(err)}`);
     } finally {
       clearInterval(renew);
+      this.timersInflight--;
     }
   }
 }

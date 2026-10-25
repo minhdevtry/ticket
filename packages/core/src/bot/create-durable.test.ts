@@ -2,7 +2,13 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { WebhookPermissionError, actions, whenResolved, whenColumn } from "../backoffice";
+import {
+  WebhookPermissionError,
+  actions,
+  anyHumanIsReporter,
+  whenColumn,
+  whenResolved,
+} from "../backoffice";
 import type { IntakeLogger } from "../core/logger";
 import type { ItsaplanWebhookEnvelope } from "../itsaplan";
 import { FakeItsaplan } from "../testing/fake-itsaplan";
@@ -339,7 +345,7 @@ describe("closeAfter qua createBot", () => {
     defineBot({
       id,
       tracker: { team: "tech", project: "TECH" },
-      backoffice: { agent: "testbot", rules: rules() },
+      backoffice: { agent: "testbot", rules: rules(), reporter: anyHumanIsReporter },
     });
 
   it("Resolved → bot hẹn → qua restart → 48h sau chuyển Done; không comment trùng", async () => {
@@ -401,6 +407,36 @@ describe("closeAfter qua createBot", () => {
   });
 });
 
+describe("sức khoẻ và vòng đời của bộ chạy lịch", () => {
+  const def = (id: string) =>
+    defineBot({
+      id,
+      tracker: { team: "tech", project: "TECH" },
+      backoffice: { schedule: { "0 8 * * *": () => {} } },
+    });
+
+  it("hẹn giờ đã bỏ cuộc làm health degraded kèm lý do", async () => {
+    const bot = make(def("health-a"), { env: envFor({ BOT_TIMEZONE: "UTC" }) });
+    await bot.start();
+    expect(bot.health().status).toBe("ok");
+    const store = bot.store as NonNullable<typeof bot.store>;
+    store.armTimer({ key: "k", rule: "r", step: 0, dueAt: 0, issueId: 1 }, Date.now());
+    store.claimTimer("k", 1, Date.now(), 1000);
+    store.failTimer("k", 1, "hết số lần thử", null, Date.now());
+    const h = bot.health();
+    expect(h.status).toBe("degraded");
+    expect(h.reasons.join(" ")).toContain("1 hẹn giờ đã bỏ cuộc");
+    expect(h.components.scheduler).toMatchObject({ failedTimers: 1 });
+  });
+
+  it("start() sau stop() ném lỗi rõ ràng (phải createBot lại)", async () => {
+    const bot = make(def("health-b"), { env: envFor({ BOT_TIMEZONE: "UTC" }) });
+    await bot.start();
+    await bot.stop();
+    await expect(bot.start()).rejects.toThrow(/createBot lại/);
+  });
+});
+
 describe("tự đăng ký webhook (opt-in)", () => {
   const def = () =>
     defineBot({
@@ -408,6 +444,7 @@ describe("tự đăng ký webhook (opt-in)", () => {
       tracker: { team: "tech", project: "TECH" },
       backoffice: {
         agent: "testbot",
+        reporter: anyHumanIsReporter,
         rules: [
           whenColumn("Cần phân loại").do(actions.comment("Đã nhận.")),
           whenResolved().do(actions.closeAfter("48h")),
@@ -473,7 +510,7 @@ describe("tự đăng ký webhook (opt-in)", () => {
         url: URL,
         secret: "whsec_x",
         events: ["comment.updated"],
-        isActive: false,
+        isActive: true,
         createdAt: "",
       },
       {
@@ -507,6 +544,76 @@ describe("tự đăng ký webhook (opt-in)", () => {
     ]);
     expect(fake.webhooks[1]).toMatchObject({ id: 91, events: ["issue.created"], isActive: true });
     expect(fake.requests.some((r) => r.method === "DELETE")).toBe(false);
+    // secret có sẵn của webhook khác secret bot được cấu hình: cảnh báo (không in giá trị secret)
+    expect(logs.some((l) => l.includes("KHÁC ITSAPLAN_WEBHOOK_SECRET"))).toBe(true);
+    expect(logs.join("\n")).not.toContain("whsec_x");
+  });
+
+  it("webhook đã bị người khác TẮT: bot không bật lại, không sửa, báo cáo qua log và health", async () => {
+    fake.webhooks.push({
+      id: 90,
+      projectId: 1,
+      url: URL,
+      secret: "whsec_x",
+      events: ["comment.updated"],
+      isActive: false,
+      createdAt: "",
+    });
+    const bot = make(def(), {
+      webhook: { port: 0 },
+      env: envFor({
+        BOT_WEBHOOK_AUTO_REGISTER: "true",
+        BOT_WEBHOOK_URL: URL,
+        ITSAPLAN_WEBHOOK_KEY: "webhook-key-test",
+      }),
+    });
+    await bot.start();
+    expect(fake.webhooks).toHaveLength(1);
+    expect(fake.webhooks[0]).toMatchObject({ isActive: false, events: ["comment.updated"] });
+    expect(fake.requests.some((r) => r.method === "PATCH" || r.method === "DELETE")).toBe(false);
+    expect(logs.some((l) => l.includes("đang bị TẮT"))).toBe(true);
+    const h = bot.health();
+    expect(h.components.webhook).toMatchObject({ autoRegistered: false, disabledWebhookId: 90 });
+    expect(h.status).toBe("degraded");
+    expect(h.reasons.join(" ")).toContain("webhook #90 đang bị tắt");
+  });
+
+  it("gửi ITSAPLAN_WEBHOOK_SECRET khi tạo nếu API nhận; API từ chối trường lạ thì tạo lại không có nó", async () => {
+    const env = {
+      BOT_WEBHOOK_AUTO_REGISTER: "true",
+      BOT_WEBHOOK_URL: URL,
+      ITSAPLAN_WEBHOOK_KEY: "webhook-key-test",
+      ITSAPLAN_WEBHOOK_SECRET: "whsec_mine_mine_mine",
+    };
+    // accept: secret của bot được dùng làm secret của webhook, không có cảnh báo lệch
+    await fake.stop();
+    fake = new FakeItsaplan({
+      agentUsername: "testbot",
+      webhookKey: "webhook-key-test",
+      webhookSecretMode: "accept",
+    });
+    fake.start();
+    const a = make(def(), { webhook: { port: 0 }, env: envFor(env) });
+    await a.start();
+    expect(fake.webhooks[0].secret).toBe("whsec_mine_mine_mine");
+    expect(logs.some((l) => l.includes("KHÁC ITSAPLAN_WEBHOOK_SECRET"))).toBe(false);
+    await a.stop();
+
+    // reject: server từ chối trường `secret` -> tạo lại không có, và cảnh báo lệch secret
+    await fake.stop();
+    logs.length = 0;
+    fake = new FakeItsaplan({
+      agentUsername: "testbot",
+      webhookKey: "webhook-key-test",
+      webhookSecretMode: "reject",
+    });
+    fake.start();
+    const b = make(def(), { webhook: { port: 0 }, env: envFor(env) });
+    await b.start();
+    expect(fake.webhooks).toHaveLength(1);
+    expect(fake.webhooks[0].secret).not.toBe("whsec_mine_mine_mine");
+    expect(logs.some((l) => l.includes("KHÁC ITSAPLAN_WEBHOOK_SECRET"))).toBe(true);
+    expect(logs.join("\n")).not.toContain("whsec_mine_mine_mine");
   });
 
   it("cấu hình sai bị chặn ngay ở createBot", () => {
@@ -523,6 +630,14 @@ describe("tự đăng ký webhook (opt-in)", () => {
         { env: envFor({ BOT_WEBHOOK_AUTO_REGISTER: "true", BOT_WEBHOOK_URL: URL }) },
       ),
     ).toThrow(/backoffice\.rules/);
+    // closeAfter mà không khai reporter: lỗi khai báo rõ ràng
+    expect(() =>
+      defineBot({
+        id: "no-reporter",
+        tracker: { team: "tech", project: "TECH" },
+        backoffice: { rules: [whenResolved().do(actions.closeAfter("48h"))] },
+      }),
+    ).toThrow(/backoffice\.reporter/);
     expect(() =>
       make(def(), {
         webhook: false,

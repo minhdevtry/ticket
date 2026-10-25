@@ -34,7 +34,14 @@ import {
   secret,
 } from "../core/config";
 import { type IntakeLogger, getLogger } from "../core/logger";
-import { LLM_ENV_KEYS, type Llm, type LlmUsageEvent, llmEnv, llmFromConfig } from "../llm";
+import {
+  LLM_ENV_KEYS,
+  type Llm,
+  type LlmUsageEvent,
+  llmEnv,
+  llmFromConfig,
+  withSignal,
+} from "../llm";
 import { type Clock, systemClock } from "../intake/ports";
 import {
   type ItsaplanWebhookEnvelope,
@@ -88,9 +95,18 @@ export interface BotHealth {
       };
       rules: number;
     };
-    webhook?: { listening: boolean; port: number | null; autoRegistered?: boolean };
+    webhook?: {
+      listening: boolean;
+      port: number | null;
+      autoRegistered?: boolean;
+      /** Webhook của bot bị người khác tắt (bot không tự bật lại). */
+      disabledWebhookId?: number;
+    };
     /** Lịch cron và hẹn giờ của luật (khi bot có `schedule` hoặc `closeAfter`/`after`). */
-    scheduler?: Omit<BotSchedulerHealth, "lastTickAt"> & { lastTickAt: string | null };
+    scheduler?: Omit<BotSchedulerHealth, "lastTickAt" | "lastErrorAt"> & {
+      lastTickAt: string | null;
+      lastErrorAt: string | null;
+    };
     /** Kho bền: `durable` là `true` khi có `BOT_DATA_DIR`/`dataDir` (sống qua restart). */
     store?: { durable: boolean };
     receptionist?: { state: "declared-not-running"; note: string };
@@ -330,6 +346,7 @@ export function createBot<E extends EnvShape = Record<never, never>>(
   let healthHandle: HealthServerHandle | null = null;
   let webhookServer: ItsaplanWebhookServer | null = null;
   let autoRegistered = false;
+  let disabledWebhookId: number | null = null;
 
   // ── kho bền ──
   const webhookOpt0 = options.webhook === false ? undefined : options.webhook;
@@ -470,6 +487,7 @@ export function createBot<E extends EnvShape = Record<never, never>>(
         logger,
         clock,
         store: store ?? undefined,
+        llm,
         reporter: back.reporter,
         // Sự kiện webhook đã xử lý xong sống qua restart khi có kho bền.
         seen: durable ? store?.keys("rule-seen", { ttlMs: 7 * 86_400_000, now: nowMs }) : undefined,
@@ -485,7 +503,7 @@ export function createBot<E extends EnvShape = Record<never, never>>(
         job.timezone ?? scheduleOpts.timezone ?? kit.BOT_TIMEZONE ?? DEFAULT_TIMEZONE;
       const cron = parseCron(expr, timezone);
       return {
-        id: cron.expression,
+        id: `${cron.expression}@${timezone}`,
         cron,
         missed: job.missed ?? scheduleOpts.missed ?? "skip",
         run: async (info, signal) => {
@@ -501,6 +519,7 @@ export function createBot<E extends EnvShape = Record<never, never>>(
             logger,
             signal,
             tracker: scoped.forSignal(signal),
+            llm: llm ? withSignal(llm, signal) : undefined,
             clock,
             idempotencyKey: `cron:${cron.expression}:${info.scheduledFor}`,
           };
@@ -563,11 +582,17 @@ export function createBot<E extends EnvShape = Record<never, never>>(
         }
       }
     }
+    if (disabledWebhookId !== null && state === "running") {
+      reasons.push(
+        `webhook #${disabledWebhookId} đang bị tắt trên itsaplan: luật không nhận sự kiện`,
+      );
+    }
     if (webhookServer) {
       components.webhook = {
         listening: webhookServer.port() !== null,
         port: webhookServer.port(),
         ...(autoRegister ? { autoRegistered } : {}),
+        ...(disabledWebhookId !== null ? { disabledWebhookId } : {}),
       };
     }
     if (scheduler) {
@@ -575,8 +600,21 @@ export function createBot<E extends EnvShape = Record<never, never>>(
       components.scheduler = {
         ...h,
         lastTickAt: h.lastTickAt === null ? null : new Date(h.lastTickAt).toISOString(),
+        lastErrorAt: h.lastErrorAt === null ? null : new Date(h.lastErrorAt).toISOString(),
         lastError: h.lastError === null ? null : String(scrub(h.lastError)),
       };
+      if (state === "running") {
+        const lagLimit = Math.max(30_000, (options.scheduler?.tickMs ?? 1000) * 10);
+        if (h.tickLagMs !== null && h.tickLagMs > lagLimit) {
+          reasons.push(`bộ chạy lịch không tick suốt ${Math.round(h.tickLagMs / 1000)}s`);
+        }
+        if (h.lastError !== null) reasons.push(`lịch/hẹn giờ lỗi gần đây: ${scrub(h.lastError)}`);
+        if (h.failedTimers > 0) {
+          reasons.push(
+            `${h.failedTimers} hẹn giờ đã bỏ cuộc trong 24 giờ qua (xem bot.store.listTimers({ state: "failed" }))`,
+          );
+        }
+      }
     }
     if (store) components.store = { durable };
     if (def.receptionist) {
@@ -637,14 +675,26 @@ export function createBot<E extends EnvShape = Record<never, never>>(
         projectId,
         url: registerUrl as string,
         events: rules.requiredEvents(),
+        secret: (kit.ITSAPLAN_WEBHOOK_SECRET as string | undefined) || undefined,
       });
+      if (result.action === "disabled") {
+        disabledWebhookId = result.webhookId;
+        logger.warn(
+          `webhook #${result.webhookId} của ${scoped.ref} (${registerUrl}) đang bị TẮT: bot không tự bật lại (có thể là chủ ý). Bật nó trên itsaplan để luật nhận sự kiện${(result.missingEvents ?? []).length > 0 ? `; webhook còn thiếu sự kiện ${(result.missingEvents ?? []).join(", ")}` : ""}`,
+        );
+        return;
+      }
       autoRegistered = true;
       logger.info(
         `webhook ${result.action} (#${result.webhookId}) cho ${scoped.ref}: ${result.events.join(", ")}`,
       );
-      if (result.action === "created" && !kit.ITSAPLAN_WEBHOOK_SECRET) {
+      if (result.secretMatches === false) {
         logger.warn(
-          "webhook mới có secret do itsaplan cấp nhưng ITSAPLAN_WEBHOOK_SECRET chưa đặt: lấy secret từ webhook trên itsaplan và đặt biến này để kiểm chữ ký",
+          `secret của webhook #${result.webhookId} KHÁC ITSAPLAN_WEBHOOK_SECRET: chữ ký sẽ bị từ chối. Đặt ITSAPLAN_WEBHOOK_SECRET đúng secret của webhook này`,
+        );
+      } else if (result.secretMatches === null && !kit.ITSAPLAN_WEBHOOK_SECRET) {
+        logger.warn(
+          "webhook có secret do itsaplan cấp nhưng ITSAPLAN_WEBHOOK_SECRET chưa đặt: lấy secret từ webhook trên itsaplan và đặt biến này để kiểm chữ ký",
         );
       }
     } catch (err) {

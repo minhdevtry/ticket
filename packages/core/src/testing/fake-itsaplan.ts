@@ -28,6 +28,8 @@ export interface FakeIssue {
   assigneeUserId: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Lúc issue vào cột hiện tại (như `statusSince` của server); test đặt tay khi cần. */
+  statusSince?: string | null;
 }
 
 export interface FakeComment {
@@ -104,6 +106,11 @@ export interface FakeItsaplanOptions {
   agentCanManageWebhooks?: boolean;
   /** Key thứ hai có quyền webhook (mô phỏng `ITSAPLAN_WEBHOOK_KEY`). Không đặt thì không có. */
   webhookKey?: string;
+  /**
+   * Cách POST tạo webhook xử lý trường `secret` do client gửi: `ignore` (mặc định: server tự cấp,
+   * bỏ qua trường lạ), `accept` (dùng secret của client) hoặc `reject` (400 vì trường lạ).
+   */
+  webhookSecretMode?: "ignore" | "accept" | "reject";
 }
 
 export interface FaultRule {
@@ -175,6 +182,7 @@ export class FakeItsaplan {
   private readonly agentUsername: string;
   private readonly agentCanManageWebhooks: boolean;
   private readonly webhookKey: string | null;
+  private readonly webhookSecretMode: "ignore" | "accept" | "reject";
   private nextWebhookId = 1;
   private server: ReturnType<typeof Bun.serve> | null = null;
   private nextRunId = 1;
@@ -193,6 +201,7 @@ export class FakeItsaplan {
     this.agentUsername = options.agentUsername ?? "testbot";
     this.agentCanManageWebhooks = options.agentCanManageWebhooks ?? false;
     this.webhookKey = options.webhookKey ?? null;
+    this.webhookSecretMode = options.webhookSecretMode ?? "ignore";
   }
 
   /** Bật server, trả URL gốc. */
@@ -389,11 +398,17 @@ export class FakeItsaplan {
       }
       if (key.startsWith("POST ")) {
         if (!this.resolves(m![1])) return this.json({ error: "Project not found" }, 404);
+        if (this.webhookSecretMode === "reject" && "secret" in b) {
+          return this.json({ error: "Unknown field: secret" }, 400);
+        }
         const hook: FakeWebhook = {
           id: this.nextWebhookId++,
           projectId: 1,
           url: String(b.url ?? ""),
-          secret: `whsec_fake${this.nextWebhookId}`,
+          secret:
+            this.webhookSecretMode === "accept" && typeof b.secret === "string"
+              ? b.secret
+              : `whsec_fake${this.nextWebhookId}`,
           events: Array.isArray(b.events) ? b.events.map(String) : [],
           isActive: b.isActive !== false,
           createdAt: new Date().toISOString(),

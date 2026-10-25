@@ -161,4 +161,4 @@ Khi bot đặt `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `createBot` dựng cl
 
 ## Chưa có
 
-Runtime lễ tân trong `createBot`, host OpenClaw, liên kết người báo với ticket (nên `closeAfter` phải đoán người báo, xem trang hẹn giờ). `defineBot` đã nhận `receptionist` để khai báo trước; `createBot` ghi cảnh báo rằng vai này chưa chạy.
+Runtime lễ tân trong `createBot`, host OpenClaw, liên kết người báo với ticket (nên `closeAfter` bắt buộc có `backoffice.reporter`: itsaplan không trả người báo, xem trang hẹn giờ). `defineBot` đã nhận `receptionist` để khai báo trước; `createBot` ghi cảnh báo rằng vai này chưa chạy.
