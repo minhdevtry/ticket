@@ -93,6 +93,7 @@ export default defineConfig({
           items: [
             { text: "Tổng quan", link: "/rfc/" },
             { text: "0001 Bot kit", link: "/rfc/0001-bot-kit" },
+            { text: "0002 Lễ tân", link: "/rfc/0002-receptionist" },
           ],
         },
       ],
