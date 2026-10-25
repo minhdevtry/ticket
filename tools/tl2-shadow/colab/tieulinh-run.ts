@@ -10,6 +10,7 @@
  *
  *   bun run tieulinh-run.ts --release <dir> [--home <dir>] [--model <id>] [--port 3120]
  *                           [--health-port 3121] [--project TECH2] [--agent tieulinh2]
+ *                           [--sandbox-chat <chat giả>]
  *                           [--no-start] | stop | status
  *
  * Dữ liệu (`BOT_DATA_DIR`, nhật ký kênh, kho SQLite) nằm ở `<home>/data`: tạm thời theo VM Colab
@@ -33,6 +34,12 @@ export interface RunOpts {
   project: string;
   agent: string;
   team: string;
+  /**
+   * Chat giả gắn vào ticket chưa có liên kết người báo (`TIEULINH_SANDBOX_CHAT`). Kênh chỉ là nhật
+   * JSONL nên không tin nào ra ngoài; TECH2 không có người báo thật nên không có nó thì hậu cần
+   * không có gì để ghi. Rỗng thì không đặt.
+   */
+  sandboxChat: string;
 }
 
 /** Env của app: tuyệt đối không có secret thật và không có token Telegram. */
@@ -52,6 +59,7 @@ export function buildEnv(o: RunOpts): Record<string, string> {
     TIEULINH_TEAM: o.team,
     TIEULINH_PROJECT: o.project,
     TIEULINH_AGENT: o.agent,
+    ...(o.sandboxChat ? { TIEULINH_SANDBOX_CHAT: o.sandboxChat } : {}),
   };
 }
 
@@ -109,6 +117,7 @@ function opts(args: string[]): RunOpts {
     project: argValue(args, "--project", "TECH2"),
     agent: argValue(args, "--agent", "tieulinh2"),
     team: argValue(args, "--team", "tech"),
+    sandboxChat: argValue(args, "--sandbox-chat", "-1000000000001"),
   };
 }
 

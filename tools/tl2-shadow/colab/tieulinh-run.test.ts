@@ -16,6 +16,7 @@ const base = {
   project: "TECH2",
   agent: "tieulinh2",
   team: "tech",
+  sandboxChat: "-1000000000001",
 };
 
 describe("buildEnv", () => {
@@ -28,6 +29,8 @@ describe("buildEnv", () => {
     expect(e.BOT_DATA_DIR).toBe("/home/u/tl2/tieulinh/data");
     expect(e.BOT_WEBHOOK_PORT).toBe("3120");
     expect(e.TIEULINH_PROJECT).toBe("TECH2");
+    expect(e.TIEULINH_SANDBOX_CHAT).toBe("-1000000000001");
+    expect(buildEnv({ ...base, sandboxChat: "" }).TIEULINH_SANDBOX_CHAT).toBeUndefined();
   });
 
   it("không có secret thật và không có token Telegram hay secret webhook", () => {
