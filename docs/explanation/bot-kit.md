@@ -1,15 +1,17 @@
-# Bot kit: một khai báo, hai vai
+# Bot kit: bot là một pack, `createBot` là worker hậu cần
 
-Trang này giải thích cách nghĩ về bot kit và cách dùng nó. Thiết kế đầy đủ và các câu hỏi mở: [RFC 0001](/rfc/0001-bot-kit). Giao thức hàng đợi bên dưới: [agent-runs](/reference/agent-runs).
+Trang này giải thích cách nghĩ về bot kit và cách dùng nó. Thiết kế đầy đủ và các câu hỏi mở: [RFC 0001](/rfc/0001-bot-kit) và, cho phần lễ tân, [RFC 0002](/rfc/0002-receptionist). Giao thức hàng đợi bên dưới: [agent-runs](/reference/agent-runs).
 
 ## Ý tưởng
 
-Một bot VuiHoc làm hai việc khác bản chất:
+**Một bot là một pack** (gói): MCP server cộng tool, cộng skill (persona và hướng dẫn), cộng các mảnh harness (plugin, hook, đồng bộ workspace, mảnh cấu hình), **cắm vào một harness agent có sẵn**. Bot không phải một tiến trình riêng, không giữ kênh Telegram và không tự chạy vòng agent: harness sở hữu kênh và vòng agent. OpenClaw là harness mà chúng ta dùng hôm nay; phần MCP và skill được xuất theo chuẩn nên harness khác có MCP cũng nạp được. Thư viện làm cho việc dựng pack **dễ và chuẩn**.
 
-- **Lễ tân** nói chuyện với người báo, hỏi cho đủ thông tin, xác nhận rồi tạo ticket.
-- **Hậu cần** làm việc trên ticket đã tồn tại: ai đó @bot trong comment, ticket được giao cho bot, ticket đổi cột, tới giờ chạy.
+Một bot VuiHoc làm hai việc khác bản chất, và hai việc đó cắm vào harness theo hai cách:
 
-Bot kit gom cả hai vào một khai báo và một vòng đời, để người viết bot chỉ viết phần nghiệp vụ (handler, luật) còn phần ống nước (poll, heartbeat, backoff, dừng êm, health, đọc env) dùng chung.
+- **Lễ tân** nói chuyện với người báo, hỏi cho đủ thông tin, xác nhận rồi tạo ticket. Đó là một **pack MCP và skill**: engine hội thoại tất định bọc thành tool MCP (`intake_step`), persona và quy trình nằm trong skill, agent của harness chỉ chuyển nguyên văn kết quả. Lễ tân **không có worker, không có kênh**. Thiết kế ở [RFC 0002](/rfc/0002-receptionist); runtime lễ tân chưa cài đặt.
+- **Hậu cần** làm việc trên ticket đã tồn tại: ai đó @bot trong comment, ticket được giao cho bot, ticket đổi cột, tới giờ chạy. Đó là **`createBot`**: một mảnh harness, cụ thể là **worker hậu cần cho agent native của itsaplan** (poll `agent-runs`, nhận webhook, chạy lịch, hẹn giờ), đồng thời gửi thông báo ra ngoài.
+
+`defineBot` là một khai báo duy nhất cho cả hai việc, để người viết bot chỉ viết phần nghiệp vụ (handler, luật, dữ liệu lễ tân) còn phần ống nước (poll, heartbeat, backoff, dừng êm, health, đọc env) dùng chung. Tiểu Linh 2 = pack lễ tân (qua adapter OpenClaw) cộng worker hậu cần (`createBot`).
 
 ## Bắt đầu nhanh
 
@@ -163,4 +165,6 @@ Khi bot đặt `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `createBot` dựng cl
 
 ## Chưa có
 
-Runtime lễ tân trong `createBot`, host OpenClaw, liên kết người báo với ticket (nên `closeAfter` bắt buộc có `backoffice.reporter`: itsaplan không trả người báo, xem trang hẹn giờ). `defineBot` đã nhận `receptionist` để khai báo trước; `createBot` ghi cảnh báo rằng vai này chưa chạy.
+- **Pack lễ tân**: `defineBot` nhận `receptionist` để khai báo trước nhưng mới chỉ kiểm hình dạng; `createBot` ghi cảnh báo "declared-not-running" vì `createBot` là worker hậu cần chứ không chạy lễ tân. Việc dựng bộ tool MCP, gói skill và adapter OpenClaw từ khai báo nằm trong chuỗi PR của [RFC 0002](/rfc/0002-receptionist).
+- Adapter cho harness thứ hai ngoài OpenClaw: chỉ làm khi chủ yêu cầu.
+- Liên kết người báo với ticket: `closeAfter` bắt buộc có `backoffice.reporter` vì itsaplan không trả người báo (xem trang hẹn giờ).

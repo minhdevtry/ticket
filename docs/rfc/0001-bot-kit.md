@@ -1,6 +1,6 @@
 # RFC 0001: Bot kit (`defineBot` / `createBot`)
 
-- Trạng thái: đề xuất; milestone 1 (nền tảng) đã cài đặt; milestone 2a (độ bền và thời gian: kho bền, lịch cron, hẹn giờ, tự đăng ký webhook) đã cài đặt, runtime lễ tân còn lại; app mẫu hậu cần `apps/tieulinh` (Tiểu Linh 2 trên TECH2) đã dùng thử toàn bộ bề mặt hậu cần
+- Trạng thái: đề xuất; milestone 1 (nền tảng) đã cài đặt; milestone 2a (độ bền và thời gian: kho bền, lịch cron, hẹn giờ, tự đăng ký webhook) đã cài đặt; lễ tân không còn là một runtime của `createBot` mà là một pack MCP và skill (xem "Nguyên tắc: bot là một pack", thiết kế ở [RFC 0002](/rfc/0002-receptionist)); app mẫu hậu cần `apps/tieulinh` (Tiểu Linh 2 trên TECH2) đã dùng thử toàn bộ bề mặt hậu cần
 - Ngày: 2026-10-25
 - Phạm vi: `packages/core` (`@vuihoc/bot-core`), `apps/tieulinh-legacy`, `apps/tieulinh`
 
@@ -8,7 +8,7 @@
 
 `@vuihoc/bot-core` đã có nhiều mảnh (engine tiếp nhận, client itsaplan, webhook, Telegram, OpenClaw) nhưng mỗi bot vẫn tự ráp: tự đọc env, tự dựng worker, tự viết vòng poll `agent-runs` (Tiểu Linh: `worker/agent-runner.ts`), tự đóng gói health, tự tắt êm. Mỗi bot mới lặp lại việc đó và mắc lại các lỗi cũ (không heartbeat, không backoff, mất kết quả khi báo lỗi).
 
-Một bot thực chất có **hai vai**:
+Một bot thực chất có **hai vai** (mục "Nguyên tắc: bot là một pack" nói hai vai này cắm vào harness thế nào):
 
 - **Lễ tân** (receptionist): hội thoại tiếp nhận qua chat → xác nhận → tạo ticket.
 - **Hậu cần** (back office): làm việc trên ticket đã có: trả lời mention, xử lý ticket được giao, phản ứng khi ticket đổi cột, chạy theo lịch, đóng vòng đời ticket.
@@ -18,12 +18,25 @@ Itsaplan có sẵn cơ chế giao việc cho agent ngoài (hàng đợi `agent-r
 ## Mục tiêu
 
 1. Một **khai báo** (`defineBot`) mô tả cả bot: định danh, dự án, persona, vai lễ tân, vai hậu cần.
-2. Một **runtime** (`createBot`) có vòng đời rõ (`start`, `stop`, `health`) và `/healthz`.
+2. Một **runtime hậu cần** (`createBot`: worker cho agent native của itsaplan, một mảnh harness) có vòng đời rõ (`start`, `stop`, `health`) và `/healthz`.
 3. Cấu hình **kiểm tra lúc khởi động**, lỗi gom đủ, secret không lộ.
 4. Hậu cần chạy trên **agent-runs native** của itsaplan với heartbeat, backoff, dừng êm, idempotency.
 5. Không phá API hiện có; Tiểu Linh chuyển dần.
 
-Không phải mục tiêu: thay engine hội thoại; thay OpenClaw; viết lại Tiểu Linh trong một PR.
+Không phải mục tiêu: thay engine hội thoại; thay OpenClaw; viết lại Tiểu Linh trong một PR; bot tự chạy tiến trình, tự giữ kênh Telegram hay tự chạy vòng agent (chủ đã loại, xem mục dưới).
+
+## Nguyên tắc: bot là một pack cắm vào harness
+
+Quyết định của chủ (ghi ở [RFC 0002](/rfc/0002-receptionist), mục 8): **một bot là một pack, không phải một tiến trình hay một agent riêng.** Pack gồm MCP server cộng tool, cộng skill (persona và hướng dẫn), cộng các mảnh harness (plugin, hook, đồng bộ workspace, mảnh cấu hình), và được **cắm vào một harness agent có sẵn**. Harness sở hữu kênh (Telegram) và vòng agent LLM. **OpenClaw là harness hôm nay**; phần MCP và skill xuất theo chuẩn nên harness khác có MCP cũng nạp được, còn phần riêng của OpenClaw (plugin, hook, đồng bộ workspace, mảnh `openclaw.json`) là một adapter. Việc của thư viện là làm cho dựng pack **dễ và chuẩn**.
+
+Hệ quả cho hai vai ở mục "Bối cảnh":
+
+| Vai | Là gì trong mô hình pack |
+|---|---|
+| Lễ tân | Một **pack MCP và skill**: engine hội thoại tất định bọc thành tool MCP (`intake_step` cùng các tool tra cứu, định danh), persona và quy trình nằm trong skill, agent của harness chỉ chuyển nguyên văn kết quả. **Không có worker, không có kênh.** Thiết kế: RFC 0002. |
+| Hậu cần | `createBot`: **mảnh harness là worker hậu cần cho agent native của itsaplan** (poll `agent-runs`, webhook, lịch, hẹn giờ, health), đồng thời gửi thông báo ra ngoài. Giữ nguyên như đã cài đặt, nhưng không còn là "kiểu bot" mà lễ tân phải theo. |
+
+`defineBot` vẫn là một khai báo cho cả hai: phần `backoffice` dựng worker; phần `receptionist` là **dữ liệu** (catalog, luật ưu tiên, chữ, danh sách soát) để sinh pack lễ tân. Tiểu Linh 2 = pack lễ tân (qua adapter OpenClaw) cộng worker hậu cần (`createBot`).
 
 ## Khai báo
 
@@ -34,8 +47,8 @@ export default defineBot({
   persona: copyVi,                        // CopyCatalog của lễ tân
   env: defineEnv({ ... }),                // schema zod; tới handler qua ctx.config
 
-  receptionist: {                         // milestone 2: runtime
-    channels: [telegram({ account: "ticket" })],
+  receptionist: {                         // dữ liệu để sinh pack lễ tân (RFC 0002); createBot không chạy nó
+    channels: [telegram({ account: "ticket" })],  // kênh thuộc harness: trường này sẽ bỏ hoặc đánh dấu không dùng (RFC 0002, mục 3.3)
     catalog, priorityRules, extractor: llmExtractor(),
   },
 
@@ -129,19 +142,21 @@ Cấu hình và log:
 
 ## Cách lễ tân và hậu cần cắm vào
 
-Cả hai vai dùng chung: `tracker` (dự án), `persona`, `config`, `logger`, vòng đời và health. Khác nhau ở nguồn việc:
+Cả hai vai dùng chung: `tracker` (dự án), `persona`, `config`, `logger`. Khác nhau ở **chúng cắm vào đâu** và nguồn việc:
 
-| | Nguồn việc | Thành phần |
-|---|---|---|
-| Lễ tân | tin nhắn chat | kênh (Telegram…) → engine hội thoại → `TrackerPort.createIssue` |
-| Hậu cần | run agent-runs + webhook + (M2) lịch | worker polling → dispatcher theo trigger; webhook → rule engine |
+| | Là gì | Nguồn việc | Thành phần |
+|---|---|---|---|
+| Lễ tân | pack MCP và skill, cắm vào harness agent (OpenClaw hôm nay) | tin nhắn chat do **harness** nhận và đưa cho agent của nó | tool MCP `intake_step` (engine hội thoại) → `TrackerPort.createIssue`; skill; mảnh harness |
+| Hậu cần | `createBot`: worker hậu cần (mảnh harness) cho agent native của itsaplan | run agent-runs + webhook + lịch | worker polling → dispatcher theo trigger; webhook → rule engine; vòng đời, health |
 
-Hai vai chạm nhau ở ticket: lễ tân tạo ticket và lưu binding (ticket ↔ chat); hậu cần phản ứng khi ticket đổi. Ví dụ `notifyReporter` của hậu cần cần binding của lễ tân để biết nhắn ai. Ở M2 hai vai chia sẻ một "cổng thông báo" (`ChannelPort` + binding store) đã có trong `intake/notify`.
+Hai vai chạm nhau ở ticket: lễ tân tạo ticket và lưu binding (ticket ↔ chat); hậu cần phản ứng khi ticket đổi. Ví dụ `notifyReporter` của hậu cần cần binding của lễ tân để biết nhắn ai. Hai vai chia sẻ một "cổng thông báo" (`ChannelPort` + binding store) đã có trong `intake/notify`, và có thể dùng chung một thư mục dữ liệu SQLite: engine lễ tân chạy trong tiến trình MCP của harness, hậu cần chạy trong tiến trình worker.
 
-## Hai host
+## Harness và OpenClaw
 
-1. **Standalone** (milestone 1): `runBot(createBot(def, { env: process.env }))` thành một process, có `/healthz`, systemd/docker quản lý.
-2. **OpenClaw-hosted** (milestone 3): OpenClaw giữ kênh và agent hội thoại; bot kit chạy như plugin: lễ tân chạy qua tool/hook của OpenClaw, hậu cần vẫn là worker agent-runs. Cần `createBot` tách `start()` thành các phần (`startBackoffice`, `handleEvent`) để host chọn phần nào của nó chạy. `bot.handleEvent(envelope)` đã tồn tại ở M1 cho trường hợp host đã có webhook server riêng.
+Chỉ còn **một** cách chạy một bot: pack cắm vào harness. (Bản nháp đầu của RFC này có thêm chế độ "standalone": `runBot(createBot(...))` thành một process tự giữ kênh. Chủ đã loại hướng đó cho lễ tân: bot không giữ kênh và không tự chạy vòng agent.)
+
+1. **Phần worker hậu cần** (milestone 1 và 2a, đã cài đặt): `runBot(createBot(def, { env: process.env }))` chạy một process có `/healthz`, systemd hoặc docker quản lý. Đây là mảnh harness phục vụ agent native của itsaplan, không phải "bot standalone": nó không nhận tin chat. `bot.handleEvent(envelope)` có sẵn cho trường hợp host đã có webhook server riêng.
+2. **Phần pack cho harness** (lễ tân, RFC 0002): OpenClaw giữ kênh và agent hội thoại; pack lễ tân đăng ký tool MCP và skill, cộng adapter OpenClaw (plugin `iris-tuong-tac` và `xac-nhan-xong`, đồng bộ workspace, mảnh `openclaw.json`). Phần MCP và skill xuất chung để harness khác dùng được; adapter cho harness thứ hai chỉ làm khi chủ yêu cầu.
 
 ## Lộ trình
 
@@ -149,9 +164,9 @@ Hai vai chạm nhau ở ticket: lễ tân tạo ticket và lưu binding (ticket 
 |---|---|
 | **1 (PR này)** | `defineBot`/`createBot`/`runBot`, `defineEnv`/`loadConfig`, agent-runs client + worker, `backoffice` (trigger dispatch, tracker khoá dự án, luật tối thiểu), `FakeItsaplan`, ví dụ `minimal-bot`, tài liệu |
 | **2a (đã cài đặt)** | Độ bền và thời gian: kho SQLite bền (`BOT_DATA_DIR`: ledger agent-runs, khoá `reply#n`, dedupe luật, mốc cron, hẹn giờ, lease một-instance), lịch cron do bot giữ (`backoffice.schedule`, tự giữ trong process, không phụ thuộc API lịch của itsaplan), `actions.after`/`closeAfter`/`cancelTimer` với khoá huỷ, đăng ký webhook theo `rules` (opt-in) |
-| 2b | Runtime lễ tân trong `createBot` (kênh Telegram, engine, extractor); binding ticket ↔ chat dùng chung với hậu cần |
+| 2b (viết lại theo mô hình pack) | **Pack lễ tân**, không phải runtime trong `createBot`: engine hội thoại bọc thành tool MCP, skill sinh từ khai báo, binding ticket ↔ chat dùng chung với hậu cần. Kênh thuộc harness nên không có kênh Telegram trong `createBot`. Thiết kế và chuỗi PR: [RFC 0002](/rfc/0002-receptionist) |
 | **Hậu cần Tiểu Linh (đã cài đặt)** | `apps/tieulinh`: nửa hậu cần của Tiểu Linh trên bot kit (mention bằng LLM, vòng đời Resolved/Done, chuyển comment, nhắc SLA, gợi ý ticket trùng). Phần dùng chung đi vào core: `TicketClosure`, `TicketStateStore`, `LogChannel`, `ChannelPort.sendAlert`, `RuleContext.llm`, `openPrivateDb`. Xem [Tiểu Linh mới: hậu cần](/explanation/tieulinh-hau-can). Chưa làm: nhận tin vào (nút bấm, trả lời tự do), KG/Onyx/Memgraph, `related-curator`, ingest, gửi media thật |
-| 3 | Host OpenClaw; chuyển Tiểu Linh sang `defineBot` |
+| 3 (viết lại theo mô hình pack) | **Adapter OpenClaw** cho pack lễ tân (mảnh cấu hình `openclaw.json`, đồng bộ workspace, nút qua file chờ, plugin hiện có), không phải một "host" riêng; sau đó chuyển Tiểu Linh sang `defineBot` (RFC 0002, mục 5 và 6) |
 
 ## Lộ trình chuyển `apps/tieulinh-legacy`
 
@@ -160,7 +175,7 @@ Hai vai chạm nhau ở ticket: lễ tân tạo ticket và lưu binding (ticket 
 1. Thay `worker/agent-runner.ts` bằng `AgentRunWorker` (giữ nguyên logic `handleRun` thành handler `mention`). Được: heartbeat, backoff, dừng êm, không mất kết quả. Không đổi hành vi nhìn thấy được. Làm trước vì rủi ro thấp nhất và giá trị cao nhất.
 2. Gom đọc env của `worker/index.ts` vào `defineEnv`/`loadConfig`; thêm `/healthz`.
 3. Đưa `worker/lifecycle.ts` và các phản ứng theo cột/Resolved vào `rules`.
-4. Khi lễ tân (M2) xong: bọc pipeline hiện tại thành `receptionist`, `worker/index.ts` còn `runBot(createBot(def))`.
+4. Lễ tân đi theo [RFC 0002](/rfc/0002-receptionist): khai báo `receptionist` thành dữ liệu của pack MCP và skill (không phải một runtime trong `createBot`); `worker/index.ts` còn `runBot(createBot(def))` cho phần hậu cần.
 
 Mỗi bước là một PR riêng, chạy song song với bản cũ (cờ bật/tắt) đến khi đã quan sát an toàn.
 
