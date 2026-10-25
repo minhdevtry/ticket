@@ -22,7 +22,7 @@ Vai tiếp nhận: **kênh chat → hội thoại tiếp nhận → xác nhận 
 3. **Tạo ticket.** Idempotent: xác nhận lặp lại cho đúng một ticket. Mức ưu tiên suy từ bằng chứng theo bảng luật (sàn và trần), không do bot hay người báo tự đặt.
 4. **Báo ngược.** Có comment hoặc đổi trạng thái trên itsaplan thì webhook bắn về worker, worker đẩy về đúng chat. Người báo trả lời vào tin thông báo thì nội dung thành comment trên ticket. Xem [Dựng worker báo ngược](/how-to/notify-worker).
 
-Bot không tự đóng ticket. Người xử lý chuyển ticket sang "đã xử lý"; lúc đó người báo nhận nút "Đã ổn", cú bấm chỉ ghi một comment, không đổi trạng thái. Chỉ người xử lý chuyển sang "hoàn tất".
+Bot không bao giờ tự đóng ticket (ADR-0006, bản 10/10). Người xử lý chuyển ticket sang "đã xử lý"; lúc đó người báo nhận nút "Đã ổn", cú bấm chỉ ghi một comment, không đổi trạng thái. Chỉ có một ngoại lệ: khi **chính người báo** nhắn yêu cầu huỷ hoặc đóng ticket của mình và tự xác nhận bằng nút, bot chuyển cột giúp họ. Đó là việc của lễ tân (bản legacy đang làm; bản mới sẽ có ở PR 12 của [RFC 0002](/rfc/0002-receptionist)); worker hậu cần thì không đổi cột nào.
 
 Trong code, vai này là các tầng `intake`, `worker`, `telegram`, `itsaplan`, `identity` của [`@vuihoc/bot-core`](/reference/entry-points). Tiểu Linh (`apps/tieulinh-legacy`) là lễ tân đầu tiên và đang chạy thật; đây là bản tham chiếu đóng băng, xem [Bản legacy và bản mới của Tiểu Linh](/explanation/tieulinh-legacy).
 
