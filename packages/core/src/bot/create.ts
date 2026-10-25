@@ -16,8 +16,12 @@
  * | `BOT_HEALTH_PORT`, `BOT_HEALTH_HOST` | bật `/healthz` |
  * | `BOT_WEBHOOK_PORT`, `BOT_WEBHOOK_HOST`, `ITSAPLAN_WEBHOOK_SECRET` | nhận webhook cho `rules` |
  * | `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_API`, `LLM_TIMEOUT_MS`, `LLM_MAX_RETRIES`, `LLM_DEADLINE_MS` | bật `ctx.llm` (đặt đủ ba biến đầu, hoặc không đặt biến nào) |
+ * | `BOT_DATA_DIR` | thư mục kho bền SQLite (`<dir>/<bot.id>.sqlite`): ledger run, khoá chống trùng, mốc cron, hẹn giờ. Không đặt thì in-memory |
+ * | `BOT_TIMEZONE` | múi giờ của `backoffice.schedule` (mặc định `Asia/Ho_Chi_Minh`) |
+ * | `BOT_WEBHOOK_AUTO_REGISTER`, `BOT_WEBHOOK_URL`, `ITSAPLAN_WEBHOOK_KEY` | tự đăng ký webhook theo `rules` (opt-in) |
  */
 import { existsSync } from "node:fs";
+import { isAbsolute, join, resolve } from "node:path";
 import { z } from "zod";
 import {
   type EnvShape,
@@ -30,11 +34,19 @@ import {
   secret,
 } from "../core/config";
 import { type IntakeLogger, getLogger } from "../core/logger";
-import { LLM_ENV_KEYS, type Llm, type LlmUsageEvent, llmEnv, llmFromConfig } from "../llm";
+import {
+  LLM_ENV_KEYS,
+  type Llm,
+  type LlmUsageEvent,
+  llmEnv,
+  llmFromConfig,
+  withSignal,
+} from "../llm";
 import { type Clock, systemClock } from "../intake/ports";
 import {
   type ItsaplanWebhookEnvelope,
   ItsaplanClient,
+  isTransientError,
   ItsaplanWebhookServer,
   AgentRunsClient,
   type AgentRunHandler,
@@ -45,9 +57,19 @@ import {
 } from "../itsaplan";
 import {
   type RuleRunSummary,
+  BotScheduler,
+  type BotSchedulerHealth,
+  BotStore,
+  DEFAULT_TIMEZONE,
   RuleEngine,
+  type ScheduleContext,
+  type ScheduleEntry,
+  WebhookPermissionError,
+  assertTimezone,
   createRunDispatcher,
   createScopedTracker,
+  ensureRuleWebhook,
+  parseCron,
 } from "../backoffice";
 import { type BotDefinition, BotDefinitionError, validateBotDefinition } from "./define";
 import { type HealthServerHandle, startHealthServer } from "./health-server";
@@ -73,7 +95,20 @@ export interface BotHealth {
       };
       rules: number;
     };
-    webhook?: { listening: boolean; port: number | null };
+    webhook?: {
+      listening: boolean;
+      port: number | null;
+      autoRegistered?: boolean;
+      /** Webhook của bot bị người khác tắt (bot không tự bật lại). */
+      disabledWebhookId?: number;
+    };
+    /** Lịch cron và hẹn giờ của luật (khi bot có `schedule` hoặc `closeAfter`/`after`). */
+    scheduler?: Omit<BotSchedulerHealth, "lastTickAt" | "lastErrorAt"> & {
+      lastTickAt: string | null;
+      lastErrorAt: string | null;
+    };
+    /** Kho bền: `durable` là `true` khi có `BOT_DATA_DIR`/`dataDir` (sống qua restart). */
+    store?: { durable: boolean };
     receptionist?: { state: "declared-not-running"; note: string };
   };
   /** Lý do khi `degraded`/`down`. */
@@ -91,7 +126,42 @@ export interface CreateBotOptions {
   /** `false` tắt `/healthz` kể cả khi có `BOT_HEALTH_PORT`; object ghi đè env. */
   healthServer?: false | { port?: number; host?: string; path?: string };
   /** `false` tắt nghe webhook; object ghi đè env. */
-  webhook?: false | { port?: number; host?: string; secrets?: string[] };
+  webhook?:
+    | false
+    | {
+        port?: number;
+        host?: string;
+        secrets?: string[];
+        /** URL mà itsaplan gọi tới được, để tự đăng ký (ghi đè `BOT_WEBHOOK_URL`). */
+        url?: string;
+        /**
+         * Tự đăng ký webhook của dự án theo `rules` khi `start()` (ghi đè `BOT_WEBHOOK_AUTO_REGISTER`).
+         * Mặc định TẮT. Cần `url` và một key có quyền webhook (`ITSAPLAN_WEBHOOK_KEY`); thiếu quyền
+         * thì `start()` ném `WebhookPermissionError`. Chỉ đụng dự án của `tracker`.
+         */
+        autoRegister?: boolean;
+      };
+  /**
+   * Thư mục kho bền (ghi đè `BOT_DATA_DIR`). Có thì file `<dataDir>/<bot.id>.sqlite` giữ ledger
+   * run, khoá chống trùng (`reply#n`, sự kiện webhook), mốc cron và hẹn giờ qua restart. Không có
+   * thì mọi thứ in-memory (mặc định của test). Nên là đường dẫn tuyệt đối.
+   */
+  dataDir?: string;
+  /**
+   * Kho dựng sẵn (test, hoặc host chia sẻ một kho). `createBot` KHÔNG đóng kho này khi `stop()`:
+   * ai mở thì người đó đóng. Ưu tiên hơn `dataDir`.
+   */
+  store?: BotStore;
+  /** Tinh chỉnh bộ chạy lịch/hẹn giờ. */
+  scheduler?: {
+    /** Chu kỳ tick (ms). Mặc định 1000. */
+    tickMs?: number;
+    /** Lease của lịch/timer đang chạy (ms). Mặc định 120 000. */
+    leaseMs?: number;
+    timerMaxAttempts?: number;
+    timerBackoffMs?: number;
+  };
+
   /** Có kiểm tra kết nối dự án lúc `start()` không (fail-fast key/dự án sai). Mặc định true. */
   preflight?: boolean;
   /** Thay `fetch` cho client agent-runs (test/proxy). */
@@ -126,6 +196,11 @@ export interface Bot {
   readonly state: BotState;
   /** Client LLM của bot (từ `LLM_*` hoặc `options.llm.client`), `undefined` nếu chưa cấu hình. */
   readonly llm: Llm | undefined;
+  /**
+   * Kho bền của bot (`null` nếu bot không có hậu cần). Đọc hẹn giờ/mốc cron để vận hành hoặc test;
+   * không tự đóng nó (bot đóng khi `stop()` nếu chính bot mở).
+   */
+  readonly store: BotStore | null;
   /** Bắt đầu chạy. Ném (sau khi dọn) nếu kiểm tra kết nối hoặc bind cổng thất bại. */
   start(): Promise<void>;
   /** Dừng êm (chờ run đang chạy tới hạn drain). Gọi lại là an toàn. */
@@ -168,6 +243,25 @@ function kitEnv(needsItsaplan: boolean) {
     BOT_WEBHOOK_HOST: z.string().min(1).optional(),
     ITSAPLAN_WEBHOOK_SECRET: secret(z.string().min(1).optional()),
     BOT_DRAIN_TIMEOUT_MS: z.coerce.number().int().min(0).optional(),
+    BOT_DATA_DIR: z.string().min(1).optional(),
+    BOT_TIMEZONE: z
+      .string()
+      .min(1)
+      .refine(
+        (tz) => {
+          try {
+            assertTimezone(tz);
+            return true;
+          } catch {
+            return false;
+          }
+        },
+        { message: `múi giờ IANA không hợp lệ (vd "${DEFAULT_TIMEZONE}")` },
+      )
+      .optional(),
+    BOT_WEBHOOK_URL: z.url().optional(),
+    BOT_WEBHOOK_AUTO_REGISTER: z.stringbool().optional(),
+    ITSAPLAN_WEBHOOK_KEY: secret(z.string().min(1).optional()),
   });
 }
 
@@ -251,9 +345,62 @@ export function createBot<E extends EnvShape = Record<never, never>>(
   let stopping: Promise<void> | null = null;
   let healthHandle: HealthServerHandle | null = null;
   let webhookServer: ItsaplanWebhookServer | null = null;
+  let autoRegistered = false;
+  let disabledWebhookId: number | null = null;
+
+  // ── kho bền ──
+  const webhookOpt0 = options.webhook === false ? undefined : options.webhook;
+  const autoRegister = webhookOpt0?.autoRegister ?? kit.BOT_WEBHOOK_AUTO_REGISTER ?? false;
+  const registerUrl: string | undefined = webhookOpt0?.url ?? kit.BOT_WEBHOOK_URL;
+  if (autoRegister) {
+    const problems: string[] = [];
+    if (options.webhook === false) problems.push("`webhook: false` đang tắt webhook");
+    if (!(back?.rules ?? []).length)
+      problems.push("bot không có `backoffice.rules` (không có gì để đăng ký)");
+    if (!registerUrl) problems.push("thiếu BOT_WEBHOOK_URL (URL mà itsaplan gọi tới được)");
+    else if (!/^https?:\/\//i.test(registerUrl))
+      problems.push("BOT_WEBHOOK_URL phải bắt đầu bằng http:// hoặc https://");
+    if (problems.length > 0) {
+      throw new Error(
+        `tự đăng ký webhook (BOT_WEBHOOK_AUTO_REGISTER) không dùng được: ${problems.join("; ")}`,
+      );
+    }
+  }
+  const dataDir: string | undefined = options.dataDir ?? kit.BOT_DATA_DIR;
+  let store: BotStore | null = null;
+  let ownsStore = false;
+  if (back) {
+    if (options.store) {
+      store = options.store;
+    } else if (dataDir) {
+      if (!isAbsolute(dataDir)) {
+        logger.warn(
+          `BOT_DATA_DIR "${dataDir}" là đường dẫn tương đối: file kho tính theo thư mục chạy hiện tại; nên dùng đường dẫn tuyệt đối`,
+        );
+      }
+      const file = join(resolve(dataDir), `${def.id}.sqlite`);
+      try {
+        store = BotStore.open(file);
+      } catch (err) {
+        throw new Error(
+          `Không mở được kho dữ liệu của bot "${def.id}" ở ${file}: ${scrub(err instanceof Error ? err.message : String(err))}`,
+        );
+      }
+      ownsStore = true;
+    } else {
+      store = BotStore.memory();
+      ownsStore = true;
+    }
+  }
+  const durable = store?.durable === true;
+  const closeStore = () => {
+    if (ownsStore) store?.close();
+  };
 
   // ── hậu cần ──
   let worker: AgentRunWorker | null = null;
+  let scheduler: BotScheduler | null = null;
+  let itsaplanClient: ItsaplanClient | null = null;
   let engine: RuleEngine<InferEnv<E>> | null = null;
   let tracker: ReturnType<typeof createScopedTracker> | null = null;
   let pollIntervalMs = 3000;
@@ -271,10 +418,14 @@ export function createBot<E extends EnvShape = Record<never, never>>(
       options.itsaplanClient ??
       // Tắt retry: lệnh ghi (comment, tạo ticket) retry theo 5xx có thể ghi trùng.
       new ItsaplanClient(baseUrl, apiKey, { retryOptions: { maxRetries: 0 } });
+    itsaplanClient = client;
+    const nowMs = () => clock.now();
     tracker = createScopedTracker(client, def.tracker, {
       clock,
       readRetries: options.trackerReads?.retries,
       readRetryBaseMs: options.trackerReads?.baseDelayMs,
+      // Khoá comment đã ghi (`reply#n`…) sống qua restart khi có kho bền.
+      keys: durable ? store?.keys("comment", { now: nowMs }) : undefined,
     });
     const dispatcher = createRunDispatcher(back, {
       botId: def.id,
@@ -312,6 +463,8 @@ export function createBot<E extends EnvShape = Record<never, never>>(
       abortGraceMs,
       logger,
       now: () => clock.now(),
+      // Kết quả đã tính xong mà chưa báo được sống qua restart khi có kho bền.
+      ...(durable && store ? { ledger: store.ledger({ now: nowMs }) } : {}),
       onFatal: (err) => {
         state = "failed";
         fatalError = new Error(String(scrub(err.message)));
@@ -333,6 +486,59 @@ export function createBot<E extends EnvShape = Record<never, never>>(
         config,
         logger,
         clock,
+        store: store ?? undefined,
+        llm,
+        reporter: back.reporter,
+        // Sự kiện webhook đã xử lý xong sống qua restart khi có kho bền.
+        seen: durable ? store?.keys("rule-seen", { ttlMs: 7 * 86_400_000, now: nowMs }) : undefined,
+      });
+    }
+
+    // ── lịch cron của bot + hẹn giờ của luật ──
+    const scheduleOpts = back.scheduleOptions ?? {};
+    const scoped = tracker;
+    const entries: ScheduleEntry[] = Object.entries(back.schedule ?? {}).map(([expr, value]) => {
+      const job = typeof value === "function" ? { run: value } : value;
+      const timezone =
+        job.timezone ?? scheduleOpts.timezone ?? kit.BOT_TIMEZONE ?? DEFAULT_TIMEZONE;
+      const cron = parseCron(expr, timezone);
+      return {
+        id: `${cron.expression}@${timezone}`,
+        cron,
+        missed: job.missed ?? scheduleOpts.missed ?? "skip",
+        run: async (info, signal) => {
+          const ctx: ScheduleContext<InferEnv<E>> = {
+            bot: { id: def.id, project: def.tracker.project, ref: scoped.ref, agent: back.agent },
+            job: cron.expression,
+            scheduledFor: info.scheduledFor,
+            firedAt: info.firedAt,
+            timezone,
+            missed: info.missed,
+            missedCount: info.missedCount,
+            config,
+            logger,
+            signal,
+            tracker: scoped.forSignal(signal),
+            llm: llm ? withSignal(llm, signal) : undefined,
+            clock,
+            idempotencyKey: `cron:${cron.expression}:${info.scheduledFor}`,
+          };
+          await job.run(ctx);
+        },
+      };
+    });
+    const activeEngine = engine as RuleEngine<InferEnv<E>> | null;
+    if (store && (entries.length > 0 || activeEngine?.hasTimers())) {
+      scheduler = new BotScheduler({
+        store,
+        clock,
+        logger,
+        entries,
+        timers: activeEngine?.hasTimers()
+          ? { fire: (row, signal) => activeEngine.fireTimer(row, signal) }
+          : undefined,
+        graceMs: scheduleOpts.graceMs,
+        ...options.scheduler,
       });
     }
   }
@@ -376,9 +582,41 @@ export function createBot<E extends EnvShape = Record<never, never>>(
         }
       }
     }
-    if (webhookServer) {
-      components.webhook = { listening: webhookServer.port() !== null, port: webhookServer.port() };
+    if (disabledWebhookId !== null && state === "running") {
+      reasons.push(
+        `webhook #${disabledWebhookId} đang bị tắt trên itsaplan: luật không nhận sự kiện`,
+      );
     }
+    if (webhookServer) {
+      components.webhook = {
+        listening: webhookServer.port() !== null,
+        port: webhookServer.port(),
+        ...(autoRegister ? { autoRegistered } : {}),
+        ...(disabledWebhookId !== null ? { disabledWebhookId } : {}),
+      };
+    }
+    if (scheduler) {
+      const h = scheduler.health();
+      components.scheduler = {
+        ...h,
+        lastTickAt: h.lastTickAt === null ? null : new Date(h.lastTickAt).toISOString(),
+        lastErrorAt: h.lastErrorAt === null ? null : new Date(h.lastErrorAt).toISOString(),
+        lastError: h.lastError === null ? null : String(scrub(h.lastError)),
+      };
+      if (state === "running") {
+        const lagLimit = Math.max(30_000, (options.scheduler?.tickMs ?? 1000) * 10);
+        if (h.tickLagMs !== null && h.tickLagMs > lagLimit) {
+          reasons.push(`bộ chạy lịch không tick suốt ${Math.round(h.tickLagMs / 1000)}s`);
+        }
+        if (h.lastError !== null) reasons.push(`lịch/hẹn giờ lỗi gần đây: ${scrub(h.lastError)}`);
+        if (h.failedTimers > 0) {
+          reasons.push(
+            `${h.failedTimers} hẹn giờ đã bỏ cuộc trong 24 giờ qua (xem bot.store.listTimers({ state: "failed" }))`,
+          );
+        }
+      }
+    }
+    if (store) components.store = { durable };
     if (def.receptionist) {
       components.receptionist = {
         state: "declared-not-running",
@@ -405,13 +643,75 @@ export function createBot<E extends EnvShape = Record<never, never>>(
   async function teardown(): Promise<void> {
     await Promise.allSettled([
       worker?.stop(),
+      scheduler?.stop(drainTimeoutMs, abortGraceMs),
       bounded(webhookServer?.stop?.(), SERVER_STOP_MS),
       bounded(healthHandle?.stop(), SERVER_STOP_MS),
     ]);
+    // Đóng kho SAU cùng: worker và bộ chạy lịch còn ghi vào nó tới phút cuối.
+    closeStore();
+  }
+
+  /**
+   * Tự đăng ký webhook theo `rules` (opt-in). Chỉ đụng dự án của bot. Lỗi quyền hoặc cấu hình ném
+   * ra (start() thất bại, nói rõ cần làm gì); itsaplan chập chờn (5xx/mạng) chỉ cảnh báo vì việc
+   * đăng ký lặp lại ở lần khởi động sau.
+   */
+  async function registerWebhook(
+    rules: RuleEngine<InferEnv<E>>,
+    scoped: ReturnType<typeof createScopedTracker>,
+    client: ItsaplanClient,
+  ): Promise<void> {
+    const webhookKey = kit.ITSAPLAN_WEBHOOK_KEY as string | undefined;
+    const registrar = webhookKey
+      ? new ItsaplanClient(kit.ITSAPLAN_BASE_URL as string, webhookKey, {
+          retryOptions: { maxRetries: 0 },
+        })
+      : client;
+    try {
+      const { projectId } = await scoped.ready();
+      const result = await ensureRuleWebhook({
+        client: registrar,
+        projectRef: scoped.ref,
+        projectId,
+        url: registerUrl as string,
+        events: rules.requiredEvents(),
+        secret: (kit.ITSAPLAN_WEBHOOK_SECRET as string | undefined) || undefined,
+      });
+      if (result.action === "disabled") {
+        disabledWebhookId = result.webhookId;
+        logger.warn(
+          `webhook #${result.webhookId} của ${scoped.ref} (${registerUrl}) đang bị TẮT: bot không tự bật lại (có thể là chủ ý). Bật nó trên itsaplan để luật nhận sự kiện${(result.missingEvents ?? []).length > 0 ? `; webhook còn thiếu sự kiện ${(result.missingEvents ?? []).join(", ")}` : ""}`,
+        );
+        return;
+      }
+      autoRegistered = true;
+      logger.info(
+        `webhook ${result.action} (#${result.webhookId}) cho ${scoped.ref}: ${result.events.join(", ")}`,
+      );
+      if (result.secretMatches === false) {
+        logger.warn(
+          `secret của webhook #${result.webhookId} KHÁC ITSAPLAN_WEBHOOK_SECRET: chữ ký sẽ bị từ chối. Đặt ITSAPLAN_WEBHOOK_SECRET đúng secret của webhook này`,
+        );
+      } else if (result.secretMatches === null && !kit.ITSAPLAN_WEBHOOK_SECRET) {
+        logger.warn(
+          "webhook có secret do itsaplan cấp nhưng ITSAPLAN_WEBHOOK_SECRET chưa đặt: lấy secret từ webhook trên itsaplan và đặt biến này để kiểm chữ ký",
+        );
+      }
+    } catch (err) {
+      if (err instanceof WebhookPermissionError) throw err;
+      if (isTransientError(err)) {
+        logger.warn(
+          `không đăng ký được webhook (lỗi tạm thời, thử lại ở lần khởi động sau): ${scrub(err instanceof Error ? err.message : String(err))}`,
+        );
+        return;
+      }
+      throw err;
+    }
   }
 
   const bot: Bot = {
     id: def.id,
+    store,
     get state() {
       return state;
     },
@@ -465,7 +765,12 @@ export function createBot<E extends EnvShape = Record<never, never>>(
           }
         }
 
+        if (autoRegister && engine && tracker && itsaplanClient) {
+          await registerWebhook(engine, tracker, itsaplanClient);
+        }
+
         worker?.start();
+        scheduler?.start();
         startedAt = clock.now();
 
         const healthOpt = options.healthServer;
@@ -492,6 +797,7 @@ export function createBot<E extends EnvShape = Record<never, never>>(
       stopping ??= (async () => {
         if (state === "created") {
           state = "stopped";
+          closeStore();
           return;
         }
         state = "stopping";

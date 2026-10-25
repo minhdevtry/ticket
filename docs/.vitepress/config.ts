@@ -48,6 +48,7 @@ export default defineConfig({
             { text: "Chạy bóng Tiểu Linh 2", link: "/how-to/shadow-tl2" },
             { text: "Deploy và đẩy secret qua SSH", link: "/how-to/deploy" },
             { text: "Gọi LLM trong handler hậu cần", link: "/how-to/call-llm" },
+            { text: "Lịch chạy và hẹn giờ", link: "/how-to/schedule-and-timers" },
             { text: "Chuyển project vào team", link: "/how-to/move-project-to-team" },
             { text: "Chuyển bot sang bot-core", link: "/how-to/adopt-core" },
             { text: "Chuyển Tiểu Linh sang bot-core", link: "/how-to/migrate-tieulinh" },

@@ -12,6 +12,7 @@
 import type { EnvSchema, EnvShape, InferEnv } from "../core/config";
 import type { CopyCatalog } from "../intake/ports";
 import type { BackofficeDefinition } from "../backoffice";
+import { DEFAULT_TIMEZONE, assertTimezone, parseCron } from "../backoffice/cron";
 
 /**
  * Dự án itsaplan mà bot phụ trách. Mọi dự án nằm trong một team, và mã dự án (`KEY`) chỉ
@@ -100,6 +101,62 @@ const TRIGGER_KEYS = new Set([
   "fallback",
 ]);
 
+const MISSED_POLICIES = new Set(["skip", "catch-up-once"]);
+
+/** Kiểm `backoffice.schedule` và `scheduleOptions`: biểu thức cron, múi giờ, chính sách, handler. */
+function validateSchedule(
+  back: NonNullable<BotDefinition<any>["backoffice"]>,
+  bad: (path: string, message: string) => void,
+): void {
+  const opts = back.scheduleOptions;
+  let timezone = DEFAULT_TIMEZONE;
+  if (opts !== undefined) {
+    if (opts.timezone !== undefined) {
+      try {
+        assertTimezone(opts.timezone);
+        timezone = opts.timezone;
+      } catch (err) {
+        bad("backoffice.scheduleOptions.timezone", (err as Error).message);
+      }
+    }
+    if (opts.missed !== undefined && !MISSED_POLICIES.has(opts.missed)) {
+      bad("backoffice.scheduleOptions.missed", 'phải là "skip" hoặc "catch-up-once"');
+    }
+    if (
+      opts.graceMs !== undefined &&
+      !(typeof opts.graceMs === "number" && Number.isFinite(opts.graceMs) && opts.graceMs >= 0)
+    ) {
+      bad("backoffice.scheduleOptions.graceMs", "phải là số >= 0 (ms)");
+    }
+  }
+  const schedule = back.schedule;
+  if (schedule === undefined) return;
+  if (schedule === null || typeof schedule !== "object" || Array.isArray(schedule)) {
+    bad("backoffice.schedule", 'phải là object dạng { "0 8 * * *": handler }');
+    return;
+  }
+  const seen = new Set<string>();
+  for (const [expr, value] of Object.entries(schedule)) {
+    const at = `backoffice.schedule[${JSON.stringify(expr)}]`;
+    const job =
+      typeof value === "function" ? { run: value } : (value as unknown as Record<string, unknown>);
+    if (!job || typeof job.run !== "function") {
+      bad(at, "phải là hàm hoặc { run: hàm, missed?, timezone? }");
+      continue;
+    }
+    if (job.missed !== undefined && !MISSED_POLICIES.has(job.missed as string)) {
+      bad(`${at}.missed`, 'phải là "skip" hoặc "catch-up-once"');
+    }
+    try {
+      const cron = parseCron(expr, (job.timezone as string | undefined) ?? timezone);
+      if (seen.has(cron.expression)) bad(at, `trùng lịch "${cron.expression}"`);
+      seen.add(cron.expression);
+    } catch (err) {
+      bad(at, (err as Error).message);
+    }
+  }
+}
+
 /** Kiểm tra khai báo; trả danh sách lỗi (rỗng = hợp lệ). Không ném. */
 export function validateBotDefinition(def: BotDefinition<any>): BotDefinitionIssue[] {
   const issues: BotDefinitionIssue[] = [];
@@ -125,8 +182,14 @@ export function validateBotDefinition(def: BotDefinition<any>): BotDefinitionIss
   if (back) {
     const on = back.on ?? {};
     const rules = back.rules ?? [];
-    if (Object.keys(on).length === 0 && rules.length === 0) {
-      bad("backoffice", "cần ít nhất một handler trong `on` hoặc một luật trong `rules`");
+    const schedule = back.schedule;
+    const hasSchedule =
+      !!schedule && typeof schedule === "object" && Object.keys(schedule).length > 0;
+    if (Object.keys(on).length === 0 && rules.length === 0 && !hasSchedule) {
+      bad(
+        "backoffice",
+        "cần ít nhất một handler trong `on`, một luật trong `rules` hoặc một lịch trong `schedule`",
+      );
     }
     for (const [key, handler] of Object.entries(on)) {
       if (!TRIGGER_KEYS.has(key)) {
@@ -134,12 +197,13 @@ export function validateBotDefinition(def: BotDefinition<any>): BotDefinitionIss
       } else if (key === "schedule" && handler && typeof handler === "object") {
         bad(
           "backoffice.on.schedule",
-          'dạng { "cron": handler } (bot tự giữ lịch) thuộc milestone 2; hiện chỉ nhận một hàm cho run `schedule` từ lịch tạo trên itsaplan',
+          'chỉ nhận một hàm (cho run `schedule` từ lịch tạo trên itsaplan); lịch do bot tự giữ khai ở `backoffice.schedule: { "0 8 * * *": handler }`',
         );
       } else if (typeof handler !== "function") {
         bad(`backoffice.on.${key}`, "phải là hàm");
       }
     }
+    validateSchedule(back, bad);
     const seen = new Set<string>();
     rules.forEach((rule, i) => {
       const at = `backoffice.rules[${i}]`;
@@ -160,6 +224,12 @@ export function validateBotDefinition(def: BotDefinition<any>): BotDefinitionIss
         );
       }
       seen.add(rule.name);
+      if (rule.needsReporter && typeof back.reporter !== "function") {
+        bad(
+          `${at}`,
+          `luật "${rule.name}" dùng closeAfter/reporter-comment nên cần \`backoffice.reporter\`: itsaplan không trả người báo trên issue. Khai một hàm xác định người báo, hoặc \`reporter: anyHumanIsReporter\` (từ @vuihoc/bot-core/backoffice) để coi mọi người comment là người báo`,
+        );
+      }
     });
     const runs = back.runs;
     if (runs) {

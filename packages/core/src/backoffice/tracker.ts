@@ -22,6 +22,7 @@ import {
   parseIdentifier,
 } from "../itsaplan";
 import type { Clock } from "../intake/ports";
+import type { KeySet } from "./store";
 
 /**
  * Ref đủ của dự án (`<team>.<KEY>`, vd `tech.TECH2`). Kiểu "brand" để không lẫn với chuỗi bất kỳ
@@ -123,6 +124,12 @@ export interface ScopedTrackerOptions {
   readRetries?: number;
   /** Chờ cơ sở giữa các lần thử lại (ms), nhân đôi mỗi lần. Mặc định 200. */
   readRetryBaseMs?: number;
+  /**
+   * Tập khoá chống trùng bền cho `comment({ idempotencyKey })`. Có thì khoá đã ghi được nhớ qua
+   * restart: lần ghi lại cùng khoá bị bỏ qua mà không phải đọc lại timeline. Dấu ẩn trong comment
+   * vẫn là chốt chặn cuối (khoá chỉ ghi SAU khi comment đã ghi, nên sập giữa hai bước vẫn an toàn).
+   */
+  keys?: KeySet;
 }
 
 const isNotFound = (err: unknown): boolean => err instanceof ItsaplanApiError && err.status === 404;
@@ -272,10 +279,13 @@ export function createScopedTracker(
         guard();
         await assertOwned(issueId);
         let text = opts.mark === false ? body : markBotComment(body);
+        const keys = options.keys;
         if (opts.idempotencyKey) {
+          if (keys?.has(opts.idempotencyKey)) return { id: null, created: false };
           const marker = idempotencyMarker(opts.idempotencyKey);
           const existing = await read(() => client.listComments(issueId));
           if (existing.some((c) => typeof c.body === "string" && c.body.includes(marker))) {
+            keys?.add(opts.idempotencyKey);
             return { id: null, created: false };
           }
           text = `${text}\n${marker}`;
@@ -289,6 +299,13 @@ export function createScopedTracker(
             ...(opts.replyToId ? { replyToId: opts.replyToId } : {}),
           }),
         });
+        if (opts.idempotencyKey) {
+          try {
+            keys?.add(opts.idempotencyKey);
+          } catch {
+            // comment đã ghi; mất khoá bền chỉ làm lần sau phải đọc timeline (dấu ẩn vẫn chặn trùng)
+          }
+        }
         return { id: created?.id ?? null, created: true };
       },
 

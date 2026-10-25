@@ -4,6 +4,7 @@ import { FakeItsaplan } from "../testing/fake-itsaplan";
 import { FakeLlm } from "../llm/fake-llm";
 import { z } from "zod";
 import { type Llm, createLlm, defineLlmTool, llmEnv, requireLlm, runAgentLoop } from "../llm";
+import { actions, anyHumanIsReporter, whenColumn } from "../backoffice";
 import { createBot } from "./create";
 import { defineBot } from "./define";
 
@@ -244,5 +245,204 @@ describe("ctx.llm", () => {
     expect(run.status).toBe("failed");
     expect(run.error).not.toContain("llmkey-llmkey-llmkey-2");
     expect(lines.join("\n")).not.toContain("llmkey-llmkey-llmkey-2");
+  });
+});
+
+describe("ctx.llm trong lịch cron và hẹn giờ", () => {
+  class FakeClock {
+    constructor(public t: number) {}
+    now() {
+      return this.t;
+    }
+  }
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  async function until(cond: () => boolean, ms = 4000) {
+    const t = Date.now();
+    while (!cond()) {
+      if (Date.now() - t > ms) throw new Error("until: quá hạn");
+      await sleep(5);
+    }
+  }
+  const opts = (clock: FakeClock) => ({
+    env: { ...baseEnv(), ...LLM_ENV(), BOT_TIMEZONE: "UTC" },
+    logger: silent,
+    clock,
+    scheduler: { tickMs: 20 },
+    worker: { minPollIntervalMs: 0, drainTimeoutMs: 50, abortGraceMs: 500 },
+  });
+
+  test("handler lịch gọi model qua ctx.llm; LLM_* không vào ctx.config", async () => {
+    llm.script({ text: "tổng kết sáng nay" });
+    const clock = new FakeClock(Date.parse("2026-10-25T07:30:00Z"));
+    let out = "";
+    let config: Record<string, unknown> = {};
+    const bot = createBot(
+      defineBot({
+        id: "sched-llm",
+        tracker: { team: "tech", project: "TECH" },
+        env: llmEnv({ required: true }),
+        backoffice: {
+          schedule: {
+            "0 8 * * *": async (ctx) => {
+              config = ctx.config as Record<string, unknown>;
+              const res = await requireLlm(ctx).complete({
+                messages: [{ role: "user", content: "tổng kết" }],
+              });
+              out = res.text;
+            },
+          },
+        },
+      }),
+      opts(clock),
+    );
+    await bot.start();
+    await sleep(80);
+    clock.t = Date.parse("2026-10-25T08:00:05Z");
+    await until(() => out !== "");
+    await bot.stop();
+    expect(out).toBe("tổng kết sáng nay");
+    expect(Object.keys(config).filter((k) => k.startsWith("LLM_"))).toEqual([]);
+    expect(JSON.stringify(config)).not.toContain("llmkey-llmkey-llmkey-2");
+  });
+
+  test("không đặt LLM_*: ctx.llm của lịch là undefined", async () => {
+    const clock = new FakeClock(Date.parse("2026-10-25T07:30:00Z"));
+    let seen: unknown = "chưa";
+    const o = opts(clock);
+    o.env = { ...baseEnv(), BOT_TIMEZONE: "UTC" } as never;
+    const bot = createBot(
+      defineBot({
+        id: "sched-nollm",
+        tracker: { team: "tech", project: "TECH" },
+        backoffice: {
+          schedule: {
+            "0 8 * * *": (ctx) => {
+              seen = ctx.llm;
+            },
+          },
+        },
+      }),
+      o,
+    );
+    await bot.start();
+    await sleep(80);
+    clock.t = Date.parse("2026-10-25T08:00:05Z");
+    await until(() => seen !== "chưa");
+    await bot.stop();
+    expect(seen).toBeUndefined();
+  });
+
+  test("lời gọi LLM của lịch bị huỷ khi bot tắt cưỡng bức (cùng signal với handler)", async () => {
+    llm.script({ delayMs: 5000, text: "quá chậm" });
+    const clock = new FakeClock(Date.parse("2026-10-25T07:30:00Z"));
+    let aborted = false;
+    const bot = createBot(
+      defineBot({
+        id: "sched-abort",
+        tracker: { team: "tech", project: "TECH" },
+        backoffice: {
+          schedule: {
+            "0 8 * * *": async (ctx) => {
+              try {
+                await requireLlm(ctx).complete({ messages: [{ role: "user", content: "hi" }] });
+              } catch (err) {
+                aborted = (err as Error).name === "LlmAbortError";
+                throw err;
+              }
+            },
+          },
+        },
+      }),
+      opts(clock),
+    );
+    await bot.start();
+    await sleep(80);
+    clock.t = Date.parse("2026-10-25T08:00:05Z");
+    await until(() => llm.requests.length > 0);
+    await bot.stop();
+    await until(() => aborted);
+    expect(aborted).toBe(true);
+  });
+
+  test("lỗi của handler lịch chứa LLM_API_KEY: key không lọt vào log của bot", async () => {
+    const KEY = "llmkey-llmkey-llmkey-2";
+    const lines: string[] = [];
+    const capture = {
+      debug: (m: string) => lines.push(m),
+      info: (m: string) => lines.push(m),
+      warn: (m: string) => lines.push(m),
+      error: (m: string) => lines.push(m),
+    };
+    const clock = new FakeClock(Date.parse("2026-10-25T07:30:00Z"));
+    let ran = false;
+    const bot = createBot(
+      defineBot({
+        id: "sched-leak",
+        tracker: { team: "tech", project: "TECH" },
+        backoffice: {
+          schedule: {
+            "0 8 * * *": async () => {
+              ran = true;
+              throw new Error(`gọi model hỏng với key ${KEY}`);
+            },
+          },
+        },
+      }),
+      { ...opts(clock), logger: capture },
+    );
+    await bot.start();
+    await sleep(80);
+    clock.t = Date.parse("2026-10-25T08:00:05Z");
+    await until(() => ran);
+    await sleep(60);
+    await bot.stop();
+    expect(lines.some((l) => l.includes("handler lỗi"))).toBe(true);
+    expect(lines.join("\n")).not.toContain(KEY);
+  });
+
+  test("hành động hẹn giờ (after) dùng ctx.llm", async () => {
+    llm.script({ text: "nhắc: ticket chưa xử lý" });
+    const clock = new FakeClock(Date.now());
+    const issue = itsaplan.addIssue({ title: "Lỗi", columnId: 2 });
+    let text = "";
+    const bot = createBot(
+      defineBot({
+        id: "timer-llm",
+        tracker: { team: "tech", project: "TECH" },
+        backoffice: {
+          reporter: anyHumanIsReporter,
+          rules: [
+            whenColumn("Cần phân loại").do(
+              actions.after("2h", async (ctx) => {
+                text = (
+                  await requireLlm(ctx).complete({ messages: [{ role: "user", content: "nhắc" }] })
+                ).text;
+              }),
+            ),
+          ],
+        },
+      }),
+      opts(clock),
+    );
+    await bot.start();
+    await bot.handleEvent({
+      action: "update",
+      type: "Issue",
+      event: "issue.state_changed",
+      data: {
+        id: issue.id,
+        identifier: issue.identifier,
+        projectId: 1,
+        columnId: 2,
+        state: { name: "Cần phân loại", type: "unstarted" },
+      },
+      actor: { type: "human", id: "staff-1" },
+      createdAt: new Date().toISOString(),
+      webhookTimestamp: 777,
+    });
+    clock.t += 3 * 3_600_000;
+    await until(() => text !== "");
+    await bot.stop();
+    expect(text).toBe("nhắc: ticket chưa xử lý");
   });
 });
