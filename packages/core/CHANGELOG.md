@@ -4,6 +4,12 @@ All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded
 
 ## Unreleased
 
+- **Binding tương thích kho legacy (RFC 0002 PR 3)**: `SqliteChannelBindingStore` ghi/đọc được cả bảng `ticket_bindings` dạng core và dạng legacy của Tiểu Linh 1 (`channel_type` và `message_id` NOT NULL). Additive; dạng core không đổi hành vi.
+  - `@vuihoc/bot-core/intake`: `SqliteChannelBindingStore(db, { schema?: "auto" | "core" | "legacy" })` dò dạng bảng bằng `PRAGMA table_info` (cờ khẳng định lệch thì ném `BindingSchemaError`); dạng legacy ghi `channel_type = 'telegram'`, `message_id = '0'` (`LEGACY_CHANNEL_TYPE`, `LEGACY_MESSAGE_ID_PLACEHOLDER`) như `bindIssueToChat`. Thêm `schema`/`supportsReporterUserId`: file legacy không có `reporter_user_id`, nên `reporterUserId` bị bỏ khi ghi, `getLatestBindingByUserId` trả null, `rebindReporterUserId` trả 0.
+  - Mới: `detectBindingSchema`, `resolveBindingSchema`, `isLegacyFile`, `assertNotLegacyFile`, `legacyBindingApplySchema` (chỉ tạo bảng thiếu, không ALTER), `openLegacyBindingDb(path)` (không chmod/PRAGMA file đã có), `BindingSchemaError`, `LEGACY_BINDING_TABLES`, `tableColumns`, kiểu `BindingSchemaKind`/`BindingSchemaOption`/`SqliteChannelBindingStoreOptions`.
+  - `SqliteNotifyBindingReader` đọc được bảng không có `reporter_user_id` (file legacy). `SqliteMessageRouteStore` dùng được trên `message_routes` của TL1 không đổi.
+  - **Hành vi mới đáng chú ý**: `intakeApplySchema` và `notifyApplySchema` giờ **ném `BindingSchemaError` khi gặp file legacy** (thay vì ALTER bảng của TL1 và trộn `intake_documents` hai hình dạng). Tờ khai TL2 phải ở file riêng. DB core cũ không bị ảnh hưởng. Xem `docs/how-to/share-bindings-with-tl1.md`.
+
 - **Nền cho bot hậu cần có người báo qua chat** (từ Tiểu Linh 2 hậu cần, `apps/tieulinh`). Additive; không đổi API hiện có.
   - `@vuihoc/bot-core/intake`: `ChannelPort.sendAlert?(text)` (báo kênh trực ca, tuỳ chọn); `TicketStateRecord` +
     `TicketStateStore` và `SqliteTicketStateStore` (bảng `ticket_states` trong `notifyApplySchema`: nhóm trạng thái
