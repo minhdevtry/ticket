@@ -128,3 +128,22 @@ describe("TelegramNotifyChannel (ChannelPort cho Telegram)", () => {
     expect(calls[0]!.payload.reply_markup.inline_keyboard).toEqual([]);
   });
 });
+
+describe("TelegramNotifyChannel.sendAlert (kênh trực ca)", () => {
+  it("gửi tới alertChatId", async () => {
+    const { transport, calls } = fakeTransport();
+    const ch = new TelegramNotifyChannel({ transport, alertChatId: "-1000000000001" });
+    await ch.sendAlert("TECH2-7 quá hạn SLA");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.method).toBe("sendMessage");
+    expect(calls[0]!.payload.chat_id).toBe("-1000000000001");
+    expect(calls[0]!.payload.text).toContain("TECH2-7");
+  });
+
+  it("thiếu alertChatId: không gọi mạng, không ném", async () => {
+    const { transport, calls } = fakeTransport();
+    const ch = new TelegramNotifyChannel({ transport });
+    await ch.sendAlert("không có chỗ gửi");
+    expect(calls).toHaveLength(0);
+  });
+});

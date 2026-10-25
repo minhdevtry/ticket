@@ -91,6 +91,7 @@ export {
   type BindingDbReport,
   makeOpenLazyDb,
   openLazyDb,
+  openPrivateDb,
   isDegradedDb,
   resolveDbPath,
   inspectBindingDb,

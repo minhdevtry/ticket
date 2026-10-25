@@ -4,6 +4,21 @@ All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded
 
 ## Unreleased
 
+- **Nền cho bot hậu cần có người báo qua chat** (từ Tiểu Linh 2 hậu cần, `apps/tieulinh`). Additive; không đổi API hiện có.
+  - `@vuihoc/bot-core/intake`: `ChannelPort.sendAlert?(text)` (báo kênh trực ca, tuỳ chọn); `TicketStateRecord` +
+    `TicketStateStore` và `SqliteTicketStateStore` (bảng `ticket_states` trong `notifyApplySchema`: nhóm trạng thái
+    cuối đã thấy, tin đang mang nút "Đã ổn", thời điểm người báo bấm); `LogChannel` (kênh JSONL: file 0600,
+    thư mục 0700, id tin giả, ghi cả `sendAlert`) và `readChannelLog`: kênh "bóng" cho bot chưa được gửi tin thật.
+  - `@vuihoc/bot-core/backoffice`: `TicketClosure` (+ `TicketClosureOptions`, `ReporterOkCopy`, `ReporterOkResult`):
+    hành động luật `onStateChanged` báo người báo mỗi khi NHÓM trạng thái đổi (Resolved kèm nút, Done/Canceled/mở lại
+    gỡ nút cũ, chống báo lặp, chữ nghĩa do `copy` tiêm vào) và `recordReporterOk` (nút "Đã ổn" chỉ ghi MỘT comment,
+    không bao giờ đổi cột; ADR-0006 của Tiểu Linh). `RuleContext.llm`: luật dùng được `ctx.llm` (không có trace/signal).
+  - `@vuihoc/bot-core/telegram`: `TelegramNotifyChannel` nhận `alertChatId` và hiện thực `sendAlert`.
+  - `@vuihoc/bot-core/core`: `openPrivateDb(path, applySchema?)`: mở file SQLite của bot với thư mục 0700, file và
+    `-wal`/`-shm` 0600, WAL, `busy_timeout`; khác `openLazyDb` ở chỗ lỗi mở được NÉM ra thay vì hạ xuống `:memory:`.
+  - `@vuihoc/bot-core/testing`: `FakeItsaplan` thêm `POST /issues/:id/links` (`fake.links`), tìm kiếm
+    `GET /projects/:ref/issues/search?q=`, và `addIssue` nhận `priority`, `assigneeUserId`, `createdAt`.
+
 - **`llm` (subpath mới)**: cách chuẩn để bot gọi LLM (mặc định MiniMax). Additive; không đổi API hiện có.
   - `createLlm({ baseUrl, apiKey, model, api, timeoutMs, deadlineMs, maxRetries, fetch })` → `{ complete }` cho
     `anthropic-messages` và `openai-chat`, request/response trung lập (system, vai user/assistant/tool,

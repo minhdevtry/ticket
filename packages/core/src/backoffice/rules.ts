@@ -175,6 +175,12 @@ export interface RuleContext<C = unknown> {
   readonly tracker: ScopedTracker;
   readonly config: C;
   readonly logger: IntakeLogger;
+  /**
+   * Client LLM khi bot đã cấu hình (`LLM_*`), nếu không `undefined`. Luật chạy theo webhook, không
+   * có run của itsaplan nên không có trace lên itsaplan và không bị huỷ theo `signal` (dùng
+   * `extract` hay `llm.complete` của `@vuihoc/bot-core/llm`; đặt hạn bằng `LLM_DEADLINE_MS`).
+   */
+  readonly llm: Llm | undefined;
   readonly clock: Clock;
   /** Khoá ổn định cho (luật, sự kiện): dùng làm khoá chống trùng cho hành động ghi ra ngoài. */
   readonly idempotencyKey: string;
@@ -628,7 +634,7 @@ export interface RuleEngineOptions<C> {
   seen?: KeySet;
   /** Kho bền cho hẹn giờ (`after`, `closeAfter`). Không có thì hành động hẹn giờ ném lỗi rõ ràng. */
   store?: BotStore;
-  /** LLM của bot, đưa vào `TimerContext.llm` (gắn `signal` của từng lần chạy hẹn). */
+  /** LLM của bot, đưa vào `RuleContext.llm` và `TimerContext.llm` (cái sau gắn `signal` của từng lần chạy hẹn). */
   llm?: Llm;
   /**
    * `actorId` có phải người báo của issue không (để token huỷ `reporter-comment` và `closeAfter`
@@ -778,6 +784,7 @@ export class RuleEngine<C = unknown> {
         tracker,
         config: this.o.config,
         logger,
+        llm: this.o.llm,
         clock: this.clock,
         idempotencyKey: `rule:${rule.name}:${event.name}:${event.issueId ?? ""}:${event.comment?.id ?? ""}:${delivery}`,
         issue: loadIssue,

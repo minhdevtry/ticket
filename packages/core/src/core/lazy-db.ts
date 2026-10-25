@@ -122,6 +122,40 @@ export function makeOpenLazyDb(options: LazyDbOptions = {}): (dbPath: string) =>
 }
 
 /**
+ * Mở (tạo nếu chưa có) một file SQLite dữ liệu của bot với quyền RIÊNG TƯ: thư mục cha mode 0700
+ * khi mới tạo, file cùng `-wal`/`-shm` mode 0600, WAL và `busy_timeout` 5 giây. `applySchema` áp
+ * ngay sau khi mở. Khác `makeOpenLazyDb`: lỗi mở NÉM ra thay vì hạ xuống `:memory:` — dùng khi mất
+ * file nghĩa là mất thứ không dựng lại được (liên kết người báo, dấu "đã báo"), nên phải dừng to.
+ * Không cache: người gọi giữ và đóng kết nối. `:memory:` được giữ nguyên (cho test).
+ */
+export function openPrivateDb(dbPath: string, applySchema?: ApplySchema): Database {
+  if (dbPath === ":memory:") {
+    const mem = new Database(":memory:", { create: true });
+    applySchema?.(mem, { wal: false });
+    return mem;
+  }
+  const file = path.resolve(dbPath);
+  const dir = path.dirname(file);
+  const createdDir = !fs.existsSync(dir);
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  if (createdDir) fs.chmodSync(dir, 0o700);
+  if (!fs.existsSync(file)) fs.closeSync(fs.openSync(file, "a", 0o600));
+  const db = new Database(file, { create: true });
+  try {
+    db.run("PRAGMA busy_timeout = 5000");
+    applySchema?.(db, { wal: true });
+    db.run("PRAGMA journal_mode = WAL");
+    for (const f of [file, `${file}-wal`, `${file}-shm`]) {
+      if (fs.existsSync(f)) fs.chmodSync(f, 0o600);
+    }
+  } catch (err) {
+    db.close();
+    throw err;
+  }
+  return db;
+}
+
+/**
  * Factory mặc định (không áp schema) — dùng ngay khi bot tự chạy migration ở
  * nơi khác. Bot cần áp schema lúc mở thì dựng factory riêng bằng
  * `makeOpenLazyDb({ applySchema })`.

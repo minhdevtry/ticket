@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -9,6 +9,7 @@ import {
   getLogger,
   resolveDbPath,
   inspectBindingDb,
+  openPrivateDb,
 } from "./index";
 import { Database } from "bun:sqlite";
 
@@ -218,5 +219,31 @@ describe("inspectBindingDb (chốt chặn worker trỏ nhầm DB — mục 3)", 
     const report = inspectBindingDb(":memory:");
     expect(report.opened).toBe(false);
     expect(report.bindingCount).toBeNull();
+  });
+});
+
+describe("openPrivateDb", () => {
+  it("tạo file 0600 trong thư mục 0700, áp schema, WAL", () => {
+    const base = mkdtempSync(join(tmpdir(), "lazy-private-"));
+    const dir = join(base, "data");
+    const file = join(dir, "app.sqlite");
+    const db = openPrivateDb(file, (d) => d.run("CREATE TABLE t (id INTEGER)"));
+    db.run("INSERT INTO t VALUES (1)");
+    expect(db.query("PRAGMA journal_mode").get()).toEqual({ journal_mode: "wal" });
+    expect(statSync(dir).mode & 0o777).toBe(0o700);
+    expect(statSync(file).mode & 0o777).toBe(0o600);
+    if (existsSync(`${file}-wal`)) expect(statSync(`${file}-wal`).mode & 0o777).toBe(0o600);
+    db.close();
+  });
+
+  it("lỗi mở NÉM ra (không hạ xuống :memory:)", () => {
+    const base = mkdtempSync(join(tmpdir(), "lazy-private-"));
+    writeFileSync(join(base, "notadir"), "x");
+    expect(() => openPrivateDb(join(base, "notadir", "app.sqlite"))).toThrow();
+  });
+
+  it(":memory: chạy được cho test", () => {
+    const db = openPrivateDb(":memory:", (d) => d.run("CREATE TABLE t (id INTEGER)"));
+    expect(db.query("SELECT count(*) AS n FROM t").get()).toEqual({ n: 0 });
   });
 });

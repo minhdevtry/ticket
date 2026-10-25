@@ -63,6 +63,13 @@ export {
   createScopedTracker,
   idempotencyMarker,
 } from "./tracker";
+export {
+  type ReporterOkCopy,
+  type ReporterOkOutcome,
+  type ReporterOkResult,
+  TicketClosure,
+  type TicketClosureOptions,
+} from "./closure";
 export { type DispatcherDeps, createRunDispatcher, fail, retryLater, skip } from "./dispatch";
 export {
   type AfterOptions,

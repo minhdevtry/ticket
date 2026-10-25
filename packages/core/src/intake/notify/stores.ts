@@ -20,6 +20,9 @@ import type {
   MessageRouteStore,
   NotifyBinding,
   NotifyBindingReader,
+  TicketLifecycleState,
+  TicketStateRecord,
+  TicketStateStore,
 } from "../ports";
 
 export const NOTIFY_SCHEMA = [
@@ -34,6 +37,15 @@ export const NOTIFY_SCHEMA = [
      PRIMARY KEY (message_id, channel_type, chat_id)
    )`,
   `CREATE INDEX IF NOT EXISTS idx_routes_issue ON message_routes (issue_id)`,
+  `CREATE TABLE IF NOT EXISTS ticket_states (
+     issue_id INTEGER PRIMARY KEY,
+     identifier TEXT NOT NULL,
+     state TEXT NOT NULL,
+     column_id INTEGER,
+     prompt_message_id TEXT,
+     reporter_ok_at INTEGER,
+     updated_at INTEGER NOT NULL
+   )`,
 ];
 
 /** Apply the notify schema (shape matches core's `ApplySchema`). */
@@ -148,6 +160,68 @@ export class SqliteNotifyBindingReader implements NotifyBindingReader {
       reporterUsername: row.reporter_username ?? undefined,
       reporterUserId: row.reporter_user_id ?? undefined,
     };
+  }
+}
+
+/** `ticket_states` trên SQLite: hiện thực {@link TicketStateStore}. */
+export class SqliteTicketStateStore implements TicketStateStore {
+  constructor(private readonly db: Database) {}
+
+  get(issueId: number): TicketStateRecord | null {
+    const row = this.db
+      .prepare(
+        `SELECT issue_id, identifier, state, column_id, prompt_message_id, reporter_ok_at, updated_at
+         FROM ticket_states WHERE issue_id = ?`,
+      )
+      .get(issueId) as {
+      issue_id: number;
+      identifier: string;
+      state: string;
+      column_id: number | null;
+      prompt_message_id: string | null;
+      reporter_ok_at: number | null;
+      updated_at: number;
+    } | null;
+    if (!row) return null;
+    return {
+      issueId: row.issue_id,
+      identifier: row.identifier,
+      state: row.state as TicketLifecycleState,
+      columnId: row.column_id,
+      promptMessageId: row.prompt_message_id,
+      reporterOkAt: row.reporter_ok_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  enter(input: {
+    issueId: number;
+    identifier: string;
+    state: TicketLifecycleState;
+    columnId: number | null;
+    now: number;
+  }): void {
+    this.db
+      .prepare(
+        `INSERT INTO ticket_states (issue_id, identifier, state, column_id, prompt_message_id, reporter_ok_at, updated_at)
+         VALUES (?, ?, ?, ?, NULL, NULL, ?)
+         ON CONFLICT(issue_id) DO UPDATE SET
+           identifier = excluded.identifier, state = excluded.state, column_id = excluded.column_id,
+           prompt_message_id = NULL, reporter_ok_at = NULL, updated_at = excluded.updated_at`,
+      )
+      .run(input.issueId, input.identifier, input.state, input.columnId, input.now);
+  }
+
+  setPrompt(issueId: number, messageId: string): void {
+    this.db
+      .prepare(`UPDATE ticket_states SET prompt_message_id = ? WHERE issue_id = ?`)
+      .run(messageId, issueId);
+  }
+
+  markReporterOk(issueId: number, now: number): void {
+    this.db
+      .prepare(`UPDATE ticket_states SET reporter_ok_at = ?, updated_at = ? WHERE issue_id = ?`)
+      .run(now, now, issueId);
   }
 }
 

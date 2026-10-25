@@ -48,6 +48,11 @@ export interface TelegramNotifyChannelOptions {
   reporterOkButton?: ReporterOkButtonSpec;
   /** Báo khi một nút bị bỏ (route tới Alerter). */
   onButtonDrop?: (reason: string) => void;
+  /**
+   * Chat trực ca nhận `sendAlert` (vd SLA quá hạn). Không đặt thì `sendAlert` chỉ ghi cảnh báo
+   * vào log (không ném: cảnh báo không được làm hỏng việc đang chạy).
+   */
+  alertChatId?: string | number;
 }
 
 /** Bóc chat id trần từ binding (cột có thể mang tiền tố "telegram:"). */
@@ -128,6 +133,22 @@ export class TelegramNotifyChannel implements ChannelPort {
       onButtonDrop: this.o.onButtonDrop,
     });
     return lastMessageId(sent);
+  }
+
+  /** Báo động tới chat trực ca (`alertChatId`). Thiếu chat thì chỉ log. NGUỒN: intake `broadcastAlert`. */
+  async sendAlert(text: string): Promise<void> {
+    if (this.o.alertChatId === undefined || String(this.o.alertChatId).trim() === "") {
+      getLogger().warn(
+        "[TelegramNotifyChannel] chưa cấu hình alertChatId: bỏ qua cảnh báo trực ca.",
+      );
+      return;
+    }
+    await sendMessage(this.o.transport, {
+      chatId: String(this.o.alertChatId),
+      text,
+      parseMode: this.o.parseMode,
+      onButtonDrop: this.o.onButtonDrop,
+    });
   }
 
   /** Gỡ nút khỏi một tin đã gửi — side job, lỗi nuốt (tryCall). */
