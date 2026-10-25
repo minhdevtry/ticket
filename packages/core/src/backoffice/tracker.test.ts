@@ -47,6 +47,26 @@ describe("createScopedTracker", () => {
     for (const p of projectPaths) expect(p).toMatch(/^\/projects\/tech\.TECH(\/|$)/);
   });
 
+  it("listIssues: fake giống itsaplan fork (lọc cột/ngày, updatedAt giảm dần, limit, bỏ qua page)", async () => {
+    const mkAt = (title: string, createdAt: string, columnId = 1) =>
+      fake.addIssue({ title, createdAt, columnId });
+    const a = mkAt("A", "2026-10-25T01:00:00.000Z");
+    const b = mkAt("B", "2026-10-25T02:00:00.000Z");
+    mkAt("C", "2026-10-25T03:00:00.000Z", 2);
+    const t = mk();
+    expect((await t.listIssues({ columnId: 1 })).map((i) => i.id)).toEqual([b.id, a.id]);
+    expect(
+      (
+        await t.listIssues({
+          createdFrom: "2026-10-25T02:00:00.000Z",
+          createdTo: "2026-10-25T03:00:00.000Z",
+        })
+      ).map((i) => i.id),
+    ).toEqual([b.id]);
+    expect(await t.listIssues({ limit: 2 })).toHaveLength(2);
+    expect(await t.listIssues({ limit: 1, page: 2 })).toHaveLength(1); // page bị bỏ qua
+  });
+
   it("fake từ chối khoá trần (mơ hồ giữa team) và team lạ; allowBareKeys cho phép khoá trần", async () => {
     const client = new ItsaplanClient(fake.baseUrl, fake.agentKey, {
       retryOptions: { maxRetries: 0 },
@@ -123,6 +143,22 @@ describe("createScopedTracker", () => {
     expect(fake.issues[0]).toMatchObject({ assigneeUserId: "user-9", priority: "high" });
     await t.assign(issue.id, null);
     expect(fake.issues[0]!.assigneeUserId).toBeNull();
+  });
+
+  it("link nối hai issue của dự án; issue ngoài dự án (một trong hai đầu) bị từ chối, không nối gì", async () => {
+    const a = fake.addIssue({ title: "A" });
+    const b = fake.addIssue({ title: "B" });
+    const away = fake.addIssue({ title: "Dự án khác", projectId: 9 });
+    const t = mk();
+    await t.link(a.id, b.id, "duplicates");
+    expect(fake.links).toEqual([
+      { id: 1, sourceIssueId: a.id, targetIssueId: b.id, kind: "duplicates" },
+    ]);
+    await t.link(b.id, a.id);
+    expect(fake.links[1]!.kind).toBe("relates");
+    await expect(t.link(a.id, away.id)).rejects.toBeInstanceOf(OutOfProjectError);
+    await expect(t.link(away.id, a.id)).rejects.toBeInstanceOf(OutOfProjectError);
+    expect(fake.links).toHaveLength(2);
   });
 
   it("ranh giới là projectId: mã trùng tiền tố nhưng khác dự án vẫn bị loại, issue đã chuyển dự án bị loại", async () => {

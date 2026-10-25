@@ -130,8 +130,11 @@ function envNamesIn(text: string): string[] {
   return [...names];
 }
 
-/** File của bot-core khai biến môi trường bằng `defineEnv` mà trang config-env phải mô tả. */
-const KIT_ENV_FILES = ["packages/core/src/llm/env.ts"];
+/**
+ * File khai biến môi trường bằng `defineEnv` mà trang config-env phải mô tả: bộ LLM của bot-core
+ * và env riêng của Tiểu Linh mới (`apps/tieulinh/env.ts`).
+ */
+const KIT_ENV_FILES = ["packages/core/src/llm/env.ts", "apps/tieulinh/env.ts"];
 
 function checkEnv() {
   const doc = pages.find((p) => p.file === "docs/reference/config-env.md");

@@ -232,6 +232,22 @@ export interface ItsaplanClientOptions {
   strictResponses?: boolean;
 }
 
+/** Bộ lọc của {@link ItsaplanClient.listProjectIssues} (thời điểm là ISO 8601). */
+export interface ListIssuesOptions {
+  /** 1-500; itsaplan mặc định 50. */
+  limit?: number;
+  /** Bản fork bỏ qua; xem `listProjectIssues`. */
+  page?: number;
+  columnId?: number;
+  assigneeUserId?: string;
+  priority?: string;
+  /** Tạo từ thời điểm này (gồm mốc). */
+  createdFrom?: string;
+  /** Tạo trước thời điểm này (không gồm mốc). */
+  createdTo?: string;
+  includeArchived?: boolean;
+}
+
 /** Thời gian chờ tối đa mặc định cho một request Itsaplan. */
 export const DEFAULT_ITSAPLAN_TIMEOUT_MS = 20_000;
 
@@ -495,13 +511,25 @@ export class ItsaplanClient {
    * Liệt kê issue của một dự án (một trang, tối đa `limit`; `page` để duyệt trang
    * kế). Dùng cho backfill/đối soát. (intake: `page` bổ sung sau bản gộp 0.1.0)
    */
+  /**
+   * `GET /projects/:key/issues`. Fork itsaplan: danh sách sắp theo `updatedAt` GIẢM dần, chỉ có
+   * `limit` (1-500, mặc định 50), KHÔNG có `page`/offset. Muốn quét hết một khoảng thì thu hẹp bằng
+   * bộ lọc (`columnId`, `createdFrom`/`createdTo`, …) chứ đừng trông vào `page`. `page` vẫn được
+   * gửi nếu có (bản itsaplan khác có thể hiểu), nhưng bản fork bỏ qua nó.
+   */
   async listProjectIssues(
     projectKey: string,
-    options: { limit?: number; page?: number } = {},
+    options: ListIssuesOptions = {},
   ): Promise<ItsaplanIssue[]> {
     const q = new URLSearchParams();
     if (options.limit) q.set("limit", String(options.limit));
     if (options.page) q.set("page", String(options.page));
+    if (options.columnId !== undefined) q.set("columnId", String(options.columnId));
+    if (options.assigneeUserId) q.set("assigneeUserId", options.assigneeUserId);
+    if (options.priority) q.set("priority", options.priority);
+    if (options.createdFrom) q.set("createdFrom", options.createdFrom);
+    if (options.createdTo) q.set("createdTo", options.createdTo);
+    if (options.includeArchived) q.set("includeArchived", "true");
     const query = q.toString();
     const res = await this.request<ItsaplanIssue[] | { issues?: ItsaplanIssue[] }>(
       `/projects/${encodeURIComponent(projectKey)}/issues${query ? `?${query}` : ""}`,

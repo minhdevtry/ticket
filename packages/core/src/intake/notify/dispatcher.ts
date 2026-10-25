@@ -21,7 +21,12 @@
  *    reply to the notification can become a comment on that ticket.
  */
 import { getLogger } from "../../core/logger";
-import { isBotComment, stripBotMentions, stripCommentHtml } from "../../core/formatting";
+import {
+  decodeHtmlEntities,
+  isBotComment,
+  stripBotMentions,
+  stripCommentHtml,
+} from "../../core/formatting";
 import {
   identifierInProject,
   normalizeProjectKey,
@@ -84,6 +89,12 @@ export interface NotificationDispatcherOptions {
   agentHandles?: string[];
   /** Mặc định `all`. */
   commentForwardPolicy?: CommentForwardPolicy;
+  /**
+   * Gốc URL web của itsaplan (vd `https://itsaplan.example.com`). Ảnh/video trong comment có link
+   * tương đối hoặc `localhost`/`127.0.0.1` được viết lại về gốc này để người báo mở được. Không
+   * khai thì link tương đối giữ nguyên dạng đường dẫn (kênh sẽ không mở được).
+   */
+  webUrl?: string;
 }
 
 export class NotificationDispatcher {
@@ -91,12 +102,14 @@ export class NotificationDispatcher {
   private readonly projectKey: string | null;
   private readonly agentHandles: string[];
   private readonly policy: CommentForwardPolicy;
+  private readonly webUrl: string;
 
   constructor(options: NotificationDispatcherOptions) {
     this.o = options;
     this.projectKey = normalizeProjectKey(options.projectKey);
     this.agentHandles = options.agentHandles ?? [];
     this.policy = options.commentForwardPolicy ?? "all";
+    this.webUrl = (options.webUrl ?? "").trim().replace(/\/+$/, "");
   }
 
   /** Entry point: one webhook envelope. */
@@ -160,15 +173,18 @@ export class NotificationDispatcher {
 
     const { isCallToReporter, cleanText } = this.extractReporterMessage(bodyText);
     if (!isCallToReporter) return; // `mention` mode and no tag → internal chatter
-    const images = this.extractCommentImages(bodyText);
-    if (!cleanText && images.length === 0) return; // tránh gửi tin trắng
+    const images = this.extractCommentImages(bodyText, data.attachments);
+    const videos = this.extractCommentVideos(bodyText);
+    // Comment chỉ có ảnh/video vẫn được đẩy; chỉ tránh gửi tin trắng.
+    if (!cleanText && images.length === 0 && videos.length === 0) return;
 
     try {
       const sent = await this.o.channel.sendComment({
         binding,
-        authorName: authorName || this.defaultAuthorName(binding),
+        authorName: decodeHtmlEntities(authorName) || this.defaultAuthorName(binding),
         text: cleanText,
-        images,
+        ...(images.length > 0 ? { images } : {}),
+        ...(videos.length > 0 ? { videos } : {}),
       });
       if (sent !== undefined && sent !== null) {
         this.o.routes.saveMessageRoute({
@@ -278,18 +294,54 @@ export class NotificationDispatcher {
     if (!mentioned && this.policy === "mention") {
       return { isCallToReporter: false, cleanText: commentBody };
     }
-    cleanText = stripCommentHtml(cleanText)
-      .replace(/!\[.*?\]\(.*?\)/g, "")
-      .trim();
+    cleanText = decodeHtmlEntities(
+      stripCommentHtml(cleanText).replace(/!\[.*?\]\(.*?\)/g, ""),
+    ).trim();
     return { isCallToReporter: true, cleanText };
   }
 
-  /** Ảnh markdown trong comment. NGUỒN: intake `extractCommentImages`. */
-  extractCommentImages(commentBody: string): string[] {
+  /**
+   * Ảnh của comment: markdown `![](url)` và mảng `attachments` của payload (chuỗi URL hoặc
+   * `{ url }`). Link đã chuẩn hoá về `webUrl`. NGUỒN: intake `extractCommentImages`.
+   */
+  extractCommentImages(commentBody: string, attachments?: unknown): string[] {
     const urls: string[] = [];
-    const re = /!\[.*?\]\((.*?)\)/g;
-    for (const m of commentBody.matchAll(re)) if (m[1]) urls.push(m[1].trim());
-    return urls;
+    for (const m of commentBody.matchAll(/!\[.*?\]\((.*?)\)/g)) {
+      if (m[1]) urls.push(m[1].trim());
+    }
+    if (Array.isArray(attachments)) {
+      for (const att of attachments) {
+        if (typeof att === "string") urls.push(att.trim());
+        else if (att && typeof att.url === "string") urls.push(att.url.trim());
+      }
+    }
+    return this.normalizeUrls(urls);
+  }
+
+  /**
+   * Video của comment. Markdown không có cú pháp video: itsaplan nhúng video bằng thẻ thô
+   * `<video src="…" controls></video>`. NGUỒN: intake `extractCommentVideos`.
+   */
+  extractCommentVideos(commentBody: string): string[] {
+    const urls: string[] = [];
+    for (const m of commentBody.matchAll(/<video\b[^>]*\bsrc="([^"]*)"[^>]*>/gi)) {
+      if (m[1]) urls.push(m[1].trim());
+    }
+    return this.normalizeUrls(urls);
+  }
+
+  /** Khử trùng, viết lại link localhost và link tương đối về `webUrl`. */
+  private normalizeUrls(urls: string[]): string[] {
+    const base = this.webUrl;
+    const out: string[] = [];
+    for (const u of new Set(urls.filter(Boolean))) {
+      if (/^https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?(?:[/?#]|$)/i.test(u)) {
+        const path = u.replace(/^https?:\/\/[^/]+/i, "");
+        out.push(base ? `${base}${path.startsWith("/") ? path : `/${path}`}` : u);
+      } else if (/^https?:\/\//i.test(u)) out.push(u);
+      else out.push(base ? `${base}${u.startsWith("/") ? u : `/${u}`}` : u);
+    }
+    return out;
   }
 
   /**

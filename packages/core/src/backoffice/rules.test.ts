@@ -242,6 +242,33 @@ describe("RuleEngine", () => {
     expect(fake.comments.filter((c) => c.body.includes("Chào"))).toHaveLength(2);
   });
 
+  it("ctx.llm: hành động của luật nhận LLM của bot (hoặc undefined khi bot không có)", async () => {
+    const issue = fake.addIssue({ title: "Lỗi" });
+    const seen: unknown[] = [];
+    const rule = whenColumn("Cần phân loại").do((ctx) => void seen.push(ctx.llm));
+    await engine([rule]).handle(issueEvent("issue.state_changed", issue, 2));
+    expect(seen).toEqual([undefined]);
+
+    const llm = {
+      api: "anthropic-messages" as const,
+      model: "m",
+      complete: async () => ({}) as never,
+    };
+    const withLlm = new RuleEngine({
+      rules: [rule],
+      tracker: createScopedTracker(
+        new ItsaplanClient(fake.baseUrl, fake.agentKey, { retryOptions: { maxRetries: 0 } }),
+        { team: "tech", project: "TECH" },
+        { readRetries: 0 },
+      ),
+      config: {},
+      logger: silent,
+      llm,
+    });
+    await withLlm.handle(issueEvent("issue.state_changed", issue, 2));
+    expect(seen[1]).toBe(llm);
+  });
+
   it("whenEvent/do yêu cầu đối số hợp lệ", () => {
     expect(() => whenEvent()).toThrow();
     expect(() => whenColumn("x").do()).toThrow();

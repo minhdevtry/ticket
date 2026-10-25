@@ -42,7 +42,9 @@ import { parseDuration } from "./duration";
 import {
   type BotStore,
   type KeySet,
+  type KeysProvider,
   MemoryKeySet,
+  createKeysProvider,
   type TimerArmOutcome,
   type TimerArmSpec,
   type TimerRow,
@@ -175,7 +177,15 @@ export interface RuleContext<C = unknown> {
   readonly tracker: ScopedTracker;
   readonly config: C;
   readonly logger: IntakeLogger;
+  /**
+   * Client LLM khi bot đã cấu hình (`LLM_*`), nếu không `undefined`. Luật chạy theo webhook, không
+   * có run của itsaplan nên không có trace lên itsaplan và không bị huỷ theo `signal` (dùng
+   * `extract` hay `llm.complete` của `@vuihoc/bot-core/llm`; đặt hạn bằng `LLM_DEADLINE_MS`).
+   */
+  readonly llm: Llm | undefined;
   readonly clock: Clock;
+  /** Tập khoá có tên để chống trùng việc đã làm, bền khi bot có `BOT_DATA_DIR`. */
+  readonly keys: KeysProvider;
   /** Khoá ổn định cho (luật, sự kiện): dùng làm khoá chống trùng cho hành động ghi ra ngoài. */
   readonly idempotencyKey: string;
   /** Issue của sự kiện (đọc một lần rồi nhớ). */
@@ -628,7 +638,9 @@ export interface RuleEngineOptions<C> {
   seen?: KeySet;
   /** Kho bền cho hẹn giờ (`after`, `closeAfter`). Không có thì hành động hẹn giờ ném lỗi rõ ràng. */
   store?: BotStore;
-  /** LLM của bot, đưa vào `TimerContext.llm` (gắn `signal` của từng lần chạy hẹn). */
+  /** Nguồn `RuleContext.keys` (mặc định: tập in-memory của riêng engine). */
+  keys?: KeysProvider;
+  /** LLM của bot, đưa vào `RuleContext.llm` và `TimerContext.llm` (cái sau gắn `signal` của từng lần chạy hẹn). */
   llm?: Llm;
   /**
    * `actorId` có phải người báo của issue không (để token huỷ `reporter-comment` và `closeAfter`
@@ -672,6 +684,7 @@ export class RuleEngine<C = unknown> {
   /** Khoá đang xử lý (chặn hai lần giao đồng thời của cùng một sự kiện). */
   private readonly inflight = new Set<string>();
   private readonly clock: Clock;
+  private readonly keysProvider: KeysProvider;
   private readonly watched: Set<string>;
   private readonly reporter: ReporterResolver | undefined;
 
@@ -683,6 +696,7 @@ export class RuleEngine<C = unknown> {
       );
     }
     this.clock = o.clock ?? systemClock;
+    this.keysProvider = o.keys ?? createKeysProvider(null);
     this.seen = o.seen ?? new MemoryKeySet(o.dedupeSize ?? 2000);
     this.reporter = o.reporter;
     this.watched = new Set(o.rules.flatMap((r) => r.watches ?? []));
@@ -778,7 +792,9 @@ export class RuleEngine<C = unknown> {
         tracker,
         config: this.o.config,
         logger,
+        llm: this.o.llm,
         clock: this.clock,
+        keys: this.keysProvider,
         idempotencyKey: `rule:${rule.name}:${event.name}:${event.issueId ?? ""}:${event.comment?.id ?? ""}:${delivery}`,
         issue: loadIssue,
       };

@@ -172,6 +172,30 @@ describe("ItsaplanClient.listProjectIssues / listComments", () => {
     expect(urls[1]).toBe("http://mock-itsaplan:3100/projects/TECH/issues");
   });
 
+  test("listProjectIssues đưa các bộ lọc (cột, khoảng ngày tạo, người nhận, ưu tiên, archived) lên query", async () => {
+    respond([]);
+    const client = new ItsaplanClient("http://mock-itsaplan:3100", "k");
+    await client.listProjectIssues("tech.TECH", {
+      limit: 500,
+      columnId: 2,
+      createdFrom: "2026-10-25T00:00:00.000Z",
+      createdTo: "2026-10-26T00:00:00.000Z",
+      assigneeUserId: "staff-1",
+      priority: "urgent",
+      includeArchived: true,
+    });
+    const q = new URL(urls[0]!).searchParams;
+    expect(Object.fromEntries(q)).toEqual({
+      limit: "500",
+      columnId: "2",
+      createdFrom: "2026-10-25T00:00:00.000Z",
+      createdTo: "2026-10-26T00:00:00.000Z",
+      assigneeUserId: "staff-1",
+      priority: "urgent",
+      includeArchived: "true",
+    });
+  });
+
   test("listComments chỉ lấy comment, ép id về number và bỏ field sai kiểu", async () => {
     respond([
       {

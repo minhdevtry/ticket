@@ -17,6 +17,7 @@ interface SentComment {
   authorName: string;
   text: string;
   images?: string[];
+  videos?: string[];
 }
 interface SentState {
   binding: NotifyBinding;
@@ -150,6 +151,19 @@ describe("NotificationDispatcher — comments", () => {
     expect(ch.comments).toHaveLength(0);
   });
 
+  test("echo từ chính Telegram (comment mang dấu '(Telegram') không dội lại người báo", async () => {
+    const ch = makeChannel();
+    const d = new NotificationDispatcher({
+      bindings: bindingReader(TECH_BINDING),
+      routes: makeRoutes().store,
+      channel: ch.port,
+      copy,
+      projectKey: "TECH",
+    });
+    await d.handleEvent(commentEvent("Tin nhắn người dùng (Telegram)"));
+    expect(ch.comments).toHaveLength(0);
+  });
+
   test("tag-only mode (4cea3c9): untagged comment is NOT forwarded", async () => {
     const ch = makeChannel();
     const d = new NotificationDispatcher({
@@ -205,6 +219,104 @@ describe("NotificationDispatcher — comments", () => {
       projectKey: "TECH",
     });
     await d.handleEvent({ ...commentEvent("sửa comment"), event: "comment.updated" });
+    expect(ch.comments).toHaveLength(0);
+  });
+});
+
+describe("NotificationDispatcher — media và văn bản (parity legacy)", () => {
+  const make = (extra: { webUrl?: string } = {}) => {
+    const ch = makeChannel();
+    const d = new NotificationDispatcher({
+      bindings: bindingReader(TECH_BINDING),
+      routes: makeRoutes().store,
+      channel: ch.port,
+      copy,
+      projectKey: "TECH",
+      ...extra,
+    });
+    return { ch, d };
+  };
+
+  test("comment CHỈ có video vẫn được chuyển, kèm danh sách video", async () => {
+    const { ch, d } = make({ webUrl: "https://itsaplan.example.com" });
+    await d.handleEvent(commentEvent('<video src="/uploads/a.mp4" controls></video>'));
+    expect(ch.comments).toHaveLength(1);
+    expect(ch.comments[0]).toMatchObject({
+      text: "",
+      videos: ["https://itsaplan.example.com/uploads/a.mp4"],
+    });
+  });
+
+  test("attachments của payload (chuỗi hoặc { url }) được chuyển như ảnh, khử trùng với markdown", async () => {
+    const { ch, d } = make({ webUrl: "https://itsaplan.example.com/" });
+    await d.handleEvent(
+      commentEvent("xem ![](https://img.example.com/a.png)", {
+        attachments: [
+          "https://img.example.com/a.png",
+          { url: "/files/b.png" },
+          { name: "x" },
+          null,
+        ],
+      }),
+    );
+    expect(ch.comments[0]!.images).toEqual([
+      "https://img.example.com/a.png",
+      "https://itsaplan.example.com/files/b.png",
+    ]);
+    expect(ch.comments[0]!.text).toBe("xem");
+  });
+
+  test("comment chỉ có attachment (không chữ) vẫn được chuyển", async () => {
+    const { ch, d } = make({ webUrl: "https://itsaplan.example.com" });
+    await d.handleEvent(commentEvent("", { attachments: [{ url: "/files/b.png" }] }));
+    expect(ch.comments).toHaveLength(1);
+    expect(ch.comments[0]!.images).toEqual(["https://itsaplan.example.com/files/b.png"]);
+  });
+
+  test("link localhost/127.0.0.1 và link tương đối được viết lại về webUrl; link ngoài giữ nguyên", async () => {
+    const { ch, d } = make({ webUrl: "https://itsaplan.example.com" });
+    await d.handleEvent(
+      commentEvent(
+        [
+          "![](http://127.0.0.1:3000/uploads/1.png)",
+          "![](http://localhost/uploads/2.png)",
+          "![](uploads/3.png)",
+          "![](https://cdn.example.com/4.png)",
+          "![](http://localhost.evil.example.com/5.png)",
+        ].join(" "),
+      ),
+    );
+    expect(ch.comments[0]!.images).toEqual([
+      "https://itsaplan.example.com/uploads/1.png",
+      "https://itsaplan.example.com/uploads/2.png",
+      "https://itsaplan.example.com/uploads/3.png",
+      "https://cdn.example.com/4.png",
+      "http://localhost.evil.example.com/5.png",
+    ]);
+  });
+
+  test("HTML entities được giải mã một lần ở văn bản và tên người viết", async () => {
+    const { ch, d } = make();
+    await d.handleEvent({
+      ...commentEvent("UID &lt; 900016 &amp;lt; &gt;= 3"),
+      actor: { type: "human", name: "Tom &amp; Jerry" },
+    });
+    expect(ch.comments[0]!.text).toBe("UID < 900016 &lt; >= 3");
+    expect(ch.comments[0]!.authorName).toBe("Tom & Jerry");
+  });
+
+  test("chế độ mention: comment chỉ có video mà không gắn thẻ bot thì KHÔNG chuyển", async () => {
+    const ch = makeChannel();
+    const d = new NotificationDispatcher({
+      bindings: bindingReader(TECH_BINDING),
+      routes: makeRoutes().store,
+      channel: ch.port,
+      copy,
+      projectKey: "TECH",
+      commentForwardPolicy: "mention",
+      agentHandles: ["tieulinh"],
+    });
+    await d.handleEvent(commentEvent('<video src="https://v.example.com/a.mp4"></video>'));
     expect(ch.comments).toHaveLength(0);
   });
 });

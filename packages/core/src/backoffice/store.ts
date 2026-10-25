@@ -140,6 +140,32 @@ export interface KeySet {
 }
 
 /**
+ * Mở (và nhớ) một tập khoá có tên cho handler của bot (`ctx.keys("ten")`): chống trùng việc đã làm
+ * (đã chuyển comment, đã nhắc quá hạn…). Bền qua restart khi bot có kho (`BOT_DATA_DIR`), không có
+ * thì in-memory. Tên được cách ly với tập khoá nội bộ của bot kit. `ttlMs` mặc định 14 ngày.
+ */
+export type KeysProvider = (namespace: string, options?: { ttlMs?: number }) => KeySet;
+
+/** Dựng {@link KeysProvider}: bền nếu có `store`, không thì in-memory (một tập cho mỗi tên). */
+export function createKeysProvider(
+  store: BotStore | null | undefined,
+  now: () => number = Date.now,
+): KeysProvider {
+  const open = new Map<string, KeySet>();
+  return (namespace, options = {}) => {
+    let keys = open.get(namespace);
+    if (!keys) {
+      keys =
+        store?.durable === true
+          ? store.keys(`user:${namespace}`, { ttlMs: options.ttlMs, now })
+          : new MemoryKeySet(10_000);
+      open.set(namespace, keys);
+    }
+    return keys;
+  };
+}
+
+/**
  * Kết quả `arm`: hẹn mới, hẹn lại (hẹn cũ đã xong/huỷ), giữ nguyên hẹn đang chờ, thay hẹn đang
  * chờ, hoặc `queued` (hẹn cũ ĐANG chạy: lần hẹn này được xếp hàng và tự thành hẹn mới khi lần chạy
  * kia kết thúc, không bị mất).

@@ -76,6 +76,15 @@ export {
   normalizeTelegramId,
 } from "../openclaw/pending-buttons";
 
+// ── tin của người báo tới bot (nút Đã ổn, trả lời tự do) ───────────────────
+export {
+  DEFAULT_REPORTER_OK_PREFIXES,
+  type ReporterInboundContext,
+  type ReporterInboundOptions,
+  type ReporterOkError,
+  createReporterInbound,
+} from "./reporter-inbound";
+
 // ── notify ChannelPort (platform-hardening) ─────────────────────────────────
 export {
   type ReporterOkButtonSpec,

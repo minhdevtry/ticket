@@ -4,6 +4,46 @@ All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded
 
 ## Unreleased
 
+- **Nền cho bot hậu cần có người báo qua chat** (từ Tiểu Linh 2 hậu cần, `apps/tieulinh`). Additive; không đổi API hiện có.
+  - `@vuihoc/bot-core/intake`: `ChannelPort.sendAlert?(text)` (báo kênh trực ca, tuỳ chọn); `TicketStateRecord` +
+    `TicketStateStore` và `SqliteTicketStateStore` (bảng `ticket_states` trong `notifyApplySchema`: nhóm trạng thái
+    cuối đã thấy, tin đang mang nút "Đã ổn", thời điểm người báo bấm); `LogChannel` (kênh JSONL: file 0600,
+    thư mục 0700, id tin giả, ghi cả `sendAlert`) và `readChannelLog`: kênh "bóng" cho bot chưa được gửi tin thật.
+  - `@vuihoc/bot-core/backoffice`: `TicketClosure` (+ `TicketClosureOptions`, `ReporterOkCopy`, `ReporterOkResult`):
+    hành động luật `onStateChanged` báo người báo mỗi khi NHÓM trạng thái đổi (Resolved kèm nút, Done/Canceled/mở lại
+    gỡ nút cũ, chống báo lặp, chữ nghĩa do `copy` tiêm vào) và `recordReporterOk` (nút "Đã ổn" chỉ ghi MỘT comment,
+    không bao giờ đổi cột; ADR-0006 của Tiểu Linh). `RuleContext.llm`: luật dùng được `ctx.llm` (không có trace/signal).
+  - `@vuihoc/bot-core/telegram`: `TelegramNotifyChannel` nhận `alertChatId` và hiện thực `sendAlert`.
+  - `@vuihoc/bot-core/core`: `openPrivateDb(path, applySchema?)`: mở file SQLite của bot với thư mục 0700, file và
+    `-wal`/`-shm` 0600, WAL, `busy_timeout`; khác `openLazyDb` ở chỗ lỗi mở được NÉM ra thay vì hạ xuống `:memory:`.
+  - `@vuihoc/bot-core/testing`: `FakeItsaplan` thêm `POST /issues/:id/links` (`fake.links`), tìm kiếm
+    `GET /projects/:ref/issues/search?q=`, và `addIssue` nhận `priority`, `assigneeUserId`, `createdAt`.
+
+- **Sửa sau rà soát PR #11 (Tiểu Linh 2 hậu cần)**. Additive trừ ghi chú bên dưới.
+  - `intake` dispatcher (`NotificationDispatcher`) ngang bản legacy: chuyển cả comment CHỈ có video
+    (`sendComment` nhận `videos`, `images` chỉ có khi không rỗng), nhận `data.attachments` (chuỗi hoặc `{ url }`) như ảnh
+    và khử trùng với ảnh markdown, viết lại link `localhost`/`127.0.0.1` và link tương đối về `webUrl` (option mới),
+    giải mã HTML entities ở văn bản và tên người viết. `TelegramNotifyChannel` nối ảnh dạng `![](url)` và video dạng link trần.
+  - `core`: `decodeHtmlEntities`, `escapeItsaplanMarkdown`.
+  - `backoffice`: **`ctx.keys(ten, { ttlMs? })`** (`KeysProvider`, `createKeysProvider`) trong `RunContext`, `RuleContext`,
+    `ScheduleContext`: tập khoá chống trùng, bền qua restart khi có `BOT_DATA_DIR`, tách khỏi khoá nội bộ của kit.
+    `ScopedTracker.link(nguon, dich, loai)` (cả hai issue phải thuộc dự án, không thì `OutOfProjectError`; thay cho việc
+    chạm `unscopedClient`). `TicketClosure.recordReporterReply` (+ `ReporterReplyCopy`, `ReporterReplyResult`): người báo
+    trả lời tự do vào tin thông báo thì thành MỘT comment (escape, chống ghi đôi, từ chối khi ticket đã hoàn tất/huỷ);
+    `TicketClosureOptions.replyCopy`, `channelType`.
+  - `bot`: **`backoffice.inbound`** (`InboundDefinition`: `reporterOk`, `reporterReply`, `telegramUpdate`) gắn handler vào
+    server webhook của kit (`/internal/reporter-ok`, `/internal/reporter-reply` chỉ loopback; `/telegram-webhook`).
+    Env kit mới `TELEGRAM_WEBHOOK_SECRET` (secret, tuỳ chọn); nhận `telegramUpdate` mà nghe ngoài loopback không có secret
+    thì từ chối khởi động.
+  - `telegram`: `createReporterInbound` (nút "Đã ổn" `callback_query` và `reply_to_message` -> `recordReporterOk`/
+    `recordReporterReply`, bot nói lại với người báo, lỗi vẫn được trả lời).
+  - `itsaplan`: `ItsaplanClient.listProjectIssues` và `ScopedTracker.listIssues` nhận bộ lọc `columnId`, `createdFrom`,
+    `createdTo`, `assigneeUserId`, `priority`, `includeArchived` (`ListIssuesOptions`). Đối chiếu itsaplan fork: danh sách
+    sắp `updatedAt` giảm dần, chỉ có `limit` (1-500) và KHÔNG có `page`, nên muốn quét đủ phải lọc theo cột/ngày tạo.
+    `testing`: `FakeItsaplan` giờ lọc, sắp xếp, giới hạn đúng như vậy (trước đó bỏ qua mọi tham số).
+  - **Thay đổi hành vi (0.x)**: `ChannelPort.sendAlert` được phép trả `false` ("chưa giao được mà không ném"); `TelegramNotifyChannel.sendAlert`
+    trả `false` khi chưa đặt `alertChatId` và `true` khi đã gửi. Nơi gọi cũ bỏ qua giá trị trả về vẫn chạy như trước.
+
 - **`llm` (subpath mới)**: cách chuẩn để bot gọi LLM (mặc định MiniMax). Additive; không đổi API hiện có.
   - `createLlm({ baseUrl, apiKey, model, api, timeoutMs, deadlineMs, maxRetries, fetch })` → `{ complete }` cho
     `anthropic-messages` và `openai-chat`, request/response trung lập (system, vai user/assistant/tool,

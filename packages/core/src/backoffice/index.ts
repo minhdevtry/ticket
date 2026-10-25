@@ -14,7 +14,11 @@ export type {
   BackofficeDefinition,
   BackofficeRunOptions,
   HandlerResult,
+  InboundContext,
+  InboundDefinition,
   MissedPolicy,
+  ReporterOkRequest,
+  ReporterReplyRequest,
   RunContext,
   RunHandler,
   ScheduleContext,
@@ -32,7 +36,9 @@ export {
   BotStoreVersionError,
   type CronClaim,
   type KeySet,
+  type KeysProvider,
   MemoryKeySet,
+  createKeysProvider,
   type TimerArmOutcome,
   type TimerArmSpec,
   type TimerRow,
@@ -63,6 +69,15 @@ export {
   createScopedTracker,
   idempotencyMarker,
 } from "./tracker";
+export {
+  type ReporterOkCopy,
+  type ReporterOkOutcome,
+  type ReporterOkResult,
+  type ReporterReplyCopy,
+  type ReporterReplyResult,
+  TicketClosure,
+  type TicketClosureOptions,
+} from "./closure";
 export { type DispatcherDeps, createRunDispatcher, fail, retryLater, skip } from "./dispatch";
 export {
   type AfterOptions,

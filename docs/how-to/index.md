@@ -15,6 +15,7 @@ Mỗi trang là một việc cụ thể, làm theo từng bước. Trạng thái
 | [Chuyển project vào team](/how-to/move-project-to-team) | Một phần: phía code đã viết; quy trình trên itsaplan **đang viết** |
 | [Chuyển bot sang bot-core](/how-to/adopt-core) | Đã viết |
 | [Chuyển Tiểu Linh sang bot-core](/how-to/migrate-tieulinh) | Bản ghi lại việc đã làm |
+| [Chạy Tiểu Linh 2 (hậu cần) với TECH2](/how-to/run-tieulinh-hau-can) | Đã viết: env, thư mục dữ liệu, chế độ nhật ký, cách kiểm tra |
 
 Vai hậu cần: lịch cron và hẹn giờ có trang riêng ở trên; handler theo trigger, luật và test với `FakeItsaplan` chưa có trang Cách làm riêng. Bắt đầu từ [Dựng bot đầu tiên](/guide/first-bot), rồi xem [Bot kit](/explanation/bot-kit) và [giao thức agent-runs](/reference/agent-runs).
 

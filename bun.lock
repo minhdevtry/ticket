@@ -11,6 +11,14 @@
         "typescript": "^7.0.2",
       },
     },
+    "apps/tieulinh": {
+      "name": "@vuihoc/tieulinh",
+      "version": "0.1.0",
+      "dependencies": {
+        "@vuihoc/bot-core": "workspace:*",
+        "zod": "^4.5.4",
+      },
+    },
     "apps/tieulinh-legacy": {
       "name": "@vuihoc/tieulinh-legacy",
       "version": "0.1.0",
@@ -344,6 +352,8 @@
     "@vuihoc/bot-core": ["@vuihoc/bot-core@workspace:packages/core"],
 
     "@vuihoc/docs": ["@vuihoc/docs@workspace:docs"],
+
+    "@vuihoc/tieulinh": ["@vuihoc/tieulinh@workspace:apps/tieulinh"],
 
     "@vuihoc/tieulinh-legacy": ["@vuihoc/tieulinh-legacy@workspace:apps/tieulinh-legacy"],
 

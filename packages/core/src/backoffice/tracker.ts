@@ -16,6 +16,7 @@ import {
   ItsaplanApiError,
   type ItsaplanClient,
   type ItsaplanIssue,
+  type ListIssuesOptions,
   type ProjectColumn,
   isTransientError,
   normalizeProjectKey,
@@ -96,7 +97,11 @@ export interface ScopedTracker {
   forSignal(signal: AbortSignal): ScopedTracker;
   /** `null` nếu không tìm thấy HOẶC không thuộc dự án. */
   getIssue(ref: number | string): Promise<ItsaplanIssue | null>;
-  listIssues(options?: { limit?: number; page?: number }): Promise<ItsaplanIssue[]>;
+  /**
+   * Liệt kê issue của dự án, mới cập nhật trước, tối đa `limit` (1-500, mặc định 50 của itsaplan).
+   * Không có `page`: muốn quét đủ thì lọc theo `columnId`/`createdFrom`/`createdTo`.
+   */
+  listIssues(options?: ListIssuesOptions): Promise<ItsaplanIssue[]>;
   search(query: string): Promise<ItsaplanIssue[]>;
   comments(issueId: number): Promise<TrackerComment[]>;
   comment(issueId: number, body: string, options?: CommentOptions): Promise<CommentResult>;
@@ -105,6 +110,15 @@ export interface ScopedTracker {
   moveTo(issueId: number, column: string | number): Promise<ItsaplanIssue>;
   assign(issueId: number, userId: string | null): Promise<ItsaplanIssue>;
   setPriority(issueId: number, priority: TrackerPriority): Promise<ItsaplanIssue>;
+  /**
+   * Nối hai issue (`duplicates`: nguồn trùng đích; `relates`; `blocks`). CẢ HAI phải thuộc dự án
+   * của bot, không thì ném `OutOfProjectError` và không nối gì.
+   */
+  link(
+    sourceIssueId: number,
+    targetIssueId: number,
+    kind?: "relates" | "duplicates" | "blocks",
+  ): Promise<{ id: number; kind: string }>;
   /** Client thô, KHÔNG bị khoá dự án. Lối thoát cho việc chưa có trong mặt tiền; tự chịu trách nhiệm. */
   readonly unscopedClient: ItsaplanClient;
 }
@@ -324,6 +338,14 @@ export function createScopedTracker(
         await assertOwned(issueId);
         guard();
         return client.updateIssue(issueId, { assigneeUserId: userId });
+      },
+
+      async link(sourceIssueId, targetIssueId, kind = "relates") {
+        guard();
+        await assertOwned(sourceIssueId);
+        await assertOwned(targetIssueId);
+        guard();
+        return client.linkIssues(sourceIssueId, targetIssueId, kind);
       },
 
       async setPriority(issueId, priority) {

@@ -393,6 +393,13 @@ export interface ChannelPort {
   }): Promise<string | number | null | void>;
   /** Remove interactive buttons from a previously-sent message. Optional. */
   clearInteractiveButtons?(binding: NotifyBinding, messageId: string): Promise<void>;
+  /**
+   * Báo động tới kênh trực ca (không gắn với một người báo): vd ticket quá hạn SLA chưa ai nhận.
+   * Tuỳ chọn: kênh không có chỗ trực ca thì bỏ trống, nơi gọi phải chịu được việc thiếu.
+   * Trả `false` = KHÔNG gửi được mà không ném (vd chưa cấu hình chat trực ca): nơi gọi không được
+   * coi là đã báo. Trả `void`/`true` hoặc không ném = đã giao cho kênh. NGUỒN: intake `Notifier.broadcastAlert`.
+   */
+  sendAlert?(text: string): Promise<void | boolean>;
 }
 
 /**
@@ -410,6 +417,40 @@ export interface StateChangeCopyMap {
     state: TicketLifecycleState;
     identifier: string;
   }): string | null;
+}
+
+/**
+ * Trạng thái vòng đời cuối cùng bot đã THẤY của một ticket, để không báo lại cùng một trạng thái
+ * (một lần kéo cột bắn nhiều sự kiện, webhook có thể tới lại) và để biết tin nào đang mang nút
+ * "Đã ổn". NGUỒN: intake bảng `ticket_states` của `worker/ticket-closure.ts`.
+ */
+export interface TicketStateRecord {
+  issueId: number;
+  identifier: string;
+  state: TicketLifecycleState;
+  columnId: number | null;
+  /** Id tin đang mang nút "Đã ổn" (chỉ có khi `state` là `resolved` và tin đã gửi được). */
+  promptMessageId: string | null;
+  /** Lúc người báo bấm "Đã ổn" (epoch ms); `null` nếu chưa. */
+  reporterOkAt: number | null;
+  updatedAt: number;
+}
+
+/** Kho trạng thái đã thấy của ticket (xem {@link TicketStateRecord}). */
+export interface TicketStateStore {
+  get(issueId: number): TicketStateRecord | null;
+  /** Ghi trạng thái mới (xoá tin-nút và dấu "Đã ổn" của trạng thái cũ). */
+  enter(input: {
+    issueId: number;
+    identifier: string;
+    state: TicketLifecycleState;
+    columnId: number | null;
+    now: number;
+  }): void;
+  /** Nhớ id tin vừa gửi mang nút "Đã ổn". */
+  setPrompt(issueId: number, messageId: string): void;
+  /** Ghi nhận người báo đã bấm "Đã ổn" (không đổi trạng thái). */
+  markReporterOk(issueId: number, now: number): void;
 }
 
 /** How a notification message was sent, so a reply can be routed back. */

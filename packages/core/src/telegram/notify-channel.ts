@@ -48,6 +48,11 @@ export interface TelegramNotifyChannelOptions {
   reporterOkButton?: ReporterOkButtonSpec;
   /** Báo khi một nút bị bỏ (route tới Alerter). */
   onButtonDrop?: (reason: string) => void;
+  /**
+   * Chat trực ca nhận `sendAlert` (vd SLA quá hạn). Không đặt thì `sendAlert` chỉ ghi cảnh báo
+   * vào log (không ném: cảnh báo không được làm hỏng việc đang chạy).
+   */
+  alertChatId?: string | number;
 }
 
 /** Bóc chat id trần từ binding (cột có thể mang tiền tố "telegram:"). */
@@ -130,6 +135,23 @@ export class TelegramNotifyChannel implements ChannelPort {
     return lastMessageId(sent);
   }
 
+  /** Báo động tới chat trực ca (`alertChatId`). Thiếu chat thì chỉ log. NGUỒN: intake `broadcastAlert`. */
+  async sendAlert(text: string): Promise<boolean> {
+    if (this.o.alertChatId === undefined || String(this.o.alertChatId).trim() === "") {
+      getLogger().warn(
+        "[TelegramNotifyChannel] chưa cấu hình alertChatId: bỏ qua cảnh báo trực ca.",
+      );
+      return false;
+    }
+    await sendMessage(this.o.transport, {
+      chatId: String(this.o.alertChatId),
+      text,
+      parseMode: this.o.parseMode,
+      onButtonDrop: this.o.onButtonDrop,
+    });
+    return true;
+  }
+
   /** Gỡ nút khỏi một tin đã gửi — side job, lỗi nuốt (tryCall). */
   async clearInteractiveButtons(binding: NotifyBinding, messageId: string): Promise<void> {
     const chatId = rawChatId(binding);
@@ -141,11 +163,14 @@ export class TelegramNotifyChannel implements ChannelPort {
     });
   }
 
-  /** Nối ảnh/video (nếu có) vào cuối comment dưới dạng markdown — giữ lớp mỏng. */
+  /**
+   * Nối ảnh (markdown `![](url)`) và video (link trần: markdown không có cú pháp video) vào cuối
+   * comment, giữ lớp mỏng. Gửi media thật qua Bot API là việc của một `ChannelPort` riêng.
+   */
   private composeCommentBody(text: string, images: string[], videos: string[]): string {
-    const media = [...images, ...videos].filter(Boolean);
+    const media = [...images.filter(Boolean).map((u) => `![](${u})`), ...videos.filter(Boolean)];
     if (media.length === 0) return text;
-    const links = media.map((u) => `![](${u})`).join("\n");
+    const links = media.join("\n");
     return text ? `${text}\n${links}` : links;
   }
 }

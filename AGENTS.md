@@ -5,12 +5,13 @@ Repo **công khai**. Trước mọi commit: không secret, không IP/host nội 
 ## Bản đồ
 
 - `packages/core`: `@vuihoc/bot-core`, import qua subpath (`@vuihoc/bot-core/core`, `/itsaplan`, `/intake`, `/identity`, `/openclaw`, `/telegram`, `/worker`, `/eval`, và bot kit: `/bot`, `/backoffice`, `/llm`, `/testing`). Logic dùng chung cho mọi bot đặt ở đây, không chép sang app.
-- `apps/tieulinh-legacy` (`@vuihoc/tieulinh-legacy`): Tiểu Linh hiện tại, **bản tham chiếu đóng băng** (hành vi = production, dùng làm mốc so sánh shadow). Chỉ sửa lỗi nghiêm trọng; tính năng mới làm ở `apps/tieulinh` (app mới, `defineBot`, chưa có trong repo). Bot tiếp nhận sự cố kỹ thuật.
+- `apps/tieulinh-legacy` (`@vuihoc/tieulinh-legacy`): Tiểu Linh hiện tại, **bản tham chiếu đóng băng** (hành vi = production, dùng làm mốc so sánh shadow). Chỉ sửa lỗi nghiêm trọng; tính năng mới làm ở `apps/tieulinh`. Bot tiếp nhận sự cố kỹ thuật.
   - `mcp/tieulinh`: MCP server và domain (catalog, rules JSON, formatter).
   - `lib/intake-step`: engine hội thoại (`pipeline.ts`).
   - `worker`: webhook itsaplan → Telegram, vòng đời ticket.
   - `skills/tieulinh`: persona và workspace OpenClaw (đồng bộ bằng `openclaw/sync-workspace.ts`).
   - `openclaw-plugin`: plugin nút bấm, xác nhận xong.
+- `apps/tieulinh` (`@vuihoc/tieulinh`): Tiểu Linh mới, nửa **hậu cần** dựng bằng `defineBot` (agent `tieulinh2`, dự án `TECH2` đổi được bằng env). Mention bằng LLM, báo người báo khi Resolved/Done và chuyển comment, nhắc SLA, gợi ý ticket trùng. Lễ tân chưa có. Xem `apps/tieulinh/README.md`. Test: `bun run --cwd apps/tieulinh test`.
 - `tools/tl2-shadow`: bộ chạy bóng Tiểu Linh 2 (relay, proxy giữ secret, tunnel, so sánh). Chỉ chạy trên máy dev; xem `docs/how-to/shadow-tl2.md`, ADR-0005.
 - `deploy/`: script đẩy secret qua SSH và README deploy (chưa có unit systemd trong repo).
 - `docs/`: site VitePress (tiếng Việt), published lên GitHub Pages. Gồm `guide/`, `how-to/`, `reference/`, `explanation/` và `adr/` (quyết định cấp repo). Mỗi package/app có `docs/adr` riêng cạnh code.
@@ -25,6 +26,7 @@ bun run docs:dev                    # xem trước site docs
 bun run docs:check                  # build site + TypeDoc + mẫu code + đối chiếu (như CI)
 bun run --cwd packages/core test
 bun run --cwd apps/tieulinh-legacy test
+bun run --cwd apps/tieulinh test
 ```
 
 ## Nguyên tắc

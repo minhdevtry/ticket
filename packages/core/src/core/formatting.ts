@@ -103,6 +103,92 @@ export function stripCommentHtml(text?: string | null): string {
     .replace(/<\/?(?:mark|span)\b[^>]*>/gi, "");
 }
 
+const NAMED_HTML_ENTITIES: Record<string, string> = {
+  lt: "<",
+  gt: ">",
+  amp: "&",
+  quot: '"',
+  apos: "'",
+  nbsp: " ",
+  copy: "©",
+  reg: "®",
+  trade: "™",
+  hellip: "…",
+  mdash: "—",
+  ndash: "–",
+  laquo: "«",
+  raquo: "»",
+  bull: "•",
+  cent: "¢",
+  pound: "£",
+  yen: "¥",
+  euro: "€",
+  sect: "§",
+  para: "¶",
+  deg: "°",
+  plusmn: "±",
+  times: "×",
+  divide: "÷",
+  micro: "µ",
+  middot: "·",
+};
+
+/**
+ * Giải mã HTML entities một lần (single-pass) từ văn bản HTML/rich-text sang văn bản thuần/markdown.
+ *
+ * Bất biến an toàn:
+ * - Single-pass regex quét từ trái qua phải, không bao giờ decode lặp lại (ví dụ `&amp;lt;` -> `&lt;`, KHÔNG thành `<`).
+ * - Hỗ trợ cả entity có tên (`&lt;`), số thập phân (`&#60;`), và số thập lục phân (`&#x3C;`).
+ * - Không làm thay đổi tiếng Việt có dấu hay ký tự Unicode khác.
+ */
+export function decodeHtmlEntities(text?: string | null): string {
+  if (!text || typeof text !== "string") return text ?? "";
+
+  return text.replace(/&(?:#x([0-9a-fA-F]+)|#([0-9]+)|([a-zA-Z]+));/g, (match, hex, dec, named) => {
+    if (hex) {
+      try {
+        const codePoint = parseInt(hex, 16);
+        if (codePoint > 0 && codePoint <= 0x10ffff) {
+          return String.fromCodePoint(codePoint);
+        }
+      } catch {
+        return match;
+      }
+    }
+    if (dec) {
+      try {
+        const codePoint = parseInt(dec, 10);
+        if (codePoint > 0 && codePoint <= 0x10ffff) {
+          return String.fromCodePoint(codePoint);
+        }
+      } catch {
+        return match;
+      }
+    }
+    if (named) {
+      const lower = named.toLowerCase();
+      if (NAMED_HTML_ENTITIES[lower] !== undefined) {
+        return NAMED_HTML_ENTITIES[lower];
+      }
+    }
+    return match;
+  });
+}
+
+/**
+ * Mã hoá `<` và `>` ngoài khối code thành `&lt;`/`&gt;` trước khi ghi lời người báo (từ chat) lên
+ * tracker: trình hiển thị của itsaplan coi `<NullPointerException>` là thẻ HTML và xoá trắng nó,
+ * làm mất thông tin. Giữ nguyên `&` (không escape đôi entity sẵn có) và nội dung trong code
+ * fence/inline code. NGUỒN: intake `lib/html-entities.ts` `escapeItsaplanMarkdown`.
+ */
+export function escapeItsaplanMarkdown(text?: string | null): string {
+  if (!text || typeof text !== "string") return text ?? "";
+  return text
+    .split(/(```[\s\S]*?```|`[^`\n]*`)/g)
+    .map((part, i) => (i % 2 === 1 ? part : part.replace(/</g, "&lt;").replace(/>/g, "&gt;")))
+    .join("");
+}
+
 /** Định dạng Date theo giờ Việt Nam UTC+7 (ICT) dạng `YYYY-MM-DD HH:mm`. */
 export function formatIctTimestamp(date: Date = new Date()): string {
   const ict = new Date(date.getTime() + 7 * 3600_000);

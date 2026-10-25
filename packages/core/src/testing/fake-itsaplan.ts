@@ -73,6 +73,13 @@ export interface FakeWebhook {
   createdAt: string;
 }
 
+export interface FakeLink {
+  id: number;
+  sourceIssueId: number;
+  targetIssueId: number;
+  kind: string;
+}
+
 export interface FakeRequest {
   method: string;
   path: string;
@@ -171,6 +178,8 @@ export class FakeItsaplan {
   readonly columns: FakeColumn[] = DEFAULT_COLUMNS.map((c) => ({ ...c }));
   readonly requests: FakeRequest[] = [];
   readonly webhooks: FakeWebhook[] = [];
+  /** Link giữa issue (`POST /issues/:id/links`). */
+  readonly links: FakeLink[] = [];
   readonly faults: FaultRule[] = [];
   /** Số lần mỗi key `<METHOD> <path>` được gọi. */
   readonly hits = new Map<string, number>();
@@ -231,7 +240,8 @@ export class FakeItsaplan {
 
   /**
    * Thêm issue. `projectId` khác 1 mô phỏng issue của dự án khác (mặc định dự án của fake có
-   * id 1); `identifier` ghi đè mã (vd issue đã chuyển sang `OTHER-1`).
+   * id 1); `identifier` ghi đè mã (vd issue đã chuyển sang `OTHER-1`); `createdAt` (ISO) cho test
+   * có đồng hồ giả.
    */
   addIssue(input: {
     title: string;
@@ -239,9 +249,12 @@ export class FakeItsaplan {
     columnId?: number;
     projectId?: number;
     identifier?: string;
+    priority?: string | null;
+    assigneeUserId?: string | null;
+    createdAt?: string;
   }): FakeIssue {
     const seq = this.nextIssueSeq++;
-    const now = new Date().toISOString();
+    const now = input.createdAt ?? new Date().toISOString();
     const issue: FakeIssue = {
       id: this.nextIssueId++,
       projectId: input.projectId ?? 1,
@@ -249,9 +262,9 @@ export class FakeItsaplan {
       identifier: input.identifier ?? `${this.projectKey}-${seq}`,
       title: input.title,
       description: input.description ?? "",
-      priority: null,
+      priority: input.priority ?? null,
       columnId: input.columnId ?? 1,
-      assigneeUserId: null,
+      assigneeUserId: input.assigneeUserId ?? null,
       createdAt: now,
       updatedAt: now,
     };
@@ -442,7 +455,28 @@ export class FakeItsaplan {
     }
     if (is(/^GET \/projects\/([^/]+)\/issues$/)) {
       if (!this.resolves(m![1])) return this.json({ error: "Project not found" }, 404);
-      return this.json(this.issues);
+      // Như itsaplan fork: lọc theo query, sắp updatedAt GIẢM dần, `limit` 1-500 (mặc định 50), bỏ qua `page`.
+      const p = url.searchParams;
+      const from = p.get("createdFrom") ? Date.parse(p.get("createdFrom")!) : null;
+      const to = p.get("createdTo") ? Date.parse(p.get("createdTo")!) : null;
+      const limit = Math.min(500, Math.max(1, Number(p.get("limit") ?? 50) || 50));
+      const rows = this.issues
+        .filter((i) => p.get("columnId") === null || i.columnId === Number(p.get("columnId")))
+        .filter((i) => !p.get("assigneeUserId") || i.assigneeUserId === p.get("assigneeUserId"))
+        .filter((i) => !p.get("priority") || i.priority === p.get("priority"))
+        .filter((i) => from === null || Date.parse(i.createdAt) >= from)
+        .filter((i) => to === null || Date.parse(i.createdAt) < to)
+        .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt) || b.id - a.id);
+      return this.json(rows.slice(0, limit));
+    }
+    if (is(/^GET \/projects\/([^/]+)\/issues\/search$/)) {
+      if (!this.resolves(m![1])) return this.json({ error: "Project not found" }, 404);
+      const q = (url.searchParams.get("q") ?? "").toLowerCase();
+      return this.json(
+        this.issues.filter((i) =>
+          `${i.identifier} ${i.title} ${i.description}`.toLowerCase().includes(q),
+        ),
+      );
     }
     if (is(/^GET \/projects\/([^/]+)\/issues\/(\d+)$/)) {
       if (!this.resolves(m![1])) return this.json({ error: "Project not found" }, 404);
@@ -466,6 +500,20 @@ export class FakeItsaplan {
       comment.actorName = this.agentUsername;
       comment.actorUserId = "agent-user";
       return this.json({ id: comment.id, body: comment.body });
+    }
+    if (is(/^POST \/issues\/(\d+)\/links$/)) {
+      const sourceIssueId = Number(m![1]);
+      if (!this.issues.some((i) => i.id === sourceIssueId)) {
+        return this.json({ error: "Not found" }, 404);
+      }
+      const link: FakeLink = {
+        id: this.links.length + 1,
+        sourceIssueId,
+        targetIssueId: Number(b.targetIssueId),
+        kind: String(b.kind ?? "relates"),
+      };
+      this.links.push(link);
+      return this.json({ id: link.id, kind: link.kind }, 201);
     }
     if (is(/^GET \/issues\/(\d+)\/timeline\/items$/)) {
       return this.json(
