@@ -164,6 +164,22 @@ KG chỉ bật khi có `MEMGRAPH_URI` **và** dự án của worker nằm trong 
 
 `WEBHOOK_URL` (xem bảng Itsaplan) làm worker gọi `ensureItsaplanWebhook`, hàm này bảo đảm webhook ở URL đó tồn tại, đang bật và đủ các sự kiện cần thiết. Đây là đường đăng ký của app Tiểu Linh. Worker dựng bằng `startIntakeWorker` của bot-core đi đường khác: nó sinh URL từ host và cổng thật (xem [Dựng worker báo ngược](/how-to/notify-worker)), nên không có biến `WEBHOOK_URL` rời.
 
+## Tiểu Linh mới: hậu cần (`apps/tieulinh`)
+
+Biến riêng của bot hậu cần Tiểu Linh 2 (`apps/tieulinh/env.ts`, khai bằng `defineEnv`; CI đối chiếu bảng này với file đó). Biến của bot kit (`ITSAPLAN_BASE_URL`, `ITSAPLAN_AGENT_KEY`, `LLM_*`, `BOT_*`) do `createBot` đọc, xem hai mục "LLM của bot kit" và "Bot kit" của trang này. Cách chạy: [Chạy Tiểu Linh 2 (hậu cần) với TECH2](/how-to/run-tieulinh-hau-can).
+
+| Biến | Bắt buộc | Mặc định | Đọc bởi | Ý nghĩa |
+|---|---|---|---|---|
+| `BOT_DATA_DIR` | có | không có | `apps/tieulinh` | Thư mục dữ liệu bền. Chứa kho của bot kit (`tieulinh.sqlite`), kho nghiệp vụ của app (`tieulinh-app.sqlite`: liên kết người báo, tuyến tin, trạng thái vòng đời, dấu "đã nhắc") và nhật ký kênh `tieulinh-channel.jsonl`. Thư mục 0700, file 0600. Ở app này nó **bắt buộc** (bot kit coi là tuỳ chọn). |
+| `TIEULINH_TEAM` | không | `tech` | `apps/tieulinh` | Slug team itsaplan của dự án (`tracker.team`). |
+| `TIEULINH_PROJECT` | không | `TECH2` | `apps/tieulinh` | Mã dự án bot phụ trách (`tracker.project`). Chạy thật sẽ đổi sang `TECH` sau. Bot chỉ đọc/ghi ticket của dự án này (ADR-0001). |
+| `TELEGRAM_BOT_TOKEN` | không | không có | `apps/tieulinh` | Có thì thông báo đi qua Telegram thật (`TelegramNotifyChannel`); không có thì kênh là nhật ký JSONL (TL2 chạy chế độ này). Secret. |
+| `TIEULINH_ONCALL_CHAT_ID` | không | không có | `apps/tieulinh` | Chat trực ca nhận nhắc quá hạn SLA khi dùng Telegram. Thiếu thì nhắc chỉ ghi log. Kênh nhật ký không cần biến này. |
+| `TIEULINH_COMMENT_FORWARD` | không | `all` | `apps/tieulinh` | `all`: mọi comment của người xử lý tới người báo. `mention`: chỉ comment có gắn thẻ `@tieulinh2`. Comment nội bộ (`#noibo`) và comment của bot không bao giờ được chuyển. |
+| `TIEULINH_DUPLICATE_MERGE` | không | `false` | `apps/tieulinh` | `true` bật hành vi legacy khi người xử lý tuyên bố trùng: chép mô tả sang ticket đích, nối link `duplicates`, huỷ ticket trùng. Mặc định chỉ để lại một comment gợi ý. Cần LLM. |
+| `TIEULINH_SANDBOX_CHAT` | không | không có | `apps/tieulinh` | Chat thử cho ticket chưa có liên kết người báo (ticket tạo thẳng trên itsaplan). Đặt biến này thì thông báo của ticket đó đi vào chat thử để xem được trong nhật ký; không đặt thì ticket chưa liên kết bị bỏ qua. |
+| `TIEULINH_SLA_CRON` | không | `*/5 * * * *` | `apps/tieulinh` | Lịch quét SLA (5 trường cron, múi giờ theo `BOT_TIMEZONE`). |
+
 ## Bot kit (`createBot`)
 
 Biến mà `createBot` ([`@vuihoc/bot-core/bot`](/reference/entry-points)) đọc từ tham số `env` (tường minh, thường là `process.env`), không thuộc Tiểu Linh. CI không đối chiếu mục này với code như các bảng trên; nguồn sự thật là schema `kitEnv` trong `packages/core/src/bot/create.ts`. Biến sai hoặc thiếu làm `createBot` ném `ConfigError` liệt kê hết một lần, không lộ giá trị secret. Mọi tuỳ chọn có thể ghi đè bằng tham số của `createBot`.

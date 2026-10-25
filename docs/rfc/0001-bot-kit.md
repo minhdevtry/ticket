@@ -1,8 +1,8 @@
 # RFC 0001: Bot kit (`defineBot` / `createBot`)
 
-- Trạng thái: đề xuất; milestone 1 (nền tảng) đã cài đặt; milestone 2a (độ bền và thời gian: kho bền, lịch cron, hẹn giờ, tự đăng ký webhook) đã cài đặt, runtime lễ tân còn lại
+- Trạng thái: đề xuất; milestone 1 (nền tảng) đã cài đặt; milestone 2a (độ bền và thời gian: kho bền, lịch cron, hẹn giờ, tự đăng ký webhook) đã cài đặt, runtime lễ tân còn lại; app mẫu hậu cần `apps/tieulinh` (Tiểu Linh 2 trên TECH2) đã dùng thử toàn bộ bề mặt hậu cần
 - Ngày: 2026-10-25
-- Phạm vi: `packages/core` (`@vuihoc/bot-core`), `apps/tieulinh-legacy`
+- Phạm vi: `packages/core` (`@vuihoc/bot-core`), `apps/tieulinh-legacy`, `apps/tieulinh`
 
 ## Bối cảnh
 
@@ -150,11 +150,12 @@ Hai vai chạm nhau ở ticket: lễ tân tạo ticket và lưu binding (ticket 
 | **1 (PR này)** | `defineBot`/`createBot`/`runBot`, `defineEnv`/`loadConfig`, agent-runs client + worker, `backoffice` (trigger dispatch, tracker khoá dự án, luật tối thiểu), `FakeItsaplan`, ví dụ `minimal-bot`, tài liệu |
 | **2a (đã cài đặt)** | Độ bền và thời gian: kho SQLite bền (`BOT_DATA_DIR`: ledger agent-runs, khoá `reply#n`, dedupe luật, mốc cron, hẹn giờ, lease một-instance), lịch cron do bot giữ (`backoffice.schedule`, tự giữ trong process, không phụ thuộc API lịch của itsaplan), `actions.after`/`closeAfter`/`cancelTimer` với khoá huỷ, đăng ký webhook theo `rules` (opt-in) |
 | 2b | Runtime lễ tân trong `createBot` (kênh Telegram, engine, extractor); binding ticket ↔ chat dùng chung với hậu cần |
+| **Hậu cần Tiểu Linh (đã cài đặt)** | `apps/tieulinh`: nửa hậu cần của Tiểu Linh trên bot kit (mention bằng LLM, vòng đời Resolved/Done, chuyển comment, nhắc SLA, gợi ý ticket trùng). Phần dùng chung đi vào core: `TicketClosure`, `TicketStateStore`, `LogChannel`, `ChannelPort.sendAlert`, `RuleContext.llm`, `openPrivateDb`. Xem [Tiểu Linh mới: hậu cần](/explanation/tieulinh-hau-can). Chưa làm: nhận tin vào (nút bấm, trả lời tự do), KG/Onyx/Memgraph, `related-curator`, ingest, gửi media thật |
 | 3 | Host OpenClaw; chuyển Tiểu Linh sang `defineBot` |
 
 ## Lộ trình chuyển `apps/tieulinh-legacy`
 
-> Cập nhật 2026-10-25: chủ repo chốt giữ `apps/tieulinh-legacy` làm bản tham chiếu đóng băng và xây app mới (thư mục dự kiến apps/tieulinh) bằng `defineBot` (xem [Bản legacy và bản mới](/explanation/tieulinh-legacy)). Các bước dưới là danh sách việc cần đối chiếu khi xây bản mới, không còn là việc sửa tại chỗ bản legacy.
+> Cập nhật 2026-10-25: chủ repo chốt giữ `apps/tieulinh-legacy` làm bản tham chiếu đóng băng và xây app mới `apps/tieulinh` bằng `defineBot` (đã có nửa hậu cần) (xem [Bản legacy và bản mới](/explanation/tieulinh-legacy)). Các bước dưới là danh sách việc cần đối chiếu khi xây bản mới, không còn là việc sửa tại chỗ bản legacy.
 
 1. Thay `worker/agent-runner.ts` bằng `AgentRunWorker` (giữ nguyên logic `handleRun` thành handler `mention`). Được: heartbeat, backoff, dừng êm, không mất kết quả. Không đổi hành vi nhìn thấy được. Làm trước vì rủi ro thấp nhất và giá trị cao nhất.
 2. Gom đọc env của `worker/index.ts` vào `defineEnv`/`loadConfig`; thêm `/healthz`.
