@@ -12,7 +12,7 @@ cd ~/apps/ticket && bun install --production
 ## Đẩy secret từ máy maintainer
 
 ```bash
-deploy/push-secrets.sh <ssh-host> apps/tieulinh/.env tieulinh
+deploy/push-secrets.sh <ssh-host> apps/tieulinh-legacy/.env tieulinh
 # → <ssh-host>:~/.config/ticket/tieulinh.env (chmod 600)
 ```
 

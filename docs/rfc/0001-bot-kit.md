@@ -2,7 +2,7 @@
 
 - Trạng thái: đề xuất, milestone 1 (nền tảng) đi kèm RFC này
 - Ngày: 2026-10-25
-- Phạm vi: `packages/core` (`@vuihoc/bot-core`), `apps/tieulinh`
+- Phạm vi: `packages/core` (`@vuihoc/bot-core`), `apps/tieulinh-legacy`
 
 ## Bối cảnh
 
@@ -150,7 +150,9 @@ Hai vai chạm nhau ở ticket: lễ tân tạo ticket và lưu binding (ticket 
 | 2 | Runtime lễ tân trong `createBot` (kênh Telegram, engine, extractor); lịch cục bộ `schedule: { "0 8 * * *": fn }` (bot tự bảo đảm lịch trên itsaplan qua API agent-schedules, gắn thẻ vào prompt để định tuyến); `closeAfter("48h")` và mọi hẹn giờ cần kho bền; đăng ký webhook theo `rules`; ledger bền (SQLite) cho agent-runs |
 | 3 | Host OpenClaw; chuyển Tiểu Linh sang `defineBot` |
 
-## Lộ trình chuyển `apps/tieulinh`
+## Lộ trình chuyển `apps/tieulinh-legacy`
+
+> Cập nhật 2026-10-25: chủ repo chốt giữ `apps/tieulinh-legacy` làm bản tham chiếu đóng băng và xây app mới (thư mục dự kiến apps/tieulinh) bằng `defineBot` (xem [Bản legacy và bản mới](/explanation/tieulinh-legacy)). Các bước dưới là danh sách việc cần đối chiếu khi xây bản mới, không còn là việc sửa tại chỗ bản legacy.
 
 1. Thay `worker/agent-runner.ts` bằng `AgentRunWorker` (giữ nguyên logic `handleRun` thành handler `mention`). Được: heartbeat, backoff, dừng êm, không mất kết quả. Không đổi hành vi nhìn thấy được. Làm trước vì rủi ro thấp nhất và giá trị cao nhất.
 2. Gom đọc env của `worker/index.ts` vào `defineEnv`/`loadConfig`; thêm `/healthz`.
@@ -173,7 +175,7 @@ Mỗi bước là một PR riêng, chạy song song với bản cũ (cờ bật/
 
 Review độc lập của PR milestone 1 đã được xử lý ngay trong PR (lỗi tạm thời không còn thành `failed`, `stop()` bị chặn trên, run bị giao lại được nhận thay vì bỏ qua, ranh giới dự án theo `projectId`, luật chỉ đánh dấu "đã thấy" sau thành công, che secret theo giá trị, webhook ngoài loopback bắt buộc có secret, `issue.column_changed` bị bỏ vì server không phát sự kiện đó). Những mục sau cố ý để lại, mỗi mục nên thành một issue riêng:
 
-1. **`findIssueByIdentifier` mặc định vẫn nuốt mọi lỗi** thành "không thấy" (cho tương thích các bot cũ). Bot kit dùng `strict` (chỉ nuốt 404). Cần rà các nơi gọi của `apps/tieulinh` rồi đổi mặc định.
+1. **`findIssueByIdentifier` mặc định vẫn nuốt mọi lỗi** thành "không thấy" (cho tương thích các bot cũ). Bot kit dùng `strict` (chỉ nuốt 404). Cần rà các nơi gọi của `apps/tieulinh-legacy` rồi đổi mặc định.
 2. **Ghi comment không nguyên tử**: chống trùng là kiểm-rồi-ghi bằng dấu ẩn. Cần itsaplan nhận khoá idempotency khi tạo comment, hoặc bot giữ khoá bền.
 3. **Ledger bền** (SQLite) cho `RunLedger`; hiện in-memory.
 4. **Endpoint nhả/hoãn run** ở itsaplan để `retry` không phải chờ lease hết hạn (5 phút).

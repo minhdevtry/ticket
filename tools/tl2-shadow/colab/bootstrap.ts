@@ -25,7 +25,7 @@ import {
 import { join, resolve } from "node:path";
 import { type ApiStyle, renderConfig } from "./render-config.ts";
 
-/** Chỉ những thứ repo là nguồn sự thật (giống apps/tieulinh/openclaw/sync-workspace.ts). */
+/** Chỉ những thứ repo là nguồn sự thật (giống apps/tieulinh-legacy/openclaw/sync-workspace.ts). */
 const OWNED = [
   "AGENTS.md",
   "SOUL.md",
@@ -146,9 +146,11 @@ async function main() {
   const releaseDir = resolve(argValue(args, "--release", ""));
   if (
     !args.includes("--release") ||
-    !existsSync(join(releaseDir, "apps/tieulinh/skills/tieulinh"))
+    !existsSync(join(releaseDir, "apps/tieulinh-legacy/skills/tieulinh"))
   ) {
-    throw new Error("Cần --release <thư mục bản phát hành> chứa apps/tieulinh/skills/tieulinh");
+    throw new Error(
+      "Cần --release <thư mục bản phát hành> chứa apps/tieulinh-legacy/skills/tieulinh",
+    );
   }
   const home = resolve(argValue(args, "--home", join(process.env.HOME ?? "/root", "tl2", "home")));
   const api = argValue(args, "--api", "anthropic-messages") as ApiStyle;
@@ -165,7 +167,7 @@ async function main() {
   mkdirSync(home, { recursive: true, mode: 0o700 });
   chmodSync(home, 0o700);
   const workspace = join(home, "workspace-ticket-intake-2");
-  const copied = syncWorkspace(join(releaseDir, "apps/tieulinh/skills"), workspace);
+  const copied = syncWorkspace(join(releaseDir, "apps/tieulinh-legacy/skills"), workspace);
   console.log(`workspace: chép ${copied} file`);
 
   const token = ensureToken(join(home, "gateway.token"));

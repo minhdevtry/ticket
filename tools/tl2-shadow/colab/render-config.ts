@@ -106,7 +106,7 @@ export function renderConfig(o: RenderOptions): Record<string, unknown> {
       servers: {
         ticketintake: {
           command: o.bunBin ?? "bun",
-          args: ["run", `${o.releaseDir}/apps/tieulinh/mcp/tieulinh/index.ts`],
+          args: ["run", `${o.releaseDir}/apps/tieulinh-legacy/mcp/tieulinh/index.ts`],
           env: mcpEnv,
         },
       },

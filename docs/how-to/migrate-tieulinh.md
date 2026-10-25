@@ -1,7 +1,7 @@
 # Chuyển Tiểu Linh sang bot-core
 
 ::: tip Đã chuyển
-Tiểu Linh đã chuyển sang bot-core trong monorepo (PR `refactor(tieulinh): adopt @vuihoc/bot-core`): `apps/tieulinh` dùng `"@vuihoc/bot-core": "workspace:*"`. Trang này ghi lại kết quả, những adapter còn giữ tại chỗ và lý do. Kế hoạch từng module trước khi chuyển đã lỗi thời nên không còn ở đây (xem lịch sử git, thư mục `adoption` cũ của package core). Cách chuyển một bot khác: [Chuyển bot sang bot-core](/how-to/adopt-core).
+Tiểu Linh đã chuyển sang bot-core trong monorepo (PR `refactor(tieulinh): adopt @vuihoc/bot-core`): `apps/tieulinh-legacy` dùng `"@vuihoc/bot-core": "workspace:*"`. Trang này ghi lại kết quả, những adapter còn giữ tại chỗ và lý do. Kế hoạch từng module trước khi chuyển đã lỗi thời nên không còn ở đây (xem lịch sử git, thư mục `adoption` cũ của package core). Cách chuyển một bot khác: [Chuyển bot sang bot-core](/how-to/adopt-core).
 :::
 
 Công thức đã được chứng minh trước khi có monorepo: harness
@@ -53,7 +53,7 @@ chính sách lỗi transport / multipart / tải file.
 
 **Nguyên tắc giữ hành vi (vòng review thứ hai):** Tiểu Linh là baseline đóng băng, nên thư viện
 có thể giữ mặc định tốt hơn nhưng bot phải truyền tuỳ chọn tường minh để cư xử như bản cũ.
-Mỗi tuỳ chọn có test ở `packages/core` (mặc định) và ở `apps/tieulinh` (adapter).
+Mỗi tuỳ chọn có test ở `packages/core` (mặc định) và ở `apps/tieulinh-legacy` (adapter).
 
 | Hành vi | Mặc định thư viện | Tiểu Linh (tuỳ chọn) |
 |---|---|---|

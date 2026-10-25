@@ -3,7 +3,7 @@
 ## Quy trình
 
 1. Tạo nhánh từ `main`: `feat/<chủ-đề>`, `fix/<chủ-đề>`, `chore/<chủ-đề>`, `docs/<chủ-đề>`.
-2. Commit theo [Conventional Commits](https://www.conventionalcommits.org): `feat(tieulinh): ...`, `fix(core): ...`, `docs: ...`. Scope là tên package: `core`, `tieulinh`, `deploy`, `ci`.
+2. Commit theo [Conventional Commits](https://www.conventionalcommits.org): `fix(tieulinh-legacy): ...`, `fix(core): ...`, `docs: ...`. Scope là tên package: `core`, `tieulinh-legacy`, `deploy`, `ci`.
 3. Chạy `bun run verify` trước khi đẩy (có gồm kiểm docs nhanh).
 4. Mở Pull Request vào `main`. CI phải xanh (`verify`, `secrets`, `docs`, `docs-required`). Squash merge.
 

@@ -1,6 +1,6 @@
 # Chạy bóng Tiểu Linh 2
 
-Mỗi tin nhắn mà Tiểu Linh 1 (đang chạy thật trên server) nhận được cũng được đưa cho Tiểu Linh 2 (một gateway OpenClaw riêng trên Colab), rồi hai câu trả lời được ghép lại để so sánh. Tiểu Linh 2 không có kênh Telegram nên không bao giờ nhắn người dùng thật. Quyết định kiến trúc: [ADR-0005](/adr/0005-tl2-shadow). Đây là công cụ của maintainer; chế độ shadow dùng chung cho mọi bot vẫn đang viết, xem [Chạy shadow](/how-to/run-shadow).
+Mỗi tin nhắn mà Tiểu Linh 1 (đang chạy thật trên server; code là bản tham chiếu đóng băng `apps/tieulinh-legacy`, xem [Bản legacy và bản mới](/explanation/tieulinh-legacy)) nhận được cũng được đưa cho Tiểu Linh 2 (một gateway OpenClaw riêng trên Colab), rồi hai câu trả lời được ghép lại để so sánh. Tiểu Linh 2 không có kênh Telegram nên không bao giờ nhắn người dùng thật. Quyết định kiến trúc: [ADR-0005](/adr/0005-tl2-shadow). Đây là công cụ của maintainer; chế độ shadow dùng chung cho mọi bot vẫn đang viết, xem [Chạy shadow](/how-to/run-shadow).
 
 ```
 server (Tiểu Linh 1)               máy dev                                   Colab
@@ -10,7 +10,7 @@ server (Tiểu Linh 1)               máy dev                                   
                                     pairs.jsonl --> compare.ts
 ```
 
-Mã nằm ở `tools/tl2-shadow` (công cụ chỉ chạy ở máy dev, nên không để trong `apps/`) và plugin ở `apps/tieulinh/openclaw-plugin/shadow-forwarder`.
+Mã nằm ở `tools/tl2-shadow` (công cụ chỉ chạy ở máy dev, nên không để trong `apps/`) và plugin ở `apps/tieulinh-legacy/openclaw-plugin/shadow-forwarder`.
 
 ## Mô hình an toàn
 
@@ -72,7 +72,7 @@ Làm tay trên server, không có bước tự động. Thêm vào `~/.openclaw/
 
 ```json
 "plugins": {
-  "load": { "paths": ["<repo>/apps/tieulinh/openclaw-plugin/shadow-forwarder"] },
+  "load": { "paths": ["<repo>/apps/tieulinh-legacy/openclaw-plugin/shadow-forwarder"] },
   "entries": {
     "shadow-forwarder": {
       "enabled": true,

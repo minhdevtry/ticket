@@ -1,0 +1,54 @@
+{
+  "$schema": "https://raw.githubusercontent.com/openclaw/openclaw/main/schema/openclaw.schema.json",
+  "version": "1.0",
+  "name": "vuihoc-tieulinh",
+  "description": "AI Agent tiếp nhận sự cố kỹ thuật Tiểu Linh của VUIHOC",
+  "mcpServers": {
+    "intake-tieulinh": {
+      "command": "bun",
+      "args": [
+        "run",
+        "apps/tieulinh-legacy/mcp/tieulinh/index.ts"
+      ],
+      "env": {
+        "ITSAPLAN_BASE_URL": "${ITSAPLAN_BASE_URL}",
+        "ITSAPLAN_API_KEY": "${ITSAPLAN_AGENT_KEY:-${ITSAPLAN_API_KEY}}",
+        "ITSAPLAN_AGENT_KEY": "${ITSAPLAN_AGENT_KEY:-${ITSAPLAN_API_KEY}}",
+        "ITSAPLAN_PROJECT_KEY": "TECH",
+        "ITSAPLAN_WEB_URL": "${ITSAPLAN_WEB_URL}",
+        "ONYX_BASE_URL": "${ONYX_BASE_URL}",
+        "ONYX_API_KEY": "${ONYX_API_KEY}",
+        "ONYX_PERSONA_ID": "${ONYX_PERSONA_ID:-6}",
+        "INTAKE_DB_PATH": "data/tieulinh.db",
+        "ADMIN_IDS": "${ADMIN_IDS:-}",
+        "TELEGRAM_BOT_TOKEN": "${TELEGRAM_BOT_TOKEN_TIEULINH}",
+        "ALERT_CHAT_ID": "${ALERT_CHAT_ID:-}",
+        "REQUIRE_APPROVAL": "${REQUIRE_APPROVAL:-true}"
+      }
+    }
+  },
+  "agents": {
+    "tieulinh": {
+      "id": "tieulinh",
+      "name": "Tiểu Linh",
+      "role": "Trợ lý tiếp nhận và xử lý sự cố kỹ thuật",
+      "instructions": [
+        "apps/tieulinh-legacy/skills/tieulinh/IDENTITY.md",
+        "apps/tieulinh-legacy/skills/tieulinh/SOUL.md",
+        "apps/tieulinh-legacy/skills/_shared/AGENTS.md"
+      ],
+      "skills": [
+        "apps/tieulinh-legacy/skills/tieulinh/skills/incident-intake/SKILL.md",
+        "apps/tieulinh-legacy/skills/tieulinh/skills/check-status/SKILL.md",
+        "apps/tieulinh-legacy/skills/_shared/skills/confirm-before-create/SKILL.md"
+      ],
+      "mcpServers": [
+        "intake-tieulinh"
+      ],
+      "channel": {
+        "type": "telegram",
+        "botToken": "${TELEGRAM_BOT_TOKEN_TIEULINH}"
+      }
+    }
+  }
+}
