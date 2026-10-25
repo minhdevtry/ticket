@@ -111,7 +111,7 @@ export const rules = [
 
 Hành động dựng sẵn nằm trong namespace `actions` (`actions.comment`, `moveTo`, `assign`, `setPriority`) để không lẫn với `ctx.comment`. Server thật phát `issue.state_changed` khi đổi cột (payload có `columnId` và `state`, không có cột cũ) và không có `issue.column_changed`. Engine chỉ đánh dấu một webhook là "đã thấy" sau khi xử lý không lỗi, nên giao lại sau lỗi vẫn chạy; payload không có `webhookTimestamp` thì không dedupe.
 
-Luật chạy trên webhook. Hoặc đặt `BOT_WEBHOOK_PORT` để bot tự nghe, hoặc nếu host đã có webhook server thì gọi `bot.handleEvent(envelope)`. Hiện luật chưa có hẹn giờ (`closeAfter`); xem lộ trình trong RFC.
+Luật chạy trên webhook. Hoặc đặt `BOT_WEBHOOK_PORT` để bot tự nghe, hoặc nếu host đã có webhook server thì gọi `bot.handleEvent(envelope)`. Việc cần làm sau một khoảng thời gian (`actions.closeAfter("48h")`, `actions.after(...)`) được ghi vào kho bền và tự huỷ khi điều kiện đổi: xem [Lịch chạy và hẹn giờ](/how-to/schedule-and-timers).
 
 ## Cấu hình
 
@@ -153,6 +153,12 @@ Khi bot đặt `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `createBot` dựng cl
 
 `@vuihoc/bot-core/testing` có `FakeItsaplan`: một server HTTP thật nói giao thức agent-runs và phần tracker tối thiểu (project, issue, comment, timeline). Có `fake.mention(issueId, text)` để xếp một run mention, `fake.fail(/regex/, status, times)` để chèn lỗi, và `fake.run(id)` để kiểm kết quả. `FakeLlm` cùng gói là LLM giả nói cả hai kiểu API. Xem `examples/minimal-bot/bot.test.ts` và `examples/llm-bot/bot.test.ts`.
 
-## Chưa có (milestone 2)
+## Độ bền và thời gian (milestone 2)
 
-Runtime lễ tân trong `createBot`, lịch cron do bot giữ, `closeAfter` và hẹn giờ bền, đăng ký webhook tự động, host OpenClaw. `defineBot` đã nhận `receptionist` để khai báo trước; `createBot` ghi cảnh báo rằng vai này chưa chạy.
+Đặt `BOT_DATA_DIR` và bot giữ một file SQLite (`<thư mục>/<bot.id>.sqlite`) cho những thứ không thể suy lại từ itsaplan: kết quả run đã tính xong mà chưa báo được (ledger), khoá chống trùng của comment và của sự kiện webhook đã xử lý, mốc cron, hẹn giờ của luật. Không đặt thì mọi thứ ở trong bộ nhớ như milestone 1. Itsaplan vẫn là nguồn sự thật; mất file kho chỉ mất những thứ trên, không hỏng dữ liệu ticket.
+
+`backoffice.schedule: { "0 8 * * *": handler }` là lịch do bot giữ (cron 5 trường, múi giờ mặc định `Asia/Ho_Chi_Minh`, chính sách mốc bị lỡ `skip` hoặc `catch-up-once`). Mốc được chiếm nguyên tử trong kho trước khi chạy, nên hai process cùng kho không cùng chạy một mốc. Chi tiết và ví dụ: [Lịch chạy và hẹn giờ](/how-to/schedule-and-timers). Bot cũng có thể tự đăng ký webhook theo `rules` (tuỳ chọn, tắt mặc định).
+
+## Chưa có
+
+Runtime lễ tân trong `createBot`, host OpenClaw, liên kết người báo với ticket (nên `closeAfter` phải đoán người báo, xem trang hẹn giờ). `defineBot` đã nhận `receptionist` để khai báo trước; `createBot` ghi cảnh báo rằng vai này chưa chạy.

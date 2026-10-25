@@ -8,6 +8,8 @@ Mẫu giá trị: [`apps/tieulinh-legacy/openclaw/.env.example`](https://github.
 `@vuihoc/bot-core` nhận mọi cấu hình qua tham số (ví dụ `startIntakeWorker` không đọc `process.env`). Nó chỉ cung cấp bộ nạp env (`parseEnvContent`, `loadEnvFile`, `loadEnvDefaults` trong `@vuihoc/bot-core/core`) để bot tự dùng. Các biến dưới đây thuộc về app.
 :::
 
+Biến của bot kit (`createBot`, các bot mới) khác với biến của Tiểu Linh bên dưới: xem mục "Bot kit" ở cuối trang.
+
 Quy ước cột: **Bắt buộc** nghĩa là thiếu thì tiến trình dừng ngay lúc khởi động (hoặc không làm được việc chính). **Mặc định** là giá trị code dùng khi biến không đặt. Cột **Đọc bởi**: `worker` là `worker/index.ts`, `mcp` là MCP server `mcp/tieulinh`, `kg-http` là `mcp/kg-http`, `plugin` là plugin OpenClaw, `bootstrap` là `openclaw/bootstrap.ts` và `sync-workspace.ts`.
 
 Các biến dạng số được đọc bằng `Number()` mà không kiểm tra NaN: giá trị rác cho hành vi khó đoán.
@@ -161,3 +163,17 @@ KG chỉ bật khi có `MEMGRAPH_URI` **và** dự án của worker nằm trong 
 ## Thiết lập webhook khi chạy
 
 `WEBHOOK_URL` (xem bảng Itsaplan) làm worker gọi `ensureItsaplanWebhook`, hàm này bảo đảm webhook ở URL đó tồn tại, đang bật và đủ các sự kiện cần thiết. Đây là đường đăng ký của app Tiểu Linh. Worker dựng bằng `startIntakeWorker` của bot-core đi đường khác: nó sinh URL từ host và cổng thật (xem [Dựng worker báo ngược](/how-to/notify-worker)), nên không có biến `WEBHOOK_URL` rời.
+
+## Bot kit (`createBot`)
+
+Biến mà `createBot` ([`@vuihoc/bot-core/bot`](/reference/entry-points)) đọc từ tham số `env` (tường minh, thường là `process.env`), không thuộc Tiểu Linh. CI không đối chiếu mục này với code như các bảng trên; nguồn sự thật là schema `kitEnv` trong `packages/core/src/bot/create.ts`. Biến sai hoặc thiếu làm `createBot` ném `ConfigError` liệt kê hết một lần, không lộ giá trị secret. Mọi tuỳ chọn có thể ghi đè bằng tham số của `createBot`.
+
+- `ITSAPLAN_BASE_URL`, `ITSAPLAN_AGENT_KEY` (bắt buộc khi bot có `backoffice`): URL API và key của agent (không phải key người).
+- `BOT_RUN_CONCURRENCY`, `BOT_POLL_INTERVAL_MS`, `BOT_DRAIN_TIMEOUT_MS`: số run chạy song song, chu kỳ poll, hạn chờ run đang chạy khi dừng (mặc định 5000 ms).
+- `BOT_HEALTH_PORT`, `BOT_HEALTH_HOST`: bật `/healthz` (mặc định bind `127.0.0.1`).
+- `BOT_WEBHOOK_PORT`, `BOT_WEBHOOK_HOST`, `ITSAPLAN_WEBHOOK_SECRET`: nhận webhook cho `rules`. Nghe ngoài loopback mà thiếu secret thì bot từ chối khởi động.
+- `BOT_DATA_DIR`: thư mục kho bền SQLite. Bot mở `<BOT_DATA_DIR>/<bot.id>.sqlite` (WAL, schema có phiên bản) để giữ ledger run, khoá chống trùng (`reply#n`, sự kiện webhook mà luật đã xử lý), mốc cron và hẹn giờ qua restart. Không đặt: mọi thứ in-memory (mặc định của test). Nên là đường dẫn tuyệt đối; không mở được thì `createBot` ném lỗi. Xem [Lịch chạy và hẹn giờ](/how-to/schedule-and-timers).
+- `BOT_TIMEZONE`: múi giờ IANA cho `backoffice.schedule` (mặc định `Asia/Ho_Chi_Minh`; `scheduleOptions.timezone` và `timezone` của từng lịch thắng biến này).
+- `BOT_WEBHOOK_AUTO_REGISTER`: `true` để bot tự đăng ký webhook của dự án theo `rules` khi `start()`. Mặc định tắt. Cần `BOT_WEBHOOK_URL` và một key có quyền webhook.
+- `BOT_WEBHOOK_URL`: URL mà itsaplan gọi tới được, dùng cho tự đăng ký (`http://` hoặc `https://`).
+- `ITSAPLAN_WEBHOOK_KEY` (secret): key có quyền quản lý webhook, chỉ dùng cho việc đăng ký (không dùng để claim hay ghi ticket). Không đặt thì dùng key agent, thường bị từ chối với `WebhookPermissionError`.

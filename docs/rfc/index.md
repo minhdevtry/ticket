@@ -4,6 +4,6 @@ RFC là bản đề xuất thiết kế viết **trước** khi code, để ngư
 
 | RFC | Trạng thái | Nội dung |
 |---|---|---|
-| [0001 Bot kit](/rfc/0001-bot-kit) | Đề xuất; milestone 1 đã cài đặt | `defineBot`, `createBot`, hậu cần qua agent-runs, lộ trình các milestone |
+| [0001 Bot kit](/rfc/0001-bot-kit) | Đề xuất; milestone 1 và 2a (độ bền, lịch, hẹn giờ) đã cài đặt | `defineBot`, `createBot`, hậu cần qua agent-runs, kho bền, lịch cron, hẹn giờ, lộ trình các milestone |
 
 Muốn dùng thứ RFC 0001 đã cài đặt, đọc [Dựng bot đầu tiên](/guide/first-bot) và [Bot kit](/explanation/bot-kit).

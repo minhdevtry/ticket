@@ -1,6 +1,6 @@
 # RFC 0001: Bot kit (`defineBot` / `createBot`)
 
-- Trạng thái: đề xuất, milestone 1 (nền tảng) đi kèm RFC này
+- Trạng thái: đề xuất; milestone 1 (nền tảng) đã cài đặt; milestone 2a (độ bền và thời gian: kho bền, lịch cron, hẹn giờ, tự đăng ký webhook) đã cài đặt, runtime lễ tân còn lại
 - Ngày: 2026-10-25
 - Phạm vi: `packages/core` (`@vuihoc/bot-core`), `apps/tieulinh-legacy`
 
@@ -47,9 +47,10 @@ export default defineBot({
       field, manual, status, event, fallback,
       schedule: staleDigest,              // run `schedule` từ lịch tạo trên itsaplan
     },
+    schedule: { "0 8 * * MON-FRI": digest },  // lịch do bot giữ (M2a), kho SQLite
     rules: [                              // sự kiện → điều kiện → hành động (webhook)
       whenColumn("Cần phân loại").do(actions.comment("Đã nhận"), actions.setPriority("medium")),
-      whenResolved().do(notifyReporter),
+      whenResolved().do(notifyReporter, actions.closeAfter("48h")),  // hẹn giờ bền (M2a)
     ],
     runs: { concurrency: 2 },
   },
@@ -147,7 +148,8 @@ Hai vai chạm nhau ở ticket: lễ tân tạo ticket và lưu binding (ticket 
 | Milestone | Nội dung |
 |---|---|
 | **1 (PR này)** | `defineBot`/`createBot`/`runBot`, `defineEnv`/`loadConfig`, agent-runs client + worker, `backoffice` (trigger dispatch, tracker khoá dự án, luật tối thiểu), `FakeItsaplan`, ví dụ `minimal-bot`, tài liệu |
-| 2 | Runtime lễ tân trong `createBot` (kênh Telegram, engine, extractor); lịch cục bộ `schedule: { "0 8 * * *": fn }` (bot tự bảo đảm lịch trên itsaplan qua API agent-schedules, gắn thẻ vào prompt để định tuyến); `closeAfter("48h")` và mọi hẹn giờ cần kho bền; đăng ký webhook theo `rules`; ledger bền (SQLite) cho agent-runs |
+| **2a (đã cài đặt)** | Độ bền và thời gian: kho SQLite bền (`BOT_DATA_DIR`: ledger agent-runs, khoá `reply#n`, dedupe luật, mốc cron, hẹn giờ, lease một-instance), lịch cron do bot giữ (`backoffice.schedule`, tự giữ trong process, không phụ thuộc API lịch của itsaplan), `actions.after`/`closeAfter`/`cancelTimer` với khoá huỷ, đăng ký webhook theo `rules` (opt-in) |
+| 2b | Runtime lễ tân trong `createBot` (kênh Telegram, engine, extractor); binding ticket ↔ chat dùng chung với hậu cần |
 | 3 | Host OpenClaw; chuyển Tiểu Linh sang `defineBot` |
 
 ## Lộ trình chuyển `apps/tieulinh-legacy`
@@ -163,28 +165,28 @@ Mỗi bước là một PR riêng, chạy song song với bản cũ (cờ bật/
 
 ## Câu hỏi mở
 
-1. **Lịch cục bộ**: bot tự tạo/đồng bộ lịch trên itsaplan (cần quyền quản lý schedule, thường là key của người, không phải key agent) hay chỉ nhận run `schedule` từ lịch người vận hành tạo tay? Claim không trả `scheduleId`, nên định tuyến phải dựa vào thẻ trong prompt.
-2. **Hẹn giờ bền** cho `closeAfter`: SQLite cục bộ (đơn giản, mỗi bot một DB) hay một run `schedule` của itsaplan đóng vai bộ hẹn giờ (không cần DB, nhưng độ phân giải theo phút)?
-3. **Một key hay hai**: hậu cần cần key agent (claim) cộng key có quyền ghi tracker. Hiện tracker client dùng cùng key agent. Có chỗ nào cần key admin (đăng ký webhook) tách riêng?
+1. **Lịch cục bộ** (đã quyết ở M2a): bot tự giữ lịch trong process bằng kho SQLite (`backoffice.schedule`), không tạo lịch trên itsaplan, nên không cần quyền quản lý schedule và không phải định tuyến bằng thẻ trong prompt. Run `schedule` từ lịch người vận hành tạo tay vẫn đi qua `on.schedule`.
+2. **Hẹn giờ bền** cho `closeAfter` (đã quyết ở M2a): SQLite cục bộ, mỗi bot một file. Đổi lại phải có ổ đĩa bền cho `BOT_DATA_DIR`; mất file thì mất hẹn đang chờ (không hỏng ticket).
+3. **Một key hay hai**: hậu cần cần key agent (claim) cộng key có quyền ghi tracker. Hiện tracker client dùng cùng key agent. Đăng ký webhook (đã cài đặt ở M2a) dùng key riêng `ITSAPLAN_WEBHOOK_KEY` chỉ cho việc đó; chưa tách key ghi tracker.
 4. **Khung prompt** của run `mention` do server chọn. Có nên đề nghị itsaplan trả thêm `sourceActivityId`/`scheduleId` có cấu trúc trong claim để khỏi parse văn bản?
 5. **Ranh giới `retry`**: server không có API "trả run về hàng đợi", chỉ có cách để lease hết hạn (mặc định 5 phút, tối đa 3 lần). Có cần đề nghị endpoint release/defer?
 6. **Nhiều bot một process**: `createBot` hiện là một bot một process; có cần `createFleet([...])` dùng chung health server không?
-7. **Ledger bền**: mặc định in-memory mất khi process chết. Giữ in-memory ở M1 là chấp nhận được vì idempotency ở tầng comment (dấu ẩn) vẫn chặn ghi trùng; có cần ledger bền ngay ở M2 không?
+7. **Ledger bền** (đã quyết ở M2a): có, khi đặt `BOT_DATA_DIR`. Không đặt thì vẫn in-memory (mặc định của test) và idempotency ở tầng comment (dấu ẩn) vẫn chặn ghi trùng.
 
-## Phát hiện từ review và việc để lại cho milestone 2
+## Phát hiện từ review và việc để lại cho milestone 2 (trạng thái sau M2a)
 
-Review độc lập của PR milestone 1 đã được xử lý ngay trong PR (lỗi tạm thời không còn thành `failed`, `stop()` bị chặn trên, run bị giao lại được nhận thay vì bỏ qua, ranh giới dự án theo `projectId`, luật chỉ đánh dấu "đã thấy" sau thành công, che secret theo giá trị, webhook ngoài loopback bắt buộc có secret, `issue.column_changed` bị bỏ vì server không phát sự kiện đó). Những mục sau cố ý để lại, mỗi mục nên thành một issue riêng:
+Review độc lập của PR milestone 1 đã được xử lý ngay trong PR (lỗi tạm thời không còn thành `failed`, `stop()` bị chặn trên, run bị giao lại được nhận thay vì bỏ qua, ranh giới dự án theo `projectId`, luật chỉ đánh dấu "đã thấy" sau thành công, che secret theo giá trị, webhook ngoài loopback bắt buộc có secret, `issue.column_changed` bị bỏ vì server không phát sự kiện đó). Những mục sau cố ý để lại ở M1, mỗi mục nên thành một issue riêng; trạng thái ghi cuối từng mục sau khi M2a (độ bền và thời gian) cài đặt. Mục "đăng ký webhook theo `rules`" của lộ trình đã xong ở M2a (opt-in, `BOT_WEBHOOK_AUTO_REGISTER`).
 
-1. **`findIssueByIdentifier` mặc định vẫn nuốt mọi lỗi** thành "không thấy" (cho tương thích các bot cũ). Bot kit dùng `strict` (chỉ nuốt 404). Cần rà các nơi gọi của `apps/tieulinh-legacy` rồi đổi mặc định.
-2. **Ghi comment không nguyên tử**: chống trùng là kiểm-rồi-ghi bằng dấu ẩn. Cần itsaplan nhận khoá idempotency khi tạo comment, hoặc bot giữ khoá bền.
-3. **Ledger bền** (SQLite) cho `RunLedger`; hiện in-memory.
-4. **Endpoint nhả/hoãn run** ở itsaplan để `retry` không phải chờ lease hết hạn (5 phút).
-5. **Heartbeat lỗi liên tiếp** nên huỷ handler trước khi lease hết hạn thay vì chờ server báo mất lease.
-6. **`X-Itsaplan-Event-Id`** (mã giao nhận ổn định của server, nằm ở header chứ không ở body) chưa tới được handler của `ItsaplanWebhookServer`, nên dedupe vẫn dựa vào `webhookTimestamp`. Nên chuyển header xuống handler.
-7. **`comment.deleted`** có ở server nhưng chưa có trong `ItsaplanWebhookEventName`.
-8. **Luật**: chưa có hẹn giờ (`closeAfter`), chưa có thử lại riêng từng luật, và tracker của luật chưa gắn `signal` như tracker của run.
-9. **Brand type** cho từng phần của ref (team slug, mã dự án) thay vì chỉ `ProjectRef`; hiện chỉ ref đủ là brand.
-10. **Một key hay hai** (câu hỏi mở 3) vẫn chưa quyết: tracker còn dùng key agent.
+1. **`findIssueByIdentifier` mặc định vẫn nuốt mọi lỗi** thành "không thấy" (cho tương thích các bot cũ). Bot kit dùng `strict` (chỉ nuốt 404). Cần rà các nơi gọi của `apps/tieulinh-legacy` rồi đổi mặc định. *Còn mở.*
+2. **Ghi comment không nguyên tử**: chống trùng là kiểm-rồi-ghi bằng dấu ẩn. Cần itsaplan nhận khoá idempotency khi tạo comment, hoặc bot giữ khoá bền. *Một phần (M2a): bot giữ khoá bền (`BOT_DATA_DIR`), nên sau restart không phải đọc lại timeline; vẫn chưa nguyên tử giữa hai lượt chạy đồng thời, cần phía itsaplan.*
+3. **Ledger bền** (SQLite) cho `RunLedger`; hiện in-memory. *Xong (M2a): `BotStore.ledger()`, bật bằng `BOT_DATA_DIR`.*
+4. **Endpoint nhả/hoãn run** ở itsaplan để `retry` không phải chờ lease hết hạn (5 phút). *Còn mở (cần phía itsaplan).*
+5. **Heartbeat lỗi liên tiếp** nên huỷ handler trước khi lease hết hạn thay vì chờ server báo mất lease. *Còn mở.*
+6. **`X-Itsaplan-Event-Id`** (mã giao nhận ổn định của server, nằm ở header chứ không ở body) chưa tới được handler của `ItsaplanWebhookServer`, nên dedupe vẫn dựa vào `webhookTimestamp`. Nên chuyển header xuống handler. *Một phần (M2a): dedupe của luật (`webhookTimestamp`) được lưu bền; chuyển header xuống handler còn mở. Dedupe ở tầng HTTP của `ItsaplanWebhookServer` cố ý vẫn in-memory: nó chiếm khoá trước khi xử lý, lưu bền thì một lần sập giữa chừng làm mất sự kiện vĩnh viễn.*
+7. **`comment.deleted`** có ở server nhưng chưa có trong `ItsaplanWebhookEventName`. *Còn mở.*
+8. **Luật**: chưa có hẹn giờ (`closeAfter`), chưa có thử lại riêng từng luật, và tracker của luật chưa gắn `signal` như tracker của run. *Hẹn giờ xong (M2a: `after`, `closeAfter`, `cancelTimer`, khoá huỷ; hẹn có thử lại và tracker gắn `signal`). Thử lại riêng từng luật và `signal` cho tracker của luật chạy theo webhook còn mở.*
+9. **Brand type** cho từng phần của ref (team slug, mã dự án) thay vì chỉ `ProjectRef`; hiện chỉ ref đủ là brand. *Còn mở.*
+10. **Một key hay hai** (câu hỏi mở 3) vẫn chưa quyết: tracker còn dùng key agent. *Key đăng ký webhook đã tách (`ITSAPLAN_WEBHOOK_KEY`); key ghi tracker còn mở.*
 
 ## Phương án đã loại
 

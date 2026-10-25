@@ -11,10 +11,11 @@ Mỗi trang là một việc cụ thể, làm theo từng bước. Trạng thái
 | [Chạy bóng Tiểu Linh 2](/how-to/shadow-tl2) | Có: relay, proxy giữ secret và gateway Colab chạy song song với Tiểu Linh 1 |
 | [Deploy và đẩy secret qua SSH](/how-to/deploy) | Một phần: đẩy secret và cập nhật code đã viết; unit systemd và rollback **đang viết** |
 | [Gọi LLM trong handler hậu cần](/how-to/call-llm) | Đã viết, mẫu code được CI chạy với LLM giả |
+| [Lịch chạy và hẹn giờ](/how-to/schedule-and-timers) | Đã viết, mẫu code được CI chạy |
 | [Chuyển project vào team](/how-to/move-project-to-team) | Một phần: phía code đã viết; quy trình trên itsaplan **đang viết** |
 | [Chuyển bot sang bot-core](/how-to/adopt-core) | Đã viết |
 | [Chuyển Tiểu Linh sang bot-core](/how-to/migrate-tieulinh) | Bản ghi lại việc đã làm |
 
-Vai hậu cần (handler theo trigger, luật, test với `FakeItsaplan`) chưa có trang Cách làm riêng. Bắt đầu từ [Dựng bot đầu tiên](/guide/first-bot), rồi xem [Bot kit](/explanation/bot-kit) và [giao thức agent-runs](/reference/agent-runs).
+Vai hậu cần: lịch cron và hẹn giờ có trang riêng ở trên; handler theo trigger, luật và test với `FakeItsaplan` chưa có trang Cách làm riêng. Bắt đầu từ [Dựng bot đầu tiên](/guide/first-bot), rồi xem [Bot kit](/explanation/bot-kit) và [giao thức agent-runs](/reference/agent-runs).
 
 Các trang này dùng mẫu code có cờ `ts check` hoặc `ts run`, tức được CI kiểm với code thật. Nếu một mẫu không chạy được với bản bạn đang có, đó là lỗi của docs: mở issue.
