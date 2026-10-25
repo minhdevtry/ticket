@@ -9,6 +9,8 @@ import fieldRequirements from "../../mcp/tieulinh/domain/required_fields.json";
 import productMapping from "../../mcp/tieulinh/domain/product_mapping.json";
 import urgencyRules from "../../mcp/tieulinh/domain/urgency-rules.json";
 import * as fs from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 describe("Bộ phận ngoài danh mục (unrecognized dept)", () => {
   it("nhận ra 'Kế toán' là bộ phận ngoài danh mục", () => {
@@ -107,9 +109,9 @@ describe("Pipeline hỏi lại bộ phận ngoài danh mục đúng một lần"
   }
 
   it("câu hỏi nói rõ bộ phận không có trong danh mục thay vì lặp lại câu cũ", async () => {
-    const { step, dbPath } = makeStep(
-      `data/test-unrecognized-dept-${Date.now()}-${process.pid}.db`,
-    );
+    // Thư mục tạm riêng: không phụ thuộc cwd hay việc `data/` (bị gitignore) đã tồn tại.
+    const dir = fs.mkdtempSync(join(tmpdir(), "unrecognized-dept-"));
+    const { step, dbPath } = makeStep(join(dir, "test.db"));
     const chatId = "chat_unrec_dept_test";
     const r1 = (await step.handler({
       chatId,
@@ -121,6 +123,6 @@ describe("Pipeline hỏi lại bộ phận ngoài danh mục đúng một lần"
     // Câu hỏi phải nói rõ lý do, không lặp câu cũ
     expect(r1.voiceText).toContain("Kế toán");
     expect(r1.voiceText).toContain("không có trong danh mục");
-    fs.unlinkSync(dbPath);
+    fs.rmSync(dir, { recursive: true, force: true });
   });
 });
