@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { ConfigError, type defineEnv } from "../core/config";
 import { FakeItsaplan } from "../testing/fake-itsaplan";
 import { FakeLlm } from "../llm/fake-llm";
-import { type Llm, createLlm, llmEnv, requireLlm } from "../llm";
+import { z } from "zod";
+import { type Llm, createLlm, defineLlmTool, llmEnv, requireLlm, runAgentLoop } from "../llm";
 import { createBot } from "./create";
 import { defineBot } from "./define";
 
@@ -74,6 +75,55 @@ describe("ctx.llm", () => {
     expect(run.output).toBe("chào từ model");
     expect(bot.llm?.api).toBe("openai-chat");
     expect(seenConfig).toEqual({});
+  });
+
+  test("gộp llmEnv({ required }) vào env của bot: LLM_* vẫn không vào ctx.config (nhất là LLM_API_KEY)", async () => {
+    llm.script({ text: "ok" });
+    let seenConfig: Record<string, unknown> | undefined;
+    const { run } = await runOne(
+      defWith(
+        (ctx) => {
+          seenConfig = ctx.config;
+          return "ok";
+        },
+        llmEnv({ required: true }),
+      ),
+      LLM_ENV(),
+    );
+    expect(run.status).toBe("success");
+    expect(seenConfig).toBeDefined();
+    expect(Object.keys(seenConfig ?? {}).filter((k) => k.startsWith("LLM_"))).toEqual([]);
+    expect(JSON.stringify(seenConfig)).not.toContain("llmkey-llmkey-llmkey-2");
+  });
+
+  test("ctx.trace che secret của bot ở mọi đường ghi (emit, text, tool) kể cả runAgentLoop", async () => {
+    const KEY = "llmkey-llmkey-llmkey-2";
+    llm.script({ toolCalls: [{ name: "echo", args: { v: KEY } }] }, { text: `đã dùng ${KEY}` });
+    const { run } = await runOne(
+      defWith(async (ctx) => {
+        await ctx.trace.text(`ghi chú ${KEY}`);
+        await ctx.trace.tool("t", { k: KEY }, `kq ${KEY}`);
+        await ctx.trace.emit({ type: "TEXT_MESSAGE_START", messageId: "x", role: "assistant" });
+        await runAgentLoop(ctx, {
+          messages: [{ role: "user", content: "hi" }],
+          tools: [
+            defineLlmTool({
+              name: "echo",
+              description: "echo",
+              schema: z.object({ v: z.string() }),
+              run: ({ v }) => `echo ${v}`,
+            }),
+          ],
+        });
+        return "ok";
+      }),
+      LLM_ENV(),
+    );
+    expect(run.status).toBe("success");
+    const events = JSON.stringify(run.events);
+    expect(run.events.length).toBeGreaterThan(5);
+    expect(events).not.toContain(KEY);
+    expect(events).toContain("[REDACTED]");
   });
 
   test("không đặt LLM_*: ctx.llm là undefined, bot vẫn chạy bình thường", async () => {

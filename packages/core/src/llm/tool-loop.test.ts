@@ -70,7 +70,13 @@ describe.each(APIS)("runToolLoop (%s)", (api) => {
       call: { name: "add", args: { a: 1, b: 2 } },
     });
     expect(result.steps[1]!.executions).toEqual([]);
-    expect(result.usage).toEqual({ inputTokens: 30, outputTokens: 8, totalTokens: 38 });
+    expect(result.usage).toEqual({
+      inputTokens: 30,
+      outputTokens: 8,
+      totalTokens: 38,
+      cacheReadTokens: 0,
+      cacheCreationTokens: 0,
+    });
     expect(log).toEqual([{ a: 1, b: 2, step: 1 }]);
     expect(result.messages.map((m) => m.role)).toEqual(["user", "assistant", "tool", "assistant"]);
     // tool gửi lại đúng khai báo từ zod

@@ -15,7 +15,7 @@
  * | `BOT_DRAIN_TIMEOUT_MS` | chờ run đang chạy khi dừng (mặc định 5000; xem `Bot.stopBudgetMs`) |
  * | `BOT_HEALTH_PORT`, `BOT_HEALTH_HOST` | bật `/healthz` |
  * | `BOT_WEBHOOK_PORT`, `BOT_WEBHOOK_HOST`, `ITSAPLAN_WEBHOOK_SECRET` | nhận webhook cho `rules` |
- * | `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_API`, `LLM_TIMEOUT_MS`, `LLM_MAX_RETRIES` | bật `ctx.llm` (đặt đủ ba biến đầu, hoặc không đặt biến nào) |
+ * | `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_API`, `LLM_TIMEOUT_MS`, `LLM_MAX_RETRIES`, `LLM_DEADLINE_MS` | bật `ctx.llm` (đặt đủ ba biến đầu, hoặc không đặt biến nào) |
  */
 import { existsSync } from "node:fs";
 import { z } from "zod";
@@ -30,7 +30,7 @@ import {
   secret,
 } from "../core/config";
 import { type IntakeLogger, getLogger } from "../core/logger";
-import { type Llm, type LlmUsageEvent, llmEnv, llmFromConfig } from "../llm";
+import { LLM_ENV_KEYS, type Llm, type LlmUsageEvent, llmEnv, llmFromConfig } from "../llm";
 import { type Clock, systemClock } from "../intake/ports";
 import {
   type ItsaplanWebhookEnvelope,
@@ -233,13 +233,15 @@ export function createBot<E extends EnvShape = Record<never, never>>(
           fetch: llmOpt?.fetch,
           onUsage: (event) => {
             logger.debug(
-              `llm ${event.model}: ${event.usage.inputTokens} vào / ${event.usage.outputTokens} ra, ${event.durationMs} ms, ${event.attempts} lần gọi`,
+              `llm ${event.model}${event.outcome === "error" ? " (phản hồi hỏng)" : ""}: ${event.usage.inputTokens} vào / ${event.usage.outputTokens} ra, ${event.durationMs} ms, lần gọi ${event.attempts}`,
             );
             llmOpt?.onUsage?.(event);
           },
         }));
-  // Chỉ phần của bot (không kèm biến kit) tới tay handler.
-  const userKeys = Object.keys(userEnv.shape);
+  // Chỉ phần của bot (không kèm biến kit) tới tay handler. `LLM_*` không bao giờ vào `ctx.config`
+  // (kể cả khi bot gộp `llmEnv()` vào env của mình để bắt buộc): handler dùng `ctx.llm`, và
+  // `LLM_API_KEY` không có lý do nằm trong tay handler.
+  const userKeys = Object.keys(userEnv.shape).filter((k) => !LLM_ENV_KEYS.includes(k));
   const config = Object.fromEntries(
     userKeys.map((k) => [k, (loaded.values as Record<string, unknown>)[k]]),
   ) as InferEnv<E>;
@@ -282,6 +284,7 @@ export function createBot<E extends EnvShape = Record<never, never>>(
       logger,
       clock,
       llm,
+      scrub,
     });
     // Thông điệp lỗi và output của run được gửi lên itsaplan: che secret trước khi đi.
     const handler: AgentRunHandler = async (ctx) => {

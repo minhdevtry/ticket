@@ -59,8 +59,8 @@ export interface AgentLoopOptions
 
 /**
  * Chạy vòng lặp tool trong một run: dùng `ctx.llm`, huỷ theo `ctx.signal`, và ghi trace lên
- * itsaplan (văn bản của model, từng tool, token) qua `ctx.trace`. Ném `LlmConfigError` nếu bot
- * chưa cấu hình LLM.
+ * itsaplan (văn bản của model, từng tool, token) qua `ctx.trace`, kể cả khi vòng lặp ném lỗi.
+ * Ném `LlmConfigError` nếu bot chưa cấu hình LLM.
  *
  * Trả về kết quả của vòng lặp; dùng `toRunUsage(result.usage)` để báo token cho run.
  */
@@ -68,17 +68,28 @@ export async function runAgentLoop(
   ctx: LlmRunContext,
   options: AgentLoopOptions,
 ): Promise<ToolLoopResult> {
-  const { onStep, maxChars, maxEvents, pricing, ...loop } = options;
-  const tracer = createLlmTracer(ctx.trace, { maxChars, maxEvents, pricing });
-  const result = await runToolLoop({
-    ...loop,
-    llm: requireLlm(ctx),
-    signal: ctx.signal,
-    onStep: async (step) => {
-      await tracer.onStep(step);
-      await onStep?.(step);
-    },
-  });
-  await tracer.finish(result);
-  return result;
+  const { onStep, maxChars, maxEvents, pricing, scrub, ...loop } = options;
+  const llm = requireLlm(ctx);
+  const tracer = createLlmTracer(ctx.trace, { maxChars, maxEvents, pricing, scrub });
+  let result: ToolLoopResult | undefined;
+  let failure: unknown;
+  try {
+    result = await runToolLoop({
+      ...loop,
+      llm,
+      signal: ctx.signal,
+      onStep: async (step) => {
+        await tracer.onStep(step);
+        await onStep?.(step);
+      },
+    });
+    return result;
+  } catch (err) {
+    failure = err;
+    throw err;
+  } finally {
+    // Dòng tổng kết cũng phải có khi vòng lặp ném lỗi (hết giờ, huỷ, LLM hỏng); lỗi trace không
+    // được che lỗi thật.
+    await tracer.finish(result, failure).catch(() => {});
+  }
 }

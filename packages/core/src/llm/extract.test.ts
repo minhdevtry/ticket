@@ -62,7 +62,7 @@ describe.each(["anthropic-messages", "openai-chat"] as const)("extract (%s)", (a
     const system = api === "anthropic-messages" ? sent.system : sent.messages[0].content;
     expect(system).toContain("Trích thông tin sự cố.");
     expect(system).toContain('"severity"'); // JSON Schema của zod
-    expect(sent.temperature).toBe(0);
+    expect(sent.temperature).toBeUndefined(); // không ép 0: MiniMax từ chối
     const userMsg = sent.messages.find((m: any) => m.role === "user");
     expect(userMsg.content).toBe("<input>\nApp không vào được, gấp\n</input>");
   });
@@ -85,7 +85,13 @@ describe.each(["anthropic-messages", "openai-chat"] as const)("extract (%s)", (a
     expect(out.data).toEqual({ title: "x", severity: "high", systems: [] });
     expect(out.attempts).toBe(2);
     expect(out.repaired).toBe(true);
-    expect(out.usage).toEqual({ inputTokens: 40, outputTokens: 12, totalTokens: 52 });
+    expect(out.usage).toEqual({
+      inputTokens: 40,
+      outputTokens: 12,
+      totalTokens: 52,
+      cacheReadTokens: 0,
+      cacheCreationTokens: 0,
+    });
     const retry = JSON.stringify(fake.requests[1]!.body.messages);
     expect(retry).toContain("severity");
     expect(retry).toContain("Your reply was invalid");

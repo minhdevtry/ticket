@@ -43,7 +43,13 @@ describe.each(APIS)("createLlm (%s)", (api) => {
 
     expect(res.text).toBe("Xin chào!");
     expect(res.stopReason).toBe("end");
-    expect(res.usage).toEqual({ inputTokens: 12, outputTokens: 4, totalTokens: 16 });
+    expect(res.usage).toEqual({
+      inputTokens: 12,
+      outputTokens: 4,
+      totalTokens: 16,
+      cacheReadTokens: 0,
+      cacheCreationTokens: 0,
+    });
     expect(res.model).toBe("MiniMax-M3.1-Flash");
     expect(res.message).toEqual({ role: "assistant", content: "Xin chào!" });
 
@@ -251,13 +257,22 @@ describe.each(APIS)("createLlm (%s)", (api) => {
     const res = await make(api, { sleep: async (ms) => void waits.push(ms) }).complete(ask);
     expect(res.text).toBe("ổn");
     expect(waits).toEqual([2000]);
+  });
 
-    waits.length = 0;
-    fake.script({ status: 429, headers: { "retry-after": "3600" } }, { text: "ổn" });
-    await make(api, { maxRetryAfterMs: 5000, sleep: async (ms) => void waits.push(ms) }).complete(
-      ask,
-    );
-    expect(waits).toEqual([5000]);
+  it("Retry-After vượt trần: thất bại ngay (không ngủ, không thử sớm)", async () => {
+    const waits: number[] = [];
+    fake.script({ status: 429, headers: { "retry-after": "3600" } }, { text: "không bao giờ tới" });
+    const err = await make(api, {
+      maxRetryAfterMs: 5000,
+      sleep: async (ms) => void waits.push(ms),
+    })
+      .complete(ask)
+      .catch((e) => e);
+    expect(err).toBeInstanceOf(LlmApiError);
+    expect(err.status).toBe(429);
+    expect(err.retryAfterMs).toBe(3_600_000);
+    expect(waits).toEqual([]);
+    expect(fake.requests).toHaveLength(1);
   });
 
   it("không bao giờ để key lọt vào thông điệp lỗi, kể cả khi server nhại lại key", async () => {

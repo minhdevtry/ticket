@@ -9,6 +9,7 @@ import {
   type AgentRunOutcome,
   type ItsaplanIssue,
   identifierInProject,
+  type RunTrace,
   isTransientError,
 } from "../itsaplan";
 import { parseMentionPrompt } from "./mention";
@@ -39,6 +40,35 @@ export interface DispatcherDeps<C> {
   clock?: Clock;
   /** Client LLM của bot (nếu đã cấu hình); handler nhận bản gắn `signal` của run. */
   llm?: Llm;
+  /**
+   * Che secret của bot (theo giá trị). Mọi thứ handler ghi vào `ctx.trace` (văn bản, tham số và
+   * kết quả tool, kể cả của `runAgentLoop`) đi qua hàm này trước khi lên itsaplan.
+   */
+  scrub?: <T>(value: T) => T;
+}
+
+/**
+ * Bọc `RunTrace` để che secret ở mọi đường ghi (`emit`, `text`, `tool`); các phương thức còn lại
+ * (`flush`, `enabled`, `setSession`) đi thẳng tới trace thật nên offset/trạng thái vẫn là của nó.
+ */
+function scrubbedTrace(trace: RunTrace, scrub: <T>(value: T) => T): RunTrace {
+  return new Proxy(trace, {
+    get(target, prop) {
+      switch (prop) {
+        case "emit":
+          return (...events: Parameters<RunTrace["emit"]>) => target.emit(...scrub(events));
+        case "text":
+          return (message: string) => target.text(scrub(message));
+        case "tool":
+          return (name: string, args: unknown, result: unknown) =>
+            target.tool(scrub(name), scrub(args), scrub(result));
+        default: {
+          const value = Reflect.get(target, prop, target);
+          return typeof value === "function" ? value.bind(target) : value;
+        }
+      }
+    },
+  });
 }
 
 function normalize(result: HandlerResult): AgentRunOutcome {
@@ -97,7 +127,7 @@ export function createRunDispatcher<C>(
       config: deps.config,
       logger,
       signal: workerCtx.signal,
-      trace: workerCtx.trace,
+      trace: deps.scrub ? scrubbedTrace(workerCtx.trace, deps.scrub) : workerCtx.trace,
       tracker,
       llm: deps.llm ? withSignal(deps.llm, workerCtx.signal) : undefined,
       clock,

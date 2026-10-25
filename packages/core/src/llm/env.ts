@@ -18,6 +18,7 @@ function optionalShape() {
     LLM_API: API.default("anthropic-messages"),
     LLM_TIMEOUT_MS: z.coerce.number().int().min(1).optional(),
     LLM_MAX_RETRIES: z.coerce.number().int().min(0).max(10).optional(),
+    LLM_DEADLINE_MS: z.coerce.number().int().min(0).optional(),
   };
 }
 
@@ -37,9 +38,14 @@ function requiredShape() {
  */
 export function llmEnv(options: { required: true }): EnvSchema<ReturnType<typeof requiredShape>>;
 export function llmEnv(options?: { required?: false }): EnvSchema<ReturnType<typeof optionalShape>>;
-export function llmEnv(options: { required?: boolean } = {}): EnvSchema<any> {
-  return defineEnv(options.required ? requiredShape() : optionalShape());
+export function llmEnv(
+  options: { required?: boolean } = {},
+): EnvSchema<ReturnType<typeof requiredShape>> | EnvSchema<ReturnType<typeof optionalShape>> {
+  return options.required ? defineEnv(requiredShape()) : defineEnv(optionalShape());
 }
+
+/** Tên mọi biến `LLM_*` mà `llmEnv` khai (để lọc khỏi `ctx.config`). */
+export const LLM_ENV_KEYS: readonly string[] = Object.keys(optionalShape());
 
 /** Giá trị cấu hình LLM đã nạp (tập con của `ctx.config` hoặc `loadConfig(llmEnv())`). */
 export interface LlmConfigValues {
@@ -49,6 +55,7 @@ export interface LlmConfigValues {
   LLM_API?: "anthropic-messages" | "openai-chat";
   LLM_TIMEOUT_MS?: number;
   LLM_MAX_RETRIES?: number;
+  LLM_DEADLINE_MS?: number;
 }
 
 /**
@@ -80,6 +87,7 @@ export function llmFromConfig(
     api: values.LLM_API ?? "anthropic-messages",
     timeoutMs: values.LLM_TIMEOUT_MS,
     maxRetries: values.LLM_MAX_RETRIES,
+    deadlineMs: values.LLM_DEADLINE_MS,
     ...extra,
   });
 }

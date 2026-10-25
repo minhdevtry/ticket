@@ -52,13 +52,16 @@ export {
 export {
   type ExtractOptions,
   type ExtractResult,
+  type LooseJson,
   LlmExtractError,
   extract,
   parseJsonLoose,
+  parseJsonWithRepairs,
+  repairJson,
 } from "./extract";
-export { type LlmPricing, UsageMeter, estimateCost } from "./usage";
+export { type LlmPricing, type UsageRow, UsageMeter, estimateCost } from "./usage";
 export { type LlmTracer, type LlmTracerOptions, type TraceSink, createLlmTracer } from "./trace";
-export { type LlmConfigValues, llmEnv, llmFromConfig } from "./env";
+export { LLM_ENV_KEYS, type LlmConfigValues, llmEnv, llmFromConfig } from "./env";
 export {
   type AgentLoopOptions,
   type LlmRunContext,

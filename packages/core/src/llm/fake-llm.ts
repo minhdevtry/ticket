@@ -22,7 +22,8 @@ export interface FakeLlmTurn {
   toolCalls?: FakeLlmToolCall[];
   /** Khối suy luận: `thinking` (anthropic) hoặc `<think>` trong content (openai). */
   thinking?: string;
-  usage?: { input: number; output: number };
+  /** `input` là token KHÔNG cache; `cacheRead`/`cacheCreation` là token cache (mỗi API báo một kiểu). */
+  usage?: { input: number; output: number; cacheRead?: number; cacheCreation?: number };
   /** Ghi đè lý do dừng theo cách gọi của từng API. */
   finish?: string;
   /** Trả lỗi HTTP thay vì phản hồi thường. */
@@ -142,7 +143,16 @@ function anthropicPayload(turn: FakeLlmTurn, body: Record<string, any>) {
     model: turn.model ?? body.model,
     content,
     stop_reason: turn.finish ?? ((turn.toolCalls?.length ?? 0) > 0 ? "tool_use" : "end_turn"),
-    usage: { input_tokens: turn.usage?.input ?? 10, output_tokens: turn.usage?.output ?? 5 },
+    usage: {
+      input_tokens: turn.usage?.input ?? 10,
+      output_tokens: turn.usage?.output ?? 5,
+      ...(turn.usage?.cacheRead !== undefined
+        ? { cache_read_input_tokens: turn.usage.cacheRead }
+        : {}),
+      ...(turn.usage?.cacheCreation !== undefined
+        ? { cache_creation_input_tokens: turn.usage.cacheCreation }
+        : {}),
+    },
   };
 }
 
@@ -153,7 +163,8 @@ function openaiPayload(turn: FakeLlmTurn, body: Record<string, any>) {
     function: { name: c.name, arguments: c.rawArgs ?? JSON.stringify(c.args) },
   }));
   const content = `${turn.thinking ? `<think>${turn.thinking}</think>\n\n` : ""}${turn.text ?? ""}`;
-  const input = turn.usage?.input ?? 10;
+  const cached = turn.usage?.cacheRead ?? 0;
+  const input = (turn.usage?.input ?? 10) + cached;
   const output = turn.usage?.output ?? 5;
   return {
     id: "chatcmpl_fake",
@@ -170,6 +181,11 @@ function openaiPayload(turn: FakeLlmTurn, body: Record<string, any>) {
         finish_reason: turn.finish ?? (calls.length > 0 ? "tool_calls" : "stop"),
       },
     ],
-    usage: { prompt_tokens: input, completion_tokens: output, total_tokens: input + output },
+    usage: {
+      prompt_tokens: input,
+      completion_tokens: output,
+      total_tokens: input + output,
+      ...(cached > 0 ? { prompt_tokens_details: { cached_tokens: cached } } : {}),
+    },
   };
 }

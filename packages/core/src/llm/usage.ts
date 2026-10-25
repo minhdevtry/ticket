@@ -7,49 +7,88 @@ import type { LlmUsage, LlmUsageEvent } from "./types";
 export interface LlmPricing {
   inputPerMTok: number;
   outputPerMTok: number;
+  /** Giá token đọc từ cache; mặc định bằng `inputPerMTok`. */
+  cacheReadPerMTok?: number;
+  /** Giá token ghi vào cache; mặc định bằng `inputPerMTok`. */
+  cacheCreationPerMTok?: number;
 }
 
-/** Chi phí ước tính của một lượng token. */
+/**
+ * Chi phí ước tính của một lượng token. `inputTokens` đã gồm token cache, nên phần không cache
+ * tính theo `inputPerMTok`, phần cache theo giá riêng (nếu có).
+ */
 export function estimateCost(usage: LlmUsage, pricing: LlmPricing): number {
+  const read = usage.cacheReadTokens ?? 0;
+  const creation = usage.cacheCreationTokens ?? 0;
+  const plain = Math.max(0, usage.inputTokens - read - creation);
   return (
-    (usage.inputTokens * pricing.inputPerMTok + usage.outputTokens * pricing.outputPerMTok) /
+    (plain * pricing.inputPerMTok +
+      read * (pricing.cacheReadPerMTok ?? pricing.inputPerMTok) +
+      creation * (pricing.cacheCreationPerMTok ?? pricing.inputPerMTok) +
+      usage.outputTokens * pricing.outputPerMTok) /
     1_000_000
   );
 }
 
+/** Một dòng của {@link UsageMeter}. */
+export type UsageRow = LlmUsage & {
+  /** Số lần gọi HTTP đã báo token (gồm cả lần hỏng/thử lại). */
+  calls: number;
+  /** Trong đó số lần phản hồi hỏng nhưng vẫn bị tính tiền. */
+  failedCalls: number;
+};
+
+const emptyRow = (): UsageRow => ({
+  inputTokens: 0,
+  outputTokens: 0,
+  totalTokens: 0,
+  cacheReadTokens: 0,
+  cacheCreationTokens: 0,
+  calls: 0,
+  failedCalls: 0,
+});
+
+const addRow = (row: UsageRow, usage: LlmUsage, failed: boolean): void => {
+  row.inputTokens += usage.inputTokens;
+  row.outputTokens += usage.outputTokens;
+  row.totalTokens += usage.totalTokens;
+  row.cacheReadTokens += usage.cacheReadTokens ?? 0;
+  row.cacheCreationTokens += usage.cacheCreationTokens ?? 0;
+  row.calls += 1;
+  if (failed) row.failedCalls += 1;
+};
+
 /** Tổng hợp token theo model, dùng làm `onUsage` của `createLlm`. */
 export class UsageMeter {
-  private readonly byModel = new Map<string, LlmUsage & { calls: number }>();
+  private readonly byModel = new Map<string, UsageRow>();
 
-  /** Ghi một sự kiện. Truyền thẳng làm `onUsage`: `createLlm({ onUsage: meter.record })`. */
+  /**
+   * Ghi một sự kiện. Truyền thẳng làm `onUsage`: `createLlm({ onUsage: meter.record })`. Tính cả
+   * lần gọi hỏng/thử lại mà server đã báo token, vì chúng vẫn bị tính tiền.
+   */
   readonly record = (event: LlmUsageEvent): void => {
-    const row = this.byModel.get(event.model) ?? {
-      inputTokens: 0,
-      outputTokens: 0,
-      totalTokens: 0,
-      calls: 0,
-    };
-    row.inputTokens += event.usage.inputTokens;
-    row.outputTokens += event.usage.outputTokens;
-    row.totalTokens += event.usage.totalTokens;
-    row.calls += 1;
+    const row = this.byModel.get(event.model) ?? emptyRow();
+    addRow(row, event.usage, event.outcome === "error");
     this.byModel.set(event.model, row);
   };
 
   /** Tổng của mọi model. */
-  total(): LlmUsage & { calls: number } {
-    const sum = { inputTokens: 0, outputTokens: 0, totalTokens: 0, calls: 0 };
+  total(): UsageRow {
+    const sum = emptyRow();
     for (const row of this.byModel.values()) {
       sum.inputTokens += row.inputTokens;
       sum.outputTokens += row.outputTokens;
       sum.totalTokens += row.totalTokens;
+      sum.cacheReadTokens += row.cacheReadTokens;
+      sum.cacheCreationTokens += row.cacheCreationTokens;
       sum.calls += row.calls;
+      sum.failedCalls += row.failedCalls;
     }
     return sum;
   }
 
   /** Số liệu từng model (bản sao). */
-  models(): Record<string, LlmUsage & { calls: number }> {
+  models(): Record<string, UsageRow> {
     return Object.fromEntries([...this.byModel].map(([k, v]) => [k, { ...v }]));
   }
 

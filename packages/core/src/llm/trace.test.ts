@@ -17,7 +17,13 @@ const step = (over: Partial<ToolLoopStep> = {}): ToolLoopStep => ({
     text: "Để mình xem issue.",
     toolCalls: [],
     stopReason: "tool_use",
-    usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+    usage: {
+      inputTokens: 1,
+      outputTokens: 1,
+      totalTokens: 2,
+      cacheReadTokens: 0,
+      cacheCreationTokens: 0,
+    },
     model: "m",
     message: { role: "assistant", content: "" },
   },
@@ -106,7 +112,13 @@ describe("createLlmTracer", () => {
     const result = {
       steps: [step()],
       finishReason: "end",
-      usage: { inputTokens: 2000, outputTokens: 500, totalTokens: 2500 },
+      usage: {
+        inputTokens: 2000,
+        outputTokens: 500,
+        totalTokens: 2500,
+        cacheReadTokens: 0,
+        cacheCreationTokens: 0,
+      },
     } as unknown as ToolLoopResult;
     await createLlmTracer(s, { pricing: { inputPerMTok: 1, outputPerMTok: 2 } }).finish(result);
     const text = (s.events.find((e) => e.type === "TEXT_MESSAGE_CONTENT") as { delta: string })

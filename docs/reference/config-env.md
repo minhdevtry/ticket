@@ -103,6 +103,7 @@ Biến của `@vuihoc/bot-core/llm`, do `createBot` tự đọc (không cần kh
 | `LLM_MODEL` | cùng nhóm ba biến đầu | không có | `createBot`, `llmEnv` | Tên model, vd `MiniMax-M3.1-Flash`. |
 | `LLM_API` | không | `anthropic-messages` | `createBot`, `llmEnv` | `anthropic-messages` hoặc `openai-chat`. |
 | `LLM_TIMEOUT_MS` | không | `60000` | `createBot`, `llmEnv` | Hạn cho mỗi lần gọi HTTP (ms). |
+| `LLM_DEADLINE_MS` | không | `120000` | `createBot`, `llmEnv` | Hạn TỔNG cho một `complete` gồm mọi lần thử lại và backoff (ms); `0` = không giới hạn. Quá hạn ném `LlmTimeoutError` (không `transient`). |
 | `LLM_MAX_RETRIES` | không | `2` | `createBot`, `llmEnv` | Số lần thử lại tối đa sau lần đầu (0 đến 10) khi 429/5xx/mạng/hết giờ. |
 
 ## Onyx (tri thức ticket)

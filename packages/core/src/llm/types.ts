@@ -18,6 +18,8 @@ export interface LlmToolCall {
   args: unknown;
   /** Có khi `args` không parse được thành JSON (kiểu OpenAI trả tham số dạng chuỗi). */
   argsError?: string;
+  /** Chuỗi tham số nguyên văn khi `argsError` có giá trị (giữ để phát lại đúng như model đã gửi). */
+  rawArgs?: string;
 }
 
 /** Tin nhắn của người dùng (hoặc đầu vào do bot đưa). */
@@ -73,18 +75,32 @@ export interface LlmRequest {
   toolChoice?: LlmToolChoice;
   /** Mặc định 4096. */
   maxTokens?: number;
+  /** Không gửi nếu bỏ trống (dùng mặc định của nhà cung cấp; một số model từ chối 0). */
   temperature?: number;
+  /**
+   * Hạn TỔNG (ms) cho lời gọi này, gồm mọi lần thử lại và thời gian chờ backoff. Ghi đè
+   * `deadlineMs` của client; `0` = không giới hạn. Quá hạn ném `LlmTimeoutError` (`scope: "deadline"`).
+   */
+  deadlineMs?: number;
   /** Ghi đè model của client cho riêng lời gọi này. */
   model?: string;
   /** Huỷ lời gọi (kể cả đang chờ backoff). Không bao giờ được thử lại sau khi huỷ. */
   signal?: AbortSignal;
 }
 
-/** Số token đã dùng. */
+/**
+ * Số token đã dùng. `inputTokens` là MỌI token đầu vào, gồm cả phần đọc/ghi cache (với Anthropic:
+ * `input_tokens + cache_read_input_tokens + cache_creation_input_tokens`; với OpenAI:
+ * `prompt_tokens`), nên `totalTokens = inputTokens + outputTokens` và trần token tính cả cache.
+ */
 export interface LlmUsage {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
+  /** Phần của `inputTokens` đọc từ cache prompt (0 nếu nhà cung cấp không báo). */
+  cacheReadTokens: number;
+  /** Phần của `inputTokens` ghi vào cache prompt (0 nếu nhà cung cấp không báo). */
+  cacheCreationTokens: number;
 }
 
 /** Vì sao model dừng. */
@@ -103,15 +119,21 @@ export interface LlmResponse {
   message: LlmAssistantMessage;
 }
 
-/** Sự kiện báo mỗi lời gọi `complete` thành công (cho hook dùng/chi phí). */
+/**
+ * Sự kiện dùng token (cho hook dùng/chi phí): một sự kiện cho mỗi lần gọi HTTP mà server đã
+ * báo token, kể cả lần hỏng (phản hồi 2xx sai hình dạng, `outcome: "error"`) và lần được thử
+ * lại, vì các lần đó vẫn bị tính tiền. Lần lỗi HTTP không có số token thì không có sự kiện.
+ */
 export interface LlmUsageEvent {
+  /** `error`: phản hồi hỏng nhưng server đã báo token. */
+  outcome: "ok" | "error";
   api: LlmApi;
   model: string;
   usage: LlmUsage;
   stopReason: LlmStopReason;
-  /** Tổng thời gian gồm cả các lần thử lại (ms). */
+  /** Tổng thời gian tính tới sự kiện này, gồm cả các lần thử lại trước đó (ms). */
   durationMs: number;
-  /** Số lần gọi HTTP đã thực hiện (1 = không phải thử lại). */
+  /** Số lần gọi HTTP đã thực hiện tới lúc này (1 = lần đầu). */
   attempts: number;
 }
 
@@ -119,6 +141,6 @@ export interface LlmUsageEvent {
 export interface Llm {
   readonly api: LlmApi;
   readonly model: string;
-  /** Gọi model một lần (có thử lại khi 429/5xx/mạng). */
+  /** Gọi model một lần (có thử lại khi 429/5xx/mạng/hết giờ từng lần). */
   complete(request: LlmRequest): Promise<LlmResponse>;
 }

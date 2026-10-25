@@ -74,9 +74,11 @@ export default defineBot({
 Điều cần biết khi viết handler:
 
 - **Tool đọc dữ liệu qua `ctx.tracker`** (đã khoá vào dự án), không gọi itsaplan trực tiếp.
-- **Chạm trần không ném.** Hết `maxSteps` hoặc `maxTotalTokens` thì `runAgentLoop` trả kết quả với `finishReason` khác `end`; handler quyết định trả lời hay đóng `failed`.
-- **Lỗi LLM tạm thời cứ để bay ra.** 429/5xx/mạng đã được client thử lại; nếu vẫn lỗi, ném ra ngoài thì run được nhả lease để giao lại. Lỗi vĩnh viễn (4xx, cấu hình) thì run đóng `failed` với thông điệp không chứa key.
-- **Handler phải chạy lại được.** Run có thể được giao lại sau crash. `ctx.reply` đã chống trùng theo số thứ tự lần gọi; vòng lặp tool thì gọi lại model (tốn token) nhưng không ghi trùng comment.
+- **Chạm trần không ném.** Hết `maxSteps` hoặc `maxTotalTokens`, bị cắt `max_tokens`, hay model từ chối thì `runAgentLoop` trả kết quả với `finishReason` khác `end` (`max_steps`, `budget`, `max_tokens`, `refused`); handler quyết định trả lời hay đóng `failed`. Bước cuối không chạy tool (kết quả không ai đọc), nên `maxSteps` phải đủ cho "gọi tool rồi trả lời".
+- **`toolChoice` ép chỉ áp ở bước 1.** Các bước sau là `auto`, nếu không model không bao giờ được trả lời.
+- **Đặt hạn giờ.** `deadlineMs` cho cả vòng và `toolTimeoutMs` (hoặc `LlmTool.timeoutMs`) cho từng tool; tool dài phải tôn trọng `ctx.signal`. Quá `deadlineMs` thì ném `LlmTimeoutError`, run đóng `failed` (hết giờ không `transient`).
+- **Lỗi LLM tạm thời cứ để bay ra.** 429/5xx/mạng đã được client thử lại; nếu vẫn lỗi, ném ra ngoài thì run được nhả lease để giao lại. Lỗi vĩnh viễn (4xx, cấu hình) và hết giờ thì run đóng `failed` với thông điệp không chứa key.
+- **Handler phải chạy lại được, và thử lại ở cấp run chạy lại TẤT CẢ tool đã chạy.** Run `retry` hoặc giao lại sau crash chạy lại cả handler: mọi lời gọi model (tốn token) và mọi tool chạy lần nữa. `ctx.reply` đã chống trùng theo số thứ tự lần gọi; tool có tác dụng phụ khác (tạo ticket, gọi API ngoài) phải tự chống trùng, ví dụ khoá theo `ctx.idempotencyKey`.
 - **Tool không được ném lỗi chứa secret**: thông điệp lỗi của tool đi tới model.
 
 ## 3. Trích trường từ văn bản (không cần tool)
@@ -94,16 +96,16 @@ const Incident = z.object({
   severity: z.enum(["low", "high"]),
 });
 
-const { data, repaired } = await extract({
+const { data, repaired, repairs } = await extract({
   llm,
   schema: Incident,
   instruction: "Trích tiêu đề và mức độ của sự cố.",
   input: "App không đăng nhập được từ sáng, nhiều người báo",
 });
-console.log(data.title, data.severity, repaired);
+console.log(data.title, data.severity, repaired, repairs);
 ```
 
-JSON bọc trong code fence hay có dấu phẩy thừa được sửa tự động; sai schema thì hỏi lại đúng một lần, hỏng nữa thì ném `LlmExtractError`.
+JSON bọc trong code fence hay có dấu phẩy thừa được sửa tự động (chỉ phần ngoài chuỗi; `repairs` cho biết đã sửa gì); sai schema thì hỏi lại đúng một lần, hỏng nữa thì ném `LlmExtractError`. `temperature` không được gửi trừ khi bạn đặt: nhiều model (MiniMax) từ chối 0.
 
 ## 4. Test bằng itsaplan giả và LLM giả
 

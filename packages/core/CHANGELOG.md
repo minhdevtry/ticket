@@ -5,10 +5,10 @@ All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded
 ## Unreleased
 
 - **`llm` (subpath mới)**: cách chuẩn để bot gọi LLM (mặc định MiniMax). Additive; không đổi API hiện có.
-  - `createLlm({ baseUrl, apiKey, model, api, timeoutMs, maxRetries, fetch })` → `{ complete }` cho
+  - `createLlm({ baseUrl, apiKey, model, api, timeoutMs, deadlineMs, maxRetries, fetch })` → `{ complete }` cho
     `anthropic-messages` và `openai-chat`, request/response trung lập (system, vai user/assistant/tool,
     tool JSON Schema, tool call, token, `stopReason`). Thử lại CHỈ với 429/5xx/mạng/hết giờ (backoff + jitter,
-    `Retry-After`); lỗi có kiểu (`LlmApiError` có `status`, `retryable`; `LlmNetworkError`, `LlmTimeoutError`,
+    `Retry-After` vượt `maxRetryAfterMs` thì thất bại ngay; hạn tổng `deadlineMs`); lỗi có kiểu (`LlmApiError` có `status`, `retryable`; `LlmNetworkError`, `LlmTimeoutError`,
     `LlmAbortError`, `LlmResponseError`, `LlmConfigError`); key không bao giờ vào thông điệp lỗi. Không có
     `stream` (để sau).
   - `runToolLoop` + `defineLlmTool` (tham số kiểm bằng zod, lỗi nói cho model biết trường sai, trần
@@ -16,9 +16,19 @@ All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded
     `createLlmTracer` (bước của vòng lặp tool → sự kiện AG-UI qua `RunTrace`/`appendEvents`),
     `UsageMeter`/`estimateCost`/hook `onUsage`.
   - `llmEnv`, `llmFromConfig`; `createBot` tự đọc `LLM_BASE_URL`, `LLM_API_KEY` (secret), `LLM_MODEL`,
-    `LLM_API`, `LLM_TIMEOUT_MS`, `LLM_MAX_RETRIES` và đưa client tới handler qua `ctx.llm` (gắn `signal`
+    `LLM_API`, `LLM_TIMEOUT_MS`, `LLM_MAX_RETRIES`, `LLM_DEADLINE_MS` và đưa client tới handler qua `ctx.llm` (gắn `signal`
     của run); `Bot.llm`; `createBot(def, { llm })` để tắt/ghi đè (test). `runAgentLoop(ctx, ...)`,
     `requireLlm(ctx)`, `toRunUsage`.
+  - Hành vi đã chốt sau rà soát: `toolChoice` ép chỉ áp ở bước 1; bước cuối gửi `none` và không chạy tool;
+    khối tool_use bị `max_tokens` cắt không chạy; `finishReason: "refused"`; `deadlineMs` (client và vòng
+    lặp) và `toolTimeoutMs`/`LlmTool.timeoutMs`; `LlmTimeoutError` không `transient` ở cấp run (thử lại ở
+    cấp run chạy lại cả handler và tool); `usage` có `cacheReadTokens`/`cacheCreationTokens` (`inputTokens`
+    gồm cả cache), `LlmPricing` có giá cache, `onUsage`/`UsageMeter` tính cả lần gọi hỏng đã có token
+    (`LlmUsageEvent.outcome`); `temperature` chỉ gửi khi đặt; `extract` sửa JSON không đụng nội dung chuỗi
+    và trả `repairs`, input không tự đóng được `</input>`, từ chối thì dừng ngay; nội dung rỗng trong hội
+    thoại thành chỗ giữ chỗ (Anthropic từ chối rỗng); tham số tool hỏng được phát lại nguyên văn
+    (`LlmToolCall.rawArgs`); trace bị kẹp ở 12 000 ký tự, `ctx.trace` che secret của bot, `runAgentLoop`
+    ghi dòng tổng kết cả khi lỗi; `LlmNetworkError.cause` đã che key; `LLM_*` không vào `ctx.config`.
   - `RunContext.llm` (mới, `Llm | undefined`; handler dựng `RunContext` bằng tay phải thêm trường này).
   - `isTransientError` nhận lỗi có `transient: true` (để `LlmError` tạm thời thành `retry` thay vì `failed`).
   - `testing`: thêm `FakeLlm` (LLM giả trên HTTP thật, hai kiểu API). Ví dụ: `examples/llm-bot`.
