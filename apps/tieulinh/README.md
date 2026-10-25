@@ -51,7 +51,7 @@ Test không cần mạng: `bun run --cwd apps/tieulinh test` (itsaplan giả, LL
 |---|---|
 | `bot.ts` | `tieulinhBot(env)`: khai báo `defineBot` (tracker, agent, handler, luật, lịch, `reporter`, `inbound`). |
 | `env.ts` | Env riêng của app (`defineEnv`) và kiểm chéo (`TELEGRAM_BOT_TOKEN` cần `TIEULINH_ONCALL_CHAT_ID`). |
-| `services.ts` | Kho SQLite của app (`tieulinh-app.sqlite`: liên kết, tuyến tin, trạng thái, mốc SLA), chọn kênh, `TicketClosure`, dispatcher. Dấu "đã làm" nằm ở `ctx.keys` của kit. |
+| `services.ts` | Kho SQLite của app (`tieulinh-app.sqlite`: liên kết, tuyến tin, trạng thái, mốc SLA), chọn kênh, `TicketClosure`, dispatcher. Dấu "đã làm" nằm ở `ctx.keys` của kit. `TIEULINH_BINDING_DB` (tuỳ chọn) trỏ riêng liên kết và tuyến tin sang file dạng legacy chung với TL1 (xem [Dùng chung binding với Tiểu Linh 1](../../docs/how-to/share-bindings-with-tl1.md)). |
 | `mention.ts`, `forward.ts`, `duplicates.ts`, `sla.ts`, `reporter.ts` | Từng nghiệp vụ. |
 | `copy.ts` | Mọi câu tiếng Việt gửi người báo. Logic không chứa chuỗi hiển thị. |
 | `*.test.ts`, `testkit.ts` | Kịch bản với `FakeItsaplan` + `FakeLlm`; `inbound.test.ts` đi qua server webhook thật; `gap-register.test.ts` là SỔ đối chiếu test legacy (chỉ giữ sổ khỏi nói dối, hành vi được kiểm ở test mà từng dòng trỏ tới). |
