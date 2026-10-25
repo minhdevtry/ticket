@@ -6,16 +6,19 @@
   "exports": {
     "./core": "./src/core/index.ts",
     "./itsaplan": "./src/itsaplan/index.ts",
+    "./backoffice": "./src/backoffice/index.ts",
+    "./bot": "./src/bot/index.ts",
     "./intake": "./src/intake/index.ts",
     "./identity": "./src/identity/index.ts",
     "./openclaw": "./src/openclaw/index.ts",
     "./telegram": "./src/telegram/index.ts",
     "./worker": "./src/worker/index.ts",
     "./eval": "./src/eval/index.ts",
+    "./testing": "./src/testing/index.ts",
     "./prose/*": "./prose/*"
   },
   "scripts": {
-    "test": "bun test src",
+    "test": "bun test src examples/minimal-bot",
     "check": "tsc --noEmit -p ."
   },
   "dependencies": {

@@ -70,6 +70,8 @@ export function redactSecrets(val: unknown): unknown {
       val
         // Telegram bot token (e.g. 123456789:ABCdefGHIjklMNOpqrSTUvwxYZ)
         .replace(/\b(\d{8,10}:[A-Za-z0-9_-]{30,45})\b/g, "[REDACTED_TELEGRAM_TOKEN]")
+        // Mật khẩu nhúng trong URL (postgres://user:pass@host/db)
+        .replace(/([a-z][a-z0-9+.-]*:\/\/[^\s:/@]*:)([^\s@/]+)(@)/gi, "$1[REDACTED]$3")
         // Bearer token
         .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, "Bearer [REDACTED_BEARER_TOKEN]")
         // OpenAI / Onyx API keys

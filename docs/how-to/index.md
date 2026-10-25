@@ -14,6 +14,6 @@ Mỗi trang là một việc cụ thể, làm theo từng bước. Trạng thái
 | [Chuyển bot sang bot-core](/how-to/adopt-core) | Đã viết |
 | [Chuyển Tiểu Linh sang bot-core](/how-to/migrate-tieulinh) | Bản ghi lại việc đã làm |
 
-Chưa có trang cho các việc của vai hậu cần (viết trigger, viết rule) vì API còn **đang thiết kế**: xem [Kiến trúc](/explanation/architecture).
+Vai hậu cần (handler theo trigger, luật, test với `FakeItsaplan`) chưa có trang Cách làm riêng. Bắt đầu từ [Dựng bot đầu tiên](/guide/first-bot), rồi xem [Bot kit](/explanation/bot-kit) và [giao thức agent-runs](/reference/agent-runs).
 
 Các trang này dùng mẫu code có cờ `ts check` hoặc `ts run`, tức được CI kiểm với code thật. Nếu một mẫu không chạy được với bản bạn đang có, đó là lỗi của docs: mở issue.

@@ -10,6 +10,40 @@ All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded
   `send` che nó. Chỉ thêm export, không đổi hành vi. Lý do: TypeDoc (cảnh báo = lỗi)
   đòi mọi kiểu được tham chiếu phải có trong tài liệu.
 
+- **Bot kit, milestone 1** (RFC `docs/rfc/0001-bot-kit.md`). Additive; không đổi API hiện có.
+  - `core`: `defineEnv`, `secret`, `mergeEnv`, `loadConfig`, `ConfigError`, `REDACTED`, `createScrubber`,
+    `redactUrlCredentials` — env có
+    kiểu (zod), kiểm tra một lần, lỗi gom đủ, secret che trong `redacted`/log, `.env` chỉ nạp khi
+    truyền `envFile` và không ghi ngược `process.env`.
+  - `itsaplan` (`agent-runs`): `AgentRunsClient` (`claim`, `heartbeat`, `report`, `appendEvents`; tham
+    số dạng object), `isTransientError`, `findIssueByIdentifier(…, { strict })`,
+    `AgentRunWorker`/`createAgentRunWorker` (polling, heartbeat, backoff, concurrency, dừng êm,
+    `RunLedger` chống chạy lại khi báo kết quả lỗi), `RunTrace` (trace AG-UI), kiểu giao thức. Giao
+    thức: `docs/reference/agent-runs.md`.
+  - `backoffice` (subpath mới): handler theo trigger (`mention`, `delegation`, `field`, `schedule`,
+    `manual`, `status`, `event`), `RunContext`, tracker khoá theo dự án (`createScopedTracker`),
+    `parseMentionPrompt`, luật `event → điều kiện → hành động` (`whenColumn`, `whenResolved`,
+    `whenDone`, `whenCommentCreated`, `actions.{comment,moveTo,assign,setPriority}`, `RuleEngine`).
+    Export tường minh, không `export *`.
+  - `bot` (subpath mới): `defineBot`, `createBot` (`start`/`stop`/`health`/`handleEvent`),
+    `runBot`, `startHealthServer` (`/healthz`).
+  - `testing` (subpath mới): `FakeItsaplan`, itsaplan giả trên HTTP thật cho test bot.
+  - `tracker: { team, project }` bắt buộc: `team` là slug, `project` là `KEY` in hoa; mọi lời gọi
+    itsaplan dùng ref đủ `<team>.<KEY>` (`ctx.tracker.ref`), `defineBot` kiểm định dạng; `FakeItsaplan`
+    từ chối khoá trần (`allowBareKeys` để bật lại).
+  - Độ bền (sau review độc lập): lỗi tạm thời của itsaplan (5xx/429/mạng) trong handler thành
+    `retry`, lượt cuối thành `failed` kèm lý do; lệnh ĐỌC của tracker thử lại, lệnh GHI không;
+    chỉ 404 nghĩa là "không thuộc dự án"; ranh giới dự án theo `projectId`; `ctx.attempt`,
+    `ctx.maxAttempts`, `ctx.prompt`; `ctx.comment` chỉ cho `mention`; `reply` khoá theo số lần gọi;
+    tracker của run từ chối ghi sau khi huỷ; worker: vỏ ngoài chặn lỗi bất ngờ (kể cả ledger),
+    `stop()` có hạn trên, run bị giao lại được nhận lượt mới, 401/403 chỉ chết sau 3 lần liên
+    tiếp; `runBot` thoát mã 1 khi lỗi chết, hạn thoát = `bot.stopBudgetMs`, drain mặc định 5 s
+    (đổi từ 30 s); luật chỉ đánh dấu đã thấy sau thành công, bỏ `issue.column_changed`; che secret
+    theo giá trị và mật khẩu trong URL; webhook ngoài loopback bắt buộc có secret; biến env rỗng
+    không che `.env`; kiểm tuỳ chọn chu kỳ; team có thể là id số.
+  - ví dụ `examples/minimal-bot`; `bun test` của core chạy thêm ví dụ này.
+  - chưa có (milestone 2): runtime lễ tân, lịch cron do bot giữ, `closeAfter`, ledger bền,
+    đăng ký webhook theo `rules`.
 - Moved into the `ticket` monorepo (`packages/core`, consumed via `workspace:*`);
   scrubbed internal fixtures (hosts, IPs, phone numbers, chat/user IDs, staff names
   and handles, personal paths) and removed the old standalone-repo docs.

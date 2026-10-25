@@ -1,6 +1,6 @@
 # @vuihoc/bot-core
 
-Thư viện TypeScript/Bun dùng chung cho các bot ticket của VuiHoc. Một package, mỗi tầng là một subpath: `core`, `itsaplan`, `intake`, `identity`, `openclaw`, `telegram`, `worker`, `eval` (và `prose/*` cho markdown dùng chung).
+Thư viện TypeScript/Bun dùng chung cho các bot ticket của VuiHoc. Một package, mỗi tầng là một subpath: `core`, `itsaplan`, `intake`, `identity`, `openclaw`, `telegram`, `worker`, `eval`, cùng bot kit `bot`, `backoffice`, `testing` (và `prose/*` cho markdown dùng chung).
 
 Package nằm trong monorepo `ticket` và được app dùng qua `"@vuihoc/bot-core": "workspace:*"`. Mã nguồn TypeScript được phát hành trực tiếp, không có bước build.
 

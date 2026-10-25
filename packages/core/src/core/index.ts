@@ -98,3 +98,21 @@ export {
 
 // ── test preload helper ──────────────────────────────────────────────────────
 export { type ScrubEnvOptions, scrubOutboundEnv } from "./test-preload-helper";
+
+// ── config có kiểu (milestone 1 của bot kit) ─────────────────────────────────
+export {
+  type EnvShape,
+  type InferEnv,
+  type EnvSchema,
+  type ConfigIssue,
+  type LoadConfigOptions,
+  type LoadedConfig,
+  REDACTED,
+  ConfigError,
+  createScrubber,
+  redactUrlCredentials,
+  secret,
+  defineEnv,
+  mergeEnv,
+  loadConfig,
+} from "./config";

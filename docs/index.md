@@ -18,7 +18,7 @@ hero:
 
 features:
   - title: Hướng dẫn
-    details: Từ con số 0 tới bot chạy được. Trang "Dựng bot đầu tiên" đang viết, chờ API defineBot.
+    details: Từ con số 0 tới bot chạy được. Dựng bot hậu cần bằng defineBot, test không cần mạng, chạy bằng một lệnh.
     link: /guide/
   - title: Cách làm
     details: Từng việc cụ thể, có thể làm theo ngay. Viết catalog, thêm kênh, dựng worker báo ngược, deploy và đẩy secret qua SSH.

@@ -1,5 +1,5 @@
 {
   "extends": "../../tsconfig.base.json",
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "examples/minimal-bot/**/*"],
   "exclude": ["node_modules", "**/dist"]
 }

@@ -11,6 +11,7 @@
  * `ownership.ts` (Telegram-coupled), CM `fields.ts` / `names.ts` (CM domain).
  */
 export * from "./http";
+export * from "./transient";
 export * from "./client";
 export * from "./project";
 export * from "./project-lock";
@@ -22,3 +23,6 @@ export * from "./ensure-webhook";
 
 // ── ticket 14: webhook front door (signature, dedupe, server) ────────────────
 export * from "./webhook";
+
+// ── bot kit: hàng đợi external agent runs (client + worker) ──────────────────
+export * from "./agent-runs";
