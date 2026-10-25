@@ -130,6 +130,9 @@ function envNamesIn(text: string): string[] {
   return [...names];
 }
 
+/** File của bot-core khai biến môi trường bằng `defineEnv` mà trang config-env phải mô tả. */
+const KIT_ENV_FILES = ["packages/core/src/llm/env.ts"];
+
 function checkEnv() {
   const doc = pages.find((p) => p.file === "docs/reference/config-env.md");
   if (!doc) {
@@ -146,6 +149,12 @@ function checkEnv() {
   for (const f of sourceFiles(join(ROOT, "apps/tieulinh-legacy")).filter(isRuntimeFile)) {
     for (const name of envNamesIn(readFileSync(f, "utf8")))
       if (!inCode.has(name)) inCode.set(name, rel(f));
+  }
+  // Biến của bot kit khai bằng `defineEnv({ NAME: ... })` (không đọc qua `env.NAME`).
+  for (const f of KIT_ENV_FILES) {
+    for (const m of read(f).matchAll(/^\s+([A-Z][A-Z0-9_]+): /gm)) {
+      if (!inCode.has(m[1])) inCode.set(m[1], f);
+    }
   }
   const example = read("apps/tieulinh-legacy/openclaw/.env.example");
   const inExample = new Set([...example.matchAll(/^#?\s*([A-Z][A-Z0-9_]+)=/gm)].map((m) => m[1]));

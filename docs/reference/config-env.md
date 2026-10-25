@@ -92,6 +92,19 @@ Server của worker app lắng nghe không chỉ định host (mọi interface);
 
 Thiếu cấu hình LLM thì các tính năng dùng LLM tắt chứ không làm bot chết.
 
+## LLM của bot kit
+
+Biến của `@vuihoc/bot-core/llm`, do `createBot` tự đọc (không cần khai trong `env` của bot) và đưa client tới handler qua `ctx.llm`. Đặt đủ ba biến đầu hoặc không đặt biến nào: đặt một phần thì `createBot` ném `ConfigError` nêu biến thiếu. Khác với mục "LLM" bên dưới (biến `OPENAI_*` của app Tiểu Linh). Chi tiết: [Tham chiếu LLM](/reference/llm), [Gọi LLM trong handler hậu cần](/how-to/call-llm).
+
+| Biến | Bắt buộc | Mặc định | Đọc bởi | Ý nghĩa |
+|---|---|---|---|---|
+| `LLM_BASE_URL` | cùng nhóm ba biến đầu | không có | `createBot`, `llmEnv` | Gốc API. `anthropic-messages`: không có `/v1` (client thêm `/v1/messages`); `openai-chat`: có `/v1` (client thêm `/chat/completions`). Qua proxy dev là `http://127.0.0.1:<cổng>`. |
+| `LLM_API_KEY` | cùng nhóm ba biến đầu | không có | `createBot`, `llmEnv` | Khoá API (secret, bị che trong log). Qua proxy dev chỉ là chuỗi giả. |
+| `LLM_MODEL` | cùng nhóm ba biến đầu | không có | `createBot`, `llmEnv` | Tên model, vd `MiniMax-M3.1-Flash`. |
+| `LLM_API` | không | `anthropic-messages` | `createBot`, `llmEnv` | `anthropic-messages` hoặc `openai-chat`. |
+| `LLM_TIMEOUT_MS` | không | `60000` | `createBot`, `llmEnv` | Hạn cho mỗi lần gọi HTTP (ms). |
+| `LLM_MAX_RETRIES` | không | `2` | `createBot`, `llmEnv` | Số lần thử lại tối đa sau lần đầu (0 đến 10) khi 429/5xx/mạng/hết giờ. |
+
 ## Onyx (tri thức ticket)
 
 Onyx là tuỳ chọn: thiếu cấu hình thì bot vẫn chạy, chỉ không tích luỹ tri thức.

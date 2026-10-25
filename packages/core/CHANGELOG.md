@@ -4,6 +4,25 @@ All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded
 
 ## Unreleased
 
+- **`llm` (subpath mới)**: cách chuẩn để bot gọi LLM (mặc định MiniMax). Additive; không đổi API hiện có.
+  - `createLlm({ baseUrl, apiKey, model, api, timeoutMs, maxRetries, fetch })` → `{ complete }` cho
+    `anthropic-messages` và `openai-chat`, request/response trung lập (system, vai user/assistant/tool,
+    tool JSON Schema, tool call, token, `stopReason`). Thử lại CHỈ với 429/5xx/mạng/hết giờ (backoff + jitter,
+    `Retry-After`); lỗi có kiểu (`LlmApiError` có `status`, `retryable`; `LlmNetworkError`, `LlmTimeoutError`,
+    `LlmAbortError`, `LlmResponseError`, `LlmConfigError`); key không bao giờ vào thông điệp lỗi. Không có
+    `stream` (để sau).
+  - `runToolLoop` + `defineLlmTool` (tham số kiểm bằng zod, lỗi nói cho model biết trường sai, trần
+    `maxSteps`/`maxTotalTokens`, huỷ bằng `signal`), `extract` (sửa JSON, hỏi lại đúng một lần),
+    `createLlmTracer` (bước của vòng lặp tool → sự kiện AG-UI qua `RunTrace`/`appendEvents`),
+    `UsageMeter`/`estimateCost`/hook `onUsage`.
+  - `llmEnv`, `llmFromConfig`; `createBot` tự đọc `LLM_BASE_URL`, `LLM_API_KEY` (secret), `LLM_MODEL`,
+    `LLM_API`, `LLM_TIMEOUT_MS`, `LLM_MAX_RETRIES` và đưa client tới handler qua `ctx.llm` (gắn `signal`
+    của run); `Bot.llm`; `createBot(def, { llm })` để tắt/ghi đè (test). `runAgentLoop(ctx, ...)`,
+    `requireLlm(ctx)`, `toRunUsage`.
+  - `RunContext.llm` (mới, `Llm | undefined`; handler dựng `RunContext` bằng tay phải thêm trường này).
+  - `isTransientError` nhận lỗi có `transient: true` (để `LlmError` tạm thời thành `retry` thay vì `failed`).
+  - `testing`: thêm `FakeLlm` (LLM giả trên HTTP thật, hai kiểu API). Ví dụ: `examples/llm-bot`.
+
 - Docs site: `OutboxKind`, `CommentPayload`, `StatePayload` (`intake`) giờ được export;
   `identityTokenSchema` (`openclaw`) được export từ entry point; `ParseMode` của
   `render` được xuất lại dưới tên `RenderParseMode` (`telegram`) vì `ParseMode` của

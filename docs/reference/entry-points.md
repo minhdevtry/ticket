@@ -11,13 +11,14 @@
 | `@vuihoc/bot-core/openclaw` | Bộ công cụ viết plugin OpenClaw: giới hạn theo agent, token danh tính theo lượt, nút bấm chờ gửi, kế hoạch đồng bộ workspace và deploy | Plugin chạy trên gateway OpenClaw |
 | `@vuihoc/bot-core/telegram` | Kênh Telegram: transport Bot API, gửi an toàn, tách tin dài, render, media đến, cảnh báo admin, `ChannelPort` cho báo ngược | Bot dùng Telegram |
 | `@vuihoc/bot-core/bot` | Bot kit: `defineBot` (khai báo, kiểm tra), `createBot` (runtime: poll agent-runs, heartbeat, dừng êm, health, đọc env), `runBot` (chạy tới khi có tín hiệu dừng), `/healthz` | Bot mới, muốn một khai báo thay vì ghép tay |
+| `@vuihoc/bot-core/llm` | LLM: `createLlm` (Anthropic Messages hoặc OpenAI Chat, thử lại 429/5xx/mạng), vòng lặp tool (`runToolLoop`, `defineLlmTool`), `extract` có cấu trúc, trace lên itsaplan (`runAgentLoop`), token/chi phí, `llmEnv` | Bot gọi LLM; có sẵn ở handler hậu cần qua `ctx.llm` |
 | `@vuihoc/bot-core/backoffice` | Hậu cần: kiểu `RunContext` và handler theo trigger, dispatcher run, tracker khoá một dự án, luật "sự kiện → điều kiện → hành động" | Viết handler `mention`, rule; thường dùng qua `defineBot` |
-| `@vuihoc/bot-core/testing` | `FakeItsaplan`: itsaplan giả chạy trên HTTP thật, nói giao thức agent-runs. Chỉ dùng trong test | Test bot không cần mạng |
+| `@vuihoc/bot-core/testing` | `FakeItsaplan` (itsaplan giả, nói giao thức agent-runs) và `FakeLlm` (LLM giả, nói cả hai kiểu API), đều chạy trên HTTP thật. Chỉ dùng trong test | Test bot không cần mạng |
 | `@vuihoc/bot-core/worker` | `startIntakeWorker`: lắp sẵn worker báo ngược (webhook, đăng ký, dispatcher, reply) | Bot cần báo ngược về chat |
 | `@vuihoc/bot-core/eval` | Khung chạy hội thoại nhiều lượt rồi chấm; tiêu chí chấm do bot tiêm | Test chất lượng hội thoại |
 | `@vuihoc/bot-core/prose/*` | Không phải code: markdown dùng chung (`AGENTS.shared.md`, skill `confirm-before-create`), bot sao chép vào lớp markdown của mình | Bot dùng OpenClaw |
 
-Phụ thuộc theo một chiều: `core` ← `itsaplan` ← `intake`. `telegram`, `worker`, `identity`, `openclaw` và `eval` đứng trên các tầng đó. `backoffice` đứng trên `core` và `itsaplan`, còn `bot` ghép `backoffice` với `core` thành một vòng đời.
+Phụ thuộc theo một chiều: `core` ← `itsaplan` ← `intake`. `telegram`, `worker`, `identity`, `openclaw` và `eval` đứng trên các tầng đó. `llm` đứng trên `core` (và `itsaplan` cho trace), `backoffice` đứng trên `core`, `itsaplan` và `llm`, còn `bot` ghép `backoffice` với `core` thành một vòng đời.
 
 ## Thêm hoặc đổi subpath
 

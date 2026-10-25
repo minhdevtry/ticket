@@ -145,9 +145,13 @@ try {
 - `health()` không báo "chưa poll" khi bot đang bận hết `BOT_RUN_CONCURRENCY` (lúc đó cố ý không poll).
 - `bot.stop()` ngừng nhận việc, chờ run đang chạy tối đa `BOT_DRAIN_TIMEOUT_MS` (mặc định **5 giây**). Quá hạn thì huỷ handler (`ctx.signal`) và **không báo kết quả**, nên handler phải chạy lại được; handler phớt lờ `signal` cũng không giữ bot quá thêm 1 giây. Tổng thời gian dừng tối đa là `bot.stopBudgetMs` (mặc định 7,5 giây, trong hạn 10 giây của `docker stop`), và `runBot` lấy chính số đó làm hạn thoát cưỡng bức: chỉ có một nguồn. Handler chạy lâu (gọi LLM) cần nâng `BOT_DRAIN_TIMEOUT_MS` cùng `docker stop -t` hoặc `TimeoutStopSec` của systemd.
 
+## LLM trong handler
+
+Khi bot đặt `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `createBot` dựng client LLM và đưa vào `ctx.llm` (không đặt thì là `undefined`). Handler dùng `runAgentLoop(ctx, ...)` để cho model gọi tool trên `ctx.tracker`; mỗi bước hiện trong lịch sử run trên itsaplan. Xem [Gọi LLM trong handler hậu cần](/how-to/call-llm) và [Tham chiếu LLM](/reference/llm).
+
 ## Test
 
-`@vuihoc/bot-core/testing` có `FakeItsaplan`: một server HTTP thật nói giao thức agent-runs và phần tracker tối thiểu (project, issue, comment, timeline). Có `fake.mention(issueId, text)` để xếp một run mention, `fake.fail(/regex/, status, times)` để chèn lỗi, và `fake.run(id)` để kiểm kết quả. Xem `examples/minimal-bot/bot.test.ts`.
+`@vuihoc/bot-core/testing` có `FakeItsaplan`: một server HTTP thật nói giao thức agent-runs và phần tracker tối thiểu (project, issue, comment, timeline). Có `fake.mention(issueId, text)` để xếp một run mention, `fake.fail(/regex/, status, times)` để chèn lỗi, và `fake.run(id)` để kiểm kết quả. `FakeLlm` cùng gói là LLM giả nói cả hai kiểu API. Xem `examples/minimal-bot/bot.test.ts` và `examples/llm-bot/bot.test.ts`.
 
 ## Chưa có (milestone 2)
 

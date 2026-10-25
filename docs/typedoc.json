@@ -12,6 +12,7 @@
     "../packages/core/src/eval/index.ts",
     "../packages/core/src/bot/index.ts",
     "../packages/core/src/backoffice/index.ts",
+    "../packages/core/src/llm/index.ts",
     "../packages/core/src/testing/index.ts"
   ],
   "entryPointStrategy": "resolve",
