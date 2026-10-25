@@ -7,7 +7,7 @@ import { PROXY_INJECTS_KEY, buildEnv, readPid } from "./tieulinh-run.ts";
 afterEach(cleanTmp);
 
 const base = {
-  home: "/home/u/tl2/tieulinh",
+  home: "/var/lib/tl2/tieulinh",
   model: "MiniMax-M3.1-Flash",
   port: 3120,
   healthPort: 3121,
@@ -26,7 +26,7 @@ describe("buildEnv", () => {
     expect(e.LLM_BASE_URL).toBe("http://127.0.0.1:18999");
     expect(e.BOT_WEBHOOK_HOST).toBe("127.0.0.1");
     expect(e.BOT_HEALTH_HOST).toBe("127.0.0.1");
-    expect(e.BOT_DATA_DIR).toBe("/home/u/tl2/tieulinh/data");
+    expect(e.BOT_DATA_DIR).toBe("/var/lib/tl2/tieulinh/data");
     expect(e.BOT_WEBHOOK_PORT).toBe("3120");
     expect(e.TIEULINH_PROJECT).toBe("TECH2");
     expect(e.TIEULINH_SANDBOX_CHAT).toBe("-1000000000001");
