@@ -12,6 +12,7 @@ Mỗi trang là một việc cụ thể, làm theo từng bước. Trạng thái
 | [Deploy và đẩy secret qua SSH](/how-to/deploy) | Một phần: đẩy secret và cập nhật code đã viết; unit systemd và rollback **đang viết** |
 | [Gọi LLM trong handler hậu cần](/how-to/call-llm) | Đã viết, mẫu code được CI chạy với LLM giả |
 | [Lịch chạy và hẹn giờ](/how-to/schedule-and-timers) | Đã viết, mẫu code được CI chạy |
+| [Kiểm hội thoại bằng kịch bản và bản ghi vàng](/how-to/golden-scripts) | Đã viết, mẫu code được CI chạy với engine thật |
 | [Chuyển project vào team](/how-to/move-project-to-team) | Một phần: phía code đã viết; quy trình trên itsaplan **đang viết** |
 | [Chuyển bot sang bot-core](/how-to/adopt-core) | Đã viết |
 | [Chuyển Tiểu Linh sang bot-core](/how-to/migrate-tieulinh) | Bản ghi lại việc đã làm |

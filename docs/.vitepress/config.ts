@@ -49,6 +49,10 @@ export default defineConfig({
             { text: "Deploy và đẩy secret qua SSH", link: "/how-to/deploy" },
             { text: "Gọi LLM trong handler hậu cần", link: "/how-to/call-llm" },
             { text: "Lịch chạy và hẹn giờ", link: "/how-to/schedule-and-timers" },
+            {
+              text: "Kiểm hội thoại bằng kịch bản và bản ghi vàng",
+              link: "/how-to/golden-scripts",
+            },
             { text: "Chuyển project vào team", link: "/how-to/move-project-to-team" },
             { text: "Chuyển bot sang bot-core", link: "/how-to/adopt-core" },
             { text: "Chuyển Tiểu Linh sang bot-core", link: "/how-to/migrate-tieulinh" },
@@ -66,6 +70,7 @@ export default defineConfig({
             { text: "Cấu hình và biến môi trường", link: "/reference/config-env" },
             { text: "Giao thức agent-runs", link: "/reference/agent-runs" },
             { text: "LLM (llm)", link: "/reference/llm" },
+            { text: "Testing (testing)", link: "/reference/testing" },
             { text: "Sự kiện webhook itsaplan", link: "/reference/webhook-events" },
             { text: "Danh sách CopyKey", link: "/reference/copy-keys" },
             { text: "API (TypeDoc)", link: "/reference/api/" },
