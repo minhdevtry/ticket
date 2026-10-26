@@ -31,6 +31,8 @@ export const CLOSED_STATUSES: ReadonlySet<DraftStatus> = new Set([
 /** The resolved, ready-to-write ticket content held in the draft. */
 export interface DraftTicket {
   title: string;
+  /** True when the reporter explicitly requested a specific title (locked against auto-summaries). */
+  titleExplicit?: boolean;
   /** Reporter's VERBATIM words — becomes the ticket description (ADR-0010). */
   rawText: string;
   priority: Priority;
@@ -131,6 +133,8 @@ export interface IntakeDraft {
   parkedDocId?: string;
   /** The held message/fields that triggered a park, replayed if "new incident". */
   parkedPayload?: { text: string; mediaPaths: string[] };
+  /** Unrecognized department name if mentioned but not in catalog (TECH-1146). */
+  unrecognizedDept?: string;
 
   // ── draft v2 (RFC 0002 PR 4): trạng thái hội thoại mà legacy giữ ──────────
   /**

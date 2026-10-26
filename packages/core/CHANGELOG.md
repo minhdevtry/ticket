@@ -3,6 +3,20 @@
 All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded here.
 
 ## Unreleased
+- **Bộ trích xuất trường và heuristic tiếng Việt cho lễ tân** (RFC 0002, PR 5). Additive; không đổi API hiện có.
+  - `@vuihoc/bot-core/intake`:
+    - `FieldExtractor` (+ `FieldExtractorPort`, `FieldExtractorOptions`, `ExtractorDomainConfig`): hiện thực bộ trích xuất trường từ tin nhắn tự do dựa trên LLM và chuỗi model dự phòng (E5). Khi hết cả chuỗi model dự phòng, rơi về heuristic mà KHÔNG bịa tiêu đề từ dòng đầu (E5 / TECH-1146).
+    - Heuristic tiếng Việt tổng quát (E3, A14): `isShortConfirmation`, `isExplicitCancel`, `isDeclineAnswer`, `isChitchat`, `parseEditCommand` ("sửa tiêu đề thành ...", "bỏ ý ..."), `stripGreeting`.
+    - Chuẩn hoá sau LLM (E2): `normalizeWithSynonyms`, `detectSystem`, `detectUnrecognizedDept` (bộ phận ngoài danh mục), `deptMentioned` (bộ phận CHỈ nhận khi tin nhắn có nhắc tới), luật số điện thoại di động Việt Nam 10 số (03/05/07/08/09) tự động chuyển sang `studentAccount` và không gán vào `customerId`.
+    - Bù bằng chứng ưu tiên (E4): `inferEvidence` (`blocksLearning`, `blocksPayment`, `scope`), cụm từ rõ ràng trong tin nhắn thắng cờ `false` mặc định của model.
+    - Chốt chặn tiêu đề (E2 / TECH-1146): `isInvalidTitle` (từ chối tên người, mã định danh, lời chào trần), `deriveFallbackTitle` (rút dòng mô tả lỗi đầu tiên).
+    - Gộp trường (`mergeExtractedFields`): bảo toàn tiêu đề do người dùng tự đặt (`titleExplicit`), chỉ tóm tắt lại tiêu đề khi có mô tả mới, bảo toàn bằng chứng ưu tiên (không bị false hạ xuống), cắt trần độ dài triệu chứng và văn bản nguyên văn (`rawText`).
+    - Lược đồ trích xuất Zod (`buildExtractorSchema`, `describeExtractedKeys`): sinh từ taxonomy và cấu hình miền, danh mục đóng tách biệt giữa core và app.
+    - `ExtractInput`: thêm trường tuỳ chọn `context` và `createdTicket` để truyền ngữ cảnh hội thoại vào LLM.
+    - `ExtractedFields`: thêm các trường tiện ích định danh, danh mục và bằng chứng phẳng cho domain parity.
+  - Port 45 ca kiểm thử từ legacy (`extractor.test.ts`, `extractor-rules.test.ts`, `extractor-dept-system-title.test.ts`, `extractor-evidence.test.ts`), giữ nguyên tên ca và kiểm thử tích hợp với `FakeLlm`.
+  - Hoãn: Kịch bản flow `lib/intake-step/pipeline.flow.test.ts` (1 ca) và phát sinh câu hỏi cho bộ phận ngoài danh mục trong luồng engine tiếp tục hoãn sang PR 7 (hỏi bổ sung theo luật).
+
 
 - **Draft v2 và chuẩn hoá đầu vào (RFC 0002 PR 4)**: tờ khai có phiên bản, đọc được tờ khai cũ; đầu vào được chuẩn hoá bằng luật; bảng ánh xạ `action` của hợp đồng cũ.
   - `@vuihoc/bot-core/intake`: `IntakeDraft` có `version` (hiện hành là 2) và các trường hội thoại mà bản cũ thiếu — `lastAskedFields`, `requestedPriority`, `techReviewDone`, `techQuestion`, `unrecognizedDept`, `pendingSplit` (kèm `extraText`, `clarifyCount`), `pendingSplitQueue`, `mediaAmbiguous`, `pendingNewIncident`, `backgroundWork`. Mới: `DRAFT_VERSION`, `migrateDraft` (nâng tờ khai cũ **lúc đọc**, không viết lại kho; tờ khai mới hơn thì không hạ cấp), `isCurrentDraft`, các kiểu `SplitBlock`, `PendingSplit`, `PendingNewIncident`.
