@@ -19,8 +19,10 @@ import {
   findIssueByIdentifier,
   uploadAttachments,
   spliceAttachmentsIntoDescription,
+  classifyColumn,
 } from "../itsaplan";
-import type { CreateIssueInput, TrackerIssue, TrackerPort } from "./ports";
+import { isIssueClosed } from "./notify/supplement-notifier";
+import type { CreateIssueInput, Priority, TrackerIssue, TrackerPort } from "./ports";
 
 export interface ItsaplanTrackerOptions {
   client: ItsaplanClient;
@@ -69,7 +71,17 @@ export function itsaplanTrackerPort(opts: ItsaplanTrackerOptions): TrackerPort {
 
     async getIssue(issueId: number): Promise<TrackerIssue | null> {
       const issue = await client.getIssue(issueId).catch(() => null);
-      return issue ? { id: issue.id, identifier: issue.identifier, title: issue.title } : null;
+      return issue
+        ? {
+            id: issue.id,
+            identifier: issue.identifier,
+            title: issue.title,
+            columnId: issue.columnId,
+            stateType: issue.stateType,
+            priority: issue.priority as Priority,
+            assigneeUserId: issue.assigneeUserId,
+          }
+        : null;
     },
 
     async addComment(issueId: number, body: string): Promise<void> {
@@ -91,6 +103,47 @@ export function itsaplanTrackerPort(opts: ItsaplanTrackerOptions): TrackerPort {
     async findByIdentifier(identifier: string): Promise<TrackerIssue | null> {
       const issue = await findIssueByIdentifier(client, identifier, projectKey).catch(() => null);
       return issue ? { id: issue.id, identifier: issue.identifier, title: issue.title } : null;
+    },
+
+    async updateIssue(
+      issueId: number,
+      patch: { priority?: Priority; title?: string; description?: string },
+    ): Promise<void> {
+      await client.updateIssue(issueId, patch);
+    },
+
+    async isIssueClosed(issueId: number): Promise<boolean> {
+      const issue = await client.getIssue(issueId).catch(() => null);
+      if (!issue) return false;
+      const columns = await client.listProjectColumns(projectKey).catch(() => []);
+      return isIssueClosed(issue, columns);
+    },
+
+    async getIssueState(
+      issueId: number,
+    ): Promise<{ stateType?: string; state?: "open" | "resolved" | "done" | "canceled" } | null> {
+      const issue = await client.getIssue(issueId).catch(() => null);
+      if (!issue) return null;
+      const columns = await client.listProjectColumns(projectKey).catch(() => []);
+      const col = columns.find((c) => c.id === issue.columnId);
+      let state: "open" | "resolved" | "done" | "canceled" = "open";
+      if (col) {
+        state = classifyColumn(col);
+      } else if (issue.stateType === "completed") {
+        state = "done";
+      } else if (issue.stateType === "canceled") {
+        state = "canceled";
+      }
+      return { stateType: issue.stateType, state };
+    },
+
+    async getProjectAssignees(key = projectKey) {
+      const project = await client.getProject(key).catch(() => null);
+      return project?.assignees ?? [];
+    },
+
+    async getIssueTimeline(issueId: number) {
+      return (await client.getIssueTimeline(issueId).catch(() => [])) ?? [];
     },
   };
 }

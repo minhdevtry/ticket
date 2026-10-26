@@ -202,8 +202,13 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "ticket đã tạo, xin khẩn cấp kèm lý do → nâng mức trên ticket + comment lý do",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr10-post-create.test.ts",
+        "ticket đã tạo, xin khẩn cấp kèm lý do → nâng mức trên ticket + comment lý do",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
@@ -267,50 +272,77 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "'cảm ơn em' sau khi tạo không đụng tới ticket",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [C("intake/engine/pr10-post-create.test.ts", "'cảm ơn em' sau khi tạo không đụng tới ticket")],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "thông tin bổ sung sau khi tạo → comment, KHÔNG ghi đè mô tả",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr10-post-create.test.ts",
+        "thông tin bổ sung sau khi tạo → comment, KHÔNG ghi đè mô tả",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "tin có ảnh, không xung đột định danh → hỏi, chưa ghi gì",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr10-post-create.test.ts",
+        "tin có ảnh, không xung đột định danh → hỏi, chưa ghi gì",
+      ),
+    ],
   ),
-  row(
-    "lib/intake-step/pipeline.flow.test.ts",
-    "chỉ gửi ảnh → cũng hỏi, không ghi",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
-  ),
+  row("lib/intake-step/pipeline.flow.test.ts", "chỉ gửi ảnh → cũng hỏi, không ghi", "ported", [
+    C("intake/engine/pr10-post-create.test.ts", "chỉ gửi ảnh → cũng hỏi, không ghi"),
+  ]),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     'hỏi rồi người báo GÕ "ticket mới ạ" → sự cố mới từ tin đang chờ, ticket cũ không bị đụng',
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr10-post-create.test.ts",
+        'hỏi rồi người báo GÕ "ticket mới ạ" → sự cố mới từ tin đang chờ, ticket cũ không bị đụng',
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     'vừa tạo xong, người báo chỉ nhắn "ticket mới ạ" → mở tài liệu mới xin mô tả, không ghi gì',
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr10-post-create.test.ts",
+        'vừa tạo xong, người báo chỉ nhắn "ticket mới ạ" → mở tài liệu mới xin mô tả, không ghi gì',
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "hiểu ý chọn ticket cũ, mỗi ticket đang mở có nút riêng; bấm nút ticket cũ mới ghi vào ticket cũ",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr10-post-create.test.ts",
+        "hiểu ý chọn ticket cũ, mỗi ticket đang mở có nút riêng; bấm nút ticket cũ mới ghi vào ticket cũ",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "không rõ ticket nào → gợi ý ticket vừa tạo, nhưng ticket cũ vẫn có nút để chọn đúng",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr10-post-create.test.ts",
+        "không rõ ticket nào → gợi ý ticket vừa tạo, nhưng ticket cũ vẫn có nút để chọn đúng",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
@@ -326,8 +358,13 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "sự cố mới sau khi tạo → tài liệu mới, không ghi vào ticket cũ",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr10-post-create.test.ts",
+        "sự cố mới sau khi tạo → tài liệu mới, không ghi vào ticket cũ",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
@@ -455,14 +492,24 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "ticket đã tạo + tin có mã khác → hỏi sự cố mới hay bổ sung, không tự ghi bổ sung",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr10-post-create.test.ts",
+        "ticket đã tạo + tin có mã khác → hỏi sự cố mới hay bổ sung, không tự ghi bổ sung",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     'ticket đã tạo + tin có mã khác + chọn "Bổ sung" → ghi bổ sung vào ticket đó',
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr10-post-create.test.ts",
+        'ticket đã tạo + tin có mã khác + chọn "Bổ sung" → ghi bổ sung vào ticket đó',
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
@@ -1649,38 +1696,68 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.notify-supplement.test.ts",
     "khi ticket đang xử lý có assignee (u-techlead-a) → comment bổ sung mention @techlead_a",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr10-post-create.test.ts",
+        "khi ticket đang xử lý có assignee (u-techlead-a) → comment bổ sung mention @techlead_a",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.notify-supplement.test.ts",
     "khi ticket không có assignee nhưng timeline có trao đổi của KTV (TechUser_B) → mention @techuser_b",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr10-post-create.test.ts",
+        "khi ticket không có assignee nhưng timeline có trao đổi của KTV (TechUser_B) → mention @techuser_b",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.notify-supplement.test.ts",
     "khi ticket không có assignee và timeline chỉ có bot/hệ thống → none (không cc ai)",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr10-post-create.test.ts",
+        "khi ticket không có assignee và timeline chỉ có bot/hệ thống → none (không cc ai)",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.notify-supplement.test.ts",
     "ticket đã ở Done (cột 4) → từ chối bổ sung, không addComment, hướng dẫn tạo ticket mới",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr10-post-create.test.ts",
+        "ticket đã ở Done (cột 4) → từ chối bổ sung, không addComment, hướng dẫn tạo ticket mới",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.notify-supplement.test.ts",
     "ticket đã ở Canceled (cột 5) → từ chối bổ sung, không addComment, hướng dẫn tạo ticket mới",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr10-post-create.test.ts",
+        "ticket đã ở Canceled (cột 5) → từ chối bổ sung, không addComment, hướng dẫn tạo ticket mới",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.notify-supplement.test.ts",
     "người dùng gõ lệnh bổ sung chỉ định ticket đã đóng (bổ sung TECHTEST-104) → từ chối ngay lập tức",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr10-post-create.test.ts",
+        "người dùng gõ lệnh bổ sung chỉ định ticket đã đóng (bổ sung TECHTEST-104) → từ chối ngay lập tức",
+      ),
+    ],
   ),
   // ── lib/intake-step/tech-review.test.ts (3) ──
   row(
@@ -2922,116 +2999,168 @@ const ROWS: Row[] = [
   row(
     "lib/itsaplan/supplement-notifier.test.ts",
     "cột In Progress / Backlog → false (đang mở)",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [C("intake/notify/supplement-notifier.test.ts", "cột In Progress / Backlog → false (đang mở)")],
   ),
   row(
     "lib/itsaplan/supplement-notifier.test.ts",
     "cột Resolved ('Đã xử lý') → false (vẫn mở để người báo nghiệm thu)",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/notify/supplement-notifier.test.ts",
+        "cột Resolved ('Đã xử lý') → false (vẫn mở để người báo nghiệm thu)",
+      ),
+    ],
   ),
   row(
     "lib/itsaplan/supplement-notifier.test.ts",
     "cột Done / Hoàn tất → true (đã đóng)",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [C("intake/notify/supplement-notifier.test.ts", "cột Done / Hoàn tất → true (đã đóng)")],
   ),
   row(
     "lib/itsaplan/supplement-notifier.test.ts",
     "cột Canceled / Đã hủy → true (đã đóng)",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [C("intake/notify/supplement-notifier.test.ts", "cột Canceled / Đã hủy → true (đã đóng)")],
   ),
   row(
     "lib/itsaplan/supplement-notifier.test.ts",
     "không có danh sách cột: dựa vào stateType của issue",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/notify/supplement-notifier.test.ts",
+        "không có danh sách cột: dựa vào stateType của issue",
+      ),
+    ],
   ),
   row(
     "lib/itsaplan/supplement-notifier.test.ts",
     "chứa mã ticket, 'đã đóng', và hướng dẫn 'tạo ticket mới'",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/notify/supplement-notifier.test.ts",
+        "chứa mã ticket, 'đã đóng', và hướng dẫn 'tạo ticket mới'",
+      ),
+    ],
   ),
   row(
     "lib/itsaplan/supplement-notifier.test.ts",
     "in-progress có assignee → mention assignee",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [C("intake/notify/supplement-notifier.test.ts", "in-progress có assignee → mention assignee")],
   ),
   row(
     "lib/itsaplan/supplement-notifier.test.ts",
     "assignee có tiền tố @ → tự động gỡ @ khỏi username",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/notify/supplement-notifier.test.ts",
+        "assignee có tiền tố @ → tự động gỡ @ khỏi username",
+      ),
+    ],
   ),
   row(
     "lib/itsaplan/supplement-notifier.test.ts",
     "no assignee → mention last technician commenter từ timeline",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/notify/supplement-notifier.test.ts",
+        "no assignee → mention last technician commenter từ timeline",
+      ),
+    ],
   ),
   row(
     "lib/itsaplan/supplement-notifier.test.ts",
     "no assignee + timeline có technician với actorUsername hợp lệ nhưng chưa trong assignees → dùng actorUsername",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/notify/supplement-notifier.test.ts",
+        "no assignee + timeline có technician với actorUsername hợp lệ nhưng chưa trong assignees → dùng actorUsername",
+      ),
+    ],
   ),
   row(
     "lib/itsaplan/supplement-notifier.test.ts",
     "no assignee + không có bình luận kỹ thuật viên nào (chỉ có bot) → none (null)",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/notify/supplement-notifier.test.ts",
+        "no assignee + không có bình luận kỹ thuật viên nào (chỉ có bot) → none (null)",
+      ),
+    ],
   ),
   row(
     "lib/itsaplan/supplement-notifier.test.ts",
     "no assignee + timeline rỗng → none (null)",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [C("intake/notify/supplement-notifier.test.ts", "no assignee + timeline rỗng → none (null)")],
   ),
-  row(
-    "lib/itsaplan/supplement-notifier.test.ts",
-    "định dạng user_update kèm mention",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
-  ),
+  row("lib/itsaplan/supplement-notifier.test.ts", "định dạng user_update kèm mention", "ported", [
+    C("intake/notify/supplement-notifier.test.ts", "định dạng user_update kèm mention"),
+  ]),
   row(
     "lib/itsaplan/supplement-notifier.test.ts",
     "định dạng user_update khi mention đã có tiền tố @ vẫn chuẩn hoá thành đúng (cc @username)",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/notify/supplement-notifier.test.ts",
+        "định dạng user_update khi mention đã có tiền tố @ vẫn chuẩn hoá thành đúng (cc @username)",
+      ),
+    ],
   ),
   row(
     "lib/itsaplan/supplement-notifier.test.ts",
     "định dạng user_update không kèm mention (none)",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/notify/supplement-notifier.test.ts",
+        "định dạng user_update không kèm mention (none)",
+      ),
+    ],
   ),
   row(
     "lib/itsaplan/supplement-notifier.test.ts",
     "định dạng who_supplement kèm mention",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [C("intake/notify/supplement-notifier.test.ts", "định dạng who_supplement kèm mention")],
   ),
   row(
     "lib/itsaplan/supplement-notifier.test.ts",
     "định dạng who_supplement không kèm mention",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [C("intake/notify/supplement-notifier.test.ts", "định dạng who_supplement không kèm mention")],
   ),
   row(
     "lib/itsaplan/supplement-notifier.test.ts",
     "khi NOTIFY_ON_CALL_SUPPLEMENT=1: gọi broadcastAlert tới kênh trực ca",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/notify/supplement-notifier.test.ts",
+        "khi NOTIFY_ON_CALL_SUPPLEMENT=1: gọi broadcastAlert tới kênh trực ca",
+      ),
+    ],
   ),
   row(
     "lib/itsaplan/supplement-notifier.test.ts",
     "khi NOTIFY_ON_CALL_SUPPLEMENT không bật: không gửi cảnh báo",
-    "deferred",
-    "Chờ port ở PR 10 (tin sau khi tạo ticket)",
+    "ported",
+    [
+      C(
+        "intake/notify/supplement-notifier.test.ts",
+        "khi NOTIFY_ON_CALL_SUPPLEMENT không bật: không gửi cảnh báo",
+      ),
+    ],
   ),
   // ── lib/ask-learning/lookup.test.ts (3) ──
   row(

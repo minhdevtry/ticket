@@ -15,6 +15,7 @@
  * engine".
  */
 
+import type { ProjectAssignee } from "../itsaplan";
 export type Priority = "urgent" | "high" | "medium" | "low";
 
 /** A tracker ticket, trimmed to what the write path reads back. */
@@ -24,6 +25,10 @@ export interface TrackerIssue {
   title: string;
   /** Resolved web URL, if the port could build one. */
   url?: string;
+  columnId?: number;
+  stateType?: string;
+  priority?: Priority;
+  assigneeUserId?: string | null;
 }
 
 export interface CreateIssueInput {
@@ -50,6 +55,16 @@ export interface TrackerPort {
    */
   attach(issueId: number, description: string, mediaPaths: string[]): Promise<number>;
   findByIdentifier(identifier: string): Promise<TrackerIssue | null>;
+  updateIssue?(
+    issueId: number,
+    patch: { priority?: Priority; title?: string; description?: string },
+  ): Promise<void>;
+  isIssueClosed?(issueId: number): Promise<boolean>;
+  getIssueState?(
+    issueId: number,
+  ): Promise<{ stateType?: string; state?: "open" | "resolved" | "done" | "canceled" } | null>;
+  getProjectAssignees?(projectKey?: string): Promise<ProjectAssignee[]>;
+  getIssueTimeline?(issueId: number): Promise<unknown[]>;
 }
 
 /** Injected time source — one knob so the confirm/stale guards are testable. */
@@ -133,7 +148,26 @@ export type CopyKey =
   | "split.next_ticket_notice_student" // notice when creating next ticket in split queue with student name; {identifier} {studentName}
   | "button.split_n" // button to split into N tickets; {count}
   | "button.merge_one" // button to merge into 1 ticket
-  | "media.ambiguous_notice"; // notice appended to description when images are shared across split tickets
+  | "media.ambiguous_notice" // notice appended to description when images are shared across split tickets
+  // ── PR 10: tin sau khi tạo ticket (RFC 0002 §1.5 C1-C4, G2, B8) ─────────────
+  | "ticket.closed_refusal" // refuse supplement into closed ticket; {identifier} {statusLabel}
+  | "ticket.chitchat_after_create" // polite answer when reporter thanks after create; {identifier}
+  | "ticket.cancel_hint_after_create" // syntax hint for explicit cancel after create; {identifier}
+  | "ticket.already_created_hint" // idempotent reminder that ticket was created; {identifier}
+  | "action.suggest_append_lead" // lead for ordinary supplement proposal; {identifier}
+  | "action.suggest_conflict_lead" // lead when conflicting identifier detected; {identifier}
+  | "action.suggest_unclear_prompt" // prompt when reporter types unrelated text while awaiting button
+  | "action.suggest_unclear_prompt_with_media" // prompt when reporter sends more images while awaiting button; {count}
+  | "clarify.new_incident_prompt" // ask reporter to describe new incident when "ticket mới ạ" has no detail
+  | "action.suggest_append_preview" // full preview message proposing supplement; {lead} {title} {identifier} {quoted} {files} {alternatives} {newIncidentLabel}
+  | "action.suggest_append_media_note" // files note in supplement preview; {count}
+  | "action.suggest_append_other_tickets" // other open tickets list in supplement preview; {list}
+  | "action.priority_uplift" // priority uplift line in supplement comment; {from} {to} {reason}
+  | "status.closed_done" // label for completed/done status ("Hoàn tất (Done)")
+  | "status.closed_canceled" // label for canceled status ("Đã hủy (Canceled)")
+  | "comment.supplement_default_content" // fallback content for supplement comment when text is empty
+  | "reporter.default_name" // fallback name for reporter in comment when unknown
+  | "notify.on_call_supplement"; // alert line sent to on-call channel; {botName} {identifier} {summary}
 
 /**
  * The chat↔ticket binding store, so a worker can report back to the reporter.
@@ -180,6 +214,15 @@ export interface ChannelBindingStore {
    * không cần. KHÔNG đụng `chat_id`: chat mới sẽ tự cập nhật khi có tin mới.
    */
   rebindReporterUserId?(oldUserId: string, newUserId: string): number;
+  /**
+   * Lịch sử binding của chat (mới nhất trước, tối đa `limit` kết quả), phục vụ tìm
+   * các ticket đang mở khác trong chat (B8).
+   */
+  listBindingsForChat?(
+    chatId: string,
+    limit?: number,
+    identifierPrefix?: string,
+  ): Array<{ issueId: number; identifier: string; title?: string }>;
 }
 
 /**

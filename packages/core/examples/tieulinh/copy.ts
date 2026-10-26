@@ -52,7 +52,8 @@ export const tieuLinhCopy: Record<CopyKey, string> = {
     "Dạ em sẽ sửa {identifier} theo đề nghị: {changes}\nĐúng thì anh/chị bấm nút giúp em nhé.",
   "action.preview_move":
     "Dạ em sẽ chuyển {from} sang {identifier} và huỷ bản trùng ạ. Đúng thì anh/chị bấm nút giúp em nhé.",
-  "action.done_append": "Dạ em đã bổ sung vào {identifier} rồi ạ.",
+  "action.done_append":
+    "Em đã cập nhật bổ sung thông tin này vào ticket {identifier} cho anh/chị rồi nhé ạ!",
   "action.done_edit": "Dạ em đã sửa {identifier} rồi ạ.",
   "action.done_move": "Dạ em đã chuyển {from} sang {identifier} rồi ạ.",
   "action.canceled": "Dạ em đã huỷ thao tác đó ạ, chưa ghi gì vào ticket cả.",
@@ -95,4 +96,33 @@ export const tieuLinhCopy: Record<CopyKey, string> = {
   "button.split_n": "Tách {count} ticket",
   "button.merge_one": "Gộp 1 ticket",
   "media.ambiguous_notice": "*(Ảnh đính kèm chung cho các sự cố trong cùng lượt báo)*",
+  // ── PR 10: tin sau khi tạo ticket (RFC 0002 §1.5 C1-C4, G2, B8) ─────────────
+  "ticket.closed_refusal":
+    "Dạ ticket {identifier} hiện đã đóng ở trạng thái {statusLabel} trên hệ thống rồi nên không thể ghi bổ sung được nữa ạ. Nếu cần hỗ trợ sự cố mới, anh/chị vui lòng tạo ticket mới giúp em nhé ạ.",
+  "ticket.chitchat_after_create":
+    "Dạ không có gì ạ! Ticket {identifier} đang được đội Kỹ thuật tiếp nhận, có cập nhật em sẽ báo anh/chị ngay nhé.",
+  "ticket.cancel_hint_after_create":
+    'Dạ nếu anh/chị muốn hủy hoặc đóng ticket {identifier}, anh/chị nhắn rõ giúp em "hủy {identifier}" (kèm lý do nếu có) để em xác nhận chuyển trạng thái nhé ạ.',
+  "ticket.already_created_hint":
+    "Dạ ticket {identifier} em đã tạo rồi ạ, anh/chị không cần xác nhận lại nhé.",
+  "action.suggest_append_lead": "Dạ tin này là bổ sung cho {identifier}",
+  "action.suggest_conflict_lead": "Dạ tin này có thông tin (SĐT/mã) khác với {identifier}",
+  "action.suggest_unclear_prompt":
+    "Dạ anh/chị bấm giúp em một nút phía trên để em ghi đúng chỗ nhé ạ.",
+  "action.suggest_unclear_prompt_with_media":
+    "Dạ anh/chị bấm giúp em một nút phía trên để em ghi đúng chỗ (đã nhận kèm {count} ảnh/tệp) nhé ạ.",
+  "clarify.new_incident_prompt": "Dạ vâng, anh/chị mô tả sự cố mới giúp em nhé ạ.",
+  "action.suggest_append_preview":
+    '{lead}{title} phải không ạ? Em sẽ ghi vào {identifier}:{quoted}{files}{alternatives}\n\nAnh/chị bấm nút xác nhận để em ghi, hoặc "{newIncidentLabel}" nếu là việc khác nhé.',
+  "action.suggest_append_media_note": "\n(kèm {count} ảnh/tệp)",
+  "action.suggest_append_other_tickets":
+    "\n\nAnh/chị còn ticket đang mở khác, nếu tin này thuộc ticket đó thì bấm đúng mã:\n{list}",
+  "action.priority_uplift":
+    "⏫ Nâng mức ưu tiên {from} → {to} theo đề nghị của người báo. Lý do: {reason}",
+  "status.closed_done": "Hoàn tất (Done)",
+  "status.closed_canceled": "Đã hủy (Canceled)",
+  "comment.supplement_default_content": "Bổ sung thông tin",
+  "reporter.default_name": "Người báo",
+  "notify.on_call_supplement":
+    "📢 **[{botName}]** Người báo vừa bổ sung thông tin vào ticket **{identifier}**:\n> {summary}",
 };

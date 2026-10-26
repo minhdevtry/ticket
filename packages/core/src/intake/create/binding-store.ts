@@ -154,6 +154,36 @@ export class SqliteChannelBindingStore implements ChannelBindingStore {
   }
 
   /**
+   * Lịch sử binding của chat (mới nhất trước, tối đa `limit` kết quả), phục vụ tìm
+   * các ticket đang mở khác trong chat (B8).
+   */
+  listBindingsForChat(
+    chatId: string,
+    limit = 8,
+    identifierPrefix?: string,
+  ): Array<{ issueId: number; identifier: string; title?: string }> {
+    const keys = chatIdVariants(chatId);
+    const prefix = identifierPrefix ? `${identifierPrefix.trim().toUpperCase()}-` : "";
+    const byProject = prefix ? "AND substr(UPPER(identifier), 1, ?) = ?" : "";
+    const args: Array<string | number> = [...keys];
+    if (prefix) args.push(prefix.length, prefix);
+    args.push(limit);
+    const rows = this.db
+      .prepare(
+        `SELECT issue_id, identifier, title FROM ticket_bindings
+         WHERE chat_id IN (${keys.map(() => "?").join(", ")}) ${byProject}
+         ORDER BY updated_at DESC, issue_id DESC
+         LIMIT ?`,
+      )
+      .all(...args) as Array<{ issue_id: number; identifier: string; title: string | null }>;
+    return rows.map((r) => ({
+      issueId: r.issue_id,
+      identifier: r.identifier,
+      title: r.title ?? undefined,
+    }));
+  }
+
+  /**
    * Ticket mới nhất của một NGƯỜI BÁO theo user id (khóa định danh bền, độc lập
    * chat). Trả null khi id rỗng hoặc chưa có binding nào mang id đó — binding cũ
    * (trước khi lib lưu id) có `reporter_user_id` NULL nên không khớp, đúng ý:

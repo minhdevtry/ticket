@@ -141,3 +141,41 @@ describe("tương thích DB cũ (bảng ticket_bindings thiếu reporter_user_id
     expect(store.getLatestBindingByUserId("u100")?.issueId).toBe(100);
   });
 });
+
+describe("SqliteChannelBindingStore — listBindingsForChat (B8)", () => {
+  it("trả về danh sách binding của chat, sắp xếp mới nhất trước, giới hạn số lượng", () => {
+    const db = freshDb();
+    const store = new SqliteChannelBindingStore(db);
+
+    store.saveBinding({ issueId: 101, identifier: "TECH-101", chatId: "chat-1", title: "Sự cố 1" });
+    store.saveBinding({ issueId: 102, identifier: "TECH-102", chatId: "chat-1", title: "Sự cố 2" });
+    store.saveBinding({ issueId: 103, identifier: "TECH-103", chatId: "chat-1", title: "Sự cố 3" });
+    store.saveBinding({
+      issueId: 201,
+      identifier: "TECH-201",
+      chatId: "chat-2",
+      title: "Sự cố khác",
+    });
+
+    const list = store.listBindingsForChat("chat-1", 2);
+    expect(list).toHaveLength(2);
+    expect(list[0].identifier).toBe("TECH-103");
+    expect(list[1].identifier).toBe("TECH-102");
+
+    const listAll = store.listBindingsForChat("chat-1");
+    expect(listAll).toHaveLength(3);
+    expect(listAll.map((b) => b.identifier)).toEqual(["TECH-103", "TECH-102", "TECH-101"]);
+  });
+
+  it("lọc theo tiền tố dự án", () => {
+    const db = freshDb();
+    const store = new SqliteChannelBindingStore(db);
+
+    store.saveBinding({ issueId: 101, identifier: "TECH-101", chatId: "chat-1" });
+    store.saveBinding({ issueId: 102, identifier: "CM-102", chatId: "chat-1" });
+    store.saveBinding({ issueId: 103, identifier: "TECH-103", chatId: "chat-1" });
+
+    const techOnly = store.listBindingsForChat("chat-1", 5, "TECH");
+    expect(techOnly.map((b) => b.identifier)).toEqual(["TECH-103", "TECH-101"]);
+  });
+});

@@ -55,13 +55,13 @@ nó; hãy chép lại cả mục này). Nó mở rộng bức tranh ra toàn b�
 legacy bị đổi tên, xoá hoặc thêm mà sổ không đổi theo, khi một dòng `core`/`ported` trỏ tới test
 không còn tồn tại, hoặc khi các con số dưới đây lệch khỏi sổ.
 
-<!-- gap-register: total=450 core=61 ported=109 deferred=269 by-design=11 -->
+<!-- gap-register: total=450 core=61 ported=146 deferred=232 by-design=11 -->
 
 | Trạng thái | Số test legacy | Nghĩa |
 |---|---|---|
 | `core` | 61 | Engine hoặc thư viện core hiện có đã có test tương ứng (mỗi dòng trỏ tới test đó) |
-| `ported` | 109 | Đã port sang engine của core (`packages/core/src/intake/**`) — PR 4 port 15 dòng; PR 5 port thêm 44 dòng; PR 7 port thêm 10 dòng (hỏi bổ sung theo luật, chốt tiêu đề); PR 8 port thêm 18 dòng (gác tờ khai khi có sự cố mới, định danh); PR 9 port thêm 22 dòng (tách báo cáo nhiều sự cố, đối kháng) |
-| `deferred` | 269 | Chưa có; dòng nêu PR của RFC 0002 sẽ port, hoặc lý do nằm ngoài chuỗi di trú (KG, Onyx, nạp tri thức) |
+| `ported` | 146 | Đã port sang engine của core (`packages/core/src/intake/**`) — PR 4 port 15 dòng; PR 5 port thêm 44 dòng; PR 7 port thêm 10 dòng (hỏi bổ sung theo luật, chốt tiêu đề); PR 8 port thêm 18 dòng (gác tờ khai khi có sự cố mới, định danh); PR 9 port thêm 22 dòng (tách báo cáo nhiều sự cố, đối kháng); PR 10 port thêm 37 dòng (tin sau khi tạo ticket) |
+| `deferred` | 232 | Chưa có; dòng nêu PR của RFC 0002 sẽ port, hoặc lý do nằm ngoài chuỗi di trú (KG, Onyx, nạp tri thức) |
 | `by-design` | 11 | Cố ý không có ở bản mới, có lý do (tool ghi trực tiếp của legacy, đường tạo ticket thứ hai, bot khác) |
 | Tổng | 450 | Test của lễ tân và phần dùng chung |
 
@@ -76,7 +76,7 @@ Số test `deferred` theo PR sẽ port (RFC 0002, mục 5):
 | 7 | 0 | Đã port ở PR 7 (hỏi bổ sung theo luật, chốt tiêu đề); 3 dòng tool MCP chuyển sang PR 15 |
 | 8 | 0 | Đã port ở PR 8 (gác tờ khai khi có sự cố mới, định danh) |
 | 9 | 0 | Đã port ở PR 9 (tách báo cáo nhiều sự cố) |
-| 10 | 37 | Tin sau khi tạo ticket |
+| 10 | 0 | Đã port ở PR 10 (tin sau khi tạo ticket) |
 | 11 | 28 | Lệnh nhắm vào ticket đã có |
 | 12 | 12 | Huỷ và đóng ticket theo yêu cầu người báo (ADR-0006) |
 | 13 | 46 | Soát thông tin, `learned` |

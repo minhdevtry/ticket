@@ -3,6 +3,26 @@
 All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded here.
 
 ## Unreleased
+- **Xử lý tin sau khi tạo ticket** (RFC 0002 PR 10, issue #24). Additive; hoàn thiện cơ chế xử lý tin sau khi tạo ticket (C1-C4, G2, B8):
+  - `@vuihoc/bot-core/intake`:
+    - `C1`: Tờ khai đã tạo là tờ khai ĐÓNG (`draft.status === "created"` và có `issueId`); phân loại ý định người báo trong ngữ cảnh `createdTicket` (`chitchat` cảm ơn không đụng ticket, `cancel` hướng dẫn cú pháp huỷ/đóng, `confirm` nhắc đã tạo mang tính idempotent, `report_issue` mở tờ khai mới độc lập).
+    - `C2` (ADR-0008, TECH-1013): Không bao giờ tự ghi vào ticket đã tạo kể cả khi tin mang thông tin bổ sung hoặc ảnh — luôn qua bản xem trước `pendingTicketAction` kiểu `suggest` và nút xác nhận; nhận diện rõ tuyên bố "ticket mới ạ", "phụ huynh khác" (`saysNewIncident`) để mở tờ khai mới (trả về `clarify` nếu câu quá ngắn, hoặc gọi `collect` nếu câu có nội dung chi tiết); gộp chi tiết gõ tay và bảo toàn toàn bộ ảnh (`withTypedDetail`).
+    - `C3` (W29-NOTIFY): Kiểm tra định danh xung đột (`identifiersConflict`) so với ticket đã tạo để cảnh báo trước khi đề xuất bổ sung; kiểm tra trạng thái đóng (`Done` / `Canceled`) qua cổng tracker để từ chối lịch sự bằng `closed_refusal` (`closedTicketRefusalMessage`) và hướng dẫn tạo ticket mới; tin báo sự cố mới (`report_issue`) vẫn mở tờ khai mới bình thường.
+    - `C4` (ADR-0010): Ghi bổ sung vào ticket bằng bình luận (`addComment`), giữ nguyên văn mô tả ban đầu; bảo toàn các trường định danh của ticket đã tạo; tải ảnh đính kèm qua `TrackerPort.attach`; phân giải người nhận `@mention` 3 bước (`resolveSupplementMentionTarget`: ưu tiên assignee, fallback kỹ thuật viên bình luận gần nhất trên timeline, bỏ qua bot và người báo); định dạng comment chuẩn (`formatSupplementComment`); gửi cảnh báo kênh trực ca (`notifyOnCallSupplement`) khi bật `NOTIFY_ON_CALL_SUPPLEMENT=1`.
+    - `G2`: Nâng mức ưu tiên (`requestedPriority` "high" hoặc "urgent") khi người báo xin gấp kèm lý do chính đáng (`requestedPriorityReason`) và mức xin cao hơn mức hiện tại của ticket; cập nhật priority trên tracker và tờ khai, chèn thông báo nâng mức vào comment bổ sung.
+    - `B8` (TECH-989, TECH-1001): Người báo có nhiều ticket đang mở cùng chat: tra cứu qua `ChannelBindingStore.listBindingsForChat`, lọc các ticket chưa đóng; hiển thị danh sách các ticket khác và tạo nút bấm riêng cho từng ticket đang mở; hỗ trợ chọn ticket chính qua thông dịch lệnh hoặc gợi ý ticket vừa tạo; bấm nút ticket nào ghi chính xác vào ticket đó.
+    - `SqliteChannelBindingStore`: bổ sung phương thức `listBindingsForChat(chatId, limit?, identifierPrefix?)`.
+    - `TrackerPort` & `adapter`: bổ sung `isIssueClosed`, `getIssueState`, `updateIssue`, `getProjectAssignees`, `getIssueTimeline`.
+    - `CopyKey`: bổ sung các khoá `ticket.closed_refusal`, `ticket.chitchat_after_create`, `ticket.cancel_hint_after_create`, `ticket.already_created_hint`, `action.suggest_append_lead`, `action.suggest_conflict_lead`, `action.suggest_unclear_prompt`, `action.suggest_unclear_prompt_with_media`, `clarify.new_incident_prompt`, `action.suggest_append_preview`, `action.suggest_append_media_note`, `action.suggest_append_other_tickets`, `action.priority_uplift`, `status.closed_done`, `status.closed_canceled`, `comment.supplement_default_content`, `reporter.default_name`, `notify.on_call_supplement`; toàn bộ câu chữ gửi người dùng chuyển qua `CopyCatalog`, core không còn literal tiếng Việt gửi người dùng.
+    - Mention resolver: tách các định danh bot riêng (`tiểu linh`, `iris`, `onyx`, ...) khỏi regex cốt lõi của core, chuyển sang tuỳ chọn `ignoredActors` do app truyền vào qua `ResolveMentionOptions` / `IntakeEngineDeps`; core giữ pattern actor hệ thống tổng quát.
+    - Gộp luồng từ chối ticket đã đóng qua private helper `buildClosedRefusal` trên `IntakeEngine`.
+  - Port 37 bài kiểm thử từ legacy:
+    - 12 ca flow từ `lib/intake-step/pipeline.flow.test.ts` (port sang `packages/core/src/intake/engine/pr10-post-create.test.ts`).
+    - 6 ca notify từ `lib/intake-step/pipeline.notify-supplement.test.ts` (port sang `packages/core/src/intake/engine/pr10-post-create.test.ts`).
+    - 19 ca hàm thuần từ `lib/itsaplan/supplement-notifier.test.ts` (port sang `packages/core/src/intake/notify/supplement-notifier.test.ts`).
+  - Cập nhật sổ đối chiếu (`apps/tieulinh/receptionist-gap-register.test.ts`) và bảng parity `ENGINE.md`: 37 dòng `deferred` chuyển sang `ported` (tổng `ported` tăng từ 109 lên 146; `deferred` giảm từ 269 xuống 232; PR 10 còn 0 dòng).
+  - Cập nhật các dòng C1-C4, G2, B8 bảng khoảng trống RFC 0002 mục 1.5 (`docs/rfc/0002-receptionist.md`).
+
 - **Tách báo cáo nhiều sự cố** (RFC 0002 PR 9, issue #23). Additive; hoàn thiện kịch bản tách báo cáo nhiều học sinh/sự cố trong một tin (B7):
   - `@vuihoc/bot-core/intake`:
     - `B7`: nhận diện báo cáo có ≥ 2 sự cố/học sinh độc lập (`splitMultiIncidentReport` trong `src/intake/split/`): tin < 30 ký tự hoặc có dấu hiệu danh sách ví dụ (`EXAMPLE_LIST_MARKER`) hoặc không có từ chỉ lỗi (`EXPANDED_PROBLEM_WORDS`) thì không tách; bóc khối theo 2 dòng trống hoặc mẫu mở đầu khối mới; mỗi khối phải có định danh có nhãn và câu chữ riêng (không chỉ là tên người); chỉ tách khi có ≥ 2 giá trị cùng lớp khác nhau.
