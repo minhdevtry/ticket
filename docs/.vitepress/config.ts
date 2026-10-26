@@ -58,6 +58,7 @@ export default defineConfig({
             { text: "Chuyển bot sang bot-core", link: "/how-to/adopt-core" },
             { text: "Chuyển Tiểu Linh sang bot-core", link: "/how-to/migrate-tieulinh" },
             { text: "Chạy Tiểu Linh 2 (hậu cần) với TECH2", link: "/how-to/run-tieulinh-hau-can" },
+            { text: "Merge PR", link: "/how-to/merge-pr" },
           ],
         },
       ],
