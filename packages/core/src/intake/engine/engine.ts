@@ -1139,10 +1139,11 @@ export class IntakeEngine {
     const latest = this.deps.drafts.getByDocId(draft.docId) ?? mergedDoc;
     if (!latest.ticket.title || isInvalidTitle(latest.ticket.title, latest.ticket.rawText)) {
       const derived = deriveFallbackTitle(combinedText, latest.symptoms, studentNames);
-      if (derived && !isInvalidTitle(derived)) {
-        latest.ticket.title = derived;
-        this.deps.drafts.saveRevision(latest);
-      }
+      // Legacy parity: khi không dựng được tiêu đề thì dùng chuỗi dự phòng
+      // ("Sự cố kỹ thuật"), không để trống.
+      const fallbackTitle = this.deps.copy.text("ticket.fallback_title");
+      latest.ticket.title = derived && !isInvalidTitle(derived) ? derived : fallbackTitle;
+      this.deps.drafts.saveRevision(latest);
     }
     return out;
   }
