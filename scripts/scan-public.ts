@@ -10,6 +10,7 @@
  * maintainer add real names/handles locally without publishing them.
  */
 import { existsSync, readFileSync } from "node:fs";
+import { readDenylist } from "./lib/denylist";
 
 type Rule = { id: string; re: RegExp; allow?: RegExp };
 
@@ -38,12 +39,7 @@ const RULES: Rule[] = [
   { id: "home-path", re: /\/home\/(?!user\b|runner\b|bot\b)[a-z][a-z0-9_-]*\//g },
 ];
 
-const denylist = existsSync(".scan-denylist")
-  ? readFileSync(".scan-denylist", "utf8")
-      .split("\n")
-      .map((l) => l.trim())
-      .filter((l) => l && !l.startsWith("#"))
-  : [];
+const denylist = readDenylist();
 
 const SKIP = /(?:^|\/)(?:bun\.lock|scan-public\.ts)$|\.(?:png|jpe?g|gif|webp|ico|pdf|zip|gz)$/;
 

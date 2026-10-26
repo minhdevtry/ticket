@@ -102,6 +102,16 @@ export default defineConfig({
           ],
         },
       ],
+      "/agents/": [
+        {
+          text: "Cấu hình agent",
+          items: [
+            { text: "Issue tracker", link: "/agents/issue-tracker" },
+            { text: "Nhãn triage", link: "/agents/triage-labels" },
+            { text: "Tài liệu domain", link: "/agents/domain" },
+          ],
+        },
+      ],
       "/adr/": [
         {
           text: "ADR cấp repo",
