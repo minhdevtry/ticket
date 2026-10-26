@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { isDeclineAnswer, isExplicitCancel, isShortConfirmation } from "./heuristics";
 import { FieldExtractor } from "./llm-extractor";
-import { type IntakeDocument, MAX_SYMPTOM_CHARS, mergeExtractedFields } from "./merger";
+import { type LegacyDraftDocument, MAX_SYMPTOM_CHARS, mergeExtractedFields } from "./merger";
 import { MAX_LLM_MESSAGE_CHARS } from "./taxonomy";
 
 const fakeLlm = { baseUrl: "http://llm.fake", apiKey: "k", model: "m" };
@@ -171,7 +171,7 @@ describe("FieldExtractor với LLM (giả lập)", () => {
 });
 
 describe("Sửa tiêu đề / bỏ triệu chứng", () => {
-  const baseDoc = (): IntakeDocument => ({
+  const baseDoc = (): LegacyDraftDocument => ({
     docId: "d",
     chatId: "c",
     revision: 1,
@@ -229,7 +229,7 @@ describe("Sửa tiêu đề / bỏ triệu chứng", () => {
 
   // TECH-941, TECH-943: Lượt sau có mô tả mới thì tiêu đề được tóm tắt lại
   it("lượt sau có mô tả mới thì tiêu đề được tóm tắt lại (lời mở đầu không thành tiêu đề mãi)", () => {
-    const doc: IntakeDocument = {
+    const doc: LegacyDraftDocument = {
       ...baseDoc(),
       fields: {
         ...baseDoc().fields,

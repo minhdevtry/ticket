@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { FieldExtractor } from "./llm-extractor";
-import { type IntakeDocument, mergeExtractedFields } from "./merger";
+import { type LegacyDraftDocument, mergeExtractedFields } from "./merger";
 
 describe("FieldExtractor & Merger", () => {
   // TECH-1146: Số điện thoại 10 số (03/05/07/08/09) là tài khoản / SĐT phụ huynh, không phải mã KH
@@ -14,7 +14,7 @@ describe("FieldExtractor & Merger", () => {
   });
 
   it("gộp trường bảo toàn dữ liệu cũ và tăng revision", () => {
-    const initialDoc: IntakeDocument = {
+    const initialDoc: LegacyDraftDocument = {
       docId: "doc_test",
       chatId: "chat_999",
       revision: 1,

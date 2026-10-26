@@ -42,7 +42,15 @@ export interface FieldValue<T = unknown> {
   explicit?: boolean;
 }
 
-export interface IntakeDocument {
+/**
+ * Hình dạng tờ khai mà bộ gộp này thao tác: mỗi trường đã gom kèm nguồn và
+ * lượt, cộng bộ đếm số lần hỏi.
+ *
+ * Đây là hình dạng của LEGACY, port nguyên hành vi để giữ tương thích. Tờ khai
+ * chuẩn của core là `IntakeDraft` (`intake/draft/types.ts`) — nối hai hình dạng
+ * này là việc của PR sau, không phải của PR 5.
+ */
+export interface LegacyDraftDocument {
   docId: string;
   chatId: string;
   revision: number;
@@ -74,12 +82,12 @@ const EVIDENCE_FLAGS = [
 ] as const;
 
 export function mergeExtractedFields(
-  doc: IntakeDocument,
+  doc: LegacyDraftDocument,
   extracted: ExtractedFields,
   turn: number,
   rawMessage: string,
   options: MergeOptions = {},
-): IntakeDocument {
+): LegacyDraftDocument {
   const structuredOnly = options.structuredOnly === true;
   const cappedMessage = cap(rawMessage, MAX_RAW_TEXT_CHARS);
   const now = new Date().toISOString();

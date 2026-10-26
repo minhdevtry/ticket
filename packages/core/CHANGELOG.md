@@ -4,6 +4,8 @@ All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded
 
 ## Unreleased
 - **Bộ trích xuất trường và heuristic tiếng Việt cho lễ tân** (RFC 0002, PR 5). Additive; không đổi API hiện có.
+  - **Ranh giới miền (theo RFC 0002 mục 2.x)**: heuristic tiếng Việt tổng quát (E3, A14) ở core; TỪ ĐỒNG NGHĨA THEO MIỀN (E2) là DỮ LIỆU của app. Ở PR 5, `extractor/taxonomy.ts` giữ bộ từ đồng nghĩa của legacy làm **parity** để port test đúng ý, và mọi lần dùng đều nạp được qua `ExtractorDomainConfig`; PR 14 đưa danh mục của app vào và thay giá trị mặc định. Câu mở đầu prompt cũng không còn hardcode tên sản phẩm: app truyền qua `FieldExtractorOptions.systemPrompt` (mặc định trung tính).
+  - **Còn dở (có ghi rõ để PR sau làm)**: bộ gộp `mergeExtractedFields` thao tác trên hình dạng tờ khai của LEGACY (`LegacyDraftDocument`); nối nó với tờ khai chuẩn `IntakeDraft` của core là việc của PR sau. Câu hỏi "hỏi lại bộ phận ngoài danh mục đúng một lần" thuộc PR 7 (hành vi của engine), PR 5 chỉ port phần bộ trích xuất.
   - `@vuihoc/bot-core/intake`:
     - `FieldExtractor` (+ `FieldExtractorPort`, `FieldExtractorOptions`, `ExtractorDomainConfig`): hiện thực bộ trích xuất trường từ tin nhắn tự do dựa trên LLM và chuỗi model dự phòng (E5). Khi hết cả chuỗi model dự phòng, rơi về heuristic mà KHÔNG bịa tiêu đề từ dòng đầu (E5 / TECH-1146).
     - Heuristic tiếng Việt tổng quát (E3, A14): `isShortConfirmation`, `isExplicitCancel`, `isDeclineAnswer`, `isChitchat`, `parseEditCommand` ("sửa tiêu đề thành ...", "bỏ ý ..."), `stripGreeting`.

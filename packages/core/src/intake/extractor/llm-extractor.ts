@@ -81,7 +81,15 @@ export interface FieldExtractorOptions {
   llmConfig?: LlmConfig;
   completeFn?: CompleteFn;
   domain?: ExtractorDomainConfig;
+  /**
+   * Câu mở đầu của prompt hệ thống (vai trò của trợ lý). Core KHÔNG biết tên
+   * sản phẩm nào đang phục vụ: app truyền vào. Mặc định là câu trung tính.
+   */
+  systemPrompt?: string;
 }
+
+/** Câu mở đầu trung tính khi app chưa truyền vai trò cụ thể. */
+export const DEFAULT_EXTRACTOR_SYSTEM_PROMPT = "Bạn là trợ lý phân tích sự cố kỹ thuật.";
 
 export function isLlmConfigured(config: LlmConfig | undefined): config is LlmConfig {
   if (!config?.model) return false;
@@ -188,16 +196,19 @@ export class FieldExtractor implements FieldExtractorPort {
   private readonly llmConfig?: LlmConfig;
   private readonly completeFn: CompleteFn;
   private readonly domain: ExtractorDomainConfig;
+  private readonly systemPrompt: string;
 
   constructor(configOrOptions?: LlmConfig | FieldExtractorOptions, completeFn?: CompleteFn) {
     if (configOrOptions && "completeFn" in configOrOptions) {
       this.llmConfig = configOrOptions.llmConfig;
       this.completeFn = configOrOptions.completeFn ?? defaultComplete;
       this.domain = configOrOptions.domain ?? {};
+      this.systemPrompt = configOrOptions.systemPrompt ?? DEFAULT_EXTRACTOR_SYSTEM_PROMPT;
     } else {
       this.llmConfig = configOrOptions as LlmConfig | undefined;
       this.completeFn = completeFn ?? defaultComplete;
       this.domain = {};
+      this.systemPrompt = DEFAULT_EXTRACTOR_SYSTEM_PROMPT;
     }
   }
 
@@ -230,7 +241,7 @@ export class FieldExtractor implements FieldExtractorPort {
       const reportingDepts = this.domain.reportingDepts ?? VALID_REPORTING_DEPTS;
       const deviceTypes = this.domain.deviceTypes ?? VALID_DEVICE_TYPES;
 
-      const systemPrompt = `Bạn là Trợ lý phân tích sự cố kỹ thuật của VuiHoc.
+      const systemPrompt = `${this.systemPrompt}
 Nhiệm vụ của bạn là đọc tin nhắn của người dùng và trích xuất các thông tin có cấu trúc dưới dạng JSON chuẩn.
 BẮT BUỘC chỉ chọn các giá trị nằm trong danh mục sau (nếu không rõ, hãy trả về null):
 - Products: ${JSON.stringify(products)}

@@ -1287,13 +1287,8 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/extractor-dept-system-title.test.ts",
     "câu hỏi nói rõ bộ phận không có trong danh mục thay vì lặp lại câu cũ",
-    "ported",
-    [
-      C(
-        "intake/extractor/extractor-dept-system-title.test.ts",
-        "câu hỏi nói rõ bộ phận không có trong danh mục thay vì lặp lại câu cũ",
-      ),
-    ],
+    "deferred",
+    "PR 7 của RFC 0002: câu hỏi phản hồi là hành vi của engine (hỏi đúng một lần), PR 5 chỉ port phần bộ trích xuất nhận ra bộ phận ngoài danh mục",
   ),
   // ── lib/intake-step/extractor-evidence.test.ts (10) ──
   row(

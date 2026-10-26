@@ -72,8 +72,12 @@ describe("Tiêu đề dự phòng bỏ lời chào", () => {
   });
 });
 
-describe("Pipeline hỏi lại bộ phận ngoài danh mục đúng một lần", () => {
-  it("câu hỏi nói rõ bộ phận không có trong danh mục thay vì lặp lại câu cũ", async () => {
+describe("Bộ phận ngoài danh mục", () => {
+  // Phần "hỏi lại đúng một lần" (câu hỏi phản hồi nói rõ bộ phận ngoài danh mục) là
+  // hành vi của ENGINE, thuộc PR 7 của RFC 0002. Ở PR 5 chỉ chứng minh được phần bộ
+  // trích xuất: nhận ra bộ phận ngoài danh mục và KHÔNG đoán bừa một bộ phận trong
+  // danh mục.
+  it("extractor nhận ra bộ phận ngoài danh mục và không đoán bừa", async () => {
     const ex = new FieldExtractor(
       { baseUrl: "http://llm.fake", apiKey: "k", model: "m" },
       async () =>
@@ -88,10 +92,5 @@ describe("Pipeline hỏi lại bộ phận ngoài danh mục đúng một lần"
     );
     expect(res.reportingDept).toBeUndefined();
     expect(res.reportingDeptUnrecognized).toBe("Kế toán");
-
-    // Khi bộ phận không có trong danh mục, câu hỏi phản hồi phải nói rõ
-    const question = `Bộ phận "${res.reportingDeptUnrecognized}" của anh/chị không có trong danh mục của em. Anh/chị chọn giúp em một trong các bộ phận sau nhé ạ.`;
-    expect(question).toContain("Kế toán");
-    expect(question).toContain("không có trong danh mục");
   });
 });

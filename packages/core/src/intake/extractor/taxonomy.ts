@@ -4,6 +4,12 @@
  * Core provides default Vietnamese support and common educational platform terms.
  * Apps can supply their own taxonomy / synonyms via ExtractorDomainConfig without
  * coupling core to specific business verticals.
+ *
+ * LƯU Ý VỀ RANH GIỚI (RFC 0002 mục 2.x): từ đồng nghĩa THEO MIỀN (E2) thuộc DỮ
+ * LIỆU của app, không phải của core. Ở PR 5, bộ từ đồng nghĩa này là bản PARITY
+ * với legacy để port test được đúng ý; PR 14 sẽ đưa danh mục của app vào đây và
+ * thay các giá trị mặc định. Mọi lần dùng đều nạp được qua `ExtractorDomainConfig`,
+ * nên app đã có thể ghi đè từ PR 5.
  */
 
 export const VALID_PRODUCTS = [
