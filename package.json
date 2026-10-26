@@ -19,7 +19,7 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "scan": "bun run scripts/scan-public.ts",
-    "test:scripts": "bun test scripts/docs-tools.test.ts scripts/scan-public.test.ts scripts/lint-baseline.test.ts scripts/scan-transcript.test.ts",
+    "test:scripts": "bun test scripts/docs-tools.test.ts scripts/scan-public.test.ts scripts/lint-baseline.test.ts scripts/scan-transcript.test.ts scripts/new-worktree.test.ts",
     "docs:gen": "bun run scripts/gen-docs.ts",
     "docs:dev": "bun run docs:gen && bun run --cwd docs dev",
     "docs:build": "bun run docs:gen && bun run --cwd docs build",
