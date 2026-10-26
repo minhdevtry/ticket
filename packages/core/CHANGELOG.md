@@ -27,6 +27,13 @@ All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded
     - 5 ca router từ `lib/intake-step/ticket-reply-router.test.ts` (port sang `packages/core/src/intake/engine/pr12-cancel-close.test.ts`).
   - Cập nhật sổ đối chiếu (`apps/tieulinh/receptionist-gap-register.test.ts`) và bảng parity `ENGINE.md`: 12 dòng `deferred` chuyển sang `ported` (tổng `ported` tăng từ 174 lên 186; `deferred` giảm từ 204 xuống 192; PR 12 còn 0 dòng).
   - Cập nhật dòng D8 bảng khoảng trống RFC 0002 mục 1.4 và mục 5 (`docs/rfc/0002-receptionist.md`).
+  - Sửa sau vòng soi của coordinator:
+    - **Ảnh đi kèm lệnh huỷ/đóng không còn ghi đè mô tả ticket** (ADR-0010). `TrackerPort.attach` ghi đè `description` của ticket bằng chuỗi truyền vào — truyền `""` sẽ xoá sạch mô tả gốc của người báo. Nay thêm cổng tuỳ chọn `TrackerPort.uploadMedia(issueId, mediaPaths)` trả về markdown ảnh để ghép vào **comment** dấu vết; legacy cũng đưa ảnh vào comment.
+    - **Thiếu cột đích thì trả lời lịch sự thay vì ném lỗi** — ném lỗi ra khỏi `step()` làm mất lượt chat của người báo (không có phản hồi nào). Nay trả `StepOutput` với `action.column_not_found`.
+    - **Core không còn hardcode chuỗi tiếng Việt** cho nhãn hành động ("đóng"/"hủy"), tên trạng thái đích ("Done"/"Canceled") và icon — tất cả qua `CopyCatalog` (`action.word_close`, `action.word_cancel`, `action.state_done`, `action.state_canceled`, `action.icon_done`, `action.icon_canceled`).
+    - **Comment dấu vết không còn ghi chat ID** khi không biết tên người báo — dùng `reporter.default_name` ("Người báo") như legacy. Sửa luôn hai chỗ có sẵn từ PR 11 (`edit`/`move`).
+    - **Preview không còn hardcode chuỗi "(kèm N ảnh/tệp)"** — dùng `action.suggest_append_media_note` qua `CopyCatalog` (như ba chỗ đã có sẵn trong `engine.ts`).
+    - **Core không còn hardcode tên bot của app** trong `countSpecialistTimelineComments` — danh sách bot là dữ liệu miền nên app truyền vào qua `IntakeEngineDeps.ignoredActors` (đã có sẵn từ trước; `packages/core/examples/tieulinh/engine-config.ts` truyền `DEFAULT_TIEULINH_IGNORED_ACTORS`). Hàm thuần nhận thêm `options.ignoredActors` và dùng `isSystemActor` thay vì regex riêng.
 
 - **Lệnh nhắm vào ticket đã có** (RFC 0002 PR 11, issue #25). Additive; hoàn thiện cơ chế tiếp nhận và thực thi lệnh nhắm vào ticket đã có (D1-D7, D9):
   - `@vuihoc/bot-core/intake`:

@@ -170,4 +170,12 @@ export const tieuLinhCopy: Record<CopyKey, string> = {
     "Dạ ticket {identifier} hiện đã đóng ở trạng thái {statusLabel} trên hệ thống rồi nên em không chuyển lại nữa ạ.",
   "comment.cancel_or_close_trace":
     "{icon} **{who}** yêu cầu {action} ticket → chuyển **{state}**.\nLý do: {reason}",
+  "action.word_close": "đóng",
+  "action.word_cancel": "hủy",
+  "action.icon_done": "✅",
+  "action.icon_canceled": "🛑",
+  "action.state_done": "Done",
+  "action.state_canceled": "Canceled",
+  "action.column_not_found":
+    "Dạ em chưa tìm thấy cột {stateLabel} trong dự án để chuyển {identifier} ạ.",
 };

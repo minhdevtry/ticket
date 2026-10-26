@@ -55,6 +55,18 @@ export interface TrackerPort {
    * description. Per-file failures must not throw. Returns how many attached.
    */
   attach(issueId: number, description: string, mediaPaths: string[]): Promise<number>;
+  /**
+   * Upload media WITHOUT touching the ticket description, trả về markdown ảnh
+   * để ghép vào comment. Dùng khi việc đó không phải tạo ticket (ví dụ huỷ/đóng
+   * ticket đã có) — `attach` sẽ GHI ĐÈ mô tả ticket bằng `description` truyền
+   * vào, xoá sạch mô tả gốc của người báo (ADR-0010).
+   *
+   * Tuỳ chọn: app không có cổng này thì ảnh kèm theo bỏ qua, không ghi đè mô tả.
+   */
+  uploadMedia?(
+    issueId: number,
+    mediaPaths: string[],
+  ): Promise<Array<{ filename: string; markdown: string }>>;
   findByIdentifier(identifier: string): Promise<TrackerIssue | null>;
   updateIssue?(
     issueId: number,
@@ -215,7 +227,14 @@ export type CopyKey =
   | "action.label_cancel" // label for cancel action ("hủy (Đã hủy)")
   | "action.draft_kept_note" // notice that active draft is kept untouched; {title}
   | "ticket.cancel_close_closed_refusal" // refuse cancel/close for already closed ticket; {identifier} {statusLabel}
-  | "comment.cancel_or_close_trace"; // trace comment on ticket after cancel/close; {icon} {who} {action} {state} {reason}
+  | "comment.cancel_or_close_trace" // trace comment on ticket after cancel/close; {icon} {who} {action} {state} {reason}
+  | "action.word_close" // the verb the reporter used, for a close request ("đóng")
+  | "action.word_cancel" // the verb the reporter used, for a cancel request ("hủy")
+  | "action.icon_done" // marker for a close-to-Done trace comment
+  | "action.icon_canceled" // marker for a cancel-to-Canceled trace comment
+  | "action.state_done" // target column name when the ticket is closed to Done
+  | "action.state_canceled" // target column name when the ticket is closed to Canceled
+  | "action.column_not_found"; // cannot find the target column to move the ticket to; {identifier} {stateLabel}
 
 /**
  * The chat↔ticket binding store, so a worker can report back to the reporter.

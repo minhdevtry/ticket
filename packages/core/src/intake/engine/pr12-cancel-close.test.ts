@@ -4,6 +4,7 @@
  */
 import { describe, expect, it, beforeEach } from "bun:test";
 import { Database } from "bun:sqlite";
+import { readFileSync } from "node:fs";
 import { IntakeEngine, type IntakeEngineDeps } from "./engine";
 import { legacyActionForOutcome } from "./action-map";
 import { LlmTicketCommandInterpreter } from "./command-interpreter";
@@ -15,6 +16,7 @@ import {
 } from "./text";
 import { makeCopyCatalog } from "../copy-catalog";
 import { tieuLinhCopy } from "../../../examples/tieulinh/copy";
+import { DEFAULT_TIEULINH_IGNORED_ACTORS } from "../../../examples/tieulinh/engine-config";
 import { intakeApplySchema, SqliteDraftRepository } from "../draft";
 import { SqliteChannelBindingStore } from "../create";
 import { notifyApplySchema, SqliteMessageRouteStore } from "../notify";
@@ -625,6 +627,105 @@ describe("RFC 0002 PR 12 — Huỷ và đóng ticket theo yêu cầu người b�
     });
   });
 
+  describe("3 bản sửa của coordinator sau vòng soi", () => {
+    it("ô #7 — ticket đã đóng TRƯỚC khi bấm nút xác nhận thì từ chối, không đổi cột", async () => {
+      // Lúc hiện bản xem trước ticket còn mở; bấm xác nhận thì nó đã bị đóng.
+      own(999);
+      setupTechColumnsAndIssue({ columnId: 3, specialistComments: 4 });
+      const engine = buildEngine();
+      await engine.step({ chatId: CHAT, message: "Đóng ticket TECHTEST-999" });
+      // Chuyên viên đóng ticket trong lúc người báo đang nhìn bản xem trước.
+      it$.issues.get(5999)!.columnId = 4; // cột Done
+      it$.calls.updateIssue.length = 0;
+      it$.calls.addComment.length = 0;
+      const out = await engine.step({ chatId: CHAT, message: "✅ Đóng TECHTEST-999" });
+      expect(out.outcome).toBe("closed_refusal");
+      expect(out.messages[0].text).toContain("TECHTEST-999");
+      // Không chuyển cột, không ghi comment.
+      expect(it$.calls.updateIssue).toHaveLength(0);
+      expect(it$.calls.addComment).toHaveLength(0);
+    });
+
+    it("ảnh đi kèm lệnh huỷ KHÔNG ghi đè mô tả ticket (ADR-0010)", async () => {
+      // `tracker.attach` GHI ĐÈ mô tả ticket bằng chuỗi truyền vào — truyền ""
+      // sẽ xoá sạch mô tả gốc của người báo. Ảnh phải đi vào COMMENT.
+      own(951);
+      setupTechColumnsAndIssue({ columnId: 2, specialistComments: 0 });
+      const engine = buildEngine({
+        tracker: {
+          ...it$.tracker,
+          async uploadMedia(_issueId: number, files: string[]) {
+            return files.map((f) => ({ filename: f, markdown: `![${f}](http://x/${f})` }));
+          },
+        } as TrackerPort,
+      });
+      await engine.step({ chatId: CHAT, message: "Hủy TECHTEST-951" });
+      await engine.step({
+        chatId: CHAT,
+        message: "✅ Hủy TECHTEST-951",
+        mediaPaths: ["/tmp/evidence.png"],
+      });
+      // Không lần nào ghi đè mô tả ticket.
+      const descPatches = it$.calls.updateIssue.filter((c) => "description" in c.patch);
+      expect(descPatches).toHaveLength(0);
+      // Ảnh tới được người báo qua comment dấu vết, không qua mô tả.
+      expect(it$.calls.addComment.at(-1)?.content).toContain("evidence.png");
+    });
+
+    it("app không có cổng uploadMedia thì ảnh bị bỏ, KHÔNG ghi đè mô tả ticket", async () => {
+      own(951);
+      setupTechColumnsAndIssue({ columnId: 2, specialistComments: 0 });
+      const engine = buildEngine();
+      await engine.step({ chatId: CHAT, message: "Hủy TECHTEST-951" });
+      await engine.step({
+        chatId: CHAT,
+        message: "✅ Hủy TECHTEST-951",
+        mediaPaths: ["/tmp/evidence.png"],
+      });
+      const descPatches = it$.calls.updateIssue.filter((c) => "description" in c.patch);
+      expect(descPatches).toHaveLength(0);
+    });
+
+    it("thiếu cột đích thì trả lời lịch sự, KHÔNG ném lỗi ra khỏi step()", async () => {
+      // Ném lỗi sẽ làm mất lượt chat của người báo — không có phản hồi nào.
+      own(951);
+      setupTechColumnsAndIssue({ columnId: 2, specialistComments: 0 });
+      const engine = buildEngine({
+        tracker: {
+          ...it$.tracker,
+          async listProjectColumns() {
+            return [];
+          },
+        } as TrackerPort,
+      });
+      await engine.step({ chatId: CHAT, message: "Hủy TECHTEST-951" });
+      const out = await engine.step({ chatId: CHAT, message: "✅ Hủy TECHTEST-951" });
+      expect(out.messages.length).toBeGreaterThan(0);
+      expect(out.messages[0].text).toContain("TECHTEST-951");
+      // Không chuyển cột nào khi không tìm thấy cột đích.
+      expect(it$.calls.updateIssue).toHaveLength(0);
+    });
+
+    it("comment dấu vết KHÔNG ghi chat ID (chat ID là dữ liệu riêng của kênh)", async () => {
+      // Repo công khai: chat ID không được ghi vào ticket. Legacy dùng "Người báo".
+      own(951);
+      setupTechColumnsAndIssue({ columnId: 2, specialistComments: 0 });
+      const engine = buildEngine();
+      await engine.step({ chatId: CHAT, message: "Hủy TECHTEST-951" });
+      await engine.step({ chatId: CHAT, message: "✅ Hủy TECHTEST-951" });
+      const trace = it$.calls.addComment.at(-1)?.content ?? "";
+      expect(trace).not.toContain(CHAT);
+      expect(trace).toContain("Người báo");
+    });
+
+    it("core không hardcode chuỗi tiếng Việt cho nhãn hành động và trạng thái", () => {
+      // Nguyên tắc repo: mọi chuỗi gửi người báo (kể cả chuỗi ghi vào comment
+      // trên ticket) phải đi qua CopyCatalog.
+      const engineSrc = readFileSync(new URL("./engine.ts", import.meta.url).pathname, "utf8");
+      expect(engineSrc).not.toMatch(/"đóng"|"hủy"|"Done"|"Canceled"/);
+    });
+  });
+
   describe("5 ca phân loại (ticket-reply-router.test.ts)", () => {
     const llm = { baseUrl: "", apiKey: "", model: "m" };
     const cand: ReplyCandidate = {
@@ -923,6 +1024,8 @@ describe("RFC 0002 PR 12 — Huỷ và đóng ticket theo yêu cầu người b�
       ];
       expect(
         countSpecialistTimelineComments(timeline, {
+          // Danh sách bot của APP — data miền, app truyền vào (core không hardcode).
+          ignoredActors: DEFAULT_TIEULINH_IGNORED_ACTORS,
           reporterNames: ["SA_User***"],
           projectAssignees: [
             { userId: "u-techlead-a", name: "TechLead_A", username: "techlead_a", kind: "member" },

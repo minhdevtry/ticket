@@ -1826,6 +1826,7 @@ export class IntakeEngine {
           draft?.reporter?.nameCode,
         ],
         projectAssignees,
+        ignoredActors: this.deps.ignoredActors,
       });
     } catch {
       return 0;
@@ -1936,7 +1937,9 @@ export class IntakeEngine {
 
     const title = target.title || issue.title ? ` «${target.title || issue.title}»` : "";
     const quoted = content ? `\n\n> ${cap(content, 500).replace(/\n/g, "\n> ")}` : "";
-    const files = mediaPaths.length ? `\n(kèm ${mediaPaths.length} ảnh/tệp)` : "";
+    const files = mediaPaths.length
+      ? `\n${deps.copy.text("action.suggest_append_media_note", { count: mediaPaths.length }).trim()}`
+      : "";
     const previewKey =
       kind === "close_ticket" ? "action.preview_close_ticket" : "action.preview_cancel_ticket";
     const previewText = deps.copy.text(previewKey, {
@@ -2543,9 +2546,23 @@ export class IntakeEngine {
         : (columns.find((c) => classifyColumn(c) === "canceled") ??
           columns.find((c) => c.stateType === "canceled"));
       if (!targetCol) {
-        throw new Error(
-          `Không tìm thấy cột ${moveToDone ? "Done" : "Canceled"} trong dự án ${deps.identifierPrefix ?? ""}`,
-        );
+        // Không ném lỗi ra khỏi `step()` — lượt chat của người báo sẽ mất trắng.
+        // Trả lời lịch sự thay vì đoán cột (đặc tả PR 12).
+        return {
+          outcome: "action_done",
+          messages: [
+            {
+              text: deps.copy.text("action.column_not_found", {
+                identifier,
+                stateLabel: deps.copy.text(
+                  moveToDone ? "action.state_done" : "action.state_canceled",
+                ),
+              }),
+            },
+          ],
+          issue: { id: issueId, identifier },
+          docId: draft.docId,
+        };
       }
 
       if (deps.tracker.updateIssue) {
@@ -2556,21 +2573,30 @@ export class IntakeEngine {
       const parts: string[] = [];
       const reason = pending.content || pending.message || "";
       if (reason) parts.push(escapeItsaplanMarkdown(cap(reason, 1000)));
-      if (media.length > 0 && deps.tracker.attach) {
-        await deps.tracker.attach(issueId, "", media).catch(() => 0);
+      // Ảnh đi kèm lệnh huỷ/đóng đưa vào COMMENT, không đụng mô tả ticket:
+      // `tracker.attach` GHI ĐÈ mô tả bằng chuỗi truyền vào (xem
+      // `adapter.ts` — `spliceAttachmentsIntoDescription`), mà mô tả ticket là
+      // nguyên văn của người báo (ADR-0010). Legacy cũng đưa ảnh vào comment.
+      if (media.length > 0 && deps.tracker.uploadMedia) {
+        const uploaded = await deps.tracker.uploadMedia(issueId, media).catch(() => []);
+        for (const att of uploaded) parts.push(escapeItsaplanMarkdown(att.markdown));
       }
 
       const requestedActionLabel =
         (classifyCancelOrCloseIntent(reason) ??
           (pending.kind === "close_ticket" ? "close" : "cancel")) === "close"
-          ? "đóng"
-          : "hủy";
-      const targetStateLabel = moveToDone ? "Done" : "Canceled";
-      const icon = moveToDone ? "✅" : "🛑";
+          ? deps.copy.text("action.word_close")
+          : deps.copy.text("action.word_cancel");
+      const targetStateLabel = deps.copy.text(
+        moveToDone ? "action.state_done" : "action.state_canceled",
+      );
+      const icon = deps.copy.text(moveToDone ? "action.icon_done" : "action.icon_canceled");
+      // Không rơi về chatId: chat ID là dữ liệu riêng của kênh, không ghi vào
+      // ticket công khai (legacy dùng "Người báo").
       const who =
         draft.reporter?.name || draft.reporter?.username
           ? `${draft.reporter.name || draft.reporter.username}`
-          : draft.chatId || deps.copy.text("reporter.default_name");
+          : deps.copy.text("reporter.default_name");
       const traceComment = markBotComment(
         deps.copy.text("comment.cancel_or_close_trace", {
           icon,
@@ -2649,7 +2675,7 @@ export class IntakeEngine {
           .join("\n");
         const who = draft.reporter?.username
           ? `@${draft.reporter.username}`
-          : draft.chatId || deps.copy.text("reporter.default_name");
+          : deps.copy.text("reporter.default_name");
         const traceComment = markBotComment(deps.copy.text("comment.edit_trace", { who, lines }));
         await deps.tracker.addComment(targetIssueId, traceComment).catch(() => {});
         return {
@@ -2683,7 +2709,7 @@ export class IntakeEngine {
       const { body, images } = descriptionBody(fromIssue?.description ?? "");
       const who = draft.reporter?.username
         ? `@${draft.reporter.username}`
-        : draft.chatId || deps.copy.text("reporter.default_name");
+        : deps.copy.text("reporter.default_name");
       const imagesText = images.join("\n");
       const targetComment = markBotComment(
         deps.copy.text("comment.move_target_note", {

@@ -133,4 +133,11 @@ export const TEST_COPY: Record<CopyKey, string> = {
   "ticket.cancel_close_closed_refusal": "Ticket {identifier} is already closed as {statusLabel}.",
   "comment.cancel_or_close_trace":
     "{icon} **{who}** requested {action} ticket → **{state}**.\nReason: {reason}",
+  "action.word_close": "close",
+  "action.word_cancel": "cancel",
+  "action.icon_done": "✅",
+  "action.icon_canceled": "🛑",
+  "action.state_done": "Done",
+  "action.state_canceled": "Canceled",
+  "action.column_not_found": "Cannot find the {stateLabel} column for {identifier}.",
 };

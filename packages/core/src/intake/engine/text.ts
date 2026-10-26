@@ -244,9 +244,6 @@ export function isProgressInquiry(text: string): boolean {
 
 export const MIN_SPECIALIST_COMMENTS_FOR_DONE = 3;
 
-const NON_SPECIALIST_ACTOR_RE =
-  /\b(?:ti[eể]u\s*linh|tieulinh|iris|bot-ticket-intake|bot-iris-intake|onyx|bot|ai-coder|ai-lead|ai-qa|coder\s*ai|lead\s*ai|qa\s*ai)\b|^admin$/i;
-
 /**
  * Đếm số bình luận của chuyên viên (thành viên dự án trên Itsaplan, không phải bot/@tieulinh,
  * không phải người báo) trên timeline của một ticket.
@@ -261,6 +258,13 @@ export function countSpecialistTimelineComments(
       username?: string | null;
       kind?: string | null;
     }>;
+    /**
+     * Tên bot / tài khoản hệ thống của APP cần loại khỏi danh sách chuyên viên
+     * (ví dụ "Tiểu Linh", "Iris"). Danh sách này là dữ liệu **miền** nên app
+     * truyền vào, không hardcode trong core (CODING_STANDARDS §8). Bot/agent chung
+     * ("bot", "agent", "ai-coder", "admin") đã bị `isSystemActor` loại sẵn.
+     */
+    ignoredActors?: string[] | RegExp;
   },
 ): number {
   if (!Array.isArray(timeline) || timeline.length === 0) return 0;
@@ -278,8 +282,8 @@ export function countSpecialistTimelineComments(
     (a) =>
       a &&
       a.kind !== "agent" &&
-      !isSystemActor(a.name) &&
-      !NON_SPECIALIST_ACTOR_RE.test(`${a.name ?? ""} ${a.username ?? ""}`),
+      !isSystemActor(a.name, options?.ignoredActors) &&
+      !isSystemActor(`${a.name ?? ""} ${a.username ?? ""}`, options?.ignoredActors),
   );
   const memberIds = new Set(humanMembers.map((a) => String(a.userId ?? "").trim()).filter(Boolean));
   const memberNames = new Set(
@@ -309,8 +313,8 @@ export function countSpecialistTimelineComments(
     const actorUserId = String(item.actorUserId ?? "").trim();
     if (
       !actorName ||
-      isSystemActor(actorName) ||
-      NON_SPECIALIST_ACTOR_RE.test(`${actorName} ${actorUsername}`)
+      isSystemActor(actorName, options?.ignoredActors) ||
+      isSystemActor(`${actorName} ${actorUsername}`, options?.ignoredActors)
     )
       continue;
     if (

@@ -110,3 +110,119 @@ Không còn việc dở trong phạm vi PR 12. Các phần tiếp theo trong chu
 - **PR 14**: Dữ liệu domain, chữ và định dạng ticket chi tiết của Tiểu Linh (J1, K6).
 - **PR 15**: DefineBot lễ tân thành pack MCP và skill.
 - **PR 16**: Adapter OpenClaw cho lễ tân.
+
+---
+
+## 6. Sửa của coordinator sau khi đọc code (vòng soi của coordinator)
+
+Coordinator đọc lại code worker và **tự tái hiện từng nghi vấn bằng probe** trước khi sửa. Có 4 lỗi thật, tất cả đã sửa và có test.
+
+### 6.1. Ảnh đi kèm lệnh huỷ/đóng **ghi đè mô tả ticket** (vi phạm ADR-0010)
+
+**Chỗ:** `engine.ts`, nhánh thực thi:
+```ts
+await deps.tracker.attach(issueId, "", media).catch(() => 0);
+```
+
+**Vì sao lỗi.** `TrackerPort.attach(issueId, description, mediaPaths)` — xem `adapter.ts`:
+```ts
+const desc = spliceAttachmentsIntoDescription(description, uploaded);
+await client.updateIssue(issueId, { description: desc });
+```
+Nó **ghi đè `description`** của ticket bằng chuỗi truyền vào. Truyền `""` ⇒ mô tả gốc (nguyên văn
+lời người báo) bị **xoá sạch**, chỉ còn phần ảnh. Legacy không làm vậy: `pipeline.ts` nhánh
+huỷ/đóng đưa ảnh vào **comment**, không đụng mô tả.
+
+**Probe của coordinator (trước khi sửa):** tracker giả mô phỏng adapter thật cho thấy
+`attach` được gọi với `desc = ""`; với adapter thật, `updateIssue` nhận `description` chỉ
+còn phần ảnh ⇒ mất mô tả gốc.
+
+**Đã sửa.** Thêm cổng tuỳ chọn `TrackerPort.uploadMedia(issueId, mediaPaths)` trả về
+markdown ảnh **không** đụng mô tả; `adapter.ts` implement bằng `uploadAttachments` +
+`formatAttachmentMarkdown`. `engine.ts` dùng cổng này và ghép markdown ảnh vào **comment
+dấu vết**. App chưa có cổng thì **ảnh bị bỏ** (không ghi đè mô tả) — an toàn hơn là mất
+mô tả ticket.
+
+### 6.2. Thiếu cột đích thì **ném lỗi** ⇒ mất lượt chat
+
+**Chỗ:** `engine.ts`:
+```ts
+if (!targetCol) {
+  throw new Error(`Không tìm thấy cột ${moveToDone ? "Done" : "Canceled"} ...`);
+}
+```
+
+**Vì sao lỗi.** Lỗi ném ra khỏi `step()` (không có `try/catch` quanh
+`executeConfirmedTicketAction`) ⇒ lượt chat của người báo **mất trắng**, không phản hồi
+nào. Đặc tả ghi rõ: *"nếu thiếu cột thì từ chối an toàn, không đoán"*.
+
+**Probe của coordinator (trước khi sửa):**
+```
+❌ step() NÉM LỖI: Không tìm thấy cột Canceled trong dự án
+⇒ lượt chat của người báo mất trắng
+```
+
+**Đã sửa.** Trả `StepOutput` với khoá copy `action.column_not_found` — sau khi sửa probe
+trả: `"Dạ em chưa tìm thấy cột Canceled trong dự án để chuyển TECH-951 ạ."`
+
+### 6.3. Core hardcode chuỗi tiếng Việt
+
+**Chỗ:** `engine.ts`: `? "đóng" : "hủy"`, `moveToDone ? "Done" : "Canceled"`, icon `✅`/`🛑`.
+
+**Vì sao lỗi.** Nguyên tắc repo (RFC 0002 §2.1 quy tắc 1): *"Câu chữ gửi người báo không
+do LLM sinh. Mọi chuỗi là `CopyCatalog`"*. Ba chuỗi này lọt vào **comment ghi trên ticket**
+⇒ chữ của bot nằm trong core, app khác ngôn ngữ sẽ ghi sai vào ticket.
+
+**Đã sửa.** Đưa vào `CopyCatalog`: `action.word_close`, `action.word_cancel`,
+`action.state_done`, `action.state_canceled`, `action.icon_done`, `action.icon_canceled`.
+Có test canh: `grep` mã nguồn `engine.ts` không được còn `"đóng"|"hủy"|"Done"|"Canceled"`.
+
+### 6.4. Comment dấu vết **ghi chat ID** vào ticket
+
+**Chỗ:** `engine.ts`: `draft.chatId || deps.copy.text("reporter.default_name")`.
+
+**Vì sao lỗi.** Repo **công khai**; `AGENTS.md` cấm chat ID. Khi không biết tên người báo,
+comment trên ticket ghi ra chat ID. Legacy dùng `"Người báo"`.
+
+**Đã sửa.** Dùng `reporter.default_name`. Sửa luôn **hai chỗ có sẵn từ PR 11** (`edit`/`move`)
+vì cùng loại rò rỉ — đã ghi trong CHANGELOG để ai đọc thấy.
+
+### 6.5. Test thêm của coordinator (4 ca, trong `pr12-cancel-close.test.ts`)
+
+1. `ảnh đi kèm lệnh huỷ KHÔNG ghi đè mô tả ticket (ADR-0010)` — có cổng `uploadMedia`: ảnh
+   vào comment dấu vết, không có `patch.description` nào.
+2. `app không có cổng uploadMedia thì ảnh bị bỏ, KHÔNG ghi đè mô tả ticket`.
+3. `thiếu cột đích thì trả lời lịch sự, KHÔNG ném lỗi ra khỏi step()`.
+4. `comment dấu vết KHÔNG ghi chat ID (chat ID là dữ liệu riêng của kênh)`.
+5. `core không hardcode chuỗi tiếng Việt cho nhãn hành động và trạng thái`.
+
+**Bằng chứng sau khi sửa (coordinator tự chạy lại):**
+- `bun run --cwd packages/core test` → **1447 pass, 0 fail** (117 file).
+- `bun run verify` → `EXIT=0`.
+- `bun run docs:check` → `EXIT=0`.
+- Probe lại: V1 không còn `patch.description`; V2 trả lời lịch sự thay vì ném lỗi.
+
+### 6.6. Sửa thêm theo hai reviewer độc lập (vòng review của PR 12)
+
+Hai reviewer chạy song song trên nhánh PR 12 (`orchestration/report-26-review-spec.md` và
+`orchestration/report-26-review-standards.md`). Kết quả: reviewer trục đặc tả kết luận **ĐẠT**
+(9/9 ô bảng quyết định), reviewer trục chuẩn hoá kết luận **CHANGES REQUESTED** với 1 HIGH,
+2 MEDIUM, 1 LOW.
+
+| Mức độ | Vấn đề | Đã sửa |
+|---|---|---|
+| HIGH | Preview huỷ/đóng hardcode chuỗi `"(kèm N ảnh/tệp)"` thay vì lấy từ `CopyCatalog` | Dùng `action.suggest_append_media_note` (khoá đã có sẵn, ba chỗ khác trong `engine.ts` đã dùng đúng) |
+| MEDIUM | `throw new Error` khi thiếu cột + nhãn `"đóng"`/`"hủy"` hardcode | Đã sửa ở mục 6.2 và 6.3 (reviewer ghi nhận working tree đã có, nhưng chưa commit) |
+| MEDIUM | `NON_SPECIALIST_ACTOR_RE` trong core chứa tên bot của app (`tiểu linh`, `iris`, `onyx`, `bot-ticket-intake`) — vi phạm CODING_STANDARDS §8 | Xoá regex khỏi core; `countSpecialistTimelineComments` nhận `options.ignoredActors` và dùng `isSystemActor` (cơ chế **đã có sẵn** trong `IntakeEngineDeps.ignoredActors`). App Tiểu Linh truyền `DEFAULT_TIEULINH_IGNORED_ACTORS` — **đúng bằng** regex legacy nên parity giữ nguyên |
+| LOW | Thiếu ca test cho ô #7 (ticket đã đóng trước khi bấm nút xác nhận) | Thêm ca `ô #7 — ticket đã đóng TRƯỚC khi bấm nút xác nhận thì từ chối, không đổi cột` |
+
+**Ghi chú về độ tin cậy của reviewer.** Cả hai reviewer đều **bỏ sót** lỗi ghi đè mô tả ticket
+(mục 6.1) và lỗi rò rỉ chat ID (mục 6.4) — vì tracker giả trong test không mô phỏng được
+`adapter.attach` (hành vi `spliceAttachmentsIntoDescription` + `updateIssue`). Chỉ đọc code và
+chạy test là không đủ; phải **tự dựng probe mô phỏng adapter thật** mới thấy. Xem
+[[reviewer-catches-only-some-bugs]].
+
+**Bằng chứng cuối (coordinator tự chạy lại trên HEAD):**
+- `bun run --cwd packages/core test` → **1448 pass, 0 fail**.
+- `bun run verify` → `EXIT=0`.
+- `bun run docs:check` → `EXIT=0`.
