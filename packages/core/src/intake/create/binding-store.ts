@@ -4,10 +4,23 @@
  *
  * NGUỒN: intake `lib/storage/binding-repository.ts` — `saveBinding`,
  * `getLatestBinding`, `normalizeUsername`, narrowed to the write path's needs.
+ *
+ * Ghi/đọc được CẢ HAI dạng bảng (RFC 0002 mục 6.2, xem `binding-schema.ts`): dạng core, và dạng legacy của Tiểu
+ * Linh 1 (`channel_type` và `message_id` NOT NULL). Dạng legacy ghi `channel_type = 'telegram'` và `message_id = '0'`
+ * giữ chỗ y như `bindIssueToChat`, nên TL1 đọc được binding do core ghi và ngược lại. File legacy không có
+ * `reporter_user_id`: id người báo bị bỏ khi ghi, tra theo user id luôn rỗng ({@link supportsReporterUserId}).
  */
 import type { Database } from "bun:sqlite";
 import type { ChannelBindingStore } from "../ports";
 import { chatIdVariants } from "../draft/repository";
+import {
+  LEGACY_CHANNEL_TYPE,
+  LEGACY_MESSAGE_ID_PLACEHOLDER,
+  type BindingSchemaKind,
+  type BindingSchemaOption,
+  detectBindingSchema,
+  resolveBindingSchema,
+} from "./binding-schema";
 
 /** Usernames arrive as `@name` or `name`; store one form so lookups don't miss. */
 export function normalizeUsername(username?: string | null): string | null {
@@ -26,8 +39,41 @@ export function normalizeUserId(userId?: string | null): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+/** Tuỳ chọn của {@link SqliteChannelBindingStore}. */
+export interface SqliteChannelBindingStoreOptions {
+  /**
+   * `"auto"` (mặc định): dò theo bảng `ticket_bindings` đang có (xem {@link detectBindingSchema}). `"core"` hoặc
+   * `"legacy"`: khẳng định dạng của file; bảng có dạng khác thì ném `BindingSchemaError` thay vì ghi sai.
+   */
+  schema?: BindingSchemaOption;
+}
+
 export class SqliteChannelBindingStore implements ChannelBindingStore {
-  constructor(private readonly db: Database) {}
+  private resolved: BindingSchemaKind | undefined;
+
+  constructor(
+    private readonly db: Database,
+    private readonly options: SqliteChannelBindingStoreOptions = {},
+  ) {
+    // Bảng đã có thì dò và kiểm ngay (sai là ném ở đây, không đợi đến lần ghi đầu tiên giữa production).
+    // Chưa có bảng (chưa áp schema): để lần dùng đầu dò lại.
+    if (detectBindingSchema(db) !== null) this.resolved = resolveBindingSchema(db, options.schema);
+    else if (options.schema === "legacy") resolveBindingSchema(db, options.schema);
+  }
+
+  /** Dạng schema của bảng binding mà store này đang đọc/ghi. */
+  get schema(): BindingSchemaKind {
+    this.resolved ??= resolveBindingSchema(this.db, this.options.schema);
+    return this.resolved;
+  }
+
+  /**
+   * Tra theo user id có hoạt động không. Dạng legacy không có cột `reporter_user_id` (và core không được thêm cột vào
+   * file legacy) nên `false`: `getLatestBindingByUserId` luôn trả null, `rebindReporterUserId` trả 0.
+   */
+  get supportsReporterUserId(): boolean {
+    return this.schema === "core";
+  }
 
   saveBinding(binding: {
     issueId: number;
@@ -37,6 +83,32 @@ export class SqliteChannelBindingStore implements ChannelBindingStore {
     reporterUserId?: string;
     reporterUsername?: string;
   }): void {
+    if (this.schema === "legacy") {
+      // Y như `TicketBindingRepository.saveBinding` + `bindIssueToChat` của TL1; `reporterUserId` không có chỗ lưu.
+      this.db
+        .prepare(
+          `INSERT INTO ticket_bindings (issue_id, channel_type, chat_id, message_id, identifier, title, reporter_username, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+           ON CONFLICT(issue_id) DO UPDATE SET
+             channel_type = excluded.channel_type,
+             chat_id = excluded.chat_id,
+             message_id = excluded.message_id,
+             identifier = excluded.identifier,
+             title = COALESCE(excluded.title, ticket_bindings.title),
+             reporter_username = COALESCE(excluded.reporter_username, ticket_bindings.reporter_username),
+             updated_at = CURRENT_TIMESTAMP`,
+        )
+        .run(
+          binding.issueId,
+          LEGACY_CHANNEL_TYPE,
+          binding.chatId,
+          LEGACY_MESSAGE_ID_PLACEHOLDER,
+          binding.identifier,
+          binding.title || null,
+          normalizeUsername(binding.reporterUsername),
+        );
+      return;
+    }
     this.db
       .prepare(
         `INSERT INTO ticket_bindings (issue_id, chat_id, identifier, title, reporter_username, reporter_user_id, updated_at)
@@ -92,7 +164,7 @@ export class SqliteChannelBindingStore implements ChannelBindingStore {
     identifierPrefix?: string,
   ): { issueId: number; identifier: string; title?: string } | null {
     const id = normalizeUserId(reporterUserId);
-    if (!id) return null;
+    if (!id || !this.supportsReporterUserId) return null;
     const prefix = identifierPrefix ? `${identifierPrefix.trim().toUpperCase()}-` : "";
     const byProject = prefix ? "AND substr(UPPER(identifier), 1, ?) = ?" : "";
     const args: Array<string | number> = [id];
@@ -118,7 +190,7 @@ export class SqliteChannelBindingStore implements ChannelBindingStore {
   rebindReporterUserId(oldUserId: string, newUserId: string): number {
     const from = normalizeUserId(oldUserId);
     const to = normalizeUserId(newUserId);
-    if (!from || !to || from === to) return 0;
+    if (!from || !to || from === to || !this.supportsReporterUserId) return 0;
     return this.db
       .prepare(
         `UPDATE ticket_bindings SET reporter_user_id = ?, updated_at = CURRENT_TIMESTAMP WHERE reporter_user_id = ?`,

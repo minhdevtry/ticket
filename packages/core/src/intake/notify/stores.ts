@@ -13,6 +13,7 @@
  * `channel_type` column (default "telegram" when a row predates it).
  */
 import type { Database } from "bun:sqlite";
+import { assertNotLegacyFile, tableColumns } from "../create/binding-schema";
 import { chatIdVariants } from "../draft/repository";
 import type {
   MessageRoute,
@@ -50,6 +51,9 @@ export const NOTIFY_SCHEMA = [
 
 /** Apply the notify schema (shape matches core's `ApplySchema`). */
 export function notifyApplySchema(db: Database, opts: { wal: boolean } = { wal: false }): void {
+  // File legacy (TL1) do TL1 sở hữu: `ticket_states` của nó có `project_key` NOT NULL mà bảng core không điền, và
+  // ALTER thêm cột là đổi schema của nó. Binding/route ở file legacy đi qua `legacyBindingApplySchema`.
+  assertNotLegacyFile(db, "notifyApplySchema");
   if (opts.wal) {
     db.run("PRAGMA journal_mode = WAL;");
     db.run("PRAGMA synchronous = NORMAL;");
@@ -132,12 +136,24 @@ export class SqliteMessageRouteStore implements MessageRouteStore {
 }
 
 export class SqliteNotifyBindingReader implements NotifyBindingReader {
+  /** Có cột `reporter_user_id` không (file legacy của TL1 không có). Dò một lần khi bảng đã tồn tại. */
+  private userIdColumn: boolean | undefined;
+
   constructor(private readonly db: Database) {}
 
+  private hasUserIdColumn(): boolean {
+    if (this.userIdColumn !== undefined) return this.userIdColumn;
+    const cols = tableColumns(this.db, "ticket_bindings");
+    if (cols.length === 0) return true; // chưa có bảng: để câu SELECT báo lỗi như cũ, không nhớ kết quả
+    this.userIdColumn = cols.includes("reporter_user_id");
+    return this.userIdColumn;
+  }
+
   getBindingByIssueId(issueId: number): NotifyBinding | null {
+    const userIdSelect = this.hasUserIdColumn() ? "reporter_user_id" : "NULL AS reporter_user_id";
     const row = this.db
       .prepare(
-        `SELECT issue_id, chat_id, identifier, title, reporter_username, reporter_user_id,
+        `SELECT issue_id, chat_id, identifier, title, reporter_username, ${userIdSelect},
                 COALESCE(channel_type, 'telegram') AS channel_type
          FROM ticket_bindings WHERE issue_id = ?`,
       )

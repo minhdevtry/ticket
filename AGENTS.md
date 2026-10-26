@@ -15,7 +15,7 @@ Repo **công khai**. Trước mọi commit: không secret, không IP/host nội 
 - `tools/tl2-shadow`: bộ chạy bóng Tiểu Linh 2 (relay, proxy giữ secret, tunnel, so sánh) và chạy `apps/tieulinh` trên Colab không secret (`deploy/colab/cup-tieulinh.sh`). Chỉ chạy trên máy dev; xem `docs/how-to/shadow-tl2.md`, ADR-0005.
 - `deploy/`: script đẩy secret qua SSH, README deploy, launcher dev (`deploy/dev/tl2-shadow.sh`) và Colab (`deploy/colab/cup-*.sh`).
 - `docs/`: site VitePress (tiếng Việt), published lên GitHub Pages. Gồm `guide/`, `how-to/`, `reference/`, `explanation/` và `adr/` (quyết định cấp repo). Mỗi package/app có `docs/adr` riêng cạnh code.
-- `scripts/`: `scan-public.ts` (vệ sinh repo công khai), `gen-docs.ts`, `check-doc-snippets.ts`, `check-docs-refs.ts`, `check-docs-touched.ts` (kiểm docs).
+- `scripts/`: `scan-public.ts` (vệ sinh repo công khai), `gen-docs.ts`, `check-doc-snippets.ts`, `check-docs-refs.ts`, `check-docs-touched.ts` (kiểm docs), `new-worktree.sh` (tạo worktree riêng cho nhánh mới).
 
 ## Lệnh
 
@@ -38,3 +38,42 @@ bun run --cwd apps/tieulinh-legacy golden:record   # ghi lại bản ghi vàng c
 - Sửa core → thêm test trong core và ghi `packages/core/CHANGELOG.md`.
 - Đổi hành vi hoặc API công khai → cập nhật `docs/` trong cùng PR (CI chặn nếu thiếu; nhãn `no-docs` chỉ cho refactor thuần và test). Mẫu `ts` trong docs phải có cờ `check`, `run` hoặc `no-check`. Không bao giờ chép chữ ký hàm vào docs bằng tay khi TypeDoc đã sinh.
 - Commit theo Conventional Commits, scope là tên package.
+
+## Quy trình PR và commit
+
+- Trước khi mở PR: đã merge nhánh nền vào nhánh mình VÀ chạy `bun run verify` trên trạng thái đã merge đó rồi. Bằng chứng trong body PR phải khớp với HEAD lúc reviewer đọc.
+- `git commit ... && git push` nối chuỗi trong một lệnh; chỉ push sau khi `git log --oneline -1` xác nhận HEAD đúng. Khi hook chặn commit mà `git push` vẫn chạy thì tạo nhánh remote rỗng.
+- Ghi file mới: tạo thư mục trước (`mkdir -p`), dùng công cụ sửa file thay vì ghi đè bằng heredoc trong Bash, và kiểm tra lại file tồn tại sau khi ghi.
+
+## Điều phối Orca
+
+Agent điều phối việc khác trong repo này thì đi qua Orca, để tiến trình hiện trên UI và để có vòng đời, bằng chứng, và người nhận rõ ràng. Không chạy worker nền vô hình.
+
+1. Tạo Run: `orca orchestration run-create --objective "<mục tiêu>" --json`.
+2. Tạo worktree riêng cho từng việc: `orca worktree create --repo path:<đường dẫn repo> --name "<tên>" --base-branch main --issue <số> --json`. Không sửa trong checkout chính, trừ fast-track (typo, docs, ≤ 5 dòng). Nhánh mới luôn làm trong worktree riêng, tạo bằng `scripts/new-worktree.sh <nhánh>`.
+3. Log phiên (transcript) hay chứa khoá API và token bot. Trước khi đưa log cho worker hoặc lưu vào repo, lọc: `bun run scan:transcript <file-or-dir> --redact` (xem `scripts/scan-transcript.ts`).
+4. Trước khi giao việc, kiểm tra máy còn đủ chỗ và RAM (`df -h /`, `free -m`); máy hết đĩa làm worker chết giữa chừng.
+5. Giao việc: `orca orchestration worker-start --run <runId> --spec "<spec>" --worktree "name:<tên worktree>" --agent omp --model minimax/MiniMax-M3.1-Flash:high --json`. Model của worker chỉ được dùng `google-antigravity/gemini-3.8-flash:high` hoặc `minimax/MiniMax-M3.1-Flash:high`; phải giữ `:high` (tắt suy luận thì worker làm hỏng việc). OMP không nhận cờ `--effort`, nên đừng truyền nó. Worker chạy trong terminal do Orca quản lý nên hiện trên UI. Spec phải tự chứa: mục tiêu, phần sửa, ràng buộc, phần được phép sửa, tiêu chí chấp nhận, danh sách cấm. Không dùng `omp -p` headless: không ai thấy và dễ bị kill.
+6. Chờ bằng sự kiện, không quét vòng: `orca orchestration check --wait --types "worker_done,escalation,question" --timeout-ms 1800000 --json`. Không `orca terminal wait` để đóng băng coordinator, không tự viết vòng poll.
+7. Bằng chứng phải tự kiểm: coordinator chạy `bun run verify` và `bun run docs:check` trước khi tin lời tự báo của worker. Worker nói "xong" không phải bằng chứng.
+8. Dọn sau khi nhận `worker_done`: `orca orchestration worker-release --dispatch <dispatchId> --json`, `orca orchestration check --ack <deliveryId> --json`, `orca terminal close --terminal <terminalId> --json`.
+
+Cạnh chặn giữa các việc nằm ở issue dependency của GitHub (xem `docs/agents/issue-tracker.md`). PR 7 đến 13 của `docs/rfc/0002-receptionist.md` cùng chạm `engine.ts` nên merge tuần tự, không song song.
+
+Quy tắc cần phán đoán khi review nằm ở `CODING_STANDARDS.md`; quy tắc máy kiểm được nằm ở `bun run verify` và CI.
+
+## Agent skills
+
+Repo này dùng bộ skill của [mattpocock/skills](https://github.com/mattpocock/skills) để việc agent có một ngôn ngữ chung. Cấu hình cho repo:
+
+### Issue tracker
+
+Issue và spec nằm ở GitHub Issues của `minhdevtry/ticket` (dùng `gh` CLI). Xem `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Năm nhãn trạng thái chuẩn (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`) cùng hai nhãn loại (`bug`, `enhancement`). Mỗi issue mang đúng một nhãn trạng thái và một nhãn loại. Xem `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Repo đa ngữ cảnh: `GLOSSARY-MAP.md` ở gốc trỏ tới `GLOSSARY.md` của từng ngữ cảnh, ADR hệ thống ở `docs/adr/`, ADR theo ngữ cảnh ở `packages/core/docs/adr/` và `apps/tieulinh-legacy/docs/adr/`. Xem `docs/agents/domain.md`.

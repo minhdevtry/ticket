@@ -104,7 +104,10 @@ export type CopyKey =
   | "action.canceled" // the previewed action was canceled
   | "lookup.status" // report an existing ticket's status; {identifier} {status}
   | "lookup.not_owner" // the ticket is someone else's — status only, no edits (ADR-0008 §6)
-  | "draft.expired_new"; // the previous draft expired; starting fresh
+  | "draft.expired_new" // the previous draft expired; starting fresh
+  | "draft.canceled" // the reporter canceled the draft on request
+  | "draft.awaiting_confirmation" // a summary is shown; waiting for the reporter to press the button
+  | "ask.missing_info"; // still missing fields — ask the reporter to fill them in
 
 /**
  * The chat↔ticket binding store, so a worker can report back to the reporter.
@@ -215,6 +218,33 @@ export interface ExtractInput {
   attachments: number;
   /** The draft title so far, if any — context for intent classification. */
   draftTitle?: string;
+  /**
+   * Ngữ cảnh đầy đủ của lượt: tờ khai đang gom, câu hỏi kỹ thuật vừa hỏi,
+   * ticket vừa tạo. Bộ trích xuất cần để phân biệt "câu trả lời cho câu hỏi
+   * vừa hỏi" với "lời báo sự cố mới" (RFC 0002 mục 1.5, E6).
+   */
+  context?: ExtractContext;
+}
+
+/**
+ * Ngữ cảnh mà engine đưa cho bộ trích xuất. Mọi trường đều do engine cắt
+ * sẵn theo trần của legacy nên bộ trích xuất không cần biết trần là bao nhiêu.
+ *
+ * NGUỒN: legacy `lib/intake-step/pipeline.ts` (`contextOf`) — tiêu đề và
+ * triệu chứng của tờ khai (trần 1.500 ký tự), câu hỏi kỹ thuật vừa hỏi,
+ * ticket vừa tạo (trần tin 4.000 ký tự).
+ */
+export interface ExtractContext {
+  /** Tiêu đề tờ khai đang gom. */
+  draftTitle?: string;
+  /** Mô tả tờ khai đang gom (đã cắt trần). */
+  draftDescription?: string;
+  /** Câu hỏi dữ kiện kỹ thuật vừa hỏi — tin này là câu trả lời. */
+  techQuestion?: string;
+  /** Các trường vừa hỏi — tin này có thể là câu trả lời cho một trong chúng. */
+  lastAskedFields?: string[];
+  /** Ticket vừa tạo trong chat này (đã cắt trần). */
+  createdTicket?: { identifier: string; title?: string; description?: string };
 }
 
 export interface FieldExtractorPort {

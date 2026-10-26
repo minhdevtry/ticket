@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Chặn commit khi lint hoặc vệ sinh repo công khai đỏ.
+#
+# Cài: bun run setup:hooks   (đặt core.hooksPath = .githooks)
+# Bỏ: git config --unset core.hooksPath
+#
+# Chỉ chạy phần nhanh: lint (dưới 1 giây) và scan các file đang staged. Kiểm tra đầy đủ
+# (typecheck, test, docs) thuộc `bun run verify` và của CI.
+#
+# Khi xanh thì im lặng: output của biome dài hơn phần việc và lại in ra mỗi lần commit.
+#
+# Worktree mới chưa `bun install` thì không có biome: `bun run lint` trả 127 với thông điệp
+# "biome: command not found" rất khó hiểu. Ở trường hợp đó bỏ qua lint và in hướng dẫn.
+set -uo pipefail
+
+root="$(git rev-parse --show-toplevel 2>/dev/null)" || root=""
+if [ -n "$root" ] && [ -d "$root" ]; then
+  cd "$root" || exit 1
+fi
+
+# ── lint ──────────────────────────────────────────────────────────────────────
+if [ -x node_modules/.bin/biome ]; then
+  lint_out="$(bun run lint 2>&1)"
+  lint_code=$?
+  if [ $lint_code -eq 127 ]; then
+    # Không tìm thấy lệnh (thiếu bun): không phải lỗi nội dung repo.
+    echo "pre-commit: không chạy được lint, bỏ qua." >&2
+  elif [ $lint_code -ne 0 ]; then
+    echo "pre-commit: lint đỏ, chưa commit." >&2
+    printf '%s\n' "$lint_out" | tail -30 >&2
+    echo "Sửa code, hoặc chạy 'bun run format'." >&2
+    exit 1
+  fi
+else
+  echo "pre-commit: chưa cài deps trong worktree này: chạy \`bun install\`" >&2
+  echo "pre-commit: bỏ qua bước lint (biome chưa có)." >&2
+fi
+
+# ── scan ──────────────────────────────────────────────────────────────────────
+# scripts/scan-public.ts chỉ dùng API chuẩn của Node nên vẫn chạy được kể cả khi
+# chưa cài deps. Không có file đó thì bỏ qua thay vì chặn commit.
+if [ -f scripts/scan-public.ts ]; then
+  scan_out="$(bun run scan --staged 2>&1)"
+  scan_code=$?
+  if [ $scan_code -ne 0 ]; then
+    if [ $scan_code -eq 127 ]; then
+      # Không tìm thấy lệnh (ví dụ thiếu bun): không phải lỗi nội dung repo.
+      echo "pre-commit: không chạy được scan, bỏ qua." >&2
+    else
+      echo "pre-commit: scan đỏ, chưa commit." >&2
+      printf '%s\n' "$scan_out" | tail -20 >&2
+      echo "Repo là công khai: thay giá trị thật bằng mẫu tổng hợp." >&2
+      exit 1
+    fi
+  fi
+else
+  echo "pre-commit: không thấy scripts/scan-public.ts, bỏ qua scan." >&2
+fi
+
+exit 0

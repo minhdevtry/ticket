@@ -34,6 +34,7 @@ import type {
   ReplyCandidate,
   PostCreateHookPort,
   ExtractedFields,
+  ExtractContext,
   IdentifierKey,
   Priority,
 } from "../ports";
@@ -50,6 +51,8 @@ import {
   createRecord,
   buildRecap,
   layoutButtons,
+  fieldButtons,
+  getVariant,
   type FieldCatalog,
   type IntakeRecord,
   type InlineButton,
@@ -57,10 +60,13 @@ import {
 import { evaluatePriorityRules, resolveRequestedPriority, type UrgencyRules } from "../priority";
 import { findIdentifierConflict } from "./identifiers";
 import { mentionedIdentifiers, foldButton } from "./text";
+import { isDeclineAnswer, isMeaninglessInput, TECH_INFO_FIELD } from "./normalize";
 import type { StepInput, StepOutput, ChannelMessage } from "./types";
 
-/** Max chars for the ticket description (symptoms) — TECH follow-up caps (§2). */
-export const MAX_DESCRIPTION_CHARS = 6000;
+/** Max chars of ONE reporter message kept in rawText (legacy parity). */
+export const MAX_RAW_TEXT_CHARS = 4000;
+/** Max chars of rawText over the whole conversation (legacy parity). */
+export const MAX_RAW_TEXT_TOTAL_CHARS = 8000;
 /** Max chars for an append/follow-up to an existing ticket (§2). */
 export const MAX_FOLLOW_UP_CHARS = 4000;
 /** A just-created ticket can be moved into another within this window. */
@@ -140,6 +146,14 @@ export class IntakeEngine {
       // continue collecting on the fresh draft below
     }
 
+    // 3.1 Tin vô nghĩa (rỗng, hoặc token nội bộ "noop" của nút đã khoá) mà
+    //      không kèm ảnh: BỎ QUA hoàn toàn — không tạo tờ khai, không tạo
+    //      ticket, không làm hỏng trạng thái đang có (TECH-1148). Chỉ trả lời
+    //      theo trạng thái tờ khai để người báo không bị bỏ rơi.
+    if (isMeaninglessInput(text, mediaPaths)) {
+      return this.respondToMeaningless(draft);
+    }
+
     // 4. Explicit /new flag → park the open draft and open a new one.
     if (input.forceNew && draft && !CLOSED_STATUSES.has(draft.status)) {
       const fresh = this.openFresh(input.chatId, nowIso);
@@ -170,23 +184,26 @@ export class IntakeEngine {
     nowIso: string,
   ): Promise<StepOutput> {
     const { deps } = this;
+    const open = existing && !CLOSED_STATUSES.has(existing.status) ? existing : null;
+    // "không biết" / "không có" — người báo nói rõ là không trả lời được câu
+    // vừa hỏi (A13). Luật tất định, không nhờ LLM.
+    const declined = isDeclineAnswer(text);
+
     const extracted = await deps.extractor.extract({
       text,
       attachments: mediaPaths.length,
-      draftTitle:
-        existing && !CLOSED_STATUSES.has(existing.status) ? existing.ticket.title : undefined,
+      draftTitle: open?.ticket.title || undefined,
+      context: this.buildExtractContext(existing),
     });
 
     // A plain confirm with no live draft summary is chitchat here; the write
     // path's confirmation protocol owns real confirms once a summary is shown.
     if (extracted.userIntent === "cancel") {
-      if (existing && !CLOSED_STATUSES.has(existing.status)) {
-        deps.drafts.saveRevision({ ...existing, status: "canceled", updatedAt: nowIso });
+      if (open) {
+        deps.drafts.saveRevision({ ...open, status: "canceled", updatedAt: nowIso });
       }
-      return { outcome: "chitchat", messages: [] };
+      return { outcome: "canceled", messages: [{ text: deps.copy.text("draft.canceled") }] };
     }
-
-    const open = existing && !CLOSED_STATUSES.has(existing.status) ? existing : null;
 
     // A completed report arriving while another draft is mid-collection, OR a
     // conflicting identifier, parks instead of silently merging (TECH-928, E2E 28/09).
@@ -207,7 +224,19 @@ export class IntakeEngine {
     }
 
     // Merge this turn's fields onto the draft (draft never loses identifiers it had).
-    const draft = this.mergeIntoDraft(open, input, extracted, text, mediaPaths, nowIso);
+    const draft = this.mergeIntoDraft(open, input, extracted, text, mediaPaths, nowIso, declined);
+
+    // "không biết" → trường vừa hỏi vào explicitlyMissing, bot thôi hỏi trường đó.
+    if (declined && draft.lastAskedFields?.length) {
+      const rec = draft.record ?? {
+        variant: deps.variant,
+        values: {},
+        questionCount: {},
+        explicitlyMissing: [],
+      };
+      rec.explicitlyMissing = [...new Set([...rec.explicitlyMissing, ...draft.lastAskedFields])];
+      draft.record = rec;
+    }
 
     // Gate: enough yet?
     const record = this.toRecord(draft);
@@ -217,9 +246,14 @@ export class IntakeEngine {
     if (!gate.isComplete) {
       // Ask the next question (ask-back budget lives in the gate + record).
       this.bumpAsked(draft, gate.fieldsToAsk);
+      draft.lastAskedFields = gate.fieldsToAsk;
       deps.drafts.saveRevision(draft);
       const question = gate.questionText || deps.copy.text("ask.opening");
-      return { outcome: "asked", messages: [{ text: question }] };
+      const buttons = this.questionButtons(gate.fieldsToAsk[0]);
+      return {
+        outcome: "asked",
+        messages: [{ text: question, ...(buttons ? { buttons } : {}) }],
+      };
     }
 
     // Priority: floors raise, ceilings cap, floor wins ties; reporter request
@@ -227,7 +261,7 @@ export class IntakeEngine {
     draft.ticket.priority = this.resolvePriority(draft, extracted);
 
     // Optional one-round technical review before the summary.
-    if (deps.techReviewer && !draft.record?.explicitlyMissing.includes("__tech")) {
+    if (deps.techReviewer && !draft.techReviewDone) {
       const review = await safeReview(deps.techReviewer, {
         title: draft.ticket.title,
         description: draft.ticket.rawText,
@@ -235,22 +269,95 @@ export class IntakeEngine {
         known: record.values,
       });
       if (review.missing.length > 0 && review.question) {
-        draft.record = draft.record ?? {
-          variant: deps.variant,
-          values: {},
-          questionCount: {},
-          explicitlyMissing: [],
-        };
-        draft.record.explicitlyMissing.push("__tech"); // ask once, any answer proceeds
+        draft.techReviewDone = true; // ask once, any answer proceeds
+        draft.techQuestion = review.question;
+        draft.lastAskedFields = [TECH_INFO_FIELD];
         deps.drafts.saveRevision(draft);
         return { outcome: "asked", messages: [{ text: review.question }] };
       }
+      draft.techReviewDone = true;
     }
 
     // Summary + confirm button.
     const shown = markSummaryShown(draft, deps.clock);
+    shown.lastAskedFields = undefined; // hỏi xong, không còn trường nào đang chờ
     deps.drafts.saveRevision(shown);
     return this.summaryOutput(shown, gate);
+  }
+
+  /**
+   * Trả lời khi tin vô nghĩa (rỗng hoặc token nội bộ "noop"): bảng phản hồi THEO
+   * TRẠNG THÁI tờ khai (A11, TECH-1148). Không ghi tờ khai mới, không tạo
+   * ticket, không đụng trạng thái đang có.
+   */
+  private respondToMeaningless(draft: IntakeDraft | null): StepOutput {
+    const { deps } = this;
+
+    if (draft?.status === "created" && draft.issueIdentifier) {
+      return {
+        outcome: "already_created",
+        messages: [
+          { text: deps.copy.text("ticket.already_created", { identifier: draft.issueIdentifier }) },
+        ],
+        issue: { id: draft.issueId ?? 0, identifier: draft.issueIdentifier, url: draft.issueUrl },
+      };
+    }
+    if (draft?.status === "confirmed") {
+      return {
+        outcome: "in_progress",
+        messages: [{ text: deps.copy.text("confirm.in_progress") }],
+      };
+    }
+    if (draft?.status === "ready_for_confirmation") {
+      const label = deps.copy.text("button.confirm_create");
+      return {
+        outcome: "too_soon",
+        messages: [
+          {
+            text: deps.copy.text("draft.awaiting_confirmation"),
+            buttons: layoutButtons([{ text: label, callbackData: label }]),
+          },
+        ],
+      };
+    }
+    if (draft?.status === "canceled") {
+      return { outcome: "canceled", messages: [{ text: deps.copy.text("draft.canceled") }] };
+    }
+    if (draft?.status === "collecting") {
+      const hasDescription =
+        draft.ticket.rawText.trim().length > 0 || draft.ticket.title.trim().length > 0;
+      if (hasDescription) {
+        return { outcome: "asked", messages: [{ text: deps.copy.text("ask.missing_info") }] };
+      }
+    }
+    // Chưa có mô tả (hoặc chưa có tờ khai): chỉ chào và hỏi, KHÔNG tạo tờ khai.
+    return { outcome: "clarify", messages: [{ text: deps.copy.text("ask.opening") }] };
+  }
+
+  /** Ngữ cảnh cho bộ trích xuất: tờ khai, câu hỏi kỹ thuật, ticket vừa tạo. */
+  private buildExtractContext(draft: IntakeDraft | null): ExtractContext {
+    if (!draft) return {};
+    const context: ExtractContext = {};
+    if (draft.ticket.title) context.draftTitle = draft.ticket.title;
+    if (draft.ticket.rawText) context.draftDescription = truncate(draft.ticket.rawText, 1500);
+    if (draft.techQuestion) context.techQuestion = draft.techQuestion;
+    if (draft.lastAskedFields?.length) context.lastAskedFields = draft.lastAskedFields;
+    if (draft.status === "created" && draft.issueIdentifier) {
+      context.createdTicket = {
+        identifier: draft.issueIdentifier,
+        title: draft.ticket.title,
+        description: truncate(draft.ticket.rawText, 4000),
+      };
+    }
+    return context;
+  }
+
+  /** Nút lựa chọn cho câu hỏi, khi trường vừa hỏi là enum có danh mục. */
+  private questionButtons(fieldName: string | undefined): InlineButton[][] | undefined {
+    if (!fieldName) return undefined;
+    const field = getVariant(this.deps.catalog, this.deps.variant).fields[fieldName];
+    if (!field) return undefined;
+    return fieldButtons(this.deps.catalog, field) ?? undefined;
   }
 
   // ── create (delegates to the ticket-08 write path) ──────────────────────────
@@ -303,8 +410,20 @@ export class IntakeEngine {
             url: result.issue.url,
           },
         };
-      case "too_soon":
-        return { outcome: "too_soon", messages: [{ text: result.message }] };
+      case "too_soon": {
+        // A7: xác nhận tới quá sớm (model tự bấm) thì nhắc bấm lại nút xác
+        // nhận — nút cũ đã bị khoá sau khi bấm.
+        const label = deps.copy.text("button.confirm_create");
+        return {
+          outcome: "too_soon",
+          messages: [
+            {
+              text: result.message,
+              buttons: layoutButtons([{ text: label, callbackData: label }]),
+            },
+          ],
+        };
+      }
       case "in_progress":
         return { outcome: "in_progress", messages: [{ text: result.message }] };
       case "needs_resend":
@@ -629,13 +748,16 @@ export class IntakeEngine {
     text: string,
     mediaPaths: string[],
     nowIso: string,
+    declined: boolean,
   ): IntakeDraft {
     const { deps } = this;
     const base = open ?? this.openFresh(input.chatId, nowIso);
     const ticket = { ...base.ticket };
 
     // Title: fill if empty, or refresh when new content arrives (not locked).
+    // Câu trả lời từ chối ("không biết") KHÔNG đổi tiêu đề (legacy: structuredOnly).
     if (
+      !declined &&
       extracted.title &&
       (extracted.titleExplicit || !ticket.title || (extracted.symptoms?.length ?? 0) > 0)
     ) {
@@ -643,16 +765,25 @@ export class IntakeEngine {
     }
 
     // rawText = reporter VERBATIM, appended across turns, capped (ADR-0010, §2).
-    const message = text.trim();
+    // - Một tin dài hơn MAX_RAW_TEXT_CHARS bị cắt; tổng cả cuộc cắt ở
+    //   MAX_RAW_TEXT_TOTAL_CHARS (đúng trần của legacy).
+    // - Câu trả lời cho câu hỏi dữ kiện kỹ thuật LUÔN vào mô tả, kể cả khi
+    //   chỉ là một mã (appendRawText của legacy).
+    // - Câu trả lời từ chối ("không biết") KHÔNG vào mô tả.
+    const message = truncate(text.trim(), MAX_RAW_TEXT_CHARS);
+    const answeringTechQuestion =
+      base.lastAskedFields?.includes(TECH_INFO_FIELD) === true && !declined;
     const carriesText =
-      (extracted.symptoms?.length ?? 0) > 0 ||
-      hasIdentifier(extracted) ||
-      extracted.userIntent === "provide_info";
+      !declined &&
+      ((extracted.symptoms?.length ?? 0) > 0 ||
+        hasIdentifier(extracted) ||
+        extracted.userIntent === "provide_info" ||
+        answeringTechQuestion);
     if (carriesText && message) {
       ticket.rawText =
         ticket.rawText && !ticket.rawText.includes(message)
-          ? cap(`${ticket.rawText}\n${message}`, MAX_DESCRIPTION_CHARS)
-          : ticket.rawText || cap(message, MAX_DESCRIPTION_CHARS);
+          ? cap(`${ticket.rawText}\n${message}`, MAX_RAW_TEXT_TOTAL_CHARS)
+          : ticket.rawText || cap(message, MAX_RAW_TEXT_TOTAL_CHARS);
     }
 
     // Identifiers: fill blanks only — a created/collected id is never overwritten.
@@ -806,6 +937,11 @@ function hasIdentifier(e: ExtractedFields): boolean {
 function cap(text: string | undefined, max: number): string {
   const s = text ?? "";
   return s.length > max ? `${s.slice(0, max)}…` : s;
+}
+
+/** Cắt thẳng, không thêm dấu "…" (dùng cho ngữ cảnh và cho phần tin gốc). */
+function truncate(text: string, max: number): string {
+  return text.length > max ? text.slice(0, max) : text;
 }
 
 function titleCase(s: string): string {

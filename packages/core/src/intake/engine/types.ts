@@ -32,6 +32,7 @@ export interface ChannelMessage {
 /** What the engine decided this turn did, for the channel AND for tests. */
 export type StepOutcome =
   | "asked" // asked a qualification/tech-review question
+  | "clarify" // no description yet / bare message — ask what the matter is
   | "summary" // showed the recap + confirm button
   | "created" // created the ticket
   | "already_created" // idempotent return of an existing ticket
@@ -40,11 +41,14 @@ export type StepOutcome =
   | "needs_resend" // last-resort net
   | "failed" // tracker write errored
   | "parked" // conflict / full-report park (TECH-928, E2E 28/09)
+  | "split_question" // asked "split into N tickets or keep one" (W29-SPLIT)
   | "action_preview" // preview of a write to an existing ticket (ADR-0008)
   | "action_done" // executed a confirmed write to an existing ticket
   | "action_canceled" // the previewed action was canceled
+  | "closed_refusal" // the ticket is already Done/Canceled — refuse politely
   | "lookup" // reported an existing ticket's status
   | "not_owner" // someone else's ticket — status only (ADR-0008 §6)
+  | "canceled" // the draft was canceled on the reporter's request
   | "chitchat"; // nothing actionable
 
 export interface StepOutput {

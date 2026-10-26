@@ -78,6 +78,7 @@ Cách đang dùng để thử TL2 với TECH2: app chạy trên VM Colab, mọi 
 ## 5. Chuyển sang gửi thật và sang TECH
 
 - Gửi Telegram thật: đặt `TELEGRAM_BOT_TOKEN` **và** `TIEULINH_ONCALL_CHAT_ID` (thiếu một trong hai thì bot dừng với `ConfigError`: cảnh báo SLA không được nuốt im). Cần liên kết ticket-chat thật, tức lễ tân (chưa làm), hoặc `TIEULINH_SANDBOX_CHAT` cho chat thử. Để nút "Đã ổn" và trả lời tự do của người báo có người nghe: giữ `BOT_WEBHOOK_PORT`, rồi hoặc `setWebhook` của Telegram trỏ tới `/telegram-webhook` với `secret_token` bằng `TELEGRAM_WEBHOOK_SECRET` (bắt buộc nếu nghe ngoài loopback), hoặc để plugin Telegram cùng máy gọi `/internal/reporter-ok` và `/internal/reporter-reply` (chỉ loopback). Chế độ Telegram mới được kiểm bằng Telegram giả, chưa chạy với bot thật: thử trên một chat riêng trước.
+- Dùng chung liên kết với Tiểu Linh 1 (canary lễ tân, hậu cần vẫn là TL1): đặt `TIEULINH_BINDING_DB` trỏ vào file dạng legacy, xem [Dùng chung binding với Tiểu Linh 1](/how-to/share-bindings-with-tl1). Mặc định không đặt.
 - Đổi dự án: `TIEULINH_PROJECT=TECH`. Không có gì khác phải sửa trong code; kho dữ liệu nên dùng thư mục riêng cho mỗi dự án.
 
 ## Test không cần mạng

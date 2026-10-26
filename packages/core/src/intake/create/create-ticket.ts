@@ -18,7 +18,7 @@
  * findIntakeCreatedTicket, attachMediaToIssue, bindIssueToChat) and
  * `lib/intake-step/pipeline.ts::createTicket` (atomic claim, write-created-first).
  */
-import { markBotComment } from "../../core";
+import { markBotComment, isInternalCallbackToken } from "../../core";
 import type {
   Clock,
   CopyCatalog,
@@ -129,6 +129,12 @@ async function run(deps: CreateTicketDeps, req: CreateTicketRequest): Promise<Cr
 
   // Last-resort net: nothing to write. Thà xin lại còn hơn ghi ticket trắng.
   if (!ticket.rawText.trim() && !ticket.title.trim()) {
+    return { kind: "needs_resend", message: copy.text("confirm.resend") };
+  }
+
+  // TECH-1148: tiêu đề hoặc mô tả CHỈ là token nội bộ của nút ("noop") thì
+  // không tạo ticket — bấm nhầm nút đã khoá không được tạo ra ticket rỗng.
+  if (isInternalCallbackToken(ticket.title) || isInternalCallbackToken(ticket.rawText)) {
     return { kind: "needs_resend", message: copy.text("confirm.resend") };
   }
 

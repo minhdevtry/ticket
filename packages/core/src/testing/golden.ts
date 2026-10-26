@@ -7,6 +7,7 @@
  * lệch được phép (allowlist). Việc ghi nằm ở `apps/tieulinh-legacy/scripts/golden`. Cách dùng:
  * [Kiểm hội thoại bằng kịch bản và bản ghi vàng](/how-to/golden-scripts).
  */
+import { legacyActionForOutcome } from "../intake/engine/action-map";
 import type { StepOutcome } from "../intake/engine/types";
 import type { InlineButton } from "../intake/gate/types";
 import type { ExtractedFields } from "../intake/ports";
@@ -116,27 +117,13 @@ export function goldenScript(fixture: GoldenFixture): Script {
 }
 
 /**
- * Bảng tạm để so `StepOutcome` của engine với `action` của legacy. Hàm ánh xạ chính thức (và test
- * bảng ánh xạ) là việc của PR 4 trong RFC 0002 mục 2.3; đổi sang đó khi nó có. Kết quả không có
+ * Ánh xạ `StepOutcome` của engine sang `action` của legacy — dùng BẢNG CHÍNH
+ * THỨC của RFC 0002 mục 2.3 (`legacyActionForOutcome`). Kết quả không có
  * trong bảng (`chitchat`, `needs_resend`) giữ nguyên tên để lệch hiện rõ.
  */
-export const LEGACY_ACTION_OF_OUTCOME: Record<StepOutcome, string> = {
-  asked: "ask_missing_field",
-  summary: "confirm_summary",
-  too_soon: "awaiting_user_confirmation",
-  parked: "ask_new_or_continue",
-  action_preview: "confirm_ticket_action",
-  created: "ticket_created",
-  action_done: "post_create_update",
-  not_owner: "post_create_update",
-  lookup: "lookup_result",
-  already_created: "already_created",
-  action_canceled: "canceled",
-  failed: "create_failed",
-  in_progress: "in_progress",
-  needs_resend: "needs_resend",
-  chitchat: "chitchat",
-};
+export function legacyActionOfOutcome(outcome: StepOutcome): string {
+  return legacyActionForOutcome(outcome) ?? outcome;
+}
 
 /** Trường của một lượt được so với bản ghi vàng. */
 export type GoldenField = "action" | "voiceText" | "buttons";
@@ -151,7 +138,7 @@ export interface GoldenDivergence {
 }
 
 export interface CompareGoldenOptions {
-  /** Ánh xạ `StepOutcome` sang `action` legacy. Mặc định {@link LEGACY_ACTION_OF_OUTCOME}. */
+  /** Ánh xạ `StepOutcome` sang `action` legacy. Mặc định {@link legacyActionOfOutcome}. */
   actionOf?: (outcome: StepOutcome) => string;
 }
 
@@ -164,7 +151,7 @@ export function compareGolden(
   run: ScriptRun,
   options: CompareGoldenOptions = {},
 ): GoldenDivergence[] {
-  const actionOf = options.actionOf ?? ((o: StepOutcome) => LEGACY_ACTION_OF_OUTCOME[o]);
+  const actionOf = options.actionOf ?? legacyActionOfOutcome;
   const out: GoldenDivergence[] = [];
   fixture.turns.forEach((want, i) => {
     const got = run.turns[i];
