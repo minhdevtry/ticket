@@ -3159,6 +3159,11 @@ const FILE_ROWS: FileRow[] = [
     "Tri thức KG/Onyx/Memgraph, ngoài chuỗi di trú (RFC 0002 mục 7, ADR-0007); RFC riêng sau",
   ),
   fileRow(
+    "scripts/golden/record.test.ts",
+    "deferred",
+    "PR 2 của RFC 0002: script ghi bản ghi vàng của lễ tân (kịch bản vào/ra), không phải test hành vi để port; bản ghi vàng là chuẩn so cho PR 6",
+  ),
+  fileRow(
     "worker/kg-sync-runner.test.ts",
     "deferred",
     "Tri thức KG/Onyx/Memgraph, ngoài chuỗi di trú (RFC 0002 mục 7, ADR-0007); RFC riêng sau",

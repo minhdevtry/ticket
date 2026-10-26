@@ -65,6 +65,11 @@ export interface CreateLlmOptions {
   onUsage?: (event: LlmUsageEvent) => void;
   /** Thay hàm ngủ (test). */
   sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
+  /**
+   * Thay nguồn ngẫu nhiên của backoff (test). Mặc định `Math.random`; truyền hàm cố định
+   * để thời gian chờ giữa các lần thử lại là tất định.
+   */
+  random?: () => number;
 }
 
 const DEFAULT_TIMEOUT_MS = 60_000;
@@ -113,6 +118,7 @@ export function createLlm(options: CreateLlmOptions): Llm {
   const maxRetries = Math.max(0, Math.floor(options.maxRetries ?? DEFAULT_MAX_RETRIES));
   const baseDelay = options.retryBaseDelayMs ?? 500;
   const maxDelay = options.retryMaxDelayMs ?? 8000;
+  const random = options.random ?? Math.random;
   const maxRetryAfter = options.maxRetryAfterMs ?? 30_000;
   const scrub = createScrubber([apiKey]);
   const clean = (text: string): string => String(scrub(redactUrlCredentials(text)));
@@ -236,7 +242,7 @@ export function createLlm(options: CreateLlmOptions): Llm {
           const retryAfter = err instanceof LlmApiError ? err.retryAfterMs : null;
           // Server đòi chờ lâu hơn trần: thử sớm chỉ tốn thêm một lần bị từ chối, nên dừng luôn.
           if (retryAfter !== null && retryAfter > maxRetryAfter) throw err;
-          const delay = retryAfter ?? calculateBackoff(attempts, baseDelay, maxDelay);
+          const delay = retryAfter ?? calculateBackoff(attempts, baseDelay, maxDelay, random);
           // Không đủ thời gian để chờ rồi gọi lại trong hạn tổng: trả lỗi thật thay vì ngủ vô ích.
           if (deadline && Date.now() + delay >= deadline.at) throw err;
           await sleep(delay, request.signal);

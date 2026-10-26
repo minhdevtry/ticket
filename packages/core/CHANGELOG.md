@@ -9,6 +9,11 @@ All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded
   - Mới: `detectBindingSchema`, `resolveBindingSchema`, `isLegacyFile`, `assertNotLegacyFile`, `legacyBindingApplySchema` (chỉ tạo bảng thiếu, không ALTER), `openLegacyBindingDb(path)` (không chmod/PRAGMA file đã có), `BindingSchemaError`, `LEGACY_BINDING_TABLES`, `tableColumns`, kiểu `BindingSchemaKind`/`BindingSchemaOption`/`SqliteChannelBindingStoreOptions`.
   - `SqliteNotifyBindingReader` đọc được bảng không có `reporter_user_id` (file legacy). `SqliteMessageRouteStore` dùng được trên `message_routes` của TL1 không đổi.
   - **Hành vi mới đáng chú ý**: `intakeApplySchema` và `notifyApplySchema` giờ **ném `BindingSchemaError` khi gặp file legacy** (thay vì ALTER bảng của TL1 và trộn `intake_documents` hai hình dạng). Tờ khai TL2 phải ở file riêng. DB core cũ không bị ảnh hưởng. Xem `docs/how-to/share-bindings-with-tl1.md`.
+- **Backoff của client LLM có nguồn ngẫu nhiên để chọn (tiêu chí chấp nhận: test tất định)**. Additive; không đổi hành vi mặc định.
+  - `@vuihoc/bot-core/llm`: `CreateLlmOptions.random` (mặc định `Math.random`) thay nguồn ngẫu nhiên của backoff full jitter. Test truyền hàm cố định thì thời gian chờ giữa các lần thử lại tất định.
+  - `calculateBackoff(attempt, baseDelayMs, maxDelayMs, random?)` ở `@vuihoc/bot-core/itsaplan` nhận nguồn ngẫu nhiên tuỳ chọn; mặc định không đổi.
+  - Sửa test trôi: `llm/hardening.test.ts` ("backoff không vừa trong hạn tổng") trước đây đỏ ngẫu nhiên vì jitter có thể rơi dưới hạn tổng.
+
 - **Khung kịch bản hội thoại và bản ghi vàng cho engine tiếp nhận** (RFC 0002, PR 2). Additive; không đổi API hiện có.
   - `@vuihoc/bot-core/testing`: `ScriptedChat` (+ `ChatEngine`, `Script`, `ScriptTurn`, `TurnExpectation`, `ScriptRun`,
     `TurnRecord`, `Mismatch`): chạy kịch bản "tin vào, kỳ vọng ra" qua `engine.step`, ghi từng lượt và liệt kê chỗ lệch;

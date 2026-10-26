@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Chặn commit khi lint hoặc vệ sinh repo công khai đỏ.
+#
+# Cài: bun run setup:hooks   (đặt core.hooksPath = .githooks)
+# Bỏ: git config --unset core.hooksPath
+#
+# Chỉ chạy phần nhanh: lint (0,5 s) và scan các file đang staged. Kiểm tra đầy đủ
+# (typecheck, test, docs) thuộc `bun run verify` và của CI.
+set -uo pipefail
+
+echo "pre-commit: lint + scan (staged)"
+if ! bun run lint; then
+  echo "pre-commit: lint đỏ, chưa commit. Sửa code hoặc chạy 'bun run format'." >&2
+  exit 1
+fi
+if ! bun run scan --staged; then
+  echo "pre-commit: scan đỏ, chưa commit. Repo là công khai: thay giá trị thật bằng mẫu tổng hợp." >&2
+  exit 1
+fi
+exit 0
