@@ -44,8 +44,16 @@ trả lỗi `Auto merge is not allowed for this repository`. Khi gặp lỗi đ�
 1. Kiểm tra PR đã đủ điều kiện chưa: `gh pr view <số> --json mergeable,mergeStateStatus,statusCheckRollup`.
 2. Nếu `mergeable=MERGEABLE` và `mergeStateStatus=CLEAN` và mọi job xanh: merge bằng
    lệnh KHÔNG kèm `--auto` (như lệnh ở trên) là được.
-3. Nếu chưa đủ: thường là nhánh chưa có `main` mới nhất. Merge nền vào nhánh mình, push
-   lại, đợi CI xanh rồi merge.
+3. Nếu chưa đủ: thường là nhánh chưa có `main` mới nhất. Làm một lệnh:
+
+   ```bash
+   gh pr update-branch <số>     # GitHub merge main vào nhánh PR
+   gh pr checks <số> --watch --interval 30
+   ```
+
+   Rồi merge lại. Vì required status checks ở chế độ strict, một PR phải có `main` mới nhất
+   mới merge được, nên **gần như mọi PR đều cần một vòng refresh này** — làm ngay sau khi
+   mở PR, đừng đợi tới lúc merge mới thấy.
 
 - `--squash`: repo chỉ nhận squash merge, nên đây là cách duy nhất.
 - `--subject` / `--body`: nội dung commit merge. Ghi lý do thay đổi, không ghi "wip".
