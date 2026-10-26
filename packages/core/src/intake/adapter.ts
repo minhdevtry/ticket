@@ -19,6 +19,7 @@ import {
   findIssueByIdentifier,
   uploadAttachments,
   spliceAttachmentsIntoDescription,
+  formatAttachmentMarkdown,
   classifyColumn,
 } from "../itsaplan";
 import { isIssueClosed } from "./notify/supplement-notifier";
@@ -99,6 +100,19 @@ export function itsaplanTrackerPort(opts: ItsaplanTrackerOptions): TrackerPort {
         await client.updateIssue(issueId, { description: desc }).catch(() => {});
       }
       return uploaded.length;
+    },
+
+    // Tải ảnh mà KHÔNG đụng mô tả ticket — dùng cho huỷ/đóng ticket đã có
+    // (mô tả ticket là nguyên văn của người báo — ADR-0010).
+    async uploadMedia(issueId: number, mediaPaths: string[]) {
+      if (mediaPaths.length === 0) return [];
+      const uploaded = await uploadAttachments(client, issueId, baseUrl, mediaPaths).catch(
+        () => [],
+      );
+      return uploaded.map((att) => ({
+        filename: att.filename,
+        markdown: formatAttachmentMarkdown(att),
+      }));
     },
 
     async findByIdentifier(identifier: string): Promise<TrackerIssue | null> {

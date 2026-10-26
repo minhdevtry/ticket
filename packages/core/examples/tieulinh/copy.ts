@@ -150,4 +150,32 @@ export const tieuLinhCopy: Record<CopyKey, string> = {
   "status.unknown": "chưa rõ",
   "notify.on_call_supplement":
     "📢 **[{botName}]** Người báo vừa bổ sung thông tin vào ticket **{identifier}**:\n> {summary}",
+  // ── PR 12: huỷ và đóng ticket theo yêu cầu người báo (RFC 0002 §1.4 D8, ADR-0006) ──
+  "button.confirm_cancel": "✅ Hủy {identifier}",
+  "button.confirm_close": "✅ Đóng {identifier}",
+  "button.keep_ticket": "Giữ lại",
+  "action.preview_cancel_ticket":
+    'Dạ anh/chị xác nhận giúp em hủy ticket {identifier}{title} (chuyển sang Đã hủy) với nội dung dưới đây nhé? Nếu muốn giữ ticket thì bấm "{keepLabel}" ạ.{quoted}{files}',
+  "action.preview_close_ticket":
+    'Dạ anh/chị xác nhận giúp em đóng ticket {identifier}{title} (chuyển sang Hoàn tất) với nội dung dưới đây nhé? Nếu muốn giữ ticket thì bấm "{keepLabel}" ạ.{quoted}{files}',
+  "action.cancel_close_done":
+    "Dạ em đã {actionLabel} ticket {identifier} và ghi chú lý do trên hệ thống rồi ạ.{draftNote}",
+  "action.keep_ticket_done": "Dạ vâng, em giữ nguyên {identifier}, không đổi trạng thái ticket ạ.",
+  "action.cannot_read_status":
+    "Dạ em chưa đọc được {identifier} để kiểm tra trạng thái, anh/chị thử lại sau ít phút nhé.",
+  "action.label_close": "đóng (Hoàn tất)",
+  "action.label_cancel": "hủy (Đã hủy)",
+  "action.draft_kept_note": " Sự cố «{title}» anh/chị đang báo dở em vẫn giữ nguyên nhé.",
+  "ticket.cancel_close_closed_refusal":
+    "Dạ ticket {identifier} hiện đã đóng ở trạng thái {statusLabel} trên hệ thống rồi nên em không chuyển lại nữa ạ.",
+  "comment.cancel_or_close_trace":
+    "{icon} **{who}** yêu cầu {action} ticket → chuyển **{state}**.\nLý do: {reason}",
+  "action.word_close": "đóng",
+  "action.word_cancel": "hủy",
+  "action.icon_done": "✅",
+  "action.icon_canceled": "🛑",
+  "action.state_done": "Done",
+  "action.state_canceled": "Canceled",
+  "action.column_not_found":
+    "Dạ em chưa tìm thấy cột {stateLabel} trong dự án để chuyển {identifier} ạ.",
 };

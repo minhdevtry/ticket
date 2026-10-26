@@ -117,7 +117,7 @@ export interface IntakeDraft {
    * (ADR-0008). Set when a preview is shown; cleared on confirm/cancel.
    */
   pendingTicketAction?: {
-    kind: "append" | "edit" | "move" | "suggest";
+    kind: "append" | "edit" | "move" | "suggest" | "cancel_ticket" | "close_ticket";
     identifier: string;
     issueId?: number;
     content?: string;

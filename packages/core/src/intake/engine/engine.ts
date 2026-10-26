@@ -78,9 +78,12 @@ import {
   classifyCancelOrCloseIntent,
   isCancelOrCloseTicketRequest,
   isProgressInquiry,
+  countSpecialistTimelineComments,
+  MIN_SPECIALIST_COMMENTS_FOR_DONE,
 } from "./text";
 import { applyEditOps, descriptionBody, planEdit, type EditOp } from "./edit";
-import { markBotComment, isBotComment } from "../../core/formatting";
+import { markBotComment, isBotComment, escapeItsaplanMarkdown } from "../../core/formatting";
+import { classifyColumn } from "../../itsaplan";
 import { isSystemActor } from "../notify/supplement-notifier";
 import { isDeclineAnswer, isMeaninglessInput, TECH_INFO_FIELD } from "./normalize";
 import type { LlmConfig, CompleteFn } from "../extractor/llm-extractor";
@@ -169,6 +172,8 @@ export interface IntakeEngineDeps {
     description: string;
     instruction: string;
   }) => Promise<EditOp[]>;
+  /** Minimum specialist comments required to close ticket to Done instead of Canceled (default: 3). */
+  minSpecialistCommentsForDone?: number;
 }
 export class IntakeEngine {
   constructor(private readonly deps: IntakeEngineDeps) {}
@@ -1409,6 +1414,22 @@ export class IntakeEngine {
     // Check if target ticket is closed (W29-NOTIFY / test 18)
     const isClosed = await this.checkIssueClosed(target.issueId);
     if (isClosed) {
+      if (command.action === "cancel_or_close") {
+        const statusLabel = await this.resolveClosedStatusLabel(target.issueId);
+        return {
+          outcome: "closed_refusal",
+          messages: [
+            {
+              text: deps.copy.text("ticket.cancel_close_closed_refusal", {
+                identifier: target.identifier,
+                statusLabel,
+              }),
+            },
+          ],
+          issue: { id: target.issueId, identifier: target.identifier },
+          docId: draft?.docId,
+        };
+      }
       return this.buildClosedRefusal(target.issueId, target.identifier);
     }
 
@@ -1475,7 +1496,16 @@ export class IntakeEngine {
     }
 
     if (command.action === "cancel_or_close") {
-      return null;
+      const nowIso = new Date(deps.clock.now()).toISOString();
+      const base = draft ?? this.openFresh(chatId, nowIso);
+      return this.proposeCancelOrClose(
+        base,
+        target,
+        command.content,
+        mediaPaths,
+        nowIso,
+        command.intent,
+      );
     }
 
     const isSuggest = Boolean(target.recentlyRelayed && !hasMentions);
@@ -1587,6 +1617,9 @@ export class IntakeEngine {
         },
       );
       if (applied.changes.length === 0 && !deps.actions) {
+        if ("instruction" in command && isCancelOrCloseTicketRequest(command.instruction)) {
+          return this.proposeCancelOrClose(base, target, command.instruction, mediaPaths, nowIso);
+        }
         return {
           outcome: "action_done",
           messages: [
@@ -1774,6 +1807,161 @@ export class IntakeEngine {
         },
       ],
       docId: base.docId,
+    };
+  }
+  private async countSpecialistComments(
+    issueId: number,
+    draft?: IntakeDraft | null,
+  ): Promise<number> {
+    try {
+      if (!this.deps.tracker.getIssueTimeline) return 0;
+      const timeline = await this.deps.tracker.getIssueTimeline(issueId);
+      const projectAssignees = this.deps.tracker.getProjectAssignees
+        ? await this.deps.tracker.getProjectAssignees(this.deps.identifierPrefix).catch(() => [])
+        : [];
+      return countSpecialistTimelineComments(timeline, {
+        reporterNames: [
+          draft?.reporter?.name,
+          draft?.reporter?.username,
+          draft?.reporter?.nameCode,
+        ],
+        projectAssignees,
+        ignoredActors: this.deps.ignoredActors,
+      });
+    } catch {
+      return 0;
+    }
+  }
+
+  private async proposeCancelOrClose(
+    draft: IntakeDraft,
+    target: ReplyCandidate,
+    content: string,
+    mediaPaths: string[],
+    nowIso: string,
+    explicitIntent?: "cancel" | "close",
+  ): Promise<StepOutput> {
+    const { deps } = this;
+    const issue = await deps.tracker.getIssue(target.issueId).catch(() => null);
+    if (!issue) {
+      return {
+        outcome: "action_done",
+        messages: [
+          {
+            text: deps.copy.text("action.cannot_read_status", {
+              identifier: target.identifier,
+            }),
+          },
+        ],
+        docId: draft.docId,
+      };
+    }
+
+    const own = this.isOwn(target, draft.chatId, issue.description);
+    if (!own) {
+      return {
+        outcome: "not_owner",
+        messages: [
+          {
+            text: deps.copy.text("action.not_owner_refusal", {
+              identifier: target.identifier,
+            }),
+          },
+        ],
+        docId: draft.docId,
+      };
+    }
+
+    const columns =
+      (await deps.tracker.listProjectColumns?.(deps.identifierPrefix).catch(() => [])) ?? [];
+    let currentState: "open" | "resolved" | "done" | "canceled" = "open";
+    if (columns.length > 0 && typeof issue.columnId === "number") {
+      const col = columns.find((c) => c.id === issue.columnId);
+      if (col) currentState = classifyColumn(col);
+    } else if (issue.stateType === "completed") {
+      currentState = "done";
+    } else if (issue.stateType === "canceled") {
+      currentState = "canceled";
+    }
+
+    if (currentState === "done" || currentState === "canceled") {
+      const isDone = currentState === "done";
+      const statusLabel = deps.copy.text(isDone ? "status.closed_done" : "status.closed_canceled");
+      return {
+        outcome: "closed_refusal",
+        messages: [
+          {
+            text: deps.copy.text("ticket.cancel_close_closed_refusal", {
+              identifier: target.identifier,
+              statusLabel,
+            }),
+          },
+        ],
+        issue: { id: target.issueId, identifier: target.identifier },
+        docId: draft.docId,
+      };
+    }
+
+    const intent = explicitIntent ?? classifyCancelOrCloseIntent(content) ?? "cancel";
+    const minComments = deps.minSpecialistCommentsForDone ?? MIN_SPECIALIST_COMMENTS_FOR_DONE;
+    let kind: "cancel_ticket" | "close_ticket" = "cancel_ticket";
+    if (intent === "close") {
+      const specialistComments = await this.countSpecialistComments(target.issueId, draft);
+      const hasSpecialistHandled = currentState === "resolved" || specialistComments >= minComments;
+      if (hasSpecialistHandled) {
+        kind = "close_ticket";
+      }
+    }
+
+    const doLabel = deps.copy.text(
+      kind === "close_ticket" ? "button.confirm_close" : "button.confirm_cancel",
+      { identifier: target.identifier },
+    );
+    const keepLabel = deps.copy.text("button.keep_ticket");
+
+    const withPending: IntakeDraft = {
+      ...draft,
+      pendingTicketAction: {
+        kind,
+        identifier: target.identifier,
+        issueId: target.issueId,
+        content,
+        message: content,
+        mediaPaths,
+        confirmLabel: doLabel,
+        askedAt: nowIso,
+      },
+      updatedAt: nowIso,
+    };
+    deps.drafts.saveRevision(withPending);
+
+    const title = target.title || issue.title ? ` «${target.title || issue.title}»` : "";
+    const quoted = content ? `\n\n> ${cap(content, 500).replace(/\n/g, "\n> ")}` : "";
+    const files = mediaPaths.length
+      ? `\n${deps.copy.text("action.suggest_append_media_note", { count: mediaPaths.length }).trim()}`
+      : "";
+    const previewKey =
+      kind === "close_ticket" ? "action.preview_close_ticket" : "action.preview_cancel_ticket";
+    const previewText = deps.copy.text(previewKey, {
+      identifier: target.identifier,
+      title,
+      quoted,
+      files,
+      keepLabel,
+    });
+
+    return {
+      outcome: "action_preview",
+      messages: [
+        {
+          text: previewText,
+          buttons: layoutButtons([
+            { text: doLabel, callbackData: doLabel },
+            { text: keepLabel, callbackData: keepLabel },
+          ]),
+        },
+      ],
+      docId: draft.docId,
     };
   }
 
@@ -2032,6 +2220,9 @@ export class IntakeEngine {
     if (pending.kind === "suggest") {
       const newIncLabel = deps.copy.text("button.new_incident");
       buttons.push([{ text: newIncLabel, callbackData: newIncLabel }]);
+    } else if (pending.kind === "cancel_ticket" || pending.kind === "close_ticket") {
+      const keepLabel = deps.copy.text("button.keep_ticket");
+      buttons.push([{ text: keepLabel, callbackData: keepLabel }]);
     } else {
       const cancelLabel = deps.copy.text("button.cancel_action");
       buttons.push([{ text: cancelLabel, callbackData: cancelLabel }]);
@@ -2095,10 +2286,18 @@ export class IntakeEngine {
     }
 
     // 4. Huỷ / Abort
+    const isCancelOrClosePending =
+      pending.kind === "cancel_ticket" || pending.kind === "close_ticket";
+    const keepLabel = foldButton(deps.copy.text("button.keep_ticket"));
     const cancelLabel = foldButton(deps.copy.text("button.cancel_action"));
-    const isAbort =
-      folded === cancelLabel ||
-      (!mentionedIdentifiers(text, deps.identifierPrefix ?? "").length && isExplicitCancel(text));
+    const isAbort = isCancelOrClosePending
+      ? folded === keepLabel ||
+        (!mentionedIdentifiers(text, deps.identifierPrefix ?? "").length &&
+          /^(?:giữ\s+lại|thôi|bỏ\s+qua|không\s+(?:hủy|huỷ|đóng|cần|gửi|ghi)|đừng\s+(?:hủy|huỷ|đóng))(?:\s|$|[.,!])/iu.test(
+            text.trim(),
+          ))
+      : folded === cancelLabel ||
+        (!mentionedIdentifiers(text, deps.identifierPrefix ?? "").length && isExplicitCancel(text));
     if (isAbort) {
       const cleared: IntakeDraft = {
         ...draft,
@@ -2107,9 +2306,12 @@ export class IntakeEngine {
         updatedAt: nowIso,
       };
       deps.drafts.saveRevision(cleared);
+      const abortText = isCancelOrClosePending
+        ? deps.copy.text("action.keep_ticket_done", { identifier: pending.identifier })
+        : deps.copy.text("action.canceled", { identifier: pending.identifier });
       return {
         outcome: "action_canceled",
-        messages: [{ text: deps.copy.text("action.canceled", { identifier: pending.identifier }) }],
+        messages: [{ text: abortText }],
         docId: draft.docId,
       };
     }
@@ -2268,6 +2470,177 @@ export class IntakeEngine {
     };
     deps.drafts.saveRevision(cleared);
 
+    // ── Cancel or Close ticket (RFC 0002 §1.4 D8, ADR-0006) ──
+    if (pending.kind === "cancel_ticket" || pending.kind === "close_ticket") {
+      if (issueId === undefined) {
+        return {
+          outcome: "action_canceled",
+          messages: [{ text: deps.copy.text("action.canceled", { identifier }) }],
+          docId: draft.docId,
+        };
+      }
+      const targetIssue = await deps.tracker.getIssue(issueId).catch(() => null);
+      if (!targetIssue) {
+        return {
+          outcome: "action_done",
+          messages: [{ text: deps.copy.text("action.cannot_read_status", { identifier }) }],
+          docId: draft.docId,
+        };
+      }
+
+      const own = this.isOwn(
+        { identifier, issueId, ownTicket: false, mentioned: false },
+        draft.chatId,
+        targetIssue.description,
+      );
+      if (!own) {
+        return {
+          outcome: "not_owner",
+          messages: [{ text: deps.copy.text("action.not_owner_refusal", { identifier }) }],
+          docId: draft.docId,
+        };
+      }
+
+      const columns =
+        (await deps.tracker.listProjectColumns?.(deps.identifierPrefix).catch(() => [])) ?? [];
+      let currentState: "open" | "resolved" | "done" | "canceled" = "open";
+      if (columns.length > 0 && typeof targetIssue.columnId === "number") {
+        const col = columns.find((c) => c.id === targetIssue.columnId);
+        if (col) currentState = classifyColumn(col);
+      } else if (targetIssue.stateType === "completed") {
+        currentState = "done";
+      } else if (targetIssue.stateType === "canceled") {
+        currentState = "canceled";
+      }
+
+      if (currentState === "done" || currentState === "canceled") {
+        const isDone = currentState === "done";
+        const statusLabel = deps.copy.text(
+          isDone ? "status.closed_done" : "status.closed_canceled",
+        );
+        return {
+          outcome: "closed_refusal",
+          messages: [
+            {
+              text: deps.copy.text("ticket.cancel_close_closed_refusal", {
+                identifier,
+                statusLabel,
+              }),
+            },
+          ],
+          issue: { id: issueId, identifier },
+          docId: draft.docId,
+        };
+      }
+
+      // Chốt chặn an toàn tuyệt đối: chỉ chuyển Done khi pending.kind === "close_ticket" VÀ thỏa điều kiện chuyên viên xử lý
+      const minComments = deps.minSpecialistCommentsForDone ?? MIN_SPECIALIST_COMMENTS_FOR_DONE;
+      let moveToDone = false;
+      if (pending.kind === "close_ticket") {
+        const specialistComments = await this.countSpecialistComments(issueId, draft);
+        moveToDone = currentState === "resolved" || specialistComments >= minComments;
+      }
+
+      const targetCol = moveToDone
+        ? columns.find((c) => classifyColumn(c) === "done")
+        : (columns.find((c) => classifyColumn(c) === "canceled") ??
+          columns.find((c) => c.stateType === "canceled"));
+      if (!targetCol) {
+        // Không ném lỗi ra khỏi `step()` — lượt chat của người báo sẽ mất trắng.
+        // Trả lời lịch sự thay vì đoán cột (đặc tả PR 12).
+        return {
+          outcome: "action_done",
+          messages: [
+            {
+              text: deps.copy.text("action.column_not_found", {
+                identifier,
+                stateLabel: deps.copy.text(
+                  moveToDone ? "action.state_done" : "action.state_canceled",
+                ),
+              }),
+            },
+          ],
+          issue: { id: issueId, identifier },
+          docId: draft.docId,
+        };
+      }
+
+      if (deps.tracker.updateIssue) {
+        await deps.tracker.updateIssue(issueId, { columnId: targetCol.id });
+      }
+
+      const media = Array.from(new Set([...(pending.mediaPaths ?? []), ...extraMedia]));
+      const parts: string[] = [];
+      const reason = pending.content || pending.message || "";
+      if (reason) parts.push(escapeItsaplanMarkdown(cap(reason, 1000)));
+      // Ảnh đi kèm lệnh huỷ/đóng đưa vào COMMENT, không đụng mô tả ticket:
+      // `tracker.attach` GHI ĐÈ mô tả bằng chuỗi truyền vào (xem
+      // `adapter.ts` — `spliceAttachmentsIntoDescription`), mà mô tả ticket là
+      // nguyên văn của người báo (ADR-0010). Legacy cũng đưa ảnh vào comment.
+      if (media.length > 0 && deps.tracker.uploadMedia) {
+        const uploaded = await deps.tracker.uploadMedia(issueId, media).catch(() => []);
+        for (const att of uploaded) parts.push(escapeItsaplanMarkdown(att.markdown));
+      }
+
+      const requestedActionLabel =
+        (classifyCancelOrCloseIntent(reason) ??
+          (pending.kind === "close_ticket" ? "close" : "cancel")) === "close"
+          ? deps.copy.text("action.word_close")
+          : deps.copy.text("action.word_cancel");
+      const targetStateLabel = deps.copy.text(
+        moveToDone ? "action.state_done" : "action.state_canceled",
+      );
+      const icon = deps.copy.text(moveToDone ? "action.icon_done" : "action.icon_canceled");
+      // Không rơi về chatId: chat ID là dữ liệu riêng của kênh, không ghi vào
+      // ticket công khai (legacy dùng "Người báo").
+      const who =
+        draft.reporter?.name || draft.reporter?.username
+          ? `${draft.reporter.name || draft.reporter.username}`
+          : deps.copy.text("reporter.default_name");
+      const traceComment = markBotComment(
+        deps.copy.text("comment.cancel_or_close_trace", {
+          icon,
+          who: escapeItsaplanMarkdown(who),
+          action: requestedActionLabel,
+          state: targetStateLabel,
+          reason: parts.join("\n\n"),
+        }),
+      );
+      await deps.tracker.addComment(issueId, traceComment).catch(() => {});
+
+      if (draft.issueIdentifier === identifier && draft.status === "created") {
+        const updatedDoc: IntakeDraft = {
+          ...cleared,
+          revision: cleared.revision + 1,
+          status: "canceled",
+          updatedAt: nowIso,
+        };
+        deps.drafts.saveRevision(updatedDoc);
+      }
+
+      const draftNote =
+        !CLOSED_STATUSES.has(draft.status) &&
+        Boolean(draft.ticket?.title || draft.ticket?.rawText?.trim()) &&
+        draft.ticket?.title
+          ? deps.copy.text("action.draft_kept_note", { title: draft.ticket.title })
+          : "";
+      const actionLabel = deps.copy.text(moveToDone ? "action.label_close" : "action.label_cancel");
+      return {
+        outcome: "action_done",
+        messages: [
+          {
+            text: deps.copy.text("action.cancel_close_done", {
+              actionLabel,
+              identifier,
+              draftNote,
+            }),
+          },
+        ],
+        issue: { id: issueId, identifier },
+        docId: draft.docId,
+      };
+    }
+
     // ── Edit ticket ──
     if (pending.kind === "edit") {
       const targetIssueId = issueId;
@@ -2302,7 +2675,7 @@ export class IntakeEngine {
           .join("\n");
         const who = draft.reporter?.username
           ? `@${draft.reporter.username}`
-          : draft.chatId || deps.copy.text("reporter.default_name");
+          : deps.copy.text("reporter.default_name");
         const traceComment = markBotComment(deps.copy.text("comment.edit_trace", { who, lines }));
         await deps.tracker.addComment(targetIssueId, traceComment).catch(() => {});
         return {
@@ -2336,7 +2709,7 @@ export class IntakeEngine {
       const { body, images } = descriptionBody(fromIssue?.description ?? "");
       const who = draft.reporter?.username
         ? `@${draft.reporter.username}`
-        : draft.chatId || deps.copy.text("reporter.default_name");
+        : deps.copy.text("reporter.default_name");
       const imagesText = images.join("\n");
       const targetComment = markBotComment(
         deps.copy.text("comment.move_target_note", {
@@ -3148,7 +3521,8 @@ function targetId(command: TicketCommand): string {
     command.action === "append" ||
     command.action === "edit" ||
     command.action === "lookup" ||
-    command.action === "move_created"
+    command.action === "move_created" ||
+    command.action === "cancel_or_close"
   ) {
     return command.identifier;
   }
