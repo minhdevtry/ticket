@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  type TimerState,
   WebhookPermissionError,
   actions,
   anyHumanIsReporter,
@@ -31,6 +32,25 @@ async function until(cond: () => boolean, ms = 4000) {
   }
 }
 const HOUR = 3_600_000;
+
+/** Mốc tick cuối của bộ chạy lịch (ms epoch); `0` nếu chưa tick lần nào. */
+const lastTickAt = (bot: Bot): number => {
+  const iso = bot.health().components.scheduler?.lastTickAt ?? null;
+  return iso === null ? 0 : Date.parse(iso);
+};
+
+/** Số hẹn đang ở trạng thái `state` trong kho của bot. */
+const countTimers = (bot: Bot, state: TimerState): number =>
+  bot.store?.listTimers({ state }).length ?? 0;
+
+/** Hẹn đã chạy xong chưa (không còn `pending`/`firing`)? */
+const timersSettled = (bot: Bot): boolean => {
+  const rows = bot.store?.listTimers({}) ?? [];
+  return (
+    rows.length > 0 &&
+    rows.every((r) => r.state === "done" || r.state === "cancelled" || r.state === "failed")
+  );
+};
 
 class FakeClock {
   constructor(public t: number) {}
@@ -357,17 +377,30 @@ describe("closeAfter qua createBot", () => {
     const out = await first.handleEvent(stateChanged(issue, 4, "Resolved", "completed", 9001));
     expect(out).toEqual([{ rule: "auto-close", status: "done" }]);
     expect(first.store?.listTimers({ state: "pending" })).toHaveLength(1);
+    // Hẹn đúng 48h kể từ lúc Resolved.
+    expect(first.store?.listTimers({ state: "pending" })[0]?.dueAt).toBe(clock.t + 48 * HOUR);
     await first.stop();
 
     const second = make(def("close-a"), { clock, env });
     await second.start();
+    // Qua restart hẹn vẫn còn (đọc từ kho bền).
     expect(second.store?.listTimers({ state: "pending" })).toHaveLength(1);
     expect(second.health().components.scheduler?.pendingTimers).toBe(1);
+
+    // 47h: chưa tới hạn. Chờ một VÒNG TICK đã nhìn thấy giờ mới (điều kiện, không phải số ms
+    // cố định) rồi mới kết luận "chưa đóng" — nếu không, máy bận có thể chưa kịp tick.
     clock.t += 47 * HOUR;
-    await sleep(120);
+    await until(() => lastTickAt(second) >= clock.t);
     expect(fake.issues[0].columnId).toBe(4);
+    expect(countTimers(second, "pending")).toBe(1);
+
+    // 49h: tới hạn. Chờ tới khi hẹn đã CHẠY XONG (cột Done + hẹn rời trạng thái
+    // pending/firing), chứ không chỉ tới khi cột đã đổi: trạng thái hẹn trong kho được ghi
+    // sau khi hành động xong, nên khẳng định lúc đó là đua với bộ chạy lịch.
     clock.t += 2 * HOUR;
-    await until(() => fake.issues[0].columnId === 5);
+    await until(() => fake.issues[0].columnId === 5 && timersSettled(second));
+    expect(fake.issues[0].columnId).toBe(5);
+    // Chỉ MỘT comment: đã chờ hẹn chạy xong nên comment trùng (nếu có) cũng đã xảy ra.
     expect(fake.comments.filter((c) => c.body.includes("Tự đóng."))).toHaveLength(1);
     expect(second.store?.listTimers({ state: "done" })).toHaveLength(1);
   });
@@ -381,7 +414,7 @@ describe("closeAfter qua createBot", () => {
     fake.issues[0].columnId = 3;
     await bot.handleEvent(stateChanged(issue, 3, "Đang xử lý", "started", 9102));
     clock.t += 72 * HOUR;
-    await sleep(150);
+    await until(() => lastTickAt(bot) >= clock.t);
     expect(fake.issues[0].columnId).toBe(3);
     expect(bot.store?.listTimers({ state: "cancelled" })).toHaveLength(1);
   });
