@@ -12,7 +12,7 @@ import {
   mentionedIdentifiers,
   stripSupplementCommandWrapper,
 } from "./text";
-
+import { withTimeout } from "./timeout";
 const SYSTEM_PROMPT = `Bạn đọc MỘT tin nhắn Telegram người báo lỗi gửi cho bot tiếp nhận sự cố và cho biết người báo muốn gì với các ticket ĐÃ CÓ dưới đây. Bot sẽ luôn hỏi người báo xác nhận trước khi ghi, nhưng bạn phải hiểu đúng ý.
 Hành động:
 - "append": thêm thông tin / trả lời kỹ thuật cho một ticket đã có ("bổ sung TECH-795 …", "TECH-795 cập nhật thông tin thêm …", trả lời đúng điều kỹ thuật vừa hỏi như "đơn hàng gia hạn ạ", "DH900002"). "content" = phần nội dung cần ghi, NGUYÊN VĂN người báo (bỏ phần lệnh như "bổ sung TECH-795").
@@ -50,20 +50,28 @@ function userPrompt(input: TicketCommandInput): string {
   ].join("\n\n");
 }
 
-async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  const { promise: timeout, reject } = Promise.withResolvers<never>();
-  const timer = setTimeout(() => reject(new Error(`${label} timeout`)), ms);
-  return Promise.race([promise, timeout]).finally(() => {
-    clearTimeout(timer);
-  });
+export interface LlmTicketCommandInterpreterOptions {
+  timeoutMs?: number;
+  systemPrompt?: string;
 }
 
 export class LlmTicketCommandInterpreter implements TicketCommandInterpreterPort {
+  private readonly timeoutMs: number;
+  private readonly systemPrompt: string;
+
   constructor(
     private readonly llm: LlmConfig,
     private readonly completeFn?: CompleteFn,
-    private readonly timeoutMs = 45_000,
-  ) {}
+    timeoutMsOrOptions?: number | LlmTicketCommandInterpreterOptions,
+  ) {
+    if (typeof timeoutMsOrOptions === "object" && timeoutMsOrOptions !== null) {
+      this.timeoutMs = timeoutMsOrOptions.timeoutMs ?? 45_000;
+      this.systemPrompt = timeoutMsOrOptions.systemPrompt ?? SYSTEM_PROMPT;
+    } else {
+      this.timeoutMs = timeoutMsOrOptions ?? 45_000;
+      this.systemPrompt = SYSTEM_PROMPT;
+    }
+  }
 
   async interpret(input: TicketCommandInput): Promise<TicketCommand> {
     const cancelIntent = classifyCancelOrCloseIntent(input.message);
@@ -99,7 +107,7 @@ export class LlmTicketCommandInterpreter implements TicketCommandInterpreterPort
     }
 
     const raw = await withTimeout(
-      this.completeFn(this.llm, SYSTEM_PROMPT, userPrompt(input)),
+      this.completeFn(this.llm, this.systemPrompt, userPrompt(input)),
       this.timeoutMs,
       "ticket-command",
     ).catch((err) => {

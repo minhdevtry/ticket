@@ -188,6 +188,11 @@ export type CopyKey =
   | "status.closed_canceled" // label for canceled status ("Đã hủy (Canceled)")
   | "comment.supplement_default_content" // fallback content for supplement comment when text is empty
   | "reporter.default_name" // fallback name for reporter in comment when unknown
+  | "bot.default_name" // fallback display name for bot when botName is not configured
+  | "edit.title_label" // label for ticket title field in edit preview/changes
+  | "edit.description_label" // label for ticket description field in edit preview/changes
+  | "edit.not_present" // fallback text when edited field is not yet present
+  | "status.unknown" // fallback label when ticket status/column is unknown
   | "notify.on_call_supplement"; // alert line sent to on-call channel; {botName} {identifier} {summary}
 
 /**

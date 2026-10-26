@@ -141,6 +141,11 @@ export const tieuLinhCopy: Record<CopyKey, string> = {
   "status.closed_canceled": "Đã hủy (Canceled)",
   "comment.supplement_default_content": "Bổ sung thông tin",
   "reporter.default_name": "Người báo",
+  "bot.default_name": "Tiểu Linh",
+  "edit.title_label": "Tiêu đề",
+  "edit.description_label": "Mô tả",
+  "edit.not_present": "(chưa có)",
+  "status.unknown": "chưa rõ",
   "notify.on_call_supplement":
     "📢 **[{botName}]** Người báo vừa bổ sung thông tin vào ticket **{identifier}**:\n> {summary}",
 };

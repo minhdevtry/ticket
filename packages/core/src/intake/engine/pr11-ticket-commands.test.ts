@@ -841,4 +841,108 @@ describe("PR 11 — Lệnh nhắm vào ticket đã có", () => {
     expect(expiredRes.outcome).toBe("clarify");
     expect(expiredRes.messages[0].text).toContain("mã ticket");
   });
+  // ── 5. Review fixes (PR 11 issue #25) ──────────────────────────────────────
+
+  it("kiểm nền khi sửa: ticket bị sửa trên tracker trong lúc chờ xác nhận → từ chối ghi đè (action.edit_conflict_rejected)", async () => {
+    own(795);
+    const engine = buildEngine({
+      commands: interp({
+        action: "edit",
+        identifier: "TECHTEST-795",
+        instruction: "SĐT thành 0900000015",
+      }),
+      editPlanner: async () => [
+        { type: "field", label: "Tài khoản HS / SĐT", value: "0900000015" },
+      ],
+    });
+    const r = await engine.step({
+      chatId: CHAT,
+      message: "sửa TECHTEST-795 SĐT thành 0900000015",
+    });
+    expect(legacyActionForOutcome(r.outcome)).toBe("confirm_ticket_action");
+    expect(r.messages[0].text).toContain("0900000006 → 0900000015");
+
+    // Kỹ thuật viên cập nhật mô tả trên tracker trong lúc người báo chờ bấm nút
+    const issue = it$.issues.get(5795);
+    if (issue) {
+      issue.description = (issue.description ?? "") + "\nKỹ thuật viên đã cập nhật thêm.";
+    }
+
+    // Người báo bấm xác nhận sửa
+    const r2 = await engine.step({ chatId: CHAT, message: "✅ Sửa TECHTEST-795" });
+    expect(r2.outcome).toBe("action_done");
+    expect(r2.messages[0].text).toContain("cập nhật sau khi em lập bản sửa");
+    expect(it$.calls.updateIssue).toHaveLength(0);
+    expect(drafts.getLatestByChatId(CHAT)?.pendingTicketAction).toBeUndefined();
+  });
+
+  it("checkIssueClosed fallback: tracker chỉ có getIssue + listProjectColumns (cột Done) → trả về closed_refusal", async () => {
+    const customTracker: TrackerPort = {
+      async getIssue(id: number) {
+        return {
+          id,
+          identifier: "TECHTEST-999",
+          title: "Ticket đã đóng",
+          columnId: 5,
+          description: `## Thông tin sự cố\n\n- Người báo: A - telegram:${CHAT}\n\n### Mô tả\n\nLỗi cũ`,
+        };
+      },
+      async listProjectColumns() {
+        return [
+          { id: 1, name: "Todo", stateType: "unstarted" },
+          { id: 5, name: "Done", stateType: "completed" },
+        ];
+      },
+      async findByIdentifier(identifier: string) {
+        if (identifier === "TECHTEST-999") {
+          return {
+            id: 999,
+            identifier: "TECHTEST-999",
+            title: "Ticket đã đóng",
+            columnId: 5,
+            description: `## Thông tin sự cố\n\n- Người báo: A - telegram:${CHAT}\n\n### Mô tả\n\nLỗi cũ`,
+          };
+        }
+        return undefined;
+      },
+    };
+
+    own(999);
+    const engine = buildEngine({
+      tracker: customTracker,
+      commands: interp({
+        action: "append",
+        identifier: "TECHTEST-999",
+        content: "thêm thông tin này nhé",
+      }),
+    });
+
+    const res = await engine.step({
+      chatId: CHAT,
+      message: "bổ sung TECHTEST-999 thêm thông tin này nhé",
+    });
+
+    expect(res.outcome).toBe("closed_refusal");
+    expect(legacyActionForOutcome(res.outcome)).toBe("post_create_update");
+    expect(res.messages[0].text).toContain("hiện đã đóng");
+    expect(res.messages[0].text).toContain("Hoàn tất (Done)");
+  });
+
+  it("LlmTicketCommandInterpreter cho phép override systemPrompt qua options", async () => {
+    let capturedPrompt = "";
+    const interpCustom = new LlmTicketCommandInterpreter(
+      { baseUrl: "", apiKey: "", model: "m" },
+      async (_llm, prompt) => {
+        capturedPrompt = prompt;
+        return '{"action":"lookup","ticket":"TECHTEST-795"}';
+      },
+      { systemPrompt: "Custom system prompt for ticket commands" },
+    );
+    await interpCustom.interpret({
+      message: "check TECHTEST-795",
+      candidates: [{ identifier: "TECHTEST-795", ownTicket: true, mentioned: true }],
+      attachments: 0,
+    });
+    expect(capturedPrompt).toBe("Custom system prompt for ticket commands");
+  });
 });

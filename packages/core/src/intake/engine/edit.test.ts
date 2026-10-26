@@ -15,7 +15,7 @@ const DESC = `## Thông tin sự cố
 ![a.jpg](/attachments/1/raw)
 
 ---
-*Nguồn: Tiểu Linh*`;
+*Nguồn: Bot*`;
 
 describe("sửa ticket", () => {
   it("planEdit lọc thao tác hợp lệ", async () => {
@@ -28,14 +28,19 @@ describe("sửa ticket", () => {
     expect(ops).toEqual([{ type: "field", label: "Tài khoản HS / SĐT", value: "0900000015" }]);
   });
 
-  it("applyEditOps: sửa dòng có sẵn, thêm dòng mới vào cuối Thông tin sự cố, thay câu mô tả duy nhất", () => {
-    const r = applyEditOps("Cũ", DESC, [
-      { type: "field", label: "Tài khoản HS / SĐT", value: "0900000015" },
-      { type: "field", label: "Mã khách hàng", value: "90000006" },
-      { type: "replace", old: "Khoá gia hạn sai hạn", new: "Khoá gia hạn DH900002 sai hạn" },
-      { type: "replace", old: "không có", new: "x" },
-      { type: "title", value: "Mới" },
-    ]);
+  it("applyEditOps: sửa dòng có sẵn, thêm dòng mới vào cuối Thông tin sự cố, thay câu mô tả duy nhất (nhận labels tuỳ biến)", () => {
+    const r = applyEditOps(
+      "Cũ",
+      DESC,
+      [
+        { type: "field", label: "Tài khoản HS / SĐT", value: "0900000015" },
+        { type: "field", label: "Mã khách hàng", value: "90000006" },
+        { type: "replace", old: "Khoá gia hạn sai hạn", new: "Khoá gia hạn DH900002 sai hạn" },
+        { type: "replace", old: "không có", new: "x" },
+        { type: "title", value: "Mới" },
+      ],
+      { title: "Tiêu đề", description: "Mô tả", notPresent: "(chưa có)" },
+    );
     expect(r.title).toBe("Mới");
     expect(r.description).toContain("- Tài khoản HS / SĐT: 0900000015");
     expect(r.description).toContain("- Bộ phận: CSKH\n- Mã khách hàng: 90000006\n\n### Mô tả");
@@ -47,6 +52,31 @@ describe("sửa ticket", () => {
       "Mô tả",
       "Tiêu đề",
     ]);
+    expect(r.changes[1].before).toBe("(chưa có)");
+  });
+
+  it("applyEditOps: fallback nhãn trung lập khi không truyền labels", () => {
+    const r = applyEditOps("Cũ", DESC, [
+      { type: "title", value: "Mới" },
+      { type: "field", label: "Trường mới", value: "Giá trị" },
+      { type: "replace", old: "Khoá gia hạn sai hạn", new: "Đã sửa" },
+    ]);
+    expect(r.changes.map((c) => c.what)).toEqual(["Title", "Trường mới", "Description"]);
+    expect(r.changes[1].before).toBe("(none)");
+  });
+
+  it("planEdit cho phép override editPrompt", async () => {
+    let capturedPrompt = "";
+    await planEdit(
+      llm,
+      { title: "t", description: DESC, instruction: "x" },
+      async (_llm, prompt) => {
+        capturedPrompt = prompt;
+        return '{"ops":[]}';
+      },
+      { editPrompt: "Custom prompt" },
+    );
+    expect(capturedPrompt).toBe("Custom prompt");
   });
 
   it("descriptionBody lấy phần Mô tả và ảnh", () => {

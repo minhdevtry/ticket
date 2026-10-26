@@ -161,6 +161,8 @@ export interface IntakeEngineDeps {
   ignoredActors?: string[] | RegExp;
   /** Route store for tracking technical questions sent to the reporter. */
   routes?: MessageRouteStore;
+  /** Default column ID for canceled issues when canceled column cannot be resolved by name/type. */
+  defaultCanceledColumnId?: number;
   /** Custom edit planner for editing tickets. */
   editPlanner?: (input: {
     title: string;
@@ -1457,7 +1459,7 @@ export class IntakeEngine {
     const columns =
       (await deps.tracker.listProjectColumns?.(deps.identifierPrefix).catch(() => [])) ?? [];
     const column = columns.find((c) => c.id === issue?.columnId);
-    const status = column?.name ?? issue?.stateType ?? "chưa rõ";
+    const status = column?.name ?? issue?.stateType ?? deps.copy.text("status.unknown");
 
     const own = this.isOwn(target, chatId, issue?.description);
     if (!own) {
@@ -1540,6 +1542,11 @@ export class IntakeEngine {
         issue?.title ?? target.title ?? "",
         issue?.description ?? "",
         ops,
+        {
+          title: deps.copy.text("edit.title_label"),
+          description: deps.copy.text("edit.description_label"),
+          notPresent: deps.copy.text("edit.not_present"),
+        },
       );
       if (applied.changes.length === 0 && !deps.actions) {
         return {
@@ -1707,7 +1714,10 @@ export class IntakeEngine {
     };
     deps.drafts.saveRevision(withPending);
 
-    const filesNote = mediaPaths.length > 0 ? ` (kèm ${mediaPaths.length} ảnh/tệp)` : "";
+    const filesNote =
+      mediaPaths.length > 0
+        ? deps.copy.text("action.suggest_append_media_note", { count: mediaPaths.length }).trim()
+        : "";
     const quoted = content ? `> ${cap(content, 500)}` : "";
     const contentWithFiles = [quoted, filesNote].filter(Boolean).join("\n");
 
@@ -2305,7 +2315,7 @@ export class IntakeEngine {
         }
       }
       if (fromIssue) {
-        const botName = deps.botName ?? "Tiểu Linh";
+        const botName = deps.botName ?? deps.copy.text("bot.default_name");
         const sourceComment = markBotComment(
           deps.copy.text("comment.move_source_note", {
             who,
@@ -2319,9 +2329,10 @@ export class IntakeEngine {
         const canceledCol = columns.find(
           (c) => c.stateType === "canceled" || c.name.toLowerCase().includes("cancel"),
         );
-        if (deps.tracker.updateIssue) {
+        const targetColumnId = canceledCol?.id ?? deps.defaultCanceledColumnId;
+        if (deps.tracker.updateIssue && targetColumnId !== undefined) {
           await deps.tracker
-            .updateIssue(fromIssue.id, { columnId: canceledCol?.id ?? 9 })
+            .updateIssue(fromIssue.id, { columnId: targetColumnId })
             .catch(() => {});
         }
       }
@@ -2526,7 +2537,9 @@ export class IntakeEngine {
     }
     const issue = await deps.tracker.getIssue(issueId).catch(() => null);
     if (!issue) return false;
-    return isIssueClosed(issue);
+    const columns =
+      (await deps.tracker.listProjectColumns?.(deps.identifierPrefix).catch(() => [])) ?? [];
+    return isIssueClosed(issue, columns);
   }
 
   private async resolveClosedStatusLabel(issueId: number): Promise<string> {
@@ -2546,6 +2559,13 @@ export class IntakeEngine {
       const issue = await deps.tracker.getIssue(issueId).catch(() => null);
       if (issue?.stateType === "canceled") {
         isCanceled = true;
+      } else if (issue?.columnId && deps.tracker.listProjectColumns) {
+        const columns =
+          (await deps.tracker.listProjectColumns(deps.identifierPrefix).catch(() => [])) ?? [];
+        const col = columns.find((c) => c.id === issue.columnId);
+        if (col?.stateType === "canceled" || col?.name?.toLowerCase().includes("cancel")) {
+          isCanceled = true;
+        }
       }
     }
     return deps.copy.text(isCanceled ? "status.closed_canceled" : "status.closed_done");

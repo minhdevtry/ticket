@@ -7,7 +7,7 @@
  */
 import { parseJsonLoose } from "../../llm/extract";
 import type { LlmConfig, CompleteFn } from "../extractor/llm-extractor";
-
+import { withTimeout } from "./timeout";
 export type EditOp =
   | { type: "title"; value: string }
   /** Dòng "- <label>: <giá trị>" ở mục "Thông tin sự cố" — thêm dòng nếu chưa có. */
@@ -28,6 +28,16 @@ export interface EditAppliedResult {
   rejected: EditOp[];
 }
 
+export interface EditLabels {
+  title?: string;
+  description?: string;
+  notPresent?: string;
+}
+
+export interface PlanEditOptions {
+  timeoutMs?: number;
+  editPrompt?: string;
+}
 const EDIT_PROMPT = `Người báo lỗi đề nghị sửa ticket. Dựa vào tiêu đề + mô tả hiện tại và lời đề nghị, trả về các thao tác sửa TỐI THIỂU.
 Thao tác:
 - {"type":"title","value":"<tiêu đề mới>"}
@@ -36,25 +46,25 @@ Thao tác:
 Không bịa, không sửa gì ngoài lời đề nghị. Không hiểu được thì trả ops rỗng.
 Trả về ĐÚNG một object JSON: {"ops": [...]}`;
 
-async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  const { promise: timeout, reject } = Promise.withResolvers<never>();
-  const timer = setTimeout(() => reject(new Error(`${label} timeout`)), ms);
-  return Promise.race([promise, timeout]).finally(() => {
-    clearTimeout(timer);
-  });
-}
-
 export async function planEdit(
   llm: LlmConfig,
   input: { title: string; description: string; instruction: string },
   completeFn?: CompleteFn,
-  timeoutMs = 45_000,
+  timeoutMsOrOptions: number | PlanEditOptions = 45_000,
 ): Promise<EditOp[]> {
   if (!completeFn) return [];
+  const timeoutMs =
+    typeof timeoutMsOrOptions === "object"
+      ? (timeoutMsOrOptions.timeoutMs ?? 45_000)
+      : timeoutMsOrOptions;
+  const prompt =
+    typeof timeoutMsOrOptions === "object"
+      ? (timeoutMsOrOptions.editPrompt ?? EDIT_PROMPT)
+      : EDIT_PROMPT;
   const raw = await withTimeout(
     completeFn(
       llm,
-      EDIT_PROMPT,
+      prompt,
       `Tiêu đề: ${input.title}\n\nMô tả hiện tại:\n${input.description.slice(0, 6000)}\n\nĐề nghị sửa:\n"${input.instruction}"`,
     ),
     timeoutMs,
@@ -93,15 +103,23 @@ export async function planEdit(
  * Áp thao tác sửa một cách tất định. Thao tác không áp được (đoạn cũ không có /
  * có nhiều chỗ) bị bỏ và ghi vào `rejected` để không sửa mù.
  */
-export function applyEditOps(title: string, description: string, ops: EditOp[]): EditAppliedResult {
+export function applyEditOps(
+  title: string,
+  description: string,
+  ops: EditOp[],
+  labels?: EditLabels,
+): EditAppliedResult {
   let t = title;
   let d = description;
   const changes: EditChange[] = [];
   const rejected: EditOp[] = [];
+  const titleLabel = labels?.title ?? "Title";
+  const descLabel = labels?.description ?? "Description";
+  const notPresentLabel = labels?.notPresent ?? "(none)";
 
   for (const op of ops) {
     if (op.type === "title") {
-      if (op.value !== t) changes.push({ what: "Tiêu đề", before: t, after: op.value });
+      if (op.value !== t) changes.push({ what: titleLabel, before: t, after: op.value });
       t = op.value;
     } else if (op.type === "field") {
       const esc = op.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -124,7 +142,7 @@ export function applyEditOps(title: string, description: string, ops: EditOp[]):
         while (i < lines.length && lines[i].startsWith("- ")) i++;
         lines.splice(i, 0, `- ${op.label}: ${op.value}`);
         d = d.slice(0, head) + lines.join("\n");
-        changes.push({ what: op.label, before: "(chưa có)", after: op.value });
+        changes.push({ what: op.label, before: notPresentLabel, after: op.value });
       }
     } else {
       const count = d.split(op.old).length - 1;
@@ -133,7 +151,7 @@ export function applyEditOps(title: string, description: string, ops: EditOp[]):
         continue;
       }
       d = d.replace(op.old, op.new);
-      changes.push({ what: "Mô tả", before: op.old, after: op.new });
+      changes.push({ what: descLabel, before: op.old, after: op.new });
     }
   }
   return { title: t, description: d, changes, rejected };

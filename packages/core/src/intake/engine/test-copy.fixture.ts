@@ -109,6 +109,11 @@ export const TEST_COPY: Record<CopyKey, string> = {
   "status.closed_canceled": "Canceled",
   "comment.supplement_default_content": "Supplement info",
   "reporter.default_name": "Reporter",
+  "bot.default_name": "Bot",
+  "edit.title_label": "Title",
+  "edit.description_label": "Description",
+  "edit.not_present": "(none)",
+  "status.unknown": "unknown",
   "notify.on_call_supplement":
     "📢 **[{botName}]** Reporter supplemented ticket **{identifier}**:\n> {summary}",
 };

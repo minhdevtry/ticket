@@ -5,6 +5,7 @@ export * from "./text";
 export * from "./engine";
 export * from "./edit";
 export * from "./command-interpreter";
+export * from "./timeout";
 /** RFC 0002 PR 4: chuẩn hoá đầu vào và bảng ánh xạ `action` của hợp đồng cũ. */
 export * from "./normalize";
 export * from "./action-map";

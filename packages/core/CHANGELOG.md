@@ -13,10 +13,20 @@ All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded
     - `D6`: Chuyển ticket vừa tạo nhầm sang ticket khác (`move_created`): đọc nội dung mô tả và danh sách ảnh (`descriptionBody`), chép comment sang ticket đích, nối liên kết `duplicates` trên tracker, huỷ ticket nguồn sang `Canceled`, đóng tờ khai nguồn (ADR-0008 §7).
     - `D7`: Quyền sở hữu (`OwnershipPort`): nhận diện qua binding cùng chat và qua quy ước Telegram ID trong mô tả ticket (hỗ trợ ticket bot cũ); từ chối mọi thao tác ghi nếu không phải chủ ticket (`outcome: "not_owner"`), người ở chat khác không thể bấm hộ nút xác nhận.
     - `D9`: Tra cứu tiến độ không nêu mã (`isProgressInquiry`): tự động tra cứu ticket gần nhất của chat qua `getLatestBinding` trong cửa sổ 30 phút (`LOOKUP_WINDOW_MS = 30 * 60_000`); quá 30 phút hoặc không có ticket thì trả về câu hỏi làm rõ (`clarify`).
-    - `CopyKey`: bổ sung các khoá `lookup.tech_comment`, `lookup.other_ticket_status`, `lookup.clarify_identifier`, `action.preview_edit`, `action.preview_move`, `action.edit_conflict_rejected`, `action.edit_unclear_prompt`, `action.clarify_empty_append`, `action.not_owner_refusal`, `action.edit_done`, `action.move_done`, `comment.edit_trace`, `comment.move_target_note`, `comment.move_source_note`.
+    - `CopyKey`: bổ sung các khoá `lookup.tech_comment`, `lookup.other_ticket_status`, `lookup.clarify_identifier`, `action.preview_edit`, `action.preview_move`, `action.edit_conflict_rejected`, `action.edit_unclear_prompt`, `action.clarify_empty_append`, `action.not_owner_refusal`, `action.edit_done`, `action.move_done`, `comment.edit_trace`, `comment.move_target_note`, `comment.move_source_note`, `bot.default_name`, `edit.title_label`, `edit.description_label`, `edit.not_present`, `status.unknown`.
     - `SqliteChannelBindingStore`: bổ sung `getBindingByIdentifier`, bổ sung `updatedAt` cho `getLatestBinding`.
     - `SqliteMessageRouteStore`: bổ sung `getLatestMessageRouteForChat`.
     - `TrackerPort` & `adapter`: bổ sung `linkIssues`, `listProjectColumns`, `getIssueTimeline`, trả về `description` trong `getIssue`.
+    - Vòng sửa review (issue #25):
+      - Chuyển `filesNote` trong bản xem trước append qua `CopyCatalog` (`action.suggest_append_media_note`), loại bỏ hardcode tiếng Việt.
+      - Chuyển tên bot mặc định sang `deps.botName ?? deps.copy.text("bot.default_name")`, không hardcode tên riêng trong core.
+      - Nhãn thay đổi `applyEditOps` (`edit.ts`) nhận qua options `EditLabels` kết hợp `CopyCatalog` (`edit.title_label`, `edit.description_label`, `edit.not_present`), fallback trung lập.
+      - Thống nhất helper `withTimeout` tại `packages/core/src/intake/engine/timeout.ts`, xoá trùng lặp giữa `command-interpreter.ts` và `edit.ts`.
+      - Bổ sung ca test kiểm nền khi sửa (`optimistic concurrency check`) từ chối sửa khi có xung đột nền (`action.edit_conflict_rejected`).
+      - Khắc phục `checkIssueClosed` fallback: nạp danh sách `columns` khi tracker chỉ cài đặt `getIssue` + `listProjectColumns`, nhận diện chính xác ticket đã đóng.
+      - Trạng thái fallback tra cứu dùng `CopyKey` `status.unknown`, loại bỏ hardcode "chưa rõ".
+      - Bỏ magic number `columnId: 9`, hỗ trợ cấu hình `defaultCanceledColumnId` qua `IntakeEngineDeps`.
+      - Hỗ trợ tuỳ biến prompt LLM (`systemPrompt` trong `LlmTicketCommandInterpreterOptions`, `editPrompt` trong `PlanEditOptions`).
   - Port 28 bài kiểm thử từ legacy:
     - 9 ca từ `lib/intake-step/ticket-reply-router.test.ts` (port sang `packages/core/src/intake/engine/text.test.ts`, `packages/core/src/intake/engine/edit.test.ts`, `packages/core/src/intake/engine/pr11-ticket-commands.test.ts`).
     - 11 ca flow từ `lib/intake-step/pipeline.flow.test.ts` (port sang `packages/core/src/intake/engine/pr11-ticket-commands.test.ts`).
