@@ -142,14 +142,56 @@ export class SqliteChannelBindingStore implements ChannelBindingStore {
     if (prefix) args.push(prefix.length, prefix);
     const row = this.db
       .prepare(
-        `SELECT issue_id, identifier, title FROM ticket_bindings
+        `SELECT issue_id, identifier, title, updated_at FROM ticket_bindings
          WHERE chat_id IN (${keys.map(() => "?").join(", ")}) ${byProject}
          ORDER BY updated_at DESC, issue_id DESC
          LIMIT 1`,
       )
-      .get(...args) as { issue_id: number; identifier: string; title: string | null } | null;
+      .get(...args) as {
+      issue_id: number;
+      identifier: string;
+      title: string | null;
+      updated_at?: string;
+    } | null;
+    if (!row) return null;
+    const out: { issueId: number; identifier: string; title?: string; updatedAt?: string } = {
+      issueId: row.issue_id,
+      identifier: row.identifier,
+      title: row.title ?? undefined,
+    };
+    if (row.updated_at) {
+      Object.defineProperty(out, "updatedAt", {
+        value: row.updated_at,
+        enumerable: false,
+        configurable: true,
+      });
+    }
+    return out;
+  }
+
+  getBindingByIdentifier(
+    identifier: string,
+  ): { issueId: number; chatId: string; identifier: string; title?: string } | null {
+    const row = this.db
+      .prepare(
+        `SELECT issue_id, chat_id, identifier, title FROM ticket_bindings
+         WHERE UPPER(identifier) = ?
+         ORDER BY updated_at DESC, issue_id DESC
+         LIMIT 1`,
+      )
+      .get(identifier.trim().toUpperCase()) as {
+      issue_id: number;
+      chat_id: string;
+      identifier: string;
+      title: string | null;
+    } | null;
     return row
-      ? { issueId: row.issue_id, identifier: row.identifier, title: row.title ?? undefined }
+      ? {
+          issueId: row.issue_id,
+          chatId: row.chat_id,
+          identifier: row.identifier,
+          title: row.title ?? undefined,
+        }
       : null;
   }
 

@@ -133,6 +133,44 @@ export class SqliteMessageRouteStore implements MessageRouteStore {
       identifier: row.identifier,
     };
   }
+
+  /** Tra route gửi tin gần nhất tới chat trong cửa sổ thời gian. */
+  getLatestMessageRouteForChat(
+    channelType: string,
+    chatIds: string[],
+    sinceMs: number,
+    kind: MessageRouteKind = "comment",
+  ): MessageRoute | null {
+    const ids = [...new Set(chatIds.filter(Boolean))];
+    if (ids.length === 0) return null;
+    const since = new Date(sinceMs).toISOString().replace("T", " ").slice(0, 19);
+    const row = this.db
+      .prepare(
+        `SELECT message_id, channel_type, chat_id, issue_id, identifier, created_at, kind
+         FROM message_routes
+         WHERE channel_type = ? AND chat_id IN (${ids.map(() => "?").join(",")}) AND created_at >= ? AND kind = ?
+         ORDER BY created_at DESC, rowid DESC LIMIT 1`,
+      )
+      .get(channelType, ...ids, since, kind) as {
+      message_id: string;
+      channel_type: string;
+      chat_id: string;
+      issue_id: number;
+      identifier: string;
+      created_at?: string;
+      kind?: MessageRouteKind;
+    } | null;
+    if (!row) return null;
+    return {
+      messageId: row.message_id,
+      channelType: row.channel_type,
+      chatId: row.chat_id,
+      issueId: row.issue_id,
+      identifier: row.identifier,
+      kind: row.kind,
+      createdAt: row.created_at,
+    };
+  }
 }
 
 export class SqliteNotifyBindingReader implements NotifyBindingReader {

@@ -127,6 +127,13 @@ export interface IntakeDraft {
     from?: string;
     lead?: string;
     alternatives?: Array<{ identifier: string; issueId: number; title?: string }>;
+    edit?: {
+      baseTitle: string;
+      baseDescription: string;
+      title: string;
+      description: string;
+      changes: Array<{ what: string; before: string; after: string }>;
+    };
     /** The exact button label the reporter must send to execute it. */
     confirmLabel: string;
     askedAt?: string;

@@ -48,18 +48,36 @@ export const tieuLinhCopy: Record<CopyKey, string> = {
   "park.reminder": " Còn sự cố «{title}» anh/chị báo trước đó đang chờ xác nhận ạ.",
   "action.preview_append":
     "Dạ em sẽ ghi thêm vào {identifier} nội dung sau ạ:\n{content}\nĐúng thì anh/chị bấm nút giúp em nhé.",
-  "action.preview_edit":
-    "Dạ em sẽ sửa {identifier} theo đề nghị: {changes}\nĐúng thì anh/chị bấm nút giúp em nhé.",
+  "action.preview_edit": "Dạ anh/chị xác nhận giúp em sửa {identifier} như sau nhé?\n{changes}",
   "action.preview_move":
-    "Dạ em sẽ chuyển {from} sang {identifier} và huỷ bản trùng ạ. Đúng thì anh/chị bấm nút giúp em nhé.",
+    "Dạ anh/chị xác nhận giúp em: chuyển toàn bộ nội dung {from} sang {identifier} và huỷ {from} (ticket trùng) nhé?",
   "action.done_append":
     "Em đã cập nhật bổ sung thông tin này vào ticket {identifier} cho anh/chị rồi nhé ạ!",
   "action.done_edit": "Dạ em đã sửa {identifier} rồi ạ.",
-  "action.done_move": "Dạ em đã chuyển {from} sang {identifier} rồi ạ.",
-  "action.canceled": "Dạ em đã huỷ thao tác đó ạ, chưa ghi gì vào ticket cả.",
-  "lookup.status": "Dạ tình trạng {identifier} hiện tại: {status}",
+  "action.edit_done": "Dạ em đã sửa {identifier} rồi ạ.",
+  "action.done_move": "Dạ em đã chuyển nội dung {from} sang {identifier} và huỷ {from} rồi ạ.",
+  "action.move_done": "Dạ em đã chuyển nội dung {from} sang {identifier} và huỷ {from} rồi ạ.",
+  "action.canceled": "Dạ vâng, em không ghi gì vào {identifier} ạ.",
+  "action.edit_conflict_rejected":
+    "Dạ {identifier} vừa được cập nhật sau khi em lập bản sửa, anh/chị gửi lại đề nghị sửa giúp em nhé.",
+  "action.edit_unclear_prompt":
+    'Dạ em chưa hiểu cần sửa gì trong {identifier} ạ. Anh/chị ghi rõ giúp em, vd "sửa {identifier} SĐT thành 09xxxxxxxx" nhé.',
+  "action.clarify_empty_append":
+    "Dạ anh/chị gửi ảnh chụp màn hình hoặc nội dung cần bổ sung vào {identifier} giúp em nhé ạ.",
+  "action.not_owner_refusal":
+    'Dạ {identifier} không phải ticket anh/chị báo nên em không ghi vào được ạ. Anh/chị cần xem tình trạng thì nhắn "{identifier} tới đâu rồi" nhé.',
+  "lookup.status": "Dạ {identifier} «{title}» đang ở trạng thái: {status} ạ.{techComment}",
   "lookup.not_owner":
     "Dạ {identifier} không phải ticket của anh/chị nên em chỉ xem được trạng thái thôi ạ.",
+  "lookup.other_ticket_status": "Dạ {identifier} đang ở trạng thái: {status} ạ.",
+  "lookup.tech_comment": '\nTrao đổi gần nhất của kỹ thuật: "{comment}"',
+  "lookup.clarify_identifier":
+    "Dạ anh/chị nhắn giúp em mã ticket cần kiểm tra (ví dụ TECH-123) nhé ạ.",
+  "comment.edit_trace": "✏️ Đã sửa theo đề nghị của **{who}**:\n{lines}",
+  "comment.move_target_note":
+    "🔀 **{who}** xác nhận {from} là bổ sung cho ticket này — nội dung chuyển sang:\n{body}\n\n{images}",
+  "comment.move_source_note":
+    "ℹ️ Ticket này trùng {target}: **{who}** xác nhận đây là bổ sung cho {target}, nội dung đã chuyển sang {target}. {botName} huỷ bản trùng (ADR-0008).",
   "draft.expired_new":
     "Dạ sự cố cũ để lâu quá nên em khép lại rồi ạ. Mình bắt đầu sự cố mới nhé, anh/chị mô tả giúp em.",
   "draft.canceled": "Dạ vâng ạ. Khi nào anh/chị cần báo sự cố thì cứ nhắn em nhé ạ.",
@@ -125,6 +143,11 @@ export const tieuLinhCopy: Record<CopyKey, string> = {
   "status.closed_canceled": "Đã hủy (Canceled)",
   "comment.supplement_default_content": "Bổ sung thông tin",
   "reporter.default_name": "Người báo",
+  "bot.default_name": "Tiểu Linh",
+  "edit.title_label": "Tiêu đề",
+  "edit.description_label": "Mô tả",
+  "edit.not_present": "(chưa có)",
+  "status.unknown": "chưa rõ",
   "notify.on_call_supplement":
     "📢 **[{botName}]** Người báo vừa bổ sung thông tin vào ticket **{identifier}**:\n> {summary}",
 };

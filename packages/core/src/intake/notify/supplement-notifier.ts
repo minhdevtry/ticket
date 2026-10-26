@@ -14,7 +14,6 @@ import {
   type ItsaplanClient,
   type ItsaplanIssue,
   type ProjectAssignee,
-  type ProjectColumn,
   classifyColumn,
 } from "../../itsaplan";
 import type { CopyCatalog } from "../ports";
@@ -46,7 +45,7 @@ export function isSystemActor(actorName: unknown, ignoredActors?: string[] | Reg
  */
 export function isIssueClosed(
   issue: { columnId?: number; stateType?: string },
-  columns?: ProjectColumn[],
+  columns?: ReadonlyArray<{ id: number; name: string; stateType?: string }>,
 ): boolean {
   if (columns && typeof issue.columnId === "number") {
     const col = columns.find((c) => c.id === issue.columnId);
