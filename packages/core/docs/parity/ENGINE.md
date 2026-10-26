@@ -44,3 +44,46 @@ never faked.
 | similar-ticket / KG advice at summary time | ADR-0007 | KG/Onyx is an optional post-create hook port with NO implementation in src (ADR-0002/0003/0007 are Tiểu Linh-only). Nothing to reproduce in-library. |
 | background realtime-gate ping to 127.0.0.1:8140 | sidecar | A bot sidecar side-effect, outside the engine's responsibility; the engine exposes afterCreate() for the bot to wire it. |
 
+
+## Sổ đối chiếu lễ tân (RFC 0002, PR 1)
+
+Phần trên do `scripts/shadow-parity.ts --engine` sinh và chỉ nói 13 trong 77 kịch bản của
+`pipeline.flow.test.ts`. Phần này viết tay, **không** do script sinh (chạy lại script sẽ ghi đè
+nó; hãy chép lại cả mục này). Nó mở rộng bức tranh ra toàn bộ test lễ tân của
+`apps/tieulinh-legacy`: mỗi test là một dòng trong
+`apps/tieulinh/receptionist-gap-register.test.ts`, kèm trạng thái và lý do. Bài kiểm đỏ khi một test
+legacy bị đổi tên, xoá hoặc thêm mà sổ không đổi theo, khi một dòng `core`/`ported` trỏ tới test
+không còn tồn tại, hoặc khi các con số dưới đây lệch khỏi sổ.
+
+<!-- gap-register: total=450 core=69 ported=0 deferred=370 by-design=11 -->
+
+| Trạng thái | Số test legacy | Nghĩa |
+|---|---|---|
+| `core` | 69 | Engine hoặc thư viện core hiện có đã có test tương ứng (mỗi dòng trỏ tới test đó) |
+| `ported` | 0 | Đã port sang `apps/tieulinh` (PR 1 không port gì; PR 2 đến 14 chuyển dòng `deferred` sang đây) |
+| `deferred` | 370 | Chưa có; dòng nêu PR của RFC 0002 sẽ port, hoặc lý do nằm ngoài chuỗi di trú (KG, Onyx, nạp tri thức) |
+| `by-design` | 11 | Cố ý không có ở bản mới, có lý do (tool ghi trực tiếp của legacy, đường tạo ticket thứ hai, bot khác) |
+| Tổng | 450 | Test của lễ tân và phần dùng chung |
+
+Số test `deferred` theo PR sẽ port (RFC 0002, mục 5):
+
+| PR | Số test | Chủ đề |
+|---|---|---|
+| 3 | 7 | Binding tương thích kho legacy |
+| 4 | 13 | Draft v2, chuẩn hoá đầu vào, chống tin `noop` |
+| 5 | 46 | Bộ trích xuất và heuristic tiếng Việt |
+| 7 | 11 | Hỏi bổ sung theo luật, chốt tiêu đề |
+| 8 | 18 | Gác tờ khai khi có sự cố mới, định danh |
+| 9 | 22 | Tách báo cáo nhiều sự cố |
+| 10 | 37 | Tin sau khi tạo ticket |
+| 11 | 28 | Lệnh nhắm vào ticket đã có |
+| 12 | 12 | Huỷ và đóng ticket theo yêu cầu người báo (ADR-0006) |
+| 13 | 46 | Soát thông tin, `learned` |
+| 14 | 76 | Dữ liệu domain, chữ, định dạng ticket |
+| 15 | 6 | Pack MCP và skill |
+| 16 | 7 | Adapter OpenClaw |
+
+Phần còn lại của `deferred` (KG, Onyx, nạp tri thức `ask-learning`, `related-curator`) nằm ngoài chuỗi di
+trú (RFC 0002, mục 7). Các file test không phải của lễ tân (hạ tầng dùng chung đã chuyển lên core, KG,
+Onyx, nửa hậu cần) được ghi theo từng file; nửa hậu cần có sổ riêng ở
+`apps/tieulinh/gap-register.test.ts`.

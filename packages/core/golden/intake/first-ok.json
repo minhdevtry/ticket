@@ -1,0 +1,114 @@
+{
+  "format": 1,
+  "scenario": "first-ok",
+  "description": "\"ok\" khi tài liệu chưa từng được tóm tắt không tạo ticket (bug 3: xác nhận nhầm).",
+  "source": "apps/tieulinh-legacy/lib/intake-step/pipeline.flow.test.ts: \"'ok' khi tài liệu chưa từng được tóm tắt không tạo ticket\"",
+  "startMs": 1767225600000,
+  "minConfirmDelayMs": 5000,
+  "turns": [
+    {
+      "advanceMs": 0,
+      "message": "Lỗi app Duo học sinh 0900000005 không làm bài được",
+      "extract": {
+        "userIntent": "report_issue",
+        "title": "Lỗi app Duo không làm bài được",
+        "symptoms": [
+          "không làm bài được"
+        ],
+        "identifiers": {
+          "studentAccount": "0900000005"
+        },
+        "values": {
+          "van_de": "không làm bài được"
+        }
+      },
+      "action": "ask_missing_field",
+      "voiceText": "Anh/chị bổ sung giúp em: bộ phận của anh/chị.",
+      "buttons": [
+        [
+          {
+            "text": "🔹 Vận hành",
+            "callbackData": "Vận hành"
+          },
+          {
+            "text": "🔹 Vận đơn",
+            "callbackData": "Vận đơn"
+          }
+        ],
+        [
+          {
+            "text": "🔹 CSKH",
+            "callbackData": "CSKH"
+          },
+          {
+            "text": "🔹 CSHV",
+            "callbackData": "CSHV"
+          }
+        ],
+        [
+          {
+            "text": "🔹 Chuyên môn",
+            "callbackData": "Chuyên môn"
+          },
+          {
+            "text": "🔹 Sale",
+            "callbackData": "Sale"
+          }
+        ],
+        [
+          {
+            "text": "🔹 Quản lý lớp",
+            "callbackData": "Quản lý lớp"
+          }
+        ]
+      ]
+    },
+    {
+      "advanceMs": 10000,
+      "message": "ok",
+      "extract": {
+        "userIntent": "confirm"
+      },
+      "action": "ask_missing_field",
+      "voiceText": "Anh/chị bổ sung giúp em: bộ phận của anh/chị.",
+      "buttons": [
+        [
+          {
+            "text": "🔹 Vận hành",
+            "callbackData": "Vận hành"
+          },
+          {
+            "text": "🔹 Vận đơn",
+            "callbackData": "Vận đơn"
+          }
+        ],
+        [
+          {
+            "text": "🔹 CSKH",
+            "callbackData": "CSKH"
+          },
+          {
+            "text": "🔹 CSHV",
+            "callbackData": "CSHV"
+          }
+        ],
+        [
+          {
+            "text": "🔹 Chuyên môn",
+            "callbackData": "Chuyên môn"
+          },
+          {
+            "text": "🔹 Sale",
+            "callbackData": "Sale"
+          }
+        ],
+        [
+          {
+            "text": "🔹 Quản lý lớp",
+            "callbackData": "Quản lý lớp"
+          }
+        ]
+      ]
+    }
+  ]
+}

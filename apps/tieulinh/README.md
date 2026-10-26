@@ -1,6 +1,6 @@
 # Tiểu Linh mới (`@vuihoc/tieulinh`): hậu cần
 
-Nửa **hậu cần** (back office) của Tiểu Linh, viết lại bằng bot kit (`defineBot`/`createBot` của `@vuihoc/bot-core`). Nó thay phần worker của [`apps/tieulinh-legacy`](../tieulinh-legacy) và là ví dụ mẫu cho một bot thật: file ở đây chỉ chứa nghiệp vụ và khai báo, thứ gì dùng chung được đã nằm ở `packages/core`. Nửa **lễ tân** (nhận sự cố qua chat, tạo ticket) chưa làm.
+Nửa **hậu cần** (back office) của Tiểu Linh, viết lại bằng bot kit (`defineBot`/`createBot` của `@vuihoc/bot-core`). Nó thay phần worker của [`apps/tieulinh-legacy`](../tieulinh-legacy) và là ví dụ mẫu cho một bot thật: file ở đây chỉ chứa nghiệp vụ và khai báo, thứ gì dùng chung được đã nằm ở `packages/core`. Nửa **lễ tân** (nhận sự cố qua chat, tạo ticket, huỷ/đóng ticket theo yêu cầu người báo) chưa làm; thiết kế ở [RFC 0002](../../docs/rfc/0002-receptionist.md).
 
 Tiểu Linh 2 (TL2) chạy trên dự án `tech.TECH2` với agent `tieulinh2`. Đổi sang `tech.TECH` là đổi `TIEULINH_PROJECT` (và `TIEULINH_TEAM` nếu cần); đổi tên agent là đổi `TIEULINH_AGENT` **và** dùng key của agent mới (`ITSAPLAN_AGENT_KEY`): hai thứ phải khớp nhau, nên không phải mọi thay đổi chỉ là một biến. Tài liệu đầy đủ (tiếng Việt): [Tiểu Linh mới: hậu cần](../../docs/explanation/tieulinh-hau-can.md), [Chạy Tiểu Linh 2](../../docs/how-to/run-tieulinh-hau-can.md), [biến môi trường](../../docs/reference/config-env.md).
 
@@ -9,7 +9,7 @@ Tiểu Linh 2 (TL2) chạy trên dự án `tech.TECH2` với agent `tieulinh2`. 
 | Sự kiện | Handler | Hành vi |
 |---|---|---|
 | Ai đó `@tieulinh2` trên ticket | `mention.ts` | Chuyển lời nhắn về người báo qua kênh (đường duy nhất cho comment có gắn thẻ agent); LLM (chỉ đọc: `get_issue`, `get_comments`, `search_issues`) trả lời trên ticket, đúng luồng comment. **Câu trả lời của LLM là tính năng MỚI so với legacy** (legacy chỉ chuyển lời, không trả lời). |
-| `issue.state_changed` | `closure` (core `TicketClosure`) | Sang Resolved: báo người báo kèm nút "Đã ổn". Sang Done/Canceled/mở lại: báo và gỡ nút cũ. Bot **không bao giờ** chuyển cột. |
+| `issue.state_changed` | `closure` (core `TicketClosure`) | Sang Resolved: báo người báo kèm nút "Đã ổn". Sang Done/Canceled/mở lại: báo và gỡ nút cũ. Hậu cần **không chuyển cột nào** (xem ADR-0006 bên dưới). |
 | `comment.created` | `forward.ts` | Comment của người xử lý tới người báo (`all` hoặc `mention`; bỏ `#noibo`, bỏ comment của bot, bỏ comment gắn thẻ agent vì đã đi đường `mention`). Ảnh, video, `attachments`, link ảnh nội bộ và HTML entities xử lý ở dispatcher của core như legacy. |
 | `comment.created` nhắc mã ticket anh em | `duplicates.ts` | LLM phán có phải tuyên bố trùng không; mặc định để một comment gợi ý. `TIEULINH_DUPLICATE_MERGE=true` bật gộp kiểu legacy, nhưng chỉ khi comment là của người xử lý được giao ticket (comment của người khác chỉ ra gợi ý; comment của bot/admin/onyx bị bỏ qua). |
 | Cron `TIEULINH_SLA_CRON` | `sla.ts` | Ticket chưa giao, chưa bắt đầu, quá hạn theo ưu tiên (1/2/4/24 giờ) thì báo trực ca (kèm link nếu có `ITSAPLAN_WEB_URL`), mỗi ticket một lần và CHỈ khi kênh đã giao được. |
@@ -54,12 +54,12 @@ Test không cần mạng: `bun run --cwd apps/tieulinh test` (itsaplan giả, LL
 | `services.ts` | Kho SQLite của app (`tieulinh-app.sqlite`: liên kết, tuyến tin, trạng thái, mốc SLA), chọn kênh, `TicketClosure`, dispatcher. Dấu "đã làm" nằm ở `ctx.keys` của kit. `TIEULINH_BINDING_DB` (tuỳ chọn) trỏ riêng liên kết và tuyến tin sang file dạng legacy chung với TL1 (xem [Dùng chung binding với Tiểu Linh 1](../../docs/how-to/share-bindings-with-tl1.md)). |
 | `mention.ts`, `forward.ts`, `duplicates.ts`, `sla.ts`, `reporter.ts` | Từng nghiệp vụ. |
 | `copy.ts` | Mọi câu tiếng Việt gửi người báo. Logic không chứa chuỗi hiển thị. |
-| `*.test.ts`, `testkit.ts` | Kịch bản với `FakeItsaplan` + `FakeLlm`; `inbound.test.ts` đi qua server webhook thật; `gap-register.test.ts` là SỔ đối chiếu test legacy (chỉ giữ sổ khỏi nói dối, hành vi được kiểm ở test mà từng dòng trỏ tới). |
+| `*.test.ts`, `testkit.ts` | Kịch bản với `FakeItsaplan` + `FakeLlm`; `inbound.test.ts` đi qua server webhook thật; `gap-register.test.ts` là SỔ đối chiếu test legacy của hậu cần và `receptionist-gap-register.test.ts` là sổ của lễ tân (chỉ giữ sổ khỏi nói dối, hành vi được kiểm ở test mà từng dòng trỏ tới). |
 
 ## Quyết định bám theo (ADR của Tiểu Linh)
 
 - **0001** một worker một dự án: tracker khoá theo `tech.TECH2`, sự kiện dự án khác bị bỏ.
-- **0006** chỉ người xử lý đóng ticket: không có tự đóng; nút "Đã ổn" chỉ ghi một comment. (Gộp ticket trùng là ngoại lệ có cờ, mặc định TẮT, vì nó huỷ ticket.)
+- **0006** (bản 10/10) bot không bao giờ tự đóng ticket: không hẹn giờ đóng; nút "Đã ổn" chỉ ghi một comment. Bản 10/10 còn một nửa: khi **chính người báo** yêu cầu huỷ hoặc đóng ticket của mình và tự bấm xác nhận thì bot chuyển cột (Canceled/Done). Nửa đó là việc của **lễ tân**, chưa có ở đây và sẽ vào ở PR 12 của [RFC 0002](../../docs/rfc/0002-receptionist.md); hậu cần hôm nay không đổi cột. (Gộp ticket trùng là ngoại lệ có cờ, mặc định TẮT, vì nó huỷ ticket.)
 - **0007** ticket tương tự chỉ học từ người: "liên quan" ở đây là kết quả tìm văn bản dùng để gợi ý, không phải kết luận.
 - **0008** thao tác ghi từ chat cần xác nhận: bot không tạo/sửa ticket từ chat (lễ tân chưa làm).
 - **0010** mô tả ticket là nguyên văn người báo: bot không sửa mô tả; khi gộp, mô tả được chép nguyên văn.
@@ -74,7 +74,7 @@ Test không cần mạng: `bun run --cwd apps/tieulinh test` (itsaplan giả, LL
 ## Việc để lại (follow-up)
 
 - Chạy thử chế độ Telegram với bot thật (hiện mới kiểm bằng Telegram giả); `(cc @người xử lý)` trong comment phản hồi.
-- Lễ tân (`defineBot({ receptionist })`): tạo ticket, ghi liên kết người báo vào kho (hiện chỉ test và chế độ sandbox ghi).
+- Lễ tân (`defineBot({ receptionist })`): tạo ticket, ghi liên kết người báo vào kho (hiện chỉ test và chế độ sandbox ghi), và huỷ/đóng ticket theo yêu cầu người báo (ADR-0006, PR 12 của RFC 0002). Thiết kế: [RFC 0002](../../docs/rfc/0002-receptionist.md); sổ đối chiếu test lễ tân legacy: `receptionist-gap-register.test.ts`.
 - KG/Onyx/Memgraph (nạp tri thức khi ticket hoàn tất), `related-curator` và ticket tương tự, ingest.
 - Gửi media thật qua Telegram (hiện ảnh và video nối vào văn bản dạng link).
 - Phát hiện trùng lúc tạo ticket (cần truy hồi liên quan).

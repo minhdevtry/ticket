@@ -9,6 +9,18 @@ All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded
   - Mới: `detectBindingSchema`, `resolveBindingSchema`, `isLegacyFile`, `assertNotLegacyFile`, `legacyBindingApplySchema` (chỉ tạo bảng thiếu, không ALTER), `openLegacyBindingDb(path)` (không chmod/PRAGMA file đã có), `BindingSchemaError`, `LEGACY_BINDING_TABLES`, `tableColumns`, kiểu `BindingSchemaKind`/`BindingSchemaOption`/`SqliteChannelBindingStoreOptions`.
   - `SqliteNotifyBindingReader` đọc được bảng không có `reporter_user_id` (file legacy). `SqliteMessageRouteStore` dùng được trên `message_routes` của TL1 không đổi.
   - **Hành vi mới đáng chú ý**: `intakeApplySchema` và `notifyApplySchema` giờ **ném `BindingSchemaError` khi gặp file legacy** (thay vì ALTER bảng của TL1 và trộn `intake_documents` hai hình dạng). Tờ khai TL2 phải ở file riêng. DB core cũ không bị ảnh hưởng. Xem `docs/how-to/share-bindings-with-tl1.md`.
+- **Khung kịch bản hội thoại và bản ghi vàng cho engine tiếp nhận** (RFC 0002, PR 2). Additive; không đổi API hiện có.
+  - `@vuihoc/bot-core/testing`: `ScriptedChat` (+ `ChatEngine`, `Script`, `ScriptTurn`, `TurnExpectation`, `ScriptRun`,
+    `TurnRecord`, `Mismatch`): chạy kịch bản "tin vào, kỳ vọng ra" qua `engine.step`, ghi từng lượt và liệt kê chỗ lệch;
+    `ManualClock` (đồng hồ tay, mốc mặc định cố định).
+  - `@vuihoc/bot-core/testing`, bản ghi vàng: `GoldenFixture`/`GoldenTurn`, `parseFixture`, `serializeFixture`,
+    `goldenScript`, `normalizeVoiceText`, `compareGolden`, `applyAllowlist` (`GoldenAllow`), `formatGoldenReport`,
+    `LEGACY_ACTION_OF_OUTCOME` (bảng tạm `StepOutcome` sang `action` legacy; PR 4 thay bằng hàm ánh xạ chính thức).
+  - Fixture đầu tiên ở `packages/core/golden/intake/` (sáu kịch bản: xác nhận quá sớm, "ok" đầu tiên, tạo ticket,
+    bấm đôi, huỷ rồi tin mới, hết hạn 24 giờ), ghi từ pipeline legacy bằng `bun run --cwd apps/tieulinh-legacy golden:record`
+    (đồng hồ giả, itsaplan giả, dữ liệu tổng hợp; hai lần ghi giống từng byte). Test phát lại
+    `src/intake/engine/golden-intake.test.ts` chạy cả sáu qua `IntakeEngine` hiện tại; chỗ lệch được phép nằm trong
+    `golden-intake.allowlist.ts` (lệch ngoài danh sách hoặc dòng thừa đều làm test đỏ, nên danh sách chỉ co lại).
 
 - **Nền cho bot hậu cần có người báo qua chat** (từ Tiểu Linh 2 hậu cần, `apps/tieulinh`). Additive; không đổi API hiện có.
   - `@vuihoc/bot-core/intake`: `ChannelPort.sendAlert?(text)` (báo kênh trực ca, tuỳ chọn); `TicketStateRecord` +

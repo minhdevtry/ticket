@@ -15,7 +15,8 @@ Xem [Kiến trúc: lễ tân và hậu cần](/explanation/architecture) để h
 | Định danh người dùng, bộ công cụ plugin OpenClaw, khung eval | Có trong thư viện |
 | `defineBot({...})` và `createBot`: một khai báo cho cả bot, vòng đời, health, đọc env (`bot`) | Có (milestone 1), 0.x nên chữ ký còn có thể đổi |
 | Hậu cần: handler theo trigger, luật, tracker khoá theo dự án (`backoffice`), itsaplan giả để test (`testing`) | Có (milestone 1) |
-| Vai lễ tân trong `createBot`, lịch cron do bot giữ, hẹn giờ bền, host OpenClaw | Chưa có (milestone 2 và 3), xem [RFC 0001](/rfc/0001-bot-kit) |
+| Lịch cron do bot giữ, hẹn giờ bền (`backoffice.schedule`, `closeAfter`) | Có (milestone 2a) |
+| Pack lễ tân (tool MCP và skill sinh từ `defineBot({ receptionist })`) và adapter OpenClaw cho nó. `createBot` là worker hậu cần, không chạy lễ tân | Đang thiết kế, xem [RFC 0002](/rfc/0002-receptionist) và nguyên tắc "bot là một pack" ở [RFC 0001](/rfc/0001-bot-kit) |
 | Tiểu Linh (`apps/tieulinh-legacy`) dùng bot-core | Có, qua `workspace:*`. Còn vài adapter mỏng và phần chưa thay (pipeline hội thoại, dispatcher), xem [Chuyển Tiểu Linh sang bot-core](/how-to/migrate-tieulinh) |
 
 Vai hậu cần dựng nhanh bằng `defineBot`. Vai lễ tân hôm nay vẫn ghép từ các phần (port) của thư viện, các trang [Cách làm](/how-to/) mô tả cách ghép đó.
