@@ -332,8 +332,13 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "sau khi huỷ, lượt tiếp theo mở tài liệu mới và KHÔNG quên thông tin các lượt sau",
-    "deferred",
-    "Chờ port ở PR 8 (gác tờ khai khi có sự cố mới): ca mẫu của PR 2 (huỷ rồi tin mới)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr8-park.test.ts",
+        "sau khi huỷ, lượt tiếp theo mở tài liệu mới và KHÔNG quên thông tin các lượt sau",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
@@ -428,14 +433,24 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     'chọn "Bổ sung sự cố đang chờ" → gộp tin B vào CHÍNH tờ khai A (người dùng đã xác nhận là cùng sự cố)',
-    "deferred",
-    "Chờ port ở PR 8 (gác tờ khai khi có sự cố mới)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr8-park.test.ts",
+        'chọn "Bổ sung sự cố đang chờ" → gộp tin B vào CHÍNH tờ khai A (người dùng đã xác nhận là cùng sự cố)',
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "trả lời không rõ (không bấm 1 trong 2 nút) → hỏi lại, không đoán, không mất dữ liệu bên nào",
-    "deferred",
-    "Chờ port ở PR 8 (gác tờ khai khi có sự cố mới)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr8-park.test.ts",
+        "trả lời không rõ (không bấm 1 trong 2 nút) → hỏi lại, không đoán, không mất dữ liệu bên nào",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
@@ -452,8 +467,13 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     'đang hỏi sự cố mới hay bổ sung, người dùng gõ "thôi huỷ" → bỏ tin vừa rồi, tờ khai A giữ nguyên',
-    "deferred",
-    "Chờ port ở PR 8 (gác tờ khai khi có sự cố mới)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr8-park.test.ts",
+        'đang hỏi sự cố mới hay bổ sung, người dùng gõ "thôi huỷ" → bỏ tin vừa rồi, tờ khai A giữ nguyên',
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
@@ -469,20 +489,35 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     'B tạo ticket xong → ticket_created nhắc tên A kèm nút "Tiếp tục sự cố đang chờ"; bấm nút → quay lại đúng A (docId, SĐT, tiêu đề của A) chờ xác nhận',
-    "deferred",
-    "Chờ port ở PR 8 (gác tờ khai khi có sự cố mới)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr8-park.test.ts",
+        'B tạo ticket xong → ticket_created nhắc tên A kèm nút "Tiếp tục sự cố đang chờ"; bấm nút → quay lại đúng A (docId, SĐT, tiêu đề của A) chờ xác nhận',
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "không có tờ khai nào bị gác lại → ticket_created bình thường, không có câu nhắc/nút phụ",
-    "deferred",
-    "Chờ port ở PR 8 (gác tờ khai khi có sự cố mới)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr8-park.test.ts",
+        "không có tờ khai nào bị gác lại → ticket_created bình thường, không có câu nhắc/nút phụ",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     'B bị HUỶ (không tạo ticket) → packet "canceled" cũng nhắc về A còn đang chờ',
-    "deferred",
-    "Chờ port ở PR 8 (gác tờ khai khi có sự cố mới)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr8-park.test.ts",
+        'B bị HUỶ (không tạo ticket) → packet "canceled" cũng nhắc về A còn đang chờ',
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
@@ -498,8 +533,13 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "customerId thật không bị reground/xoá dù symptoms LLM paraphrase không còn chữ số (TECH-956)",
-    "deferred",
-    "Chờ port ở PR 8 (gác tờ khai khi có sự cố mới)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr8-park.test.ts",
+        "customerId thật không bị reground/xoá dù symptoms LLM paraphrase không còn chữ số (TECH-956)",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
@@ -705,14 +745,24 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/multi-incident.test.ts",
     "extractBlockInfo bỏ qua tham số URL, SĐT, TK/MK, mã phiếu thu; chỉ lấy định danh có nhãn",
-    "deferred",
-    "Chờ port ở PR 8 (gác tờ khai khi có sự cố mới)",
+    "ported",
+    [
+      C(
+        "intake/engine/identifiers.test.ts",
+        "extractBlockInfo bỏ qua tham số URL, SĐT, TK/MK, mã phiếu thu; chỉ lấy định danh có nhãn",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/multi-incident.test.ts",
     "identityConflict chỉ so CÙNG LỚP định danh, và chỉ khi cả hai bên đều có",
-    "deferred",
-    "Chờ port ở PR 8 (gác tờ khai khi có sự cố mới)",
+    "ported",
+    [
+      C(
+        "intake/engine/identifiers.test.ts",
+        "identityConflict chỉ so CÙNG LỚP định danh, và chỉ khi cả hai bên đều có",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/multi-incident.test.ts",
@@ -1677,39 +1727,43 @@ const ROWS: Row[] = [
   row(
     "lib/identifier-grounding.test.ts",
     "giữ lại đúng chữ số, bỏ khoảng trắng/dấu chấm/gạch ngang",
-    "deferred",
-    "Chờ port ở PR 8 (gác tờ khai khi có sự cố mới)",
+    "ported",
+    [
+      C(
+        "intake/engine/identifiers.test.ts",
+        "giữ lại đúng chữ số, bỏ khoảng trắng/dấu chấm/gạch ngang",
+      ),
+    ],
   ),
   row(
     "lib/identifier-grounding.test.ts",
     "giá trị có chữ số nằm trong nguồn thì grounded",
-    "deferred",
-    "Chờ port ở PR 8 (gác tờ khai khi có sự cố mới)",
+    "ported",
+    [C("intake/engine/identifiers.test.ts", "giá trị có chữ số nằm trong nguồn thì grounded")],
   ),
   row(
     "lib/identifier-grounding.test.ts",
     "giá trị toàn chữ (không có chữ số) coi như grounded — không đối chiếu được bằng số",
-    "deferred",
-    "Chờ port ở PR 8 (gác tờ khai khi có sự cố mới)",
+    "ported",
+    [
+      C(
+        "intake/engine/identifiers.test.ts",
+        "giá trị toàn chữ (không có chữ số) coi như grounded — không đối chiếu được bằng số",
+      ),
+    ],
   ),
   row(
     "lib/identifier-grounding.test.ts",
     "giá trị không nằm trong nguồn thì KHÔNG grounded",
-    "deferred",
-    "Chờ port ở PR 8 (gác tờ khai khi có sự cố mới)",
+    "ported",
+    [C("intake/engine/identifiers.test.ts", "giá trị không nằm trong nguồn thì KHÔNG grounded")],
   ),
-  row(
-    "lib/identifier-grounding.test.ts",
-    "moi lại đúng SĐT thật trong lời kể",
-    "deferred",
-    "Chờ port ở PR 8 (gác tờ khai khi có sự cố mới)",
-  ),
-  row(
-    "lib/identifier-grounding.test.ts",
-    "không có số nào hợp lệ thì trả về undefined",
-    "deferred",
-    "Chờ port ở PR 8 (gác tờ khai khi có sự cố mới)",
-  ),
+  row("lib/identifier-grounding.test.ts", "moi lại đúng SĐT thật trong lời kể", "ported", [
+    C("intake/engine/identifiers.test.ts", "moi lại đúng SĐT thật trong lời kể"),
+  ]),
+  row("lib/identifier-grounding.test.ts", "không có số nào hợp lệ thì trả về undefined", "ported", [
+    C("intake/engine/identifiers.test.ts", "không có số nào hợp lệ thì trả về undefined"),
+  ]),
   row(
     "lib/identifier-grounding.test.ts",
     "hai SĐT thật sự khác nhau (khác sự cố) → xung đột",
@@ -1746,15 +1800,17 @@ const ROWS: Row[] = [
   row(
     "lib/identifier-grounding.test.ts",
     "một bên không có chữ số (mã toàn chữ) → không đối chiếu được, KHÔNG coi là xung đột",
-    "deferred",
-    "Chờ port ở PR 8 (gác tờ khai khi có sự cố mới)",
+    "ported",
+    [
+      C(
+        "intake/engine/identifiers.test.ts",
+        "một bên không có chữ số (mã toàn chữ) → không đối chiếu được, KHÔNG coi là xung đột",
+      ),
+    ],
   ),
-  row(
-    "lib/identifier-grounding.test.ts",
-    "giá trị giống hệt nhau → không xung đột",
-    "deferred",
-    "Chờ port ở PR 8 (gác tờ khai khi có sự cố mới)",
-  ),
+  row("lib/identifier-grounding.test.ts", "giá trị giống hệt nhau → không xung đột", "ported", [
+    C("intake/engine/identifiers.test.ts", "giá trị giống hệt nhau → không xung đột"),
+  ]),
   // ── lib/intake-document/repository.test.ts (6) ──
   row(
     "lib/intake-document/repository.test.ts",

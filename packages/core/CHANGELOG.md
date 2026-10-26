@@ -3,6 +3,20 @@
 All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded here.
 
 ## Unreleased
+- **Gác tờ khai khi có sự cố mới** (RFC 0002 PR 8, issue #22). Additive; hoàn thiện các kịch bản gác B5, B6, A12:
+  - `@vuihoc/bot-core/intake`:
+    - `B5`: nhận diện định danh có nhãn cùng lớp (`extractLabelledIdentifiers`, `identityConflict`): chỉ Code, Mã KH, Mã HS, UID/SID/CID, mã CRM 7-10 chữ số trọn dòng, SĐT có nhãn hoặc có sẵn trong lời kể; tên người, SĐT trần mới, tài khoản, URL, mã phiếu không bao giờ tạo xung đột. So khớp theo lớp độc lập (`customer`, `student`, `phone`).
+    - `resolvePark`: trả lời không rõ thì hỏi lại bằng nút, không đoán, không mất dữ liệu bên nào; tin "thôi huỷ" (`isExplicitCancel`) bỏ tin vừa gác và giữ nguyên tờ khai hiện hành; chọn "Sự cố mới" mở tờ khai mới độc lập và gác tờ khai cũ; chọn "Bổ sung sự cố đang chờ" gộp tin mới vào tờ khai đang mở (`skipConflictCheck: true`).
+    - `B6`: ngoại lệ đang trả lời câu hỏi cho full-report park: nếu tờ khai đang hỏi câu hỏi dữ kiện kỹ thuật (`__tech`) hoặc mô tả (`short_description`), tin mới được xử lý như câu trả lời bổ sung thay vì gác nhầm.
+    - `A12`: nút nhắc và resume tờ khai bị gác (`button.resume_parked`, `park.reminder`): khi tờ khai mới hoàn tất tạo ticket (`ticket.created`) hoặc bị huỷ (`draft.canceled`), tự động gắn lời nhắc tờ khai cũ đang chờ kèm nút "Tiếp tục sự cố đang chờ"; bấm nút phục hồi đúng tờ khai cũ (`resumeParkedDraft`), re-emit tóm tắt nếu đã đủ trường, không tự tạo thêm ticket.
+    - `CopyKey`: thêm các khoá `park.unclear`, `park.canceled`, `park.reminder`.
+    - Pure helpers: `isGroundedInDigits`, `recoverAccountFromText`, `PHONE_OR_ACCOUNT_PATTERN`, `saysNewIncident`, `withTypedDetail`.
+  - Port 18 bài kiểm thử từ legacy:
+    - 11 ca từ `lib/identifier-grounding.test.ts` (chuẩn hoá chữ số, grounded in digits, recoverAccount, xung đột định danh).
+    - 2 ca từ `lib/intake-step/multi-incident.test.ts` (`extractBlockInfo`, `identityConflict`).
+    - 8 ca flow từ `lib/intake-step/pipeline.flow.test.ts` (nhóm TECH-928, gác tờ khai, customerId không bị reground, huỷ rồi mở mới) cùng 3 bài kiểm "không mất dữ liệu bên nào".
+  - Cập nhật sổ đối chiếu (`apps/tieulinh/receptionist-gap-register.test.ts`) và bảng parity `ENGINE.md`: 18 dòng `deferred` chuyển sang `ported` (tổng `ported` tăng từ 69 lên 87; `deferred` giảm từ 309 xuống 291; PR 8 còn 0 dòng).
+
 - **Hỏi bổ sung theo luật** (RFC 0002 PR 7, issue #21). Additive; hoàn thiện các kịch bản hỏi thiếu A1-A5, chốt tiêu đề B3 và gộp trường B4.
   - `@vuihoc/bot-core/intake`:
     - `IntakeEngineDeps.variant`: hỗ trợ hàm suy ra `(draft, record) => string` bên cạnh hằng số `string`, cho phép chuyển nhánh động theo nội dung hội thoại (A1).

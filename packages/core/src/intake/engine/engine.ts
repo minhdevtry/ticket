@@ -59,13 +59,17 @@ import {
   type GateResult,
 } from "../gate";
 import { evaluatePriorityRules, resolveRequestedPriority, type UrgencyRules } from "../priority";
-import { findIdentifierConflict } from "./identifiers";
-import { mentionedIdentifiers, foldButton } from "./text";
+import {
+  findIdentifierConflict,
+  extractLabelledIdentifiers,
+  identityConflict,
+} from "./identifiers";
+import { mentionedIdentifiers, foldButton, saysNewIncident, withTypedDetail } from "./text";
 import { isDeclineAnswer, isMeaninglessInput, TECH_INFO_FIELD } from "./normalize";
 import { MAX_RAW_TEXT_CHARS, MAX_RAW_TEXT_TOTAL_CHARS } from "../raw-text";
 import type { StepInput, StepOutput, ChannelMessage } from "./types";
 import { type ReplayOraclePort, applyReplayControlOverride } from "./oracle";
-import { isInvalidTitle, deriveFallbackTitle } from "../extractor/heuristics";
+import { isInvalidTitle, deriveFallbackTitle, isExplicitCancel } from "../extractor/heuristics";
 import { SCOPE_RANK, EVIDENCE_FLAGS } from "../extractor/merger";
 
 /** Max chars of ONE reporter message kept in rawText (legacy parity). */
@@ -154,6 +158,18 @@ export class IntakeEngine {
 
     let draft = deps.drafts.getLatestByChatId(input.chatId);
 
+    // 0. Bấm nút "Tiếp tục sự cố đang chờ" — nhắc ở ticket_created/canceled của sự
+    //    cố vừa xong. Đưa tờ khai bị gác lại trở thành tài liệu đang mở.
+    const resumeLabel = foldButton(deps.copy.text("button.resume_parked"));
+    if (
+      draft?.parkedDocId &&
+      CLOSED_STATUSES.has(draft.status) &&
+      foldButton(text) === resumeLabel
+    ) {
+      const resumed = await this.resumeParkedDraft(draft.parkedDocId, nowIso);
+      if (resumed) return resumed;
+    }
+
     // 1. A write to an existing ticket is awaiting the reporter's button (ADR-0008).
     if (draft?.pendingTicketAction) {
       return this.resolvePendingAction(draft, text);
@@ -161,9 +177,7 @@ export class IntakeEngine {
 
     // 2. A park ("new incident or append?") is awaiting the reporter's choice (TECH-928).
     if (draft?.parkedPayload) {
-      const resolved = await this.resolvePark(draft, text, mediaPaths);
-      if (resolved) return resolved;
-      // Not a park answer → fall through and treat as ordinary input on the draft.
+      return this.resolvePark(draft, text, mediaPaths);
     }
 
     // 3. Expired draft → close and start fresh.
@@ -212,6 +226,7 @@ export class IntakeEngine {
     text: string,
     mediaPaths: string[],
     nowIso: string,
+    options?: { skipConflictCheck?: boolean },
   ): Promise<StepOutput> {
     const { deps } = this;
     const open = existing && !CLOSED_STATUSES.has(existing.status) ? existing : null;
@@ -232,12 +247,16 @@ export class IntakeEngine {
       if (open) {
         deps.drafts.saveRevision({ ...open, status: "canceled", updatedAt: nowIso });
       }
-      return { outcome: "canceled", messages: [{ text: deps.copy.text("draft.canceled") }] };
+      const out: StepOutput = {
+        outcome: "canceled",
+        messages: [{ text: deps.copy.text("draft.canceled") }],
+      };
+      return open ? this.appendParkedReminder(out, open) : out;
     }
 
     // A completed report arriving while another draft is mid-collection, OR a
     // conflicting identifier, parks instead of silently merging (TECH-928, E2E 28/09).
-    if (open) {
+    if (open && !options?.skipConflictCheck) {
       const park = this.detectPark(open, extracted, text, mediaPaths, nowIso);
       if (park) return park;
     }
@@ -254,7 +273,16 @@ export class IntakeEngine {
     }
 
     // Merge this turn's fields onto the draft (draft never loses identifiers it had).
-    const draft = this.mergeIntoDraft(open, input, extracted, text, mediaPaths, nowIso, declined);
+    const draft = this.mergeIntoDraft(
+      open,
+      input,
+      extracted,
+      text,
+      mediaPaths,
+      nowIso,
+      declined,
+      options?.skipConflictCheck,
+    );
 
     // A2: Chưa có mô tả sự cố (chỉ có ảnh hoặc chào thuần tuý)
     const onlyMedia = mediaPaths.length > 0 && text.trim().length === 0;
@@ -565,7 +593,7 @@ export class IntakeEngine {
             }),
           );
         }
-        return {
+        const out: StepOutput = {
           outcome: "created",
           messages: [{ text: result.message }],
           issue: {
@@ -574,6 +602,7 @@ export class IntakeEngine {
             url: result.issue.url,
           },
         };
+        return this.appendParkedReminder(out, draft);
       }
       case "already_created":
         return {
@@ -618,16 +647,31 @@ export class IntakeEngine {
     mediaPaths: string[],
     nowIso: string,
   ): StepOutput | null {
+    const existingLabelled = extractLabelledIdentifiers(open.ticket.rawText, {
+      allowBarePhone: true,
+    });
+    const incomingLabelled = extractLabelledIdentifiers(text);
+    const labelledConflict = identityConflict(existingLabelled, incomingLabelled);
+
     const incoming = extracted.identifiers ?? {};
     const existingIds = this.draftIdentifiers(open);
-    const conflict = findIdentifierConflict(existingIds, incoming);
+    const structuredConflict = findIdentifierConflict(existingIds, incoming);
 
-    const draftHasContent =
-      open.ticket.rawText.trim().length > 0 || open.ticket.title.trim().length > 0;
+    const conflict = labelledConflict != null || structuredConflict != null;
+
+    const answeringTechQuestion = open.lastAskedFields?.includes(TECH_INFO_FIELD) === true;
+    const answeringDescription = open.lastAskedFields?.includes("short_description") === true;
+    const draftInProgress =
+      Boolean(open.ticket.title) &&
+      (Boolean(open.lastAskedFields?.length) || open.status === "ready_for_confirmation");
+
     const isFullNewReport =
+      draftInProgress &&
+      !answeringTechQuestion &&
+      !answeringDescription &&
       extracted.userIntent === "report_issue" &&
       (extracted.symptoms?.length ?? 0) > 0 &&
-      draftHasContent;
+      text.length > 0;
 
     if (!conflict && !isFullNewReport) return null;
 
@@ -659,16 +703,24 @@ export class IntakeEngine {
   private async resolvePark(
     draft: IntakeDraft,
     text: string,
-    _mediaPaths: string[],
-  ): Promise<StepOutput | null> {
+    mediaPaths: string[],
+  ): Promise<StepOutput> {
     const { deps } = this;
     const folded = foldButton(text);
     const newLabel = foldButton(deps.copy.text("button.new_incident"));
     const appendLabel = foldButton(deps.copy.text("button.continue_draft"));
     const payload = draft.parkedPayload;
+    if (!payload) {
+      return {
+        outcome: "parked",
+        messages: [{ text: deps.copy.text("park.unclear") }],
+      };
+    }
 
-    if (folded === newLabel && payload) {
-      // Start a fresh draft from the held payload; park the current one.
+    const bufferedMedia = Array.from(new Set([...payload.mediaPaths, ...mediaPaths]));
+
+    // 1. Chọn "Sự cố mới" (bấm nút hoặc gõ "ticket mới ạ")
+    if (folded === newLabel || saysNewIncident(text)) {
       const nowIso = new Date(deps.clock.now()).toISOString();
       const parkedCur = draft.docId;
       const fresh = this.openFresh(draft.chatId, nowIso);
@@ -676,30 +728,137 @@ export class IntakeEngine {
       // Clear the park marker on the old draft so it isn't re-triggered.
       deps.drafts.saveRevision({ ...draft, parkedPayload: undefined, updatedAt: nowIso });
       deps.drafts.saveRevision(fresh);
-      return this.collect(
-        fresh,
-        { chatId: draft.chatId },
-        payload.text,
-        payload.mediaPaths,
-        nowIso,
-      );
+      const replayText = withTypedDetail(payload.text, text);
+      return this.collect(fresh, { chatId: draft.chatId }, replayText, bufferedMedia, nowIso);
     }
 
-    if (folded === appendLabel && payload) {
-      // Append the held payload onto the existing draft (reporter chose merge).
+    // 2. Chọn "Bổ sung sự cố đang chờ" (gộp tin B vào tờ khai A)
+    if (
+      folded === appendLabel ||
+      text.toLowerCase().includes(deps.copy.text("button.continue_draft").toLowerCase())
+    ) {
       const nowIso = new Date(deps.clock.now()).toISOString();
       const cleared: IntakeDraft = { ...draft, parkedPayload: undefined, updatedAt: nowIso };
       deps.drafts.saveRevision(cleared);
-      return this.collect(
-        cleared,
-        { chatId: draft.chatId },
-        payload.text,
-        payload.mediaPaths,
-        nowIso,
-      );
+      return this.collect(cleared, { chatId: draft.chatId }, payload.text, bufferedMedia, nowIso, {
+        skipConflictCheck: true,
+      });
     }
 
-    return null; // not a park answer
+    // 3. Người dùng gõ "thôi huỷ": bỏ tin vừa park, tờ khai A giữ nguyên
+    if (isExplicitCancel(text)) {
+      const nowIso = new Date(deps.clock.now()).toISOString();
+      const cleared: IntakeDraft = { ...draft, parkedPayload: undefined, updatedAt: nowIso };
+      deps.drafts.saveRevision(cleared);
+      const title = cleared.ticket.title || "";
+      return {
+        outcome: "canceled",
+        messages: [{ text: deps.copy.text("park.canceled", { title }) }],
+      };
+    }
+
+    // 4. Trả lời không rõ (không bấm 1 trong 2 nút): hỏi lại, không đoán, không mất dữ liệu bên nào
+    const newIncidentButton = deps.copy.text("button.new_incident");
+    const continueDraftButton = deps.copy.text("button.continue_draft");
+    return {
+      outcome: "parked",
+      messages: [
+        {
+          text: deps.copy.text("park.unclear"),
+          buttons: layoutButtons([
+            { text: newIncidentButton, callbackData: newIncidentButton },
+            { text: continueDraftButton, callbackData: continueDraftButton },
+          ]),
+        },
+      ],
+    };
+  }
+
+  private appendParkedReminder(output: StepOutput, draft: IntakeDraft): StepOutput {
+    if (!draft.parkedDocId) return output;
+    const parked = this.deps.drafts.getByDocId(draft.parkedDocId);
+    if (
+      !parked ||
+      CLOSED_STATUSES.has(parked.status) ||
+      isExpiredDraft(parked, this.deps.clock.now(), this.deps.draftTtlMs ?? INTAKE_DRAFT_TTL_MS)
+    ) {
+      return output;
+    }
+
+    const title = parked.ticket.title || "";
+    const reminder = this.deps.copy.text("park.reminder", { title });
+    const resumeButton = this.deps.copy.text("button.resume_parked");
+
+    const messages = output.messages.map((m, idx) => {
+      if (idx !== output.messages.length - 1) return m;
+      return {
+        ...m,
+        text: m.text + reminder,
+        buttons: [...(m.buttons ?? []), [{ text: resumeButton, callbackData: resumeButton }]],
+      };
+    });
+
+    return {
+      ...output,
+      messages,
+    };
+  }
+
+  private async resumeParkedDraft(parkedDocId: string, nowIso: string): Promise<StepOutput | null> {
+    const { deps } = this;
+    const parked = deps.drafts.getByDocId(parkedDocId);
+    if (
+      !parked ||
+      CLOSED_STATUSES.has(parked.status) ||
+      isExpiredDraft(parked, deps.clock.now(), deps.draftTtlMs ?? INTAKE_DRAFT_TTL_MS)
+    ) {
+      return null;
+    }
+
+    const touched: IntakeDraft = {
+      ...parked,
+      revision: parked.revision + 1,
+      updatedAt: nowIso,
+    };
+    deps.drafts.saveRevision(touched);
+    const record = this.toRecord(touched);
+    const gate = evaluateGate(deps.catalog, record);
+    this.writeRecordBack(touched, record, gate.effectiveValues);
+
+    if (touched.status === "ready_for_confirmation") {
+      const shown = markSummaryShown(touched, deps.clock);
+      deps.drafts.saveRevision(shown);
+      return this.summaryOutput(shown, gate);
+    }
+
+    if (!gate.isComplete) {
+      this.bumpAsked(touched, gate.fieldsToAsk);
+      touched.lastAskedFields = gate.fieldsToAsk;
+      deps.drafts.saveRevision(touched);
+      const firstField = gate.fieldsToAsk[0];
+      const deptField = this.resolveDeptField(record.variant);
+      let question: string;
+      if (
+        touched.unrecognizedDept &&
+        gate.fieldsToAsk.length === 1 &&
+        deptField &&
+        firstField === deptField
+      ) {
+        question = deps.copy.text("ask.unrecognized_dept", { dept: touched.unrecognizedDept });
+      } else {
+        question = gate.questionText || deps.copy.text("ask.missing_info");
+      }
+      const buttons = firstField ? this.questionButtons(firstField, touched) : undefined;
+      return {
+        outcome: "asked",
+        missingFields: gate.missingRequired,
+        messages: [{ text: question, ...(buttons ? { buttons } : {}) }],
+      };
+    }
+
+    const shown = markSummaryShown(touched, deps.clock);
+    deps.drafts.saveRevision(shown);
+    return this.summaryOutput(shown, gate);
   }
 
   // ── existing-ticket commands (ADR-0008) ─────────────────────────────────────
@@ -948,6 +1107,7 @@ export class IntakeEngine {
     mediaPaths: string[],
     nowIso: string,
     declined: boolean,
+    skipConflictCheck?: boolean,
   ): IntakeDraft {
     const { deps } = this;
     const base = open ?? this.openFresh(input.chatId, nowIso);
@@ -1047,7 +1207,11 @@ export class IntakeEngine {
     const values = { ...record.values, ...(extracted.values ?? {}) };
     for (const key of IDENTIFIER_KEYS) {
       const incoming = extracted.identifiers?.[key];
-      if (incoming && !values[key]) values[key] = incoming;
+      if (incoming) {
+        if (!values[key] || skipConflictCheck) {
+          values[key] = incoming;
+        }
+      }
     }
 
     // Evidence monotonic ("bằng chứng chỉ nới" — B4):
