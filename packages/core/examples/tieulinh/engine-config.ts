@@ -85,6 +85,15 @@ export const tieuLinhUrgency: UrgencyRules = {
     },
   ],
 };
+/** Actors ignored by Tiểu Linh when searching for technical commenters to mention. */
+export const DEFAULT_TIEULINH_IGNORED_ACTORS: string[] = [
+  "tiểu linh",
+  "tieulinh",
+  "iris",
+  "onyx",
+  "bot-ticket-intake",
+  "bot-iris-intake",
+];
 
 export interface TieuLinhWiring {
   client: ItsaplanClient;
@@ -128,6 +137,8 @@ export function makeTieuLinhEngine(w: TieuLinhWiring): IntakeEngine {
     commands: w.commands,
     actions: w.actions,
     postCreate: w.postCreate, // KG/Onyx/similar — supplied by the bot, never the library
+    botName: "Tiểu Linh",
+    ignoredActors: DEFAULT_TIEULINH_IGNORED_ACTORS,
   };
   return new IntakeEngine(deps);
 }

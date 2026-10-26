@@ -10,6 +10,7 @@ import { intakeApplySchema, SqliteDraftRepository, newDraft } from "../draft";
 import { SqliteChannelBindingStore } from "../create";
 import { makeCopyCatalog } from "../copy-catalog";
 import { tieuLinhCopy } from "../../../examples/tieulinh/copy";
+import { DEFAULT_TIEULINH_IGNORED_ACTORS } from "../../../examples/tieulinh/engine-config";
 import { createCatalog } from "../gate/catalog";
 import { FieldExtractor } from "../extractor/llm-extractor";
 import { IntakeEngine } from "./engine";
@@ -192,6 +193,8 @@ describe("PR 10: Tin sau khi tạo ticket (issue #24)", () => {
       identifierPrefix: overrides.identifierPrefix ?? "TECHTEST",
       commands: overrides.commands,
       departmentField: "reportingDept",
+      botName: "Tiểu Linh",
+      ignoredActors: DEFAULT_TIEULINH_IGNORED_ACTORS,
     });
   }
 
@@ -793,6 +796,7 @@ describe("PR 10: Tin sau khi tạo ticket (issue #24)", () => {
       chatId: CHAT,
       message: "bổ sung thêm: học sinh vẫn bị lỗi trên máy tính",
     });
+    expect(res.outcome).toBe("closed_refusal");
     expect(legacyActionForOutcome(res.outcome)).toBe("post_create_update");
     expect(it$.calls.addComment).toHaveLength(0);
     expect(it$.calls.updateIssue).toHaveLength(0);
@@ -823,6 +827,7 @@ describe("PR 10: Tin sau khi tạo ticket (issue #24)", () => {
       message: "Em muốn thêm thông tin",
     });
 
+    expect(res.outcome).toBe("closed_refusal");
     expect(legacyActionForOutcome(res.outcome)).toBe("post_create_update");
     expect(it$.calls.addComment).toHaveLength(0);
     expect(it$.calls.updateIssue).toHaveLength(0);
@@ -855,11 +860,67 @@ describe("PR 10: Tin sau khi tạo ticket (issue #24)", () => {
       message: "bổ sung TECHTEST-104: số điện thoại là 0900000016",
     });
 
+    expect(res.outcome).toBe("closed_refusal");
     expect(legacyActionForOutcome(res.outcome)).toBe("post_create_update");
     expect(it$.calls.addComment).toHaveLength(0);
     expect(it$.calls.updateIssue).toHaveLength(0);
     expect(res.messages[0].text).toContain("TECHTEST-104");
     expect(res.messages[0].text).toContain("đã đóng");
     expect(res.messages[0].text).toContain("tạo ticket mới");
+  });
+
+  describe("Đầu ra tiếng Việt của Tiểu Linh qua CopyCatalog giữ nguyên từng byte (PR 10 review fixes)", () => {
+    it("thông điệp từ chối ticket đã đóng (ticket.closed_refusal)", () => {
+      const catalog = makeCopyCatalog(tieuLinhCopy);
+      const text = catalog.text("ticket.closed_refusal", {
+        identifier: "TECH-104",
+        statusLabel: "Hoàn tất (Done)",
+      });
+      expect(text).toBe(
+        "Dạ ticket TECH-104 hiện đã đóng ở trạng thái Hoàn tất (Done) trên hệ thống rồi nên không thể ghi bổ sung được nữa ạ. Nếu cần hỗ trợ sự cố mới, anh/chị vui lòng tạo ticket mới giúp em nhé ạ.",
+      );
+    });
+
+    it("thông điệp xin mô tả sự cố mới khi câu quá ngắn (clarify.new_incident_prompt)", async () => {
+      const engine = makeEngine(() => ({ userIntent: "report_issue", symptoms: [] }));
+      seedCreatedDoc(CHAT, 100, "TECHTEST-100");
+      const res = await engine.step({ chatId: CHAT, message: "ticket mới ạ" });
+      expect(res.outcome).toBe("clarify");
+      expect(res.messages[0].text).toBe("Dạ vâng, anh/chị mô tả sự cố mới giúp em nhé ạ.");
+    });
+
+    it("thông điệp xem trước đề xuất bổ sung (action.suggest_append_preview)", async () => {
+      const engine = makeEngine(() => ({ userIntent: "provide_info", symptoms: [] }));
+      seedCreatedDoc(CHAT, 100, "TECHTEST-100");
+      const res = await engine.step({
+        chatId: CHAT,
+        message: "Học sinh dùng iPad",
+        mediaPaths: ["/tmp/anh1.png"],
+      });
+      expect(res.outcome).toBe("action_preview");
+      expect(res.messages[0].text).toBe(
+        'Dạ tin này là bổ sung cho TECHTEST-100 «Sự cố 100» phải không ạ? Em sẽ ghi vào TECHTEST-100:\n\n> Học sinh dùng iPad\n(kèm 1 ảnh/tệp)\n\nAnh/chị bấm nút xác nhận để em ghi, hoặc "Sự cố mới" nếu là việc khác nhé.',
+      );
+    });
+
+    it("dòng nâng mức ưu tiên trong comment bổ sung (action.priority_uplift)", () => {
+      const catalog = makeCopyCatalog(tieuLinhCopy);
+      const text = catalog.text("action.priority_uplift", {
+        from: catalog.text("priority.level.medium"),
+        to: catalog.text("priority.level.urgent"),
+        reason: "PH đang gay gắt",
+      });
+      expect(text).toBe(
+        "⏫ Nâng mức ưu tiên Trung bình → Khẩn cấp theo đề nghị của người báo. Lý do: PH đang gay gắt",
+      );
+    });
+
+    it("thông điệp báo bổ sung thành công (action.done_append)", () => {
+      const catalog = makeCopyCatalog(tieuLinhCopy);
+      const text = catalog.text("action.done_append", { identifier: "TECHTEST-100" });
+      expect(text).toBe(
+        "Em đã cập nhật bổ sung thông tin này vào ticket TECHTEST-100 cho anh/chị rồi nhé ạ!",
+      );
+    });
   });
 });

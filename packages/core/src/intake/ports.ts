@@ -157,7 +157,17 @@ export type CopyKey =
   | "action.suggest_append_lead" // lead for ordinary supplement proposal; {identifier}
   | "action.suggest_conflict_lead" // lead when conflicting identifier detected; {identifier}
   | "action.suggest_unclear_prompt" // prompt when reporter types unrelated text while awaiting button
-  | "action.suggest_unclear_prompt_with_media"; // prompt when reporter sends more images while awaiting button; {count}
+  | "action.suggest_unclear_prompt_with_media" // prompt when reporter sends more images while awaiting button; {count}
+  | "clarify.new_incident_prompt" // ask reporter to describe new incident when "ticket mới ạ" has no detail
+  | "action.suggest_append_preview" // full preview message proposing supplement; {lead} {title} {identifier} {quoted} {files} {alternatives} {newIncidentLabel}
+  | "action.suggest_append_media_note" // files note in supplement preview; {count}
+  | "action.suggest_append_other_tickets" // other open tickets list in supplement preview; {list}
+  | "action.priority_uplift" // priority uplift line in supplement comment; {from} {to} {reason}
+  | "status.closed_done" // label for completed/done status ("Hoàn tất (Done)")
+  | "status.closed_canceled" // label for canceled status ("Đã hủy (Canceled)")
+  | "comment.supplement_default_content" // fallback content for supplement comment when text is empty
+  | "reporter.default_name" // fallback name for reporter in comment when unknown
+  | "notify.on_call_supplement"; // alert line sent to on-call channel; {botName} {identifier} {summary}
 
 /**
  * The chat↔ticket binding store, so a worker can report back to the reporter.

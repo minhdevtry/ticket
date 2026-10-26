@@ -79,10 +79,22 @@ export const TEST_COPY: Record<CopyKey, string> = {
     'If you want to cancel ticket {identifier}, please message "cancel {identifier}".',
   "ticket.already_created_hint":
     "Ticket {identifier} was already created, no need to confirm again.",
-  "action.suggest_append_lead": "Is this a follow-up for {identifier}?",
+  "action.suggest_append_lead": "Is this a follow-up for {identifier}",
   "action.suggest_conflict_lead": "This message has information different from {identifier}.",
   "action.suggest_unclear_prompt":
     "Please press a button above so I can record it in the right place.",
   "action.suggest_unclear_prompt_with_media":
     "Please press a button above so I can record it in the right place (received with {count} attachments).",
+  "clarify.new_incident_prompt": "Please describe the new incident.",
+  "action.suggest_append_preview":
+    '{lead}{title}? Will record into {identifier}:{quoted}{files}{alternatives}\n\nPress confirm or "{newIncidentLabel}"',
+  "action.suggest_append_media_note": "\n(with {count} files)",
+  "action.suggest_append_other_tickets": "\n\nOther open tickets:\n{list}",
+  "action.priority_uplift": "⏫ Priority uplift {from} → {to}. Reason: {reason}",
+  "status.closed_done": "Done",
+  "status.closed_canceled": "Canceled",
+  "comment.supplement_default_content": "Supplement info",
+  "reporter.default_name": "Reporter",
+  "notify.on_call_supplement":
+    "📢 **[{botName}]** Reporter supplemented ticket **{identifier}**:\n> {summary}",
 };

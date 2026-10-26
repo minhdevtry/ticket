@@ -17,19 +17,29 @@ import {
   type ProjectColumn,
   classifyColumn,
 } from "../../itsaplan";
+import type { CopyCatalog } from "../ports";
 import { escapeItsaplanMarkdown, isBotComment, markBotComment } from "../../core/formatting";
 import { getLogger } from "../../core/logger";
 
-const SYSTEM_ACTOR = /ti[eể]u\s*linh|tieulinh|onyx|bot|^admin$/i;
+const DEFAULT_SYSTEM_ACTOR_RE =
+  /\b(?:bot|agent|ai-coder|ai-lead|ai-qa|coder\s*ai|lead\s*ai|qa\s*ai)\b|^admin$/i;
 
-export function isSystemActor(actorName: unknown): boolean {
-  const name = String(actorName ?? "").trim();
-  return !name || SYSTEM_ACTOR.test(name);
+function matchesIgnored(text: string, ignored?: string[] | RegExp): boolean {
+  if (!ignored) return false;
+  if (ignored instanceof RegExp) return ignored.test(text);
+  const lower = text.toLowerCase();
+  return ignored.some((actor) => {
+    const act = actor.trim().toLowerCase();
+    return act.length > 0 && (lower === act || lower.includes(act));
+  });
 }
 
-const NON_SPECIALIST_ACTOR_RE =
-  /\b(?:ti[eể]u\s*linh|tieulinh|iris|bot-ticket-intake|bot-iris-intake|onyx|bot|ai-coder|ai-lead|ai-qa|coder\s*ai|lead\s*ai|qa\s*ai)\b|^admin$/i;
-
+export function isSystemActor(actorName: unknown, ignoredActors?: string[] | RegExp): boolean {
+  const name = String(actorName ?? "").trim();
+  if (!name) return true;
+  if (DEFAULT_SYSTEM_ACTOR_RE.test(name)) return true;
+  return matchesIgnored(name, ignoredActors);
+}
 /**
  * Kiểm tra xem ticket đã ở trạng thái đóng (hoàn tất hoặc đã hủy) hay chưa.
  * Resolved ("Đã xử lý") vẫn tính là đang theo dõi / mở để người báo phản hồi nghiệm thu.
@@ -53,9 +63,22 @@ export function isIssueClosed(
  * (yêu cầu của team Kỹ thuật: "ticket đã đóng thì thôi không cho làm gì vào nữa,
  * bên báo lỗi phải tự chủ động tạo ticket mới").
  */
-export function closedTicketRefusalMessage(identifier: string, stateLabel?: string): string {
-  const stateVi = stateLabel ? ` ở trạng thái ${stateLabel}` : "";
-  return `Dạ ticket ${identifier} hiện đã đóng${stateVi} trên hệ thống rồi nên không thể ghi bổ sung được nữa ạ. Nếu cần hỗ trợ sự cố mới, anh/chị vui lòng tạo ticket mới giúp em nhé ạ.`;
+export function closedTicketRefusalMessage(
+  identifier: string,
+  stateLabel?: string,
+  copy?: Pick<CopyCatalog, "text"> | string,
+): string {
+  if (typeof copy === "string") {
+    return copy.replace("{identifier}", identifier).replace("{statusLabel}", stateLabel ?? "");
+  }
+  if (copy && typeof copy.text === "function") {
+    return copy.text("ticket.closed_refusal", {
+      identifier,
+      statusLabel: stateLabel ?? "",
+    });
+  }
+  const state = stateLabel ? ` (${stateLabel})` : "";
+  return `Ticket ${identifier} is closed${state}; please create a new ticket.`;
 }
 
 export interface SupplementMentionTarget {
@@ -83,6 +106,7 @@ export interface ResolveMentionOptions {
   issue: Pick<ItsaplanIssue, "id"> & { assigneeUserId?: string | null };
   timeline?: unknown[];
   reporterNames?: Array<string | undefined | null>;
+  ignoredActors?: string[] | RegExp;
 }
 
 /**
@@ -185,10 +209,12 @@ export async function resolveSupplementMentionTarget(
         .trim()
         .replace(/^@/, "");
       const actorUserId = String(item.actorUserId ?? "").trim();
+      const combined = `${actorName} ${actorUsername}`.trim();
       if (
         !actorName ||
-        isSystemActor(actorName) ||
-        NON_SPECIALIST_ACTOR_RE.test(`${actorName} ${actorUsername}`)
+        isSystemActor(actorName, options.ignoredActors) ||
+        DEFAULT_SYSTEM_ACTOR_RE.test(combined) ||
+        matchesIgnored(combined, options.ignoredActors)
       ) {
         continue;
       }
@@ -264,6 +290,8 @@ export async function notifyOnCallSupplement(options: {
   notifier?: { broadcastAlert?: (text: string) => Promise<void> };
   identifier: string;
   summary: string;
+  botName?: string;
+  template?: string;
 }): Promise<void> {
   const enabled =
     process.env.NOTIFY_ON_CALL_SUPPLEMENT === "1" ||
@@ -271,7 +299,13 @@ export async function notifyOnCallSupplement(options: {
   if (!enabled || !options.notifier?.broadcastAlert) return;
   const shortText =
     options.summary.length > 300 ? `${options.summary.slice(0, 300)}…` : options.summary;
-  const msg = `📢 **[Tiểu Linh]** Người báo vừa bổ sung thông tin vào ticket **${options.identifier}**:\n> ${shortText}`;
+  const botName = options.botName?.trim() || "Bot";
+  const msg = options.template
+    ? options.template
+        .replace("{botName}", botName)
+        .replace("{identifier}", options.identifier)
+        .replace("{summary}", shortText)
+    : `📢 **[${botName}]** Reporter supplemented ticket **${options.identifier}**:\n> ${shortText}`;
   await options.notifier.broadcastAlert(msg).catch((err: unknown) => {
     const message = err instanceof Error ? err.message : String(err);
     getLogger().warn(

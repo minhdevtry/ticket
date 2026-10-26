@@ -22,6 +22,7 @@ import { stripChannelEnvelope, isInternalCallbackToken } from "../../core";
 import type {
   Clock,
   CopyCatalog,
+  CopyKey,
   ChannelBindingStore,
   MediaResolver,
   TrackerPort,
@@ -86,7 +87,6 @@ import {
 } from "../extractor/heuristics";
 import {
   isIssueClosed,
-  closedTicketRefusalMessage,
   resolveSupplementMentionTarget,
   formatSupplementComment,
   notifyOnCallSupplement,
@@ -142,6 +142,10 @@ export interface IntakeEngineDeps {
    */
   oracle?: ReplayOraclePort;
   notifier?: { broadcastAlert?: (text: string) => Promise<void> };
+  /** Display name of the bot for alerts / logs (defaults to "Bot"). */
+  botName?: string;
+  /** Specific actor names or pattern to ignore when resolving mention targets (e.g. other bots). */
+  ignoredActors?: string[] | RegExp;
 }
 
 export class IntakeEngine {
@@ -1234,12 +1238,7 @@ export class IntakeEngine {
     // Check if target ticket is closed (W29-NOTIFY / test 18)
     const isClosed = await this.checkIssueClosed(target.issueId);
     if (isClosed) {
-      const statusLabel = await this.resolveClosedStatusLabel(target.issueId);
-      return {
-        outcome: "closed_refusal",
-        messages: [{ text: closedTicketRefusalMessage(target.identifier, statusLabel) }],
-        issue: { id: target.issueId, identifier: target.identifier },
-      };
+      return this.buildClosedRefusal(target.issueId, target.identifier);
     }
 
     // Lookup is read-only; ownership gates only WRITES (ADR-0008 §6).
@@ -1384,11 +1383,7 @@ export class IntakeEngine {
           extractedEarly,
         );
       }
-      return {
-        outcome: "closed_refusal",
-        messages: [{ text: closedTicketRefusalMessage(identifier, statusLabel) }],
-        issue: { id: issueId, identifier, url: draft.issueUrl },
-      };
+      return this.buildClosedRefusal(issueId, identifier, draft.issueUrl);
     }
 
     // 2. Ticket đang mở: trích xuất ý định với createdTicket context
@@ -1440,7 +1435,7 @@ export class IntakeEngine {
         deps.drafts.saveRevision(fresh);
         return {
           outcome: "clarify",
-          messages: [{ text: "Dạ vâng, anh/chị mô tả sự cố mới giúp em nhé ạ." }],
+          messages: [{ text: deps.copy.text("clarify.new_incident_prompt") }],
           docId: fresh.docId,
         };
       }
@@ -1529,9 +1524,14 @@ export class IntakeEngine {
 
     const title = primary.title ? ` «${primary.title}»` : "";
     const quoted = text ? `\n\n> ${cap(text, 500).replace(/\n/g, "\n> ")}` : "";
-    const files = mediaPaths.length ? `\n(kèm ${mediaPaths.length} ảnh/tệp)` : "";
+    const files = mediaPaths.length
+      ? deps.copy.text("action.suggest_append_media_note", { count: mediaPaths.length })
+      : "";
+    const altsList = alternatives
+      .map((a) => `- ${a.identifier}${a.title ? ` «${a.title}»` : ""}`)
+      .join("\n");
     const alts = alternatives.length
-      ? `\n\nAnh/chị còn ticket đang mở khác, nếu tin này thuộc ticket đó thì bấm đúng mã:\n${alternatives.map((a) => `- ${a.identifier}${a.title ? ` «${a.title}»` : ""}`).join("\n")}`
+      ? deps.copy.text("action.suggest_append_other_tickets", { list: altsList })
       : "";
 
     const newIncidentLabel = deps.copy.text("button.new_incident");
@@ -1539,7 +1539,15 @@ export class IntakeEngine {
 
     const adjustedLead =
       primary.identifier === createdId ? lead : lead.replace(createdId, primary.identifier);
-    const messageText = `${adjustedLead}${title} phải không ạ? Em sẽ ghi vào ${primary.identifier}:${quoted}${files}${alts}\n\nAnh/chị bấm nút xác nhận để em ghi, hoặc "${newIncidentLabel}" nếu là việc khác nhé.`;
+    const messageText = deps.copy.text("action.suggest_append_preview", {
+      lead: adjustedLead,
+      title,
+      identifier: primary.identifier,
+      quoted,
+      files,
+      alternatives: alts,
+      newIncidentLabel,
+    });
 
     const pending: NonNullable<IntakeDraft["pendingTicketAction"]> = {
       kind: "suggest",
@@ -1772,12 +1780,7 @@ export class IntakeEngine {
     if (issueId !== undefined) {
       const isClosed = await this.checkIssueClosed(issueId);
       if (isClosed) {
-        const statusLabel = await this.resolveClosedStatusLabel(issueId);
-        return {
-          outcome: "closed_refusal",
-          messages: [{ text: closedTicketRefusalMessage(identifier, statusLabel) }],
-          issue: { id: issueId, identifier },
-        };
+        return this.buildClosedRefusal(issueId, identifier);
       }
     }
 
@@ -1817,12 +1820,8 @@ export class IntakeEngine {
         const currentPrio = (targetIssue?.priority ??
           (draft.issueId === issueId ? draft.ticket.priority : "medium")) as Priority;
         const prioOrder: Record<Priority, number> = { urgent: 4, high: 3, medium: 2, low: 1 };
-        const prioLabel: Record<Priority, string> = {
-          urgent: "Khẩn cấp (Urgent)",
-          high: "Cao (High)",
-          medium: "Trung bình (Medium)",
-          low: "Thấp (Low)",
-        };
+        const currentPrioLabel = deps.copy.text(`priority.level.${currentPrio}` as CopyKey);
+        const reqPrioLabel = deps.copy.text(`priority.level.${reqPrio}` as CopyKey);
         if (prioOrder[reqPrio] > prioOrder[currentPrio]) {
           if (issueId !== undefined && deps.tracker.updateIssue) {
             await deps.tracker.updateIssue(issueId, { priority: reqPrio }).catch(() => {});
@@ -1836,7 +1835,11 @@ export class IntakeEngine {
             deps.drafts.saveRevision(cleared);
           }
           parts.push(
-            `⏫ Nâng mức ưu tiên ${prioLabel[currentPrio]} → ${prioLabel[reqPrio]} theo đề nghị của người báo. Lý do: ${asked.requestedPriorityReason}`,
+            deps.copy.text("action.priority_uplift", {
+              from: currentPrioLabel,
+              to: reqPrioLabel,
+              reason: asked.requestedPriorityReason,
+            }),
           );
         }
       }
@@ -1850,16 +1853,17 @@ export class IntakeEngine {
         tracker: deps.tracker,
         issue: { id: issueId, assigneeUserId: issueObj?.assigneeUserId },
         reporterNames: [draft.reporter?.name],
+        ignoredActors: deps.ignoredActors,
       }).catch(() => null);
       mentionUsername = mention?.username ?? null;
     }
 
     if (parts.length === 0) {
-      parts.push(textContent || "Bổ sung thông tin");
+      parts.push(textContent || deps.copy.text("comment.supplement_default_content"));
     }
 
     const commentBody = formatSupplementComment({
-      who: draft.reporter?.name || "Người báo",
+      who: draft.reporter?.name || deps.copy.text("reporter.default_name"),
       parts,
       mention: mentionUsername,
       style: draft.issueId === issueId ? "user_update" : "who_supplement",
@@ -1870,10 +1874,19 @@ export class IntakeEngine {
     }
 
     if (deps.notifier) {
+      const botName = deps.botName || "Bot";
+      const summaryText = parts.join(" ");
+      const template = deps.copy.text("notify.on_call_supplement", {
+        botName,
+        identifier,
+        summary: summaryText,
+      });
       await notifyOnCallSupplement({
         notifier: deps.notifier,
         identifier,
-        summary: parts.join(" "),
+        summary: summaryText,
+        botName,
+        template,
       }).catch(() => {});
     }
 
@@ -1891,7 +1904,7 @@ export class IntakeEngine {
       outcome: "action_done",
       messages: [
         {
-          text: `Em đã cập nhật bổ sung thông tin này vào ticket ${identifier} cho anh/chị rồi nhé ạ!`,
+          text: deps.copy.text("action.done_append", { identifier }),
         },
       ],
       issue: { id: issueId ?? 0, identifier },
@@ -1952,19 +1965,44 @@ export class IntakeEngine {
 
   private async resolveClosedStatusLabel(issueId: number): Promise<string> {
     const { deps } = this;
+    let isCanceled = false;
     if (deps.tracker.getIssueState) {
       try {
         const stateObj = await deps.tracker.getIssueState(issueId);
         if (stateObj?.state === "canceled" || stateObj?.stateType === "canceled") {
-          return "Đã hủy (Canceled)";
+          isCanceled = true;
         }
       } catch {
         // ignore
       }
     }
-    const issue = await deps.tracker.getIssue(issueId).catch(() => null);
-    if (issue?.stateType === "canceled") return "Đã hủy (Canceled)";
-    return "Hoàn tất (Done)";
+    if (!isCanceled) {
+      const issue = await deps.tracker.getIssue(issueId).catch(() => null);
+      if (issue?.stateType === "canceled") {
+        isCanceled = true;
+      }
+    }
+    return deps.copy.text(isCanceled ? "status.closed_canceled" : "status.closed_done");
+  }
+
+  private async buildClosedRefusal(
+    issueId: number,
+    identifier: string,
+    url?: string,
+  ): Promise<StepOutput> {
+    const statusLabel = await this.resolveClosedStatusLabel(issueId);
+    return {
+      outcome: "closed_refusal",
+      messages: [
+        {
+          text: this.deps.copy.text("ticket.closed_refusal", {
+            identifier,
+            statusLabel,
+          }),
+        },
+      ],
+      issue: { id: issueId, identifier, url },
+    };
   }
 
   private findConflictingField(draft: IntakeDraft, extracted: ExtractedFields): string | null {

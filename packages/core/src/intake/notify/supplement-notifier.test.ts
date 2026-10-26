@@ -7,6 +7,9 @@ import {
   notifyOnCallSupplement,
 } from "./supplement-notifier";
 import type { ProjectColumn, ProjectAssignee } from "../../itsaplan";
+import { makeCopyCatalog } from "../copy-catalog";
+import { tieuLinhCopy } from "../../../examples/tieulinh/copy";
+import { DEFAULT_TIEULINH_IGNORED_ACTORS } from "../../../examples/tieulinh/engine-config";
 
 describe("supplement-notifier", () => {
   const columns: ProjectColumn[] = [
@@ -45,11 +48,15 @@ describe("supplement-notifier", () => {
 
   describe("closedTicketRefusalMessage", () => {
     it("chứa mã ticket, 'đã đóng', và hướng dẫn 'tạo ticket mới'", () => {
-      const msg = closedTicketRefusalMessage("TECH-999", "Hoàn tất (Done)");
+      const copy = makeCopyCatalog(tieuLinhCopy);
+      const msg = closedTicketRefusalMessage("TECH-999", "Hoàn tất (Done)", copy);
       expect(msg).toContain("TECH-999");
       expect(msg).toContain("đã đóng");
       expect(msg).toContain("Hoàn tất (Done)");
       expect(msg).toContain("tạo ticket mới");
+
+      const fallback = closedTicketRefusalMessage("TECH-999", "Done");
+      expect(fallback).toBe("Ticket TECH-999 is closed (Done); please create a new ticket.");
     });
   });
 
@@ -168,6 +175,55 @@ describe("supplement-notifier", () => {
       });
 
       expect(target).toBeNull();
+    });
+
+    it("bỏ qua tên bot riêng của app khi app truyền ignoredActors", async () => {
+      const timeline = [
+        {
+          kind: "comment",
+          actorName: "Tiểu Linh",
+          actorUsername: "tieulinh_bot",
+          body: "Bình luận thông thường không marker",
+        },
+      ];
+      const client = {
+        ...fakeClient(),
+        getIssueTimeline: async () => timeline,
+      };
+
+      const target = await resolveSupplementMentionTarget({
+        client,
+        projectKey: "TECH",
+        issue: { id: 106, assigneeUserId: null },
+        ignoredActors: DEFAULT_TIEULINH_IGNORED_ACTORS,
+      });
+
+      expect(target).toBeNull();
+    });
+
+    it("core mặc định không biết tên riêng của app nếu app không truyền ignoredActors", async () => {
+      const timeline = [
+        {
+          kind: "comment",
+          actorName: "Tiểu Linh",
+          actorUsername: "tieulinh_dev",
+          body: "Kỹ thuật viên có tên trùng bot",
+        },
+      ];
+      const client = {
+        ...fakeClient(),
+        getIssueTimeline: async () => timeline,
+      };
+
+      // Không truyền ignoredActors -> core không tự động lọc "Tiểu Linh"
+      const target = await resolveSupplementMentionTarget({
+        client,
+        projectKey: "TECH",
+        issue: { id: 107, assigneeUserId: null },
+      });
+
+      expect(target).not.toBeNull();
+      expect(target?.username).toBe("tieulinh_dev");
     });
   });
 
