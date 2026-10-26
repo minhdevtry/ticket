@@ -59,11 +59,10 @@ nhiều sự cố) và `extraText`/`clarifyCount`, `mediaAmbiguous` (ảnh dùng
 `pendingNewIncident` (đang chờ chọn "sự cố mới hay bổ sung") và
 `backgroundWork` (dấu của việc nền).
 
-PR 4 mới chỉ **khai báo** các trường này: engine hiện chỉ ghi `lastAskedFields`,
-`techReviewDone` và `techQuestion`. Đường ghi của `unrecognizedDept`,
-`requestedPriority` đến ở PR 7 (hỏi bổ sung theo luật), của `pendingSplit`,
-`pendingSplitQueue`, `mediaAmbiguous` đến ở PR 9 (tách báo cáo nhiều sự cố) —
-theo kế hoạch di trú của RFC 0002.
+Đường ghi của `unrecognizedDept`, `requestedPriority` đã hoàn thành ở PR 7 (hỏi bổ
+sung theo luật); `pendingNewIncident` ở PR 8 (gác tờ khai); `pendingSplit`,
+`pendingSplitQueue`, `mediaAmbiguous` ở PR 9 (tách báo cáo nhiều sự cố).
+`backgroundWork` (dấu của việc nền) thuộc PR 13 — theo kế hoạch di trú của RFC 0002.
 
 ## Chuẩn hoá đầu vào
 

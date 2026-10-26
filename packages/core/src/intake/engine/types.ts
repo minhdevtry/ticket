@@ -58,4 +58,10 @@ export interface StepOutput {
   issue?: { id: number; identifier: string; url?: string };
   /** Các trường còn thiếu đang được hỏi ở lượt này (A1, A3). */
   missingFields?: string[];
+  /** Doc ID của tờ khai đang hoạt động ở lượt này. */
+  docId?: string;
+  /** Ticket vừa tạo khi có hàng đợi tách (W29-SPLIT, P3). */
+  createdIssue?: { id: number; identifier: string; title?: string; url?: string };
+  /** Tờ khai kế tiếp đang mở khi còn hàng đợi tách (W29-SPLIT, P3). */
+  nextDraft?: { docId: string; outcome?: StepOutcome; status?: string; action?: string };
 }

@@ -604,7 +604,7 @@ export function isInvalidTitle(title: string | null | undefined, reportText?: st
 const POLITE_PHRASES_CLEANUP =
   /(?:nhờ\s*(?:tech|anh\s*chị|ad)[^,\n]*|check\s*giúp[^,\n]*|hỗ\s*trợ\s*(?:em|mình)[^,\n]*|e\s*cảm\s*ơn[^,\n]*|giúp\s*e\s*ạ[^,\n]*)/giu;
 
-function residualProse(text: string): string {
+export function residualProse(text: string): string {
   return text
     .replace(
       /(?:code|mã\s*(?:kh|khách\s*hàng|học\s*sinh|hs|crm)|cid|uid|sid|sđt|tk|mk|phone)\s*[:=]?/giu,

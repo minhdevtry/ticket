@@ -41,8 +41,10 @@ import type {
 import { IDENTIFIER_KEYS } from "../ports";
 import type { DraftRepository } from "../draft/repository";
 import { isExpiredDraft, INTAKE_DRAFT_TTL_MS } from "../draft/repository";
-import type { IntakeDraft } from "../draft/types";
+import type { IntakeDraft, SplitBlock } from "../draft/types";
 import { newDraft, CLOSED_STATUSES } from "../draft/types";
+import { splitMultiIncidentReport, classifySplitReply } from "../split";
+import { legacyActionForOutcome } from "./action-map";
 import { createTicket, type CreateTicketDeps } from "../create/create-ticket";
 import type { ConfirmOptions } from "../confirm/protocol";
 import { markSummaryShown } from "../confirm/protocol";
@@ -190,6 +192,11 @@ export class IntakeEngine {
       // continue collecting on the fresh draft below
     }
 
+    // 3.05. A split question ("split N tickets or keep 1?") is awaiting the reporter's choice (W29-SPLIT).
+    if (draft?.pendingSplit) {
+      return this.resolvePendingSplit(draft, input, text, mediaPaths, nowIso);
+    }
+
     // 3.1 Tin vô nghĩa (rỗng, hoặc token nội bộ "noop" của nút đã khoá) mà
     //      không kèm ảnh: BỎ QUA hoàn toàn — không tạo tờ khai, không tạo
     //      ticket, không làm hỏng trạng thái đang có (TECH-1148). Chỉ trả lời
@@ -245,13 +252,33 @@ export class IntakeEngine {
     // path's confirmation protocol owns real confirms once a summary is shown.
     if (extracted.userIntent === "cancel") {
       if (open) {
-        deps.drafts.saveRevision({ ...open, status: "canceled", updatedAt: nowIso });
+        deps.drafts.saveRevision({
+          ...open,
+          status: "canceled",
+          pendingSplit: undefined,
+          pendingSplitQueue: undefined,
+          updatedAt: nowIso,
+        });
       }
       const out: StepOutput = {
         outcome: "canceled",
         messages: [{ text: deps.copy.text("draft.canceled") }],
+        docId: open?.docId,
       };
       return open ? this.appendParkedReminder(out, open) : out;
+    }
+
+    // PR 9: Nhận diện báo cáo có nhiều học sinh/sự cố trong cùng một tin nhắn (W29-SPLIT, TECH-1146)
+    if (!options?.skipConflictCheck && (!open || !open.ticket.rawText.trim())) {
+      const splitBlocks = splitMultiIncidentReport(text);
+      if (splitBlocks && splitBlocks.length >= 2) {
+        return this.parkForSplitDecision(
+          open ?? this.openFresh(input.chatId, nowIso),
+          splitBlocks,
+          mediaPaths,
+          nowIso,
+        );
+      }
     }
 
     // A completed report arriving while another draft is mid-collection, OR a
@@ -512,7 +539,7 @@ export class IntakeEngine {
         };
       return this.deps.variant(d, r);
     }
-    return this.deps.variant;
+    return this.deps.variant ?? Object.keys(this.deps.catalog.variants)[0] ?? "default";
   }
 
   private resolveSystemField(variantKey?: string): string | undefined {
@@ -593,6 +620,79 @@ export class IntakeEngine {
             }),
           );
         }
+        const nowIso = new Date(deps.clock.now()).toISOString();
+
+        // PR 9: Nếu còn sự cố trong hàng đợi tách (W29-SPLIT): tự động chuyển sang sự cố tiếp theo
+        if (draft.pendingSplitQueue && draft.pendingSplitQueue.length > 0) {
+          const [nextBlock, ...remainingQueue] = draft.pendingSplitQueue;
+          const nextDoc = this.openFresh(draft.chatId, nowIso);
+          nextDoc.pendingSplitQueue = remainingQueue.length > 0 ? remainingQueue : undefined;
+          nextDoc.mediaAmbiguous = draft.mediaAmbiguous;
+          nextDoc.parkedDocId = draft.docId;
+
+          const deptField = this.resolveDeptField(draft.record?.variant);
+          const inheritedDept =
+            nextBlock.reportingDept ??
+            (deptField && draft.record?.values?.[deptField]
+              ? draft.record.values[deptField]
+              : undefined);
+          if (inheritedDept && deptField) {
+            nextDoc.record = {
+              variant: this.resolveVariant(nextDoc),
+              values: { [deptField]: inheritedDept },
+              questionCount: {},
+              explicitlyMissing: [],
+            };
+          }
+          if (draft.reporter) {
+            nextDoc.reporter = draft.reporter;
+          }
+          deps.drafts.saveRevision(nextDoc);
+
+          const nextResult = await this.collect(
+            nextDoc,
+            { chatId: draft.chatId },
+            nextBlock.text,
+            nextBlock.mediaPaths ?? [],
+            nowIso,
+            { skipConflictCheck: true },
+          );
+
+          const voiceNotice = nextBlock.studentName
+            ? deps.copy.text("split.next_ticket_notice_student", {
+                identifier: result.issue.identifier,
+                studentName: nextBlock.studentName,
+              })
+            : deps.copy.text("split.next_ticket_notice", {
+                identifier: result.issue.identifier,
+              });
+
+          const latestNextDoc = deps.drafts.getByDocId(nextDoc.docId) ?? nextDoc;
+          const out: StepOutput = {
+            outcome: "created",
+            messages: [{ text: `${result.message} ${voiceNotice}` }, ...nextResult.messages],
+            issue: {
+              id: result.issue.id,
+              identifier: result.issue.identifier,
+              url: result.issue.url,
+            },
+            createdIssue: {
+              id: result.issue.id,
+              identifier: result.issue.identifier,
+              title: result.issue.title,
+              url: result.issue.url,
+            },
+            nextDraft: {
+              docId: nextDoc.docId,
+              outcome: nextResult.outcome,
+              status: latestNextDoc.status,
+              action: legacyActionForOutcome(nextResult.outcome) ?? undefined,
+            },
+            docId: nextDoc.docId,
+          };
+          return out;
+        }
+
         const out: StepOutput = {
           outcome: "created",
           messages: [{ text: result.message }],
@@ -601,6 +701,7 @@ export class IntakeEngine {
             identifier: result.issue.identifier,
             url: result.issue.url,
           },
+          docId: draft.docId,
         };
         return this.appendParkedReminder(out, draft);
       }
@@ -802,6 +903,207 @@ export class IntakeEngine {
       ...output,
       messages,
     };
+  }
+
+  // ── split multi-incident report (W29-SPLIT, TECH-1146, PR 9) ───────────────
+
+  private parkForSplitDecision(
+    draft: IntakeDraft,
+    blocks: SplitBlock[],
+    mediaPaths: string[],
+    nowIso: string,
+  ): StepOutput {
+    const parked: IntakeDraft = {
+      ...draft,
+      revision: draft.revision + 1,
+      updatedAt: nowIso,
+      pendingSplit: {
+        blocks,
+        mediaPaths,
+        askedAt: nowIso,
+      },
+    };
+    this.deps.drafts.saveRevision(parked);
+    return this.splitQuestionOutput(parked, blocks);
+  }
+
+  private splitQuestionOutput(draft: IntakeDraft, blocks: SplitBlock[], prefix = ""): StepOutput {
+    const { deps } = this;
+    const names = blocks
+      .map((b) => b.studentName || b.customerId)
+      .filter((name): name is string => Boolean(name));
+    const count = blocks.length;
+    const questionText = `${prefix}${
+      names.length > 0
+        ? deps.copy.text("split.question", {
+            count,
+            summary: names.join(", "),
+          })
+        : deps.copy.text("split.question_no_names", {
+            count,
+          })
+    }`;
+    const splitLabel = deps.copy.text("button.split_n", { count });
+    const mergeLabel = deps.copy.text("button.merge_one");
+    return {
+      outcome: "split_question",
+      messages: [
+        {
+          text: questionText,
+          buttons: [
+            [
+              { text: splitLabel, callbackData: splitLabel },
+              { text: mergeLabel, callbackData: mergeLabel },
+            ],
+          ],
+        },
+      ],
+      docId: draft.docId,
+    };
+  }
+
+  private async resolvePendingSplit(
+    draft: IntakeDraft,
+    input: StepInput,
+    message: string,
+    mediaPaths: string[],
+    nowIso: string,
+  ): Promise<StepOutput> {
+    const buffered = draft.pendingSplit;
+    if (!buffered) {
+      return { outcome: "clarify", messages: [] };
+    }
+    const decision = classifySplitReply(message);
+
+    if (decision === "split") {
+      const [firstBlock, ...restBlocks] = buffered.blocks;
+      const sharedMedia = Array.from(new Set([...buffered.mediaPaths, ...mediaPaths]));
+      const ambiguous = sharedMedia.length > 0 && buffered.blocks.length > 1;
+      for (const b of restBlocks) {
+        b.mediaPaths = sharedMedia;
+      }
+
+      const activeDoc: IntakeDraft = {
+        ...draft,
+        revision: draft.revision + 1,
+        pendingSplit: undefined,
+        pendingSplitQueue: restBlocks.length > 0 ? restBlocks : undefined,
+        mediaAmbiguous: ambiguous,
+        updatedAt: nowIso,
+      };
+      this.deps.drafts.saveRevision(activeDoc);
+
+      const firstText = [firstBlock.text, ...(buffered.extraText ?? [])]
+        .filter(Boolean)
+        .join("\n\n");
+      return this.collect(activeDoc, input, firstText, sharedMedia, nowIso, {
+        skipConflictCheck: true,
+      });
+    }
+
+    if (decision === "merge") {
+      return this.mergeParkedSplit(
+        draft,
+        input,
+        buffered,
+        buffered.extraText ?? [],
+        Array.from(new Set([...buffered.mediaPaths, ...mediaPaths])),
+        nowIso,
+      );
+    }
+
+    const extracted = await this.deps.extractor
+      .extract({
+        text: message,
+        attachments: mediaPaths.length,
+        context: this.buildExtractContext(draft),
+      })
+      .catch(() => null);
+
+    if (extracted?.userIntent === "cancel") {
+      const movedOn: IntakeDraft = {
+        ...draft,
+        revision: draft.revision + 1,
+        pendingSplit: undefined,
+        pendingSplitQueue: undefined,
+        updatedAt: nowIso,
+      };
+      this.deps.drafts.saveRevision(movedOn);
+      return this.collect(movedOn, input, message, mediaPaths, nowIso, {
+        skipConflictCheck: true,
+      });
+    }
+
+    return this.handleUnclearSplitReply(draft, input, message, mediaPaths, buffered, nowIso);
+  }
+
+  private async handleUnclearSplitReply(
+    draft: IntakeDraft,
+    input: StepInput,
+    message: string,
+    mediaPaths: string[],
+    buffered: NonNullable<IntakeDraft["pendingSplit"]>,
+    nowIso: string,
+  ): Promise<StepOutput> {
+    const carriedText = message.trim() && !isInternalCallbackToken(message) ? message.trim() : "";
+    const duplicated =
+      carriedText !== "" && buffered.blocks.some((b) => b.text.includes(carriedText));
+    const extraText =
+      carriedText && !duplicated
+        ? [...(buffered.extraText ?? []), carriedText]
+        : (buffered.extraText ?? []);
+    const mergedMedia = Array.from(new Set([...buffered.mediaPaths, ...mediaPaths]));
+    const reasked = (buffered.clarifyCount ?? 0) >= 1;
+
+    if (!reasked) {
+      const retry: IntakeDraft = {
+        ...draft,
+        revision: draft.revision + 1,
+        pendingSplit: { ...buffered, mediaPaths: mergedMedia, extraText, clarifyCount: 1 },
+        updatedAt: nowIso,
+      };
+      this.deps.drafts.saveRevision(retry);
+      const prefix = this.deps.copy.text("split.unclear_prefix");
+      return this.splitQuestionOutput(retry, buffered.blocks, prefix);
+    }
+
+    return this.mergeParkedSplit(draft, input, buffered, extraText, mergedMedia, nowIso);
+  }
+
+  private async mergeParkedSplit(
+    draft: IntakeDraft,
+    input: StepInput,
+    buffered: NonNullable<IntakeDraft["pendingSplit"]>,
+    extraText: string[],
+    mediaPaths: string[],
+    nowIso: string,
+  ): Promise<StepOutput> {
+    const combinedText = [...buffered.blocks.map((b) => b.text), ...extraText]
+      .filter(Boolean)
+      .join("\n\n");
+    const studentNames = buffered.blocks.map((b) => b.studentName).filter(Boolean) as string[];
+    const mergedDoc: IntakeDraft = {
+      ...draft,
+      revision: draft.revision + 1,
+      pendingSplit: undefined,
+      pendingSplitQueue: undefined,
+      updatedAt: nowIso,
+    };
+    this.deps.drafts.saveRevision(mergedDoc);
+
+    const out = await this.collect(mergedDoc, input, combinedText, mediaPaths, nowIso, {
+      skipConflictCheck: true,
+    });
+
+    const latest = this.deps.drafts.getByDocId(draft.docId) ?? mergedDoc;
+    if (!latest.ticket.title || isInvalidTitle(latest.ticket.title, latest.ticket.rawText)) {
+      const derived = deriveFallbackTitle(combinedText, latest.symptoms, studentNames);
+      if (derived && !isInvalidTitle(derived)) {
+        latest.ticket.title = derived;
+        this.deps.drafts.saveRevision(latest);
+      }
+    }
+    return out;
   }
 
   private async resumeParkedDraft(parkedDocId: string, nowIso: string): Promise<StepOutput | null> {

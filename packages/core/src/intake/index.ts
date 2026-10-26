@@ -13,6 +13,7 @@ export * from "./adapter";
 
 // ── ticket 09: conversation engine ───────────────────────────────────────────
 export * from "./engine";
+export * from "./split";
 
 // ── ticket 14: notify (webhook → chat dispatcher + reply router) ─────────────
 export * from "./notify";

@@ -3,6 +3,22 @@
 All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded here.
 
 ## Unreleased
+- **Tách báo cáo nhiều sự cố** (RFC 0002 PR 9, issue #23). Additive; hoàn thiện kịch bản tách báo cáo nhiều học sinh/sự cố trong một tin (B7):
+  - `@vuihoc/bot-core/intake`:
+    - `B7`: nhận diện báo cáo có ≥ 2 sự cố/học sinh độc lập (`splitMultiIncidentReport` trong `src/intake/split/`): tin < 30 ký tự hoặc có dấu hiệu danh sách ví dụ (`EXAMPLE_LIST_MARKER`) hoặc không có từ chỉ lỗi (`EXPANDED_PROBLEM_WORDS`) thì không tách; bóc khối theo 2 dòng trống hoặc mẫu mở đầu khối mới; mỗi khối phải có định danh có nhãn và câu chữ riêng (không chỉ là tên người); chỉ tách khi có ≥ 2 giá trị cùng lớp khác nhau.
+    - `resolvePendingSplit`: hỏi người báo "Tách N ticket / Gộp 1 ticket" (`outcome: "split_question"`); hiểu phủ định ("không tách", "ko tách") và "thôi/khỏi" trần là gộp; trả lời không rõ ý (kể cả tin chỉ có ảnh hoặc token nội bộ như `noop`) thì giữ nguyên báo cáo + mọi ảnh, hỏi lại ĐÚNG MỘT lần (`clarifyCount: 1`), nếu vẫn không rõ thì mặc định gộp 1 ticket (`mergeParkedSplit`) không mất chữ hay ảnh; huỷ tường minh ở câu hỏi tách xoá sạch hàng đợi tách và câu hỏi tách đang treo.
+    - Hàng đợi tạo ticket lần lượt (`finishCreate`): khi người báo chọn tách, ticket đầu tiên được gom và xử lý trước; các sự cố còn lại xếp vào `pendingSplitQueue`; khi ticket trước tạo thành công (`status: "created"`), engine tự động mở tờ khai kế tiếp (`openFresh`), kế thừa bộ phận người báo (`reportingDept`), nạp nội dung khối tiếp theo và trả về gói tin hỗn hợp `StepOutput` gồm `createdIssue` (ticket vừa tạo) + `nextDraft` (tờ khai sự cố kế tiếp đang mở), cho phép người báo xác nhận tiếp lượt kế tiếp.
+    - `mediaAmbiguous`: ảnh không chia mù — gắn toàn bộ ảnh cho mọi ticket khi tách, bật cờ `mediaAmbiguous` trên tờ khai và tự động chèn ghi chú đính kèm chung (`media.ambiguous_notice`) vào mô tả ticket.
+    - `classifySplitReply` (`src/intake/split/replies.ts`): hàm thuần phân loại phản hồi tách/gộp (`"split"` | `"merge"` | `"unknown"`), tách biệt toàn bộ regex đọc phản hồi ra khỏi máy trạng thái `IntakeEngine`.
+    - `CopyKey`: thêm các khoá `split.question`, `split.question_no_names`, `split.unclear_prefix`, `split.next_ticket_notice`, `split.next_ticket_notice_student`, `button.split_n`, `button.merge_one`, `media.ambiguous_notice`; core không còn chứa cụm từ diễn đạt cứng bằng tiếng Việt.
+    - `StepOutput`: thêm các trường `createdIssue`, `nextDraft`, `docId`.
+  - Port 22 bài kiểm thử từ legacy:
+    - 5 ca đơn vị từ `lib/intake-step/multi-incident.test.ts` (port sang `packages/core/src/intake/split/split.test.ts`).
+    - 7 ca tích hợp/flow từ `lib/intake-step/multi-incident.test.ts` (TECH-1146 tách/gộp, TECH-1248+1249 hai lượt gác, ảnh đính kèm chung, BUG 5 phủ định, BUG 6/7 huỷ hàng đợi, BUG 6 P1 hỏi lại 1 lần rồi gộp; port sang `packages/core/src/intake/engine/pr9-split.test.ts`).
+    - 10 ca kiểm chứng đối kháng từ `lib/intake-step/split-adversarial.test.ts` (trạng thái chuẩn A, phủ định/huỷ/gộp B, trả lời không rõ C, dán lại D, báo cáo mới thứ 3 E, các dạng không tách F, gói tin P3 G, tin chỉ có ảnh/noop H, TTL quá hạn I, nhãn trần không làm tiêu đề J; port sang `packages/core/src/intake/engine/split-adversarial.test.ts`).
+  - Cập nhật sổ đối chiếu (`apps/tieulinh/receptionist-gap-register.test.ts`) và bảng parity `ENGINE.md`: 22 dòng `deferred` chuyển sang `ported` (tổng `ported` tăng từ 87 lên 109; `deferred` giảm từ 291 xuống 269; PR 9 còn 0 dòng).
+  - Cập nhật dòng B7 bảng khoảng trống RFC 0002 mục 1.5 (`docs/rfc/0002-receptionist.md`).
+
 - **Gác tờ khai khi có sự cố mới** (RFC 0002 PR 8, issue #22). Additive; hoàn thiện các kịch bản gác B5, B6, A12:
   - `@vuihoc/bot-core/intake`:
     - `B5`: nhận diện định danh có nhãn cùng lớp (`extractLabelledIdentifiers`, `identityConflict`): chỉ Code, Mã KH, Mã HS, UID/SID/CID, mã CRM 7-10 chữ số trọn dòng, SĐT có nhãn hoặc có sẵn trong lời kể; tên người, SĐT trần mới, tài khoản, URL, mã phiếu không bao giờ tạo xung đột. So khớp theo lớp độc lập (`customer`, `student`, `phone`).
