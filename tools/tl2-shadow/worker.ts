@@ -13,6 +13,8 @@
 import { readFileSync } from "node:fs";
 import type { RelayConfig } from "./config.ts";
 import type { EventStore, InboundEvent, Pair, PairStore } from "./queue.ts";
+import { replayTurn, type ReplayDeps } from "./receptionist-replay.ts";
+import type { PairV2 } from "./queue.ts";
 
 export class GatewayUnreachable extends Error {}
 export class Tl2Error extends Error {}
@@ -143,6 +145,7 @@ export interface WorkerDeps {
   now?: () => number;
   readToken?: () => string | null;
   log?: (msg: string) => void;
+  replayDeps?: ReplayDeps;
 }
 
 const BACKOFF_MIN = 5000;
@@ -150,6 +153,7 @@ const BACKOFF_MAX = 60_000;
 
 export class ShadowWorker {
   private results = new Map<string, Tl2Result>();
+  private v2Results = new Map<string, PairV2>();
   private calling = new Set<string>();
   private downUntil = 0;
   private backoff = BACKOFF_MIN;
@@ -227,6 +231,11 @@ export class ShadowWorker {
   }
 
   private makePair(inb: InboundEvent, r: Tl2Result): Pair {
+    const v2 = this.v2Results.get(inb.eid);
+    if (v2) {
+      this.v2Results.delete(inb.eid);
+      return v2;
+    }
     return {
       v: 1,
       eid: inb.eid,
@@ -242,6 +251,34 @@ export class ShadowWorker {
     const { cfg, events } = this.d;
     this.calling.add(chat);
     try {
+      if (cfg.target === "receptionist" && this.d.replayDeps) {
+        const chatInbounds = events.inboundsOf(chat);
+        const turns = chatInbounds.map((i) => ({
+          user: i.text,
+          tl1Reply: events.tl1Reply(i),
+          eid: i.eid,
+          ts: i.ts,
+          mediaPaths: i.media.map((m) => m.kind ?? "").filter(Boolean),
+        }));
+        const targetTurnIndex = turns.findIndex((t) => t.eid === inb.eid);
+        const pairV2 = await replayTurn(
+          chat,
+          turns,
+          targetTurnIndex >= 0 ? targetTurnIndex : turns.length - 1,
+          this.d.replayDeps,
+        );
+        this.v2Results.set(inb.eid, pairV2);
+        this.results.set(inb.eid, {
+          reply: pairV2.tl2.reply,
+          latencyMs: pairV2.tl2.latencyMs,
+          model: pairV2.tl2.model ?? "receptionist",
+          error: pairV2.tl2.error,
+        });
+        this.log(
+          `receptionist replay ok ${pairV2.tl2.latencyMs}ms diff=${pairV2.diff?.class ?? "match"}`,
+        );
+        return;
+      }
       const turns = events.recentTurns(inb, cfg.contextTurns, cfg.contextWindowMs);
       const readToken = this.d.readToken ?? (() => readGatewayToken(cfg.gatewayTokenPath));
       const result = await callTl2(buildMessages(inb, turns), {

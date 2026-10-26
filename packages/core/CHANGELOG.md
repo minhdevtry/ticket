@@ -3,6 +3,22 @@
 All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded here.
 
 ## Unreleased
+- **Replay lễ tân từng lượt và chỉ số sẵn sàng** (RFC 0002 PR 6 / ADR-0005). Additive; không đổi hành vi production hay API hiện có của engine.
+  - `@vuihoc/bot-core/intake`:
+    - `IntakeEngineDeps.oracle` (`ReplayOraclePort`): oracle tuỳ chọn cho engine tiếp nhận, phục vụ chế độ replay bóng từng lượt. Khi bật, oracle ghi đè trạng thái điều khiển của tờ khai (`status`, `lastAskedFields`, `summaryShownAt`, `pendingSplit`, `pendingNewIncident`, `issueIdentifier`) theo quyết định của TL1 ở các lượt quá khứ, giữ nguyên toàn bộ logic trích xuất và luật nghiệp vụ của TL2. Mặc định tắt (`undefined`), engine chạy tự nhiên không đổi gì.
+    - `applyReplayControlOverride`: hàm thuần cập nhật trạng thái điều khiển của tờ khai mà không làm mất nội dung hay định danh của người báo.
+    - `ScriptedReplayOracle`: helper cho kịch bản replay nhiều lượt theo chuỗi quyết định.
+    - `engineTestCatalog`, `TEST_COPY`: xuất khẩu fixture thử nghiệm ra subpath công khai cho shadow replay và người dùng thư viện kiểm thử.
+    - Bỏ nhánh hành động `action: "custom"` chưa dùng khỏi `ReplayOracleAction` để bảo toàn bất biến an toàn của tờ khai.
+  - `@vuihoc/bot-core/testing`:
+    - `CachedFieldExtractor` (+ `ExtractionCacheMissError`, `CachedFieldExtractorOptions`, `computeExtractKey`): bộ bọc đệm trích xuất trường determinism hoá các lần chạy lại, lưu file 0600 trong thư mục 0700 theo ADR-0005. Hỗ trợ chế độ `offlineOnly` (không gọi mạng/LLM, ném lỗi khi trượt cache), bảo đảm chạy lại nhiều lần cho kết quả giống hệt 100%.
+  - `tools/tl2-shadow`:
+    - Phân loại câu trả lời TL1 (`classifyTl1Reply`): đúng 100% trên cả 6 kịch bản vàng (22 lượt) của PR 2.
+    - Đọc tóm tắt TL1 (`readTl1Summary`): đọc ngược tiêu đề, sản phẩm, hệ thống, bộ phận, mã, mức ưu tiên, số tệp.
+    - Cặp so sánh `v: 2` (`PairV2`, `PairDiff`, `DiffClass` S0/S1/S2), giữ tương thích ngược hoàn toàn với cặp `v: 1`.
+    - Bộ chạy bóng 3 tầng (`receptionist-replay.ts`): Tầng 1 (đánh giá từng lượt độc lập), Tầng 2 (`runFreeConversation` đo điểm lệch và hội tụ), Tầng 3 (`evaluateRelaxedConfirm` nới lỏng xác nhận, ghi `tl2_stricter` nếu gate chưa đủ).
+    - `compare.ts --metrics`: tính các chỉ số M0-M4 theo RFC 4.5. Chặn (exit code 1) khi M0 > 0.
+
 - **Bộ trích xuất trường và heuristic tiếng Việt cho lễ tân** (RFC 0002, PR 5). Additive; không đổi API hiện có.
   - **Ranh giới miền (theo RFC 0002 mục 2.x)**: heuristic tiếng Việt tổng quát (E3, A14) ở core; TỪ ĐỒNG NGHĨA THEO MIỀN (E2) là DỮ LIỆU của app. Ở PR 5, `extractor/taxonomy.ts` giữ bộ từ đồng nghĩa của legacy làm **parity** để port test đúng ý, và mọi lần dùng đều nạp được qua `ExtractorDomainConfig`; PR 14 đưa danh mục của app vào và thay giá trị mặc định. Câu mở đầu prompt cũng không còn hardcode tên sản phẩm: app truyền qua `FieldExtractorOptions.systemPrompt` (mặc định trung tính).
   - **Còn dở (có ghi rõ để PR sau làm)**: bộ gộp `mergeExtractedFields` thao tác trên hình dạng tờ khai của LEGACY (`LegacyDraftDocument`); nối nó với tờ khai chuẩn `IntakeDraft` của core là việc của PR sau. Câu hỏi "hỏi lại bộ phận ngoài danh mục đúng một lần" thuộc PR 7 (hành vi của engine), PR 5 chỉ port phần bộ trích xuất.

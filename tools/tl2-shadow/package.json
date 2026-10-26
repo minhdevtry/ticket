@@ -11,5 +11,8 @@
     "proxy": "bun run proxy.ts",
     "tunnel": "bun run tunnel.ts",
     "compare": "bun run compare.ts"
+  },
+  "dependencies": {
+    "@vuihoc/bot-core": "workspace:*"
   }
 }

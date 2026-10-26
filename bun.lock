@@ -56,6 +56,9 @@
     "tools/tl2-shadow": {
       "name": "@vuihoc/tl2-shadow",
       "version": "0.1.0",
+      "dependencies": {
+        "@vuihoc/bot-core": "workspace:*",
+      },
     },
   },
   "packages": {

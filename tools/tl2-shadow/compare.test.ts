@@ -1,15 +1,21 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "bun:test";
 import {
   filterPairs,
   parseSince,
   renderFull,
   renderMarkdown,
+  renderMetrics,
   renderTable,
   stripControl,
   summarize,
+  toPairV2,
   wrap,
 } from "./compare.ts";
-import type { Pair } from "./queue.ts";
+import type { Pair, PairV2 } from "./queue.ts";
+import { calculateMetrics } from "./receptionist-replay.ts";
 
 const pair = (n: number, over: Partial<Pair["tl2"]> = {}): Pair => ({
   v: 1,
@@ -88,5 +94,140 @@ describe("compare", () => {
     expect(filterPairs(ps, { limit: 2 }).map((p) => p.eid)).toEqual(["e2", "e3"]);
     expect(filterPairs(ps, { since: ps[1].ts }).map((p) => p.eid)).toEqual(["e2", "e3"]);
     expect(filterPairs(ps, { chat: "nope" })).toEqual([]);
+  });
+
+  it("toPairV2 và calculateMetrics: tính đúng M0-M4", () => {
+    const v2: PairV2 = {
+      v: 2,
+      eid: "e10",
+      ts: Date.now(),
+      chatId: "chat1",
+      text: "Lỗi app",
+      tl1: { reply: "Anh/chị bổ sung giúp em: bộ phận của anh/chị.", action: "ask_missing_field" },
+      tl2: {
+        reply: "Anh/chị bổ sung giúp em: bộ phận",
+        outcome: "asked",
+        buttons: [],
+        fields: {},
+        latencyMs: 100,
+        error: null,
+      },
+      diff: { class: "S2", code: "wording_difference" },
+    };
+
+    const metrics = calculateMetrics([v2]);
+    expect(metrics.m0).toBe(0);
+    expect(metrics.m1).toBe(1);
+    expect(metrics.classes.s0).toBe(0);
+    expect(metrics.classes.s2).toBe(1);
+
+    const rendered = renderMetrics(metrics);
+    expect(rendered).toContain("M0");
+    expect(rendered).toContain("An toàn (lệch S0)");
+    expect(rendered).toContain("**ĐẠT**");
+  });
+
+  it("calculateMetrics: phát hiện S0 và đếm M0 > 0", () => {
+    const unsafePair: PairV2 = {
+      v: 2,
+      eid: "e11",
+      ts: Date.now(),
+      chatId: "chat2",
+      text: "tin báo",
+      tl1: { reply: "cần thêm thông tin", action: "ask_missing_field" },
+      tl2: {
+        reply: "đã tạo ticket",
+        outcome: "created",
+        buttons: [],
+        fields: {},
+        latencyMs: 100,
+        error: null,
+      },
+      diff: { class: "S0", code: "unconfirmed_ticket_creation" },
+    };
+
+    const metrics = calculateMetrics([unsafePair]);
+    expect(metrics.m0).toBe(1);
+    const rendered = renderMetrics(metrics);
+    expect(rendered).toContain("**CHẶN**");
+  });
+
+  it("toPairV2 nâng cấp Pair v1 sang v2 và phân loại action của TL1", () => {
+    const p1 = pair(1);
+    p1.tl1.reply = "Em tóm tắt lại sự cố nhé: Lỗi app, thuộc hệ thống DUO, mức ưu tiên Trung bình.";
+    const p2 = toPairV2(p1);
+    expect(p2.v).toBe(2);
+    expect(p2.tl1.action).toBe("confirm_summary");
+    expect(p2.tl1.summary?.system).toBe("DUO");
+  });
+
+  it("CLI compare.ts --metrics: thoát mã khác 0 (EXIT 1) khi M0 > 0", async () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), "shadow-metrics-unsafe-"));
+    const filePath = join(tmpDir, "pairs.jsonl");
+    const unsafePair: PairV2 = {
+      v: 2,
+      eid: "e-cli-unsafe",
+      ts: Date.now(),
+      chatId: "chat-cli",
+      text: "tin báo",
+      tl1: { reply: "cần thêm thông tin", action: "ask_missing_field" },
+      tl2: {
+        reply: "đã tạo ticket",
+        outcome: "created",
+        buttons: [],
+        fields: {},
+        latencyMs: 50,
+        error: null,
+      },
+      diff: { class: "S0", code: "unconfirmed_ticket_creation" },
+    };
+    writeFileSync(filePath, `${JSON.stringify(unsafePair)}\n`, "utf8");
+
+    const compareScript = join(import.meta.dir, "compare.ts");
+    const proc = Bun.spawn(["bun", "run", compareScript, filePath, "--metrics"], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const exitCode = await proc.exited;
+    const stdout = await new Response(proc.stdout).text();
+
+    rmSync(tmpDir, { recursive: true, force: true });
+    expect(exitCode).toBe(1);
+    expect(stdout).toContain("**CHẶN**");
+  });
+
+  it("CLI compare.ts --metrics: thoát mã 0 khi M0 = 0", async () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), "shadow-metrics-safe-"));
+    const filePath = join(tmpDir, "pairs.jsonl");
+    const safePair: PairV2 = {
+      v: 2,
+      eid: "e-cli-safe",
+      ts: Date.now(),
+      chatId: "chat-cli",
+      text: "tin báo",
+      tl1: { reply: "cần thêm thông tin", action: "ask_missing_field" },
+      tl2: {
+        reply: "xin thêm thông tin",
+        outcome: "asked",
+        buttons: [],
+        fields: {},
+        latencyMs: 50,
+        error: null,
+      },
+      diff: { class: "S2", code: "wording_difference" },
+    };
+    writeFileSync(filePath, `${JSON.stringify(safePair)}\n`, "utf8");
+
+    const compareScript = join(import.meta.dir, "compare.ts");
+    const proc = Bun.spawn(["bun", "run", compareScript, filePath, "--metrics"], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const exitCode = await proc.exited;
+    const stdout = await new Response(proc.stdout).text();
+
+    rmSync(tmpDir, { recursive: true, force: true });
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("**ĐẠT**");
   });
 });

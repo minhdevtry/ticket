@@ -68,7 +68,7 @@ deploy/colab/cup-openclaw.sh -H colab2     # lần đầu, mỗi khi Colab bị 
 deploy/dev/tl2-shadow.sh start             # proxy, tunnel, relay, rồi app hậu cần trên Colab (pidfile; TL2_TIEULINH=off để bỏ app)
 deploy/dev/tl2-shadow.sh status
 deploy/dev/tl2-shadow.sh stop              # dừng theo PID, gỡ forward
-bun run tools/tl2-shadow/compare.ts --since 24h    # bảng; thêm --full, --md, --json, --chat <id>
+bun run tools/tl2-shadow/compare.ts --since 24h    # bảng; thêm --full, --md, --json, --chat <id>, --metrics
 ```
 
 `cup-openclaw.sh` chỉ đẩy code đã commit của `-r <ref>` (mặc định `HEAD`) bằng `git archive`, từ chối nếu bản lưu có file giống secret, cài theo lockfile, dựng `openclaw.json` không secret (`--api anthropic-messages` hoặc `openai-completions`, cả hai đều chạy) và khởi động gateway. Chạy lại cùng ref thì không đổi gì.

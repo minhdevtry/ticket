@@ -67,7 +67,18 @@ export interface ToolCall {
   ok: boolean;
 }
 
-export interface Pair {
+export type DiffClass = "S0" | "S1" | "S2";
+
+export interface PairDiff {
+  class: DiffClass | null;
+  code?: string;
+  tl1Field?: string;
+  tl2Field?: string;
+  detail?: string;
+  [key: string]: unknown;
+}
+
+export interface PairV1 {
   v: 1;
   eid: string;
   ts: number;
@@ -81,6 +92,33 @@ export interface Pair {
     error: string | null;
   };
 }
+
+export interface PairV2 {
+  v: 2;
+  eid: string;
+  ts: number;
+  chatId: string;
+  text: string;
+  tl1: {
+    reply: string | null;
+    action?: string | null;
+    summary?: Record<string, unknown> | null;
+    tools?: ToolCall[];
+  };
+  tl2: {
+    target?: string;
+    outcome?: string | null;
+    reply: string | null;
+    buttons?: string[] | null;
+    fields?: Record<string, unknown> | null;
+    latencyMs: number | null;
+    model?: string | null;
+    error: string | null;
+  };
+  diff?: PairDiff | null;
+}
+
+export type Pair = PairV1 | PairV2;
 
 /** Tạo thư mục 0700 (siết lại nếu đã tồn tại với quyền rộng hơn). */
 export function ensurePrivateDir(dir: string): void {
