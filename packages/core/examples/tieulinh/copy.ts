@@ -84,17 +84,19 @@ export const tieuLinhCopy: Record<CopyKey, string> = {
   "priority.level.medium": "Trung bình",
   "priority.level.high": "Cao",
   "priority.level.urgent": "Khẩn cấp",
-  // ── PR 9: tách báo cáo nhiều sự cố (RFC 0002 §1.5 B7) ─────────────────────
+  // ── PR 9: tách báo cáo nhiều sự cố (RFC 0002 §1.2 B7) ─────────────────────
   "split.question":
     "Dạ em thấy tin nhắn có {count} học sinh/sự cố khác nhau ({summary}) — em tách {count} ticket nhé?",
   "split.question_no_names":
     "Dạ em thấy tin nhắn có {count} học sinh/sự cố khác nhau ({count} sự cố) — em tách {count} ticket nhé?",
+  "split.unnamed_item": "sự cố",
   "split.unclear_prefix": "Dạ em chưa rõ ý anh/chị ạ — nội dung báo cáo em vẫn giữ nguyên. ",
   "split.next_ticket_notice": "Bây giờ em tiếp tục tạo ticket cho sự cố tiếp theo nhé ạ!",
   "split.next_ticket_notice_student":
     "Bây giờ em tiếp tục tạo ticket cho sự cố tiếp theo (học sinh {studentName}) nhé ạ!",
   "button.split_n": "Tách {count} ticket",
   "button.merge_one": "Gộp 1 ticket",
+  "media.attachments_heading": "### 📸 Ảnh đính kèm",
   "media.ambiguous_notice": "*(Ảnh đính kèm chung cho các sự cố trong cùng lượt báo)*",
   // ── PR 10: tin sau khi tạo ticket (RFC 0002 §1.5 C1-C4, G2, B8) ─────────────
   "ticket.closed_refusal":

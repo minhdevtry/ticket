@@ -278,9 +278,27 @@ export class IntakeEngine {
         context: this.buildExtractContext(existing),
       }));
 
+    // PR 9: Nhận diện báo cáo có nhiều học sinh/sự cố trong cùng một tin nhắn (W29-SPLIT, TECH-1146).
+    // Legacy parity: kiểm tra tách TRƯỚC nhánh huỷ (pipeline.ts:761-773) — tin đủ điều kiện
+    // tách thì phải hỏi tách, không huỷ thẳng.
+    if (!options?.skipConflictCheck && (!open || !open.ticket.rawText.trim())) {
+      const splitBlocks = splitMultiIncidentReport(text, {
+        fallbackTitle: deps.copy.text("ticket.fallback_title"),
+      });
+      if (splitBlocks && splitBlocks.length >= 2) {
+        return this.parkForSplitDecision(
+          open ?? this.openFresh(input.chatId, nowIso),
+          splitBlocks,
+          mediaPaths,
+          nowIso,
+        );
+      }
+    }
+
     // A plain confirm with no live draft summary is chitchat here; the write
     // path's confirmation protocol owns real confirms once a summary is shown.
-    if (extracted.userIntent === "cancel") {
+    // Legacy parity: chỉ huỷ khi không kèm ảnh (pipeline.ts:773).
+    if (extracted.userIntent === "cancel" && mediaPaths.length === 0) {
       if (open) {
         deps.drafts.saveRevision({
           ...open,
@@ -296,19 +314,6 @@ export class IntakeEngine {
         docId: open?.docId,
       };
       return open ? this.appendParkedReminder(out, open) : out;
-    }
-
-    // PR 9: Nhận diện báo cáo có nhiều học sinh/sự cố trong cùng một tin nhắn (W29-SPLIT, TECH-1146)
-    if (!options?.skipConflictCheck && (!open || !open.ticket.rawText.trim())) {
-      const splitBlocks = splitMultiIncidentReport(text);
-      if (splitBlocks && splitBlocks.length >= 2) {
-        return this.parkForSplitDecision(
-          open ?? this.openFresh(input.chatId, nowIso),
-          splitBlocks,
-          mediaPaths,
-          nowIso,
-        );
-      }
     }
 
     // A completed report arriving while another draft is mid-collection, OR a
@@ -965,20 +970,15 @@ export class IntakeEngine {
 
   private splitQuestionOutput(draft: IntakeDraft, blocks: SplitBlock[], prefix = ""): StepOutput {
     const { deps } = this;
-    const names = blocks
-      .map((b) => b.studentName || b.customerId)
-      .filter((name): name is string => Boolean(name));
+    // Legacy parity: khối không có tên vẫn hiện nhãn "sự cố" (pipeline.ts:1169),
+    // nên danh sách luôn dài bằng số khối và luôn dùng một mẫu câu hỏi.
+    const unnamedItem = deps.copy.text("split.unnamed_item");
+    const names = blocks.map((b) => b.studentName || b.customerId || unnamedItem);
     const count = blocks.length;
-    const questionText = `${prefix}${
-      names.length > 0
-        ? deps.copy.text("split.question", {
-            count,
-            summary: names.join(", "),
-          })
-        : deps.copy.text("split.question_no_names", {
-            count,
-          })
-    }`;
+    const questionText = `${prefix}${deps.copy.text("split.question", {
+      count,
+      summary: names.join(", "),
+    })}`;
     const splitLabel = deps.copy.text("button.split_n", { count });
     const mergeLabel = deps.copy.text("button.merge_one");
     return {
@@ -1009,7 +1009,12 @@ export class IntakeEngine {
     if (!buffered) {
       return { outcome: "clarify", messages: [] };
     }
-    const decision = classifySplitReply(message);
+    // Nhãn nút lấy từ CopyCatalog đúng như lúc hỏi, để bấm nút luôn được nhận.
+    const splitLabel = this.deps.copy.text("button.split_n", {
+      count: buffered.blocks.length,
+    });
+    const mergeLabel = this.deps.copy.text("button.merge_one");
+    const decision = classifySplitReply(message, { splitLabel, mergeLabel });
 
     if (decision === "split") {
       const [firstBlock, ...restBlocks] = buffered.blocks;

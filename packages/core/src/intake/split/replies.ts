@@ -9,7 +9,37 @@
  */
 export type SplitReplyDecision = "split" | "merge" | "unknown";
 
-export function classifySplitReply(reply: string): SplitReplyDecision {
+import { foldButton } from "../engine/text";
+
+export interface SplitReplyOptions {
+  /** Nhãn nút đồng ý tách (hoặc danh sách nhãn nút hợp lệ) */
+  splitLabel?: string | string[];
+  /** Nhãn nút đồng ý gộp (hoặc danh sách nhãn nút hợp lệ) */
+  mergeLabel?: string | string[];
+}
+
+export function classifySplitReply(reply: string, options?: SplitReplyOptions): SplitReplyDecision {
+  const folded = foldButton(reply);
+  if (!folded) return "unknown";
+
+  const splitLabels = options?.splitLabel
+    ? Array.isArray(options.splitLabel)
+      ? options.splitLabel
+      : [options.splitLabel]
+    : [];
+  const mergeLabels = options?.mergeLabel
+    ? Array.isArray(options.mergeLabel)
+      ? options.mergeLabel
+      : [options.mergeLabel]
+    : [];
+
+  for (const label of splitLabels) {
+    if (label && folded === foldButton(label)) return "split";
+  }
+  for (const label of mergeLabels) {
+    if (label && folded === foldButton(label)) return "merge";
+  }
+
   const normalized = reply.trim().toLowerCase();
   if (!normalized) return "unknown";
 
