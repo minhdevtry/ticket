@@ -44,7 +44,7 @@ bun run --cwd apps/tieulinh-legacy golden:record   # ghi lại bản ghi vàng c
 Agent điều phối việc khác trong repo này thì đi qua Orca, để tiến trình hiện trên UI và để có vòng đời, bằng chứng, và người nhận rõ ràng. Không chạy worker nền vô hình.
 
 1. Tạo Run: `orca orchestration run-create --objective "<mục tiêu>" --json`.
-2. Tạo worktree riêng cho từng việc: `orca worktree create --repo path:/home/minhdn3/Documents/ticket --name "<tên>" --base-branch main --issue <số> --json`. Không sửa trong checkout chính, trừ fast-track (typo, docs, ≤ 5 dòng).
+2. Tạo worktree riêng cho từng việc: `orca worktree create --repo path:<đường dẫn repo> --name "<tên>" --base-branch main --issue <số> --json`. Không sửa trong checkout chính, trừ fast-track (typo, docs, ≤ 5 dòng).
 3. Trước khi giao việc, kiểm tra máy còn đủ chỗ và RAM (`df -h /`, `free -m`); máy hết đĩa làm worker chết giữa chừng.
 4. Giao việc: `orca orchestration worker-start --run <runId> --spec "<spec>" --worktree "name:<tên worktree>" --agent omp --model minimax/MiniMax-M3.1-Flash:high --json`. Worker chạy trong terminal do Orca quản lý nên hiện trên UI. Spec phải tự chứa: mục tiêu, phần sửa, ràng buộc, phần được phép sửa, tiêu chí chấp nhận, danh sách cấm. Không dùng `omp -p` headless: không ai thấy và dễ bị kill.
 5. Chờ bằng sự kiện, không quét vòng: `orca orchestration check --wait --types "worker_done,escalation,question" --timeout-ms 1800000 --json`. Không `orca terminal wait` để đóng băng coordinator, không tự viết vòng poll.
