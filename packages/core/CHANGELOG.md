@@ -3,6 +3,41 @@
 All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded here.
 
 ## Unreleased
+- **Soát thông tin trước khi tạo ticket** (RFC 0002 PR 13, issue #27). Additive; hoàn thiện cơ chế soát thông tin (F1-F4):
+  - `@vuihoc/bot-core/intake`:
+    - `F1`: Soát bằng LLM `LlmTechReviewer` (`packages/core/src/intake/review/llm-review.ts`): nhận `LlmConfig`, `guide`, `CompleteFn`, và timeout; gửi prompt kỹ thuật viên soát lời báo, trần 3 dữ kiện quan trọng nhất; lỗi/quá hạn ném ra được `safeReview` bắt để không chặn tạo ticket.
+    - `F2`: Soát bằng danh sách cố định `buildChecklist` và `ChecklistTechReviewer` (`packages/core/src/intake/review/checklist-review.ts`): 10 mục kiểm tra tất định (`ảnh màn hình`, `link chi tiết CARE`, `link contact CRM`, `UID/link LMS`, `mã đơn hàng`, `học sinh/khoá/lớp`, `bước thao tác`, `đang hiện vs đúng`, `thời điểm`, `thiết bị/app`), tự động bỏ qua sự cố không thuộc TECH (`chấm công`, `lương`, `AMIS`, `vân tay`, `nhân sự`), ghép các mục cần hỏi vào một tin duy nhất kết bằng `CHECKLIST_CLOSING`.
+    - `F3`: Tự học (`ask-learning`):
+      - `CANON_ITEMS`, `ASK_LINE`, `CHECKLIST_KEY_ITEMS` (`packages/core/src/intake/review/items.ts`): 15 mục canonical và dòng hỏi chuẩn.
+      - Phân loại bình luận kỹ thuật viên `classifyComment` (`packages/core/src/intake/review/classify.ts`): phân loại kind, trích xuất mục cần hỏi, lọc `alreadyInReport`.
+      - Thống kê và tính tỉ lệ `systemReport`, `learnedItems`, `learnedShares`, `learnedReport` (`packages/core/src/intake/review/learned.ts`): tính suy giảm theo thời gian (halfLife 90 ngày), ngưỡng `minTickets` và `minShare`, chuẩn hoá nhãn hệ thống theo 9 hệ thống chuẩn (`system-taxonomy.ts`).
+      - Cổng và tra cứu `LearnedItemsPort`, `createAskLearnedLookup`, `SqliteLearnedItemsPort` (`packages/core/src/intake/review/lookup.ts`), `AskLearnStore` (`packages/core/src/intake/review/store.ts`): đọc các mục học được theo hệ thống, tích hợp vào `ChecklistTechReviewer` để sắp xếp mục theo tỉ lệ giảm dần (ghim ảnh màn hình đầu tiên khi được hỏi).
+    - `F4`: Công tắc chính sách soát `TechReviewPolicy` (`"off" | "checklist" | "llm"`) trong `IntakeEngineDeps`:
+      - `"off"`: tắt soát thông tin, chuyển thẳng sang tóm tắt.
+      - `"checklist"`: soát bằng danh sách cố định (tự fallback sang `ChecklistTechReviewer` nếu chưa tiêm).
+      - `"llm"`: soát bằng LLM.
+    - `engine.ts`:
+      - Nối nhánh soát trước khi tóm tắt, đảm bảo bất biến: hỏi đúng MỘT lượt mỗi tờ khai (`draft.techReviewDone`), trả lời gì (kể cả "Không có") cũng đi tiếp, lỗi/hết giờ coi như đủ dữ kiện.
+      - Tự động dựng `known` từ dữ liệu tờ khai, định danh và lời báo (mã đơn hàng `DH...`, link `https://...`, SĐT, mã KH, thiết bị) để reviewer không hỏi lại những thứ đã có.
+      - Tin hỏi soát thông tin đi kèm nút `"Không có"` (`button.none`) từ `CopyCatalog`.
+      - Khi người báo trả lời câu hỏi soát thông tin (`draft.lastAskedFields` chứa `__tech`), câu trả lời được ghi bền vào `ticket.rawText` (ADR-0010); câu trả lời từ chối ("Không có") không làm ô nhiễm `rawText`.
+    - `CopyKey`: thêm khoá `button.none` ("Không có" / "No info"), core không hardcode tiếng Việt.
+  - Port 46 bài kiểm thử từ legacy:
+    - 21 ca checklist review từ `lib/intake-step/checklist-review.test.ts` (port sang `packages/core/src/intake/review/checklist-review.test.ts`).
+    - 3 ca tech review từ `lib/intake-step/tech-review.test.ts` (port sang `packages/core/src/intake/review/llm-review.test.ts`).
+    - 3 ca lookup từ `lib/ask-learning/lookup.test.ts` (port sang `packages/core/src/intake/review/lookup.test.ts`).
+    - 13 ca learned từ `lib/ask-learning/learned.test.ts` (port sang `packages/core/src/intake/review/learned.test.ts`).
+    - 6 ca flow từ `lib/intake-step/pipeline.flow.test.ts` (port sang `packages/core/src/intake/engine/pr13-review-checklist.test.ts`), kèm các ca kiểm tra công tắc chính sách `techReviewPolicy`.
+    - Thêm 9 ca phân loại bình luận từ `lib/ask-learning/classify.test.ts` (port sang `packages/core/src/intake/review/classify.test.ts`).
+  - Cập nhật sổ đối chiếu (`apps/tieulinh/receptionist-gap-register.test.ts`) và bảng parity `ENGINE.md`: 46 dòng `deferred` chuyển sang `ported` (tổng `ported` tăng từ 186 lên 232; `deferred` giảm từ 192 xuống 146; PR 13 còn 0 dòng).
+  - Cập nhật các dòng F1-F4 bảng khoảng trống RFC 0002 mục 1.4 và mục 5 (`docs/rfc/0002-receptionist.md`).
+  - Sửa sau vòng review của coordinator:
+    - **Kho `learned` (F3) không còn nằm trong core** — phần đọc/ghi SQLite tách sang app (`apps/tieulinh/ask-learning/`), core chỉ nhận qua cổng `LearnedItemsPort` (read-only), đúng như đặc tả.
+    - **Core không còn chứa câu hỏi tiếng Việt của danh sách** — 14 dòng hỏi + lời dẫn đầu/kết vốn là hằng tiếng Việt trong `review/items.ts`; nay lấy qua `CopyCatalog` (`checklist.ask.*`, `checklist.header`, `checklist.closing`), khi thiếu khoá thì rơi về **mã mục** chứ không gửi sai ngôn ngữ.
+    - **Công tắc `techReviewPolicy` quyết định reviewer** — trước đây `deps.techReviewer` (LLM) đè lên chính sách `"checklist"`; nay `"off"` ⇒ không soát, `"checklist"` ⇒ danh sách, `"llm"` ⇒ LLM; không khai công tắc thì giữ hành vi cũ (chỉ soát khi app nối reviewer).
+    - **F3 được nối vào engine** qua `IntakeEngineDeps.learned` — trước đó danh sách học được luôn rỗng nên mục tự học không bao giờ xuất hiện.
+    - **`LearnedItemsPort` chỉ còn một phương thức** (`learned`) thay vì hai (`learned` + `getLearnedItems` trùng lặp).
+
 - **Huỷ và đóng ticket theo yêu cầu người báo** (RFC 0002 PR 12, issue #26). Additive; hoàn thiện cơ chế huỷ (Canceled) hoặc đóng (Done) ticket theo yêu cầu người báo (D8 theo ADR-0006 bản 10/10):
   - `@vuihoc/bot-core/intake`:
     - `D8`: Cơ chế người báo yêu cầu huỷ/đóng ticket của chính mình:

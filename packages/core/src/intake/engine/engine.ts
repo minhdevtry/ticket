@@ -28,6 +28,10 @@ import type {
   TrackerPort,
   FieldExtractorPort,
   TechReviewerPort,
+  LearnedItemsPort,
+  TechReviewPolicy,
+  TechReviewInput,
+  TechReviewOutput,
   OwnershipPort,
   TicketActionExecutorPort,
   TicketCommandInterpreterPort,
@@ -86,6 +90,7 @@ import { markBotComment, isBotComment, escapeItsaplanMarkdown } from "../../core
 import { classifyColumn } from "../../itsaplan";
 import { isSystemActor } from "../notify/supplement-notifier";
 import { isDeclineAnswer, isMeaninglessInput, TECH_INFO_FIELD } from "./normalize";
+import { ChecklistTechReviewer } from "../review/checklist-review";
 import type { LlmConfig, CompleteFn } from "../extractor/llm-extractor";
 import { MAX_RAW_TEXT_CHARS, MAX_RAW_TEXT_TOTAL_CHARS } from "../raw-text";
 import type { StepInput, StepOutput } from "./types";
@@ -140,6 +145,13 @@ export interface IntakeEngineDeps {
   urgencyRules: UrgencyRules;
   /** Optional one-round technical review before confirmation. */
   techReviewer?: TechReviewerPort;
+  /** Optional review policy: "off" | "checklist" | "llm". Core never reads env vars. */
+  techReviewPolicy?: TechReviewPolicy;
+  /**
+   * Mục người báo hay phải bổ sung theo hệ thống (F3, W25). Kho do app/script
+   * ngoài sở hữu — core chỉ ĐỌC qua cổng này.
+   */
+  learned?: LearnedItemsPort;
   /** Ownership predicate (ADR-0008 §6). Defaults to binding-based. */
   ownership?: OwnershipPort;
   /** Executes a confirmed write to an existing ticket (append/edit/move). */
@@ -517,19 +529,92 @@ export class IntakeEngine {
     draft.ticket.priority = this.resolvePriority(draft, extracted);
 
     // Optional one-round technical review before the summary.
-    if (deps.techReviewer && !draft.techReviewDone) {
-      const review = await safeReview(deps.techReviewer, {
-        title: draft.ticket.title,
-        description: draft.ticket.rawText,
-        attachments: draft.ticket.mediaPaths.length,
-        known: record.values,
-      });
-      if (review.missing.length > 0 && review.question) {
-        draft.techReviewDone = true; // ask once, any answer proceeds
-        draft.techQuestion = review.question;
-        draft.lastAskedFields = [TECH_INFO_FIELD];
-        deps.drafts.saveRevision(draft);
-        return { outcome: "asked", messages: [{ text: review.question }], docId: draft.docId };
+    if (!draft.techReviewDone) {
+      // Công tắc (F4) QUYẾT ĐỊNH reviewer dùng — không để `deps.techReviewer`
+      // (LLM) đè lên chính sách "checklist". Không khai báo công tắc thì dùng
+      // `deps.techReviewer` như trước; nếu không có thì soát bằng danh sách.
+      const reviewer: TechReviewerPort | undefined = (() => {
+        switch (deps.techReviewPolicy) {
+          case "off":
+            return undefined;
+          case "checklist":
+            return new ChecklistTechReviewer(deps.learned, deps.copy);
+          case "llm":
+            return deps.techReviewer;
+          default:
+            // Không khai công tắc → giữ hành vi cũ: chỉ soát khi app nối
+            // reviewer. Muốn soát theo danh sách thì khai "checklist" tường minh.
+            return deps.techReviewer;
+        }
+      })();
+
+      if (reviewer) {
+        const said = `${draft.ticket.title ?? ""}\n${draft.ticket.rawText ?? ""}\n${(draft.symptoms ?? []).join("\n")}`;
+        const orderCodes = [...new Set(said.match(/\bDH\d{4,}\b/gi) ?? [])].join(", ");
+        const links = [...new Set(said.match(/https?:\/\/\S+/g) ?? [])].join(" ");
+        const known: Record<string, string> = {
+          ...record.values,
+          ...(orderCodes ? { "Mã đơn hàng": orderCodes } : {}),
+          ...(links ? { Link: links } : {}),
+        };
+        const studentAccount = record.values.studentAccount || record.values.phone;
+        if (studentAccount) {
+          known["Tài khoản HS / SĐT"] = studentAccount;
+        }
+        if (record.values.customerId) {
+          known["Mã khách hàng"] = record.values.customerId;
+        }
+        if (record.values.transactionId) {
+          known["Mã giao dịch"] = record.values.transactionId;
+        }
+        if (record.values.assignmentId) {
+          known["Mã bài tập"] = record.values.assignmentId;
+        }
+        if (record.values.roomCode) {
+          known["Mã phòng"] = record.values.roomCode;
+        }
+        const device = [
+          record.values.deviceType,
+          record.values.deviceOs,
+          record.values.appVersion,
+          record.values.browser,
+        ]
+          .filter(Boolean)
+          .join(", ");
+        if (device) {
+          known["Thiết bị"] = device;
+        }
+
+        const system =
+          draft.record?.values[deps.systemField ?? "he_thong"] ?? draft.record?.values.system;
+        const product = draft.ticket.category ?? draft.record?.values.product;
+
+        const review = await safeReview(reviewer, {
+          title: draft.ticket.title,
+          description: draft.ticket.rawText,
+          system,
+          product,
+          attachments: draft.ticket.mediaPaths.length,
+          known,
+        });
+        if (review.missing.length > 0 && review.question) {
+          draft.techReviewDone = true; // ask once, any answer proceeds
+          draft.techQuestion = review.question;
+          draft.lastAskedFields = [TECH_INFO_FIELD];
+          deps.drafts.saveRevision(draft);
+          const noneLabel = deps.copy.text("button.none");
+          return {
+            outcome: "asked",
+            messages: [
+              {
+                text: review.question,
+                buttons: layoutButtons([{ text: noneLabel, callbackData: noneLabel }]),
+              },
+            ],
+            missingFields: [],
+            docId: draft.docId,
+          };
+        }
       }
       draft.techReviewDone = true;
     }
@@ -3139,7 +3224,6 @@ export class IntakeEngine {
       (incomingSymptoms.length > 0 ||
         hasIdentifier(extracted) ||
         extracted.userIntent === "report_issue" ||
-        extracted.userIntent === "provide_info" ||
         answeringTechQuestion ||
         answeringDescription);
     if (carriesText && message && !isInternalCallbackToken(message)) {
@@ -3535,13 +3619,8 @@ function command_chatId(_command: TicketCommand, draft: IntakeDraft | null): str
 
 async function safeReview(
   reviewer: TechReviewerPort,
-  input: {
-    title?: string;
-    description: string;
-    attachments: number;
-    known: Record<string, string>;
-  },
-): Promise<{ missing: string[]; question?: string }> {
+  input: TechReviewInput,
+): Promise<TechReviewOutput> {
   try {
     return await reviewer.review(input);
   } catch {

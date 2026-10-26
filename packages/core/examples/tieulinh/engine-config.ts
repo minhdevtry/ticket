@@ -26,6 +26,7 @@ import {
   passthroughMediaResolver,
   type FieldExtractorPort,
   type TechReviewerPort,
+  type TechReviewPolicy,
   type TicketCommandInterpreterPort,
   type TicketActionExecutorPort,
   type PostCreateHookPort,
@@ -103,6 +104,12 @@ export interface TieuLinhWiring {
   webUrl?: string;
   extractor: FieldExtractorPort;
   techReviewer?: TechReviewerPort;
+  /**
+   * Công tắc soát (F4). Mặc định của app Tiểu Linh: soát bằng **danh sách cố định**
+   * (F2) — không tốn LLM. Muốn soát bằng LLM thì app tự nối `techReviewer` và đổi
+   * thành "llm".
+   */
+  techReviewPolicy?: TechReviewPolicy;
   commands?: TicketCommandInterpreterPort;
   actions?: TicketActionExecutorPort;
   postCreate?: PostCreateHookPort;
@@ -133,6 +140,7 @@ export function makeTieuLinhEngine(w: TieuLinhWiring): IntakeEngine {
     variant: "tech",
     urgencyRules: tieuLinhUrgency,
     techReviewer: w.techReviewer,
+    techReviewPolicy: w.techReviewPolicy ?? "checklist",
     ownership: bindingOwnershipPort(bindings),
     commands: w.commands,
     actions: w.actions,

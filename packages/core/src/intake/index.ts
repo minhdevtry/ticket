@@ -17,3 +17,6 @@ export * from "./split";
 
 // ── ticket 14: notify (webhook → chat dispatcher + reply router) ─────────────
 export * from "./notify";
+
+// ── ticket 13: technical review & ask-learning (RFC 0002 §1.4 F1-F4) ────────
+export * from "./review";

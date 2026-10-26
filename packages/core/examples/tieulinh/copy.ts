@@ -178,4 +178,26 @@ export const tieuLinhCopy: Record<CopyKey, string> = {
   "action.state_canceled": "Canceled",
   "action.column_not_found":
     "Dạ em chưa tìm thấy cột {stateLabel} trong dự án để chuyển {identifier} ạ.",
+  "button.none": "Không có",
+  "checklist.header": "Dạ để kỹ thuật xử lý nhanh, anh/chị gửi giúp em những thông tin sau ạ:",
+  "checklist.closing": 'Cái nào không có thì anh/chị nhắn "không có", em tạo ticket luôn ạ.',
+  "checklist.ask.SCREENSHOT": "Ảnh chụp màn hình lỗi (thấy rõ màn hình/thông báo đang hiện)",
+  "checklist.ask.ERROR_TEXT":
+    "Nội dung thông báo lỗi hiện trên màn hình (chép nguyên văn nếu được)",
+  "checklist.ask.STEPS": "Anh/chị bấm/thao tác những bước nào, ở màn hình nào thì ra lỗi",
+  "checklist.ask.EXPECTED_VS_ACTUAL":
+    "Đang hiện gì và đúng ra phải hiện gì (ví dụ hạn đang hiện / hạn đúng mong muốn)",
+  "checklist.ask.TIME": "Thời điểm xảy ra lỗi (ngày/giờ, mới bị hay bị từ lâu)",
+  "checklist.ask.DEVICE_APP": "Thiết bị và phiên bản app/trình duyệt đang dùng",
+  "checklist.ask.STUDENT_ID": "Mã/tài khoản học sinh (UID/CID/SID) hoặc SĐT",
+  "checklist.ask.CARE_STUDENT_LINK":
+    "Link chi tiết học sinh trên se-care (dạng https://se-care.example.com/student-care/student-detail/…)",
+  "checklist.ask.CRM_CONTACT_LINK": "Link chi tiết contact trên se-crm (không cần gửi SĐT)",
+  "checklist.ask.LMS_UID_LINK":
+    "UID học sinh hoặc link LMS (dạng https://se-lms.example.com/module/ctvcskh/user/update?id=…)",
+  "checklist.ask.ORDER_CODE": "Mã đơn hàng (DHxxxxxx)",
+  "checklist.ask.COURSE_CLASS_SCOPE":
+    "Học sinh nào, khoá học/lớp/buổi học nào bị ảnh hưởng (nhiều học sinh thì ghi rõ từng em)",
+  "checklist.ask.OTHER_LINK": "Link trang/bài/đề đang bị lỗi",
+  "checklist.ask.EXTENT": "Một người bị hay nhiều người/tất cả đều bị",
 };

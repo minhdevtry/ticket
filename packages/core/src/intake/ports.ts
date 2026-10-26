@@ -234,7 +234,25 @@ export type CopyKey =
   | "action.icon_canceled" // marker for a cancel-to-Canceled trace comment
   | "action.state_done" // target column name when the ticket is closed to Done
   | "action.state_canceled" // target column name when the ticket is closed to Canceled
-  | "action.column_not_found"; // cannot find the target column to move the ticket to; {identifier} {stateLabel}
+  | "action.column_not_found" // cannot find the target column to move the ticket to; {identifier} {stateLabel}
+  // ── PR 13: soát thông tin trước khi xác nhận (RFC 0002 §1.4 F1-F4) ────────
+  | "button.none" // label for "Không có" decline button during tech review
+  | "checklist.header" // leading message for checklist questions
+  | "checklist.closing" // trailing notice for checklist questions
+  | "checklist.ask.SCREENSHOT"
+  | "checklist.ask.ERROR_TEXT"
+  | "checklist.ask.STEPS"
+  | "checklist.ask.EXPECTED_VS_ACTUAL"
+  | "checklist.ask.TIME"
+  | "checklist.ask.DEVICE_APP"
+  | "checklist.ask.STUDENT_ID"
+  | "checklist.ask.CARE_STUDENT_LINK"
+  | "checklist.ask.CRM_CONTACT_LINK"
+  | "checklist.ask.LMS_UID_LINK"
+  | "checklist.ask.ORDER_CODE"
+  | "checklist.ask.COURSE_CLASS_SCOPE"
+  | "checklist.ask.OTHER_LINK"
+  | "checklist.ask.EXTENT";
 
 /**
  * The chat↔ticket binding store, so a worker can report back to the reporter.
@@ -425,11 +443,30 @@ export interface FieldExtractorPort {
  *
  * NGUỒN: intake `lib/intake-step/tech-review.ts` (`TechReviewer`).
  */
+export type TechReviewPolicy = "off" | "checklist" | "llm";
+
+export interface LearnedItemsResult {
+  items: readonly string[];
+  shares?: Partial<Record<string, number>>;
+}
+
+export interface LearnedItemsPort {
+  /**
+   * Tra cứu mục người báo hay phải bổ sung theo từng hệ thống (W25).
+   * Kho `learned` do app/script ngoài sở hữu — core chỉ ĐỌC qua cổng này.
+   */
+  learned(
+    system: string,
+  ): Promise<LearnedItemsResult | readonly string[]> | LearnedItemsResult | readonly string[];
+}
+
 export interface TechReviewInput {
   title?: string;
   description: string;
   attachments: number;
   known: Record<string, string>;
+  system?: string;
+  product?: string;
 }
 export interface TechReviewOutput {
   missing: string[];
