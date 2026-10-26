@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Chặn push khi kiểm nhanh đỏ.
+#
+# Cài: bun run setup:hooks   (đặt core.hooksPath = .githooks)
+# Bỏ: git config --unset core.hooksPath
+#
+# Hook này chạy phần RẺ hơn CI: typecheck và sổ đối chiểu (test dễ vỡ nhất).
+# Mục đích là bắt lỗi ngay ở máy thay vì đợi CI đỏ rồi phải merge nền cho lại.
+set -uo pipefail
+
+root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+cd "$root" || exit 0
+
+echo "pre-push: typecheck + sổ đối chiếu"
+
+if ! bun run check >/tmp/pre-push-check.log 2>&1; then
+  echo "pre-push: typecheck đỏ, chưa push." >&2
+  tail -20 /tmp/pre-push-check.log >&2
+  exit 1
+fi
+
+if [ -f apps/tieulinh/receptionist-gap-register.test.ts ]; then
+  if ! bun test apps/tieulinh/receptionist-gap-register.test.ts >/tmp/pre-push-register.log 2>&1; then
+    echo "pre-push: sổ đối chiểu đỏ, chưa push." >&2
+    tail -20 /tmp/pre-push-register.log >&2
+    exit 1
+  fi
+fi
+
+exit 0

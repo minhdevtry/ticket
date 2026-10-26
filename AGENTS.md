@@ -16,6 +16,8 @@ Repo **công khai**. Trước mọi commit: không secret, không IP/host nội 
 - `deploy/`: script đẩy secret qua SSH, README deploy, launcher dev (`deploy/dev/tl2-shadow.sh`) và Colab (`deploy/colab/cup-*.sh`).
 - `docs/`: site VitePress (tiếng Việt), published lên GitHub Pages. Gồm `guide/`, `how-to/`, `reference/`, `explanation/` và `adr/` (quyết định cấp repo). Mỗi package/app có `docs/adr` riêng cạnh code.
 - `scripts/`: `scan-public.ts` (vệ sinh repo công khai), `gen-docs.ts`, `check-doc-snippets.ts`, `check-docs-refs.ts`, `check-docs-touched.ts` (kiểm docs), `new-worktree.sh` (tạo worktree riêng cho nhánh mới).
+- `packages/core/docs/parity/ENGINE.md`: bản đồ hành vi legacy -> core của engine tiếp nhận (số test theo trạng thái, PR nào sẽ port). Đọc trước khi sửa engine tiếp nhận.
+- `orchestration/`: `WORKER-CONTRACT.md` (hợp đồng chung cho mọi worker Orca: kiểm base, ranh giới sửa, bằng chứng, cách báo xong), `specs/` (đặc tả từng việc), `report-*.md` (báo cáo của worker).
 
 ## Lệnh
 
@@ -28,6 +30,7 @@ bun run --cwd packages/core test
 bun run --cwd apps/tieulinh-legacy test
 bun run --cwd apps/tieulinh test
 bun run --cwd apps/tieulinh-legacy golden:record   # ghi lại bản ghi vàng của lễ tân legacy (thêm --check để chỉ kiểm)
+bun run setup:hooks                                # cài hook chặn trước commit (lint + scan) và trước push (typecheck + sổ đối chiểu)
 ```
 
 ## Nguyên tắc

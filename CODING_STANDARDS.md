@@ -50,6 +50,34 @@ Lỗi ở một lượt không được làm hỏng các lượt sau: trạng th
 
 Không secret, không IP/host nội bộ, không số điện thoại, không chat ID, không tên người thật, không đường dẫn `/home/<tên>`. `bun run scan` phải sạch. Thêm mẫu vào `.scan-denylist.d/<tên-agent>.txt` (mỗi agent một file, để hai agent không ghi đè lẫn nhau), không sửa `.scan-denylist` chung.
 
-## 7. PR
+## 7. Test phải chứng minh, không tự khẳng định
+
+Một ca test chỉ có giá trị khi nó khẳng định trên **đầu ra của hệ thống**. Cấm mẫu:
+
+```ts
+const question = `Bộ phận "${res.reportingDeptUnrecognized}" ...`;  // test tự dựng
+expect(question).toContain("Kế toán");                            // rồi khẳng định nó
+```
+
+Cách đúng: gọi đúng thứ cần khẳng định và so kết quả của nó.
+
+Cùng nguyên tắc với việc port test legacy: **giữ nguyên tên và giữ nguyên ý**. Nếu buộc
+phải đổi dữ liệu đầu vào của một ca cũ (ví dụ `"none"` -> `"không có"` vì `"none"` là token
+nội bộ), thì nói rõ trong `packages/core/CHANGELOG.md` và trong PR. Sổ đối chiểu chỉ ghi
+`ported` cho hành vi **đã port thật**; chưa port thì để `deferred` và ghi lý do.
+
+## 8. Một hằng, một hàm, một kiểu: một chủ duy nhất
+
+Trước khi thêm hằng, hàm hay kiểu, grep xem đã có chưa. Hai bản sao của cùng một khái niệm
+là hai nguồn sự thật, và chúng sẽ trôi. Ví dụ: trần `rawText` và hàm `isDeclineAnswer` đã có
+ở module engine thì bộ trích xuất phải dùng chung, không tự định nghĩa lần hai.
+
+Tên phải theo `packages/core/GLOSSARY.md`. `GLOSSARY.md` cấm "intake document" vì thuật ngữ
+chuẩn là "tờ khai" (`IntakeDraft`), nên đừng tạo thêm một kiểu cùng nghĩa với tên khác.
+
+Core không hardcode tên sản phẩm, tên công ty hay tên hệ thống của một app: dữ liệu miền đi
+qua tham số, và câu mở đầu prompt do app truyền vào.
+
+## 9. PR
 
 Mỗi PR tự kiểm được, không đổi production. Có test và docs đi kèm. Tiêu đề theo Conventional Commits, scope là tên package. PR body theo khuôn của skill `pr`: tóm tắt bằng hình nhỏ nhất nói rõ thay đổi, bằng chứng trước/sau, và mức nguy hiểm khi merge (cửa một chiều hay hai chiều, bán kính ảnh hưởng).
