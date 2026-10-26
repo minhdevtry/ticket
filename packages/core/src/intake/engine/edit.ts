@@ -10,7 +10,7 @@ import type { LlmConfig, CompleteFn } from "../extractor/llm-extractor";
 import { withTimeout } from "./timeout";
 export type EditOp =
   | { type: "title"; value: string }
-  /** Dòng "- <label>: <giá trị>" ở mục "Thông tin sự cố" — thêm dòng nếu chưa có. */
+  /** Dòng "- label: giá trị" ở mục "Thông tin sự cố" — thêm dòng nếu chưa có. */
   | { type: "field"; label: string; value: string }
   /** Thay một đoạn nguyên văn trong mô tả. */
   | { type: "replace"; old: string; new: string };
