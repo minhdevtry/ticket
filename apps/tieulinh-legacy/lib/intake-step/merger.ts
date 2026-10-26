@@ -3,6 +3,7 @@ import type { ExtractedFields } from "./extractor-schema";
 import { IDENTIFIER_FIELD_KEYS } from "../identifier-grounding";
 import { isInternalCallbackToken } from "@vuihoc/bot-core/core";
 import { isInvalidTitle } from "./multi-incident";
+import { isBotButtonLabel, normalizeLine } from "./button-labels";
 
 /** Một triệu chứng dài hơn chừng này bị cắt — tin dán log không được thổi phồng mô tả ticket. */
 export const MAX_SYMPTOM_CHARS = 1500;
@@ -15,6 +16,45 @@ export const MAX_RAW_TEXT_TOTAL_CHARS = 8000;
 
 function cap(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max)}...` : text;
+}
+
+/**
+ * Phần MỚI của một tin so với lời kể đã có — bỏ dòng lặp lại và dòng là lời của
+ * bot, để mục "### Mô tả" không hiện nội dung hai lần.
+ *
+ * Vì sao cần: lượt xác nhận, agent (OpenClaw) đôi khi truyền lại chính tin
+ * người báo vừa gửi — có khi y nguyên, có khi lệch một dấu cách, có khi kèm
+ * nhãn nút ("Sự cố mới") hoặc token nội bộ ("noop"). So sánh "tin có nằm trong
+ * lời kể không" bằng `includes` trên CẢ tin nên hụt: lệch một dấu cách là
+ * thêm nguyên tin, và tên nút/token nội bộ lọt thẳng vào mô tả (TECH-1141,
+ * TECH-1201, TECH-1307).
+ *
+ * So sánh theo DÒNG và chuẩn hoá (bỏ dấu markdown, gộp khoảng trắng, không
+ * phân biệt hoa thường): dòng đã có thì bỏ, dòng mới thì giữ. Lời người báo
+ * nhắc lại đúng một câu cũ vì thế chỉ hiện một lần trong mô tả.
+ */
+export function newLinesOnly(message: string, existing: string): string {
+  const seen = new Set(
+    existing
+      .split("\n")
+      .map(normalizeLine)
+      .filter((line) => line !== ""),
+  );
+  const kept: string[] = [];
+  for (const rawLine of message.split("\n")) {
+    const line = rawLine.trim();
+    if (line === "") {
+      kept.push("");
+      continue;
+    }
+    // Lời của bot (nhãn nút, token nội bộ) không phải lời kể của người báo.
+    if (isBotButtonLabel(line) || isInternalCallbackToken(line)) continue;
+    const normalized = normalizeLine(line);
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    kept.push(line);
+  }
+  return kept.join("\n").trim();
 }
 
 export interface MergeOptions {
@@ -100,9 +140,13 @@ export function mergeExtractedFields(
   // TECH-1148: Không đưa tin nhắn chỉ là token nội bộ ("noop") vào rawText
   if (carriesText && message && !isInternalCallbackToken(message)) {
     const prev = nextFields.rawText?.value;
-    if (!prev) setField("rawText", rawMessage);
-    else if (!prev.includes(message))
-      setField("rawText", cap(`${prev}\n${rawMessage}`, MAX_RAW_TEXT_TOTAL_CHARS));
+    // Chỉ ghi phần CHƯA có: lượt xác nhận hay bị agent truyền lại chính tin
+    // người báo vừa gửi (lệch một dấu cách cũng là lặp) — gộp thêm thì mô tả
+    // ticket hiện nội dung hai lần (TECH-1167, TECH-1201, TECH-1307).
+    const fresh = newLinesOnly(rawMessage, prev ?? "");
+    if (fresh) {
+      setField("rawText", cap(prev ? `${prev}\n${fresh}` : fresh, MAX_RAW_TEXT_TOTAL_CHARS));
+    }
   }
 
   setField("product", extracted.product);

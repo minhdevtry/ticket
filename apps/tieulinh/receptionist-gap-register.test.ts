@@ -867,6 +867,49 @@ const ROWS: Row[] = [
     "deferred",
     "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
   ),
+  // ── lib/intake-step/merger.test.ts (7) ──
+  row(
+    "lib/intake-step/merger.test.ts",
+    "tin xác nhận lặp lại tin đầu (lệch một dấu cách) thì không gộp thêm",
+    "deferred",
+    "Chờ port ở PR 4 (dựng mô tả ticket): chống lặp theo dòng khi gộp lời kể",
+  ),
+  row(
+    "lib/intake-step/merger.test.ts",
+    "nhãn nút của bot và tin đã có thì chỉ giữ phần mới",
+    "deferred",
+    "Chờ port ở PR 4 (dựng mô tả ticket): lọc lời của bot khỏi lời kể",
+  ),
+  row(
+    "lib/intake-step/merger.test.ts",
+    "token nội bộ (noop) không lọt vào lời kể",
+    "deferred",
+    "Chờ port ở PR 4 (dựng mô tả ticket): lọc lời của bot khỏi lời kể",
+  ),
+  row(
+    "lib/intake-step/merger.test.ts",
+    "tin trả lời nhắc lại thông tin đã có thì không lặp, phần mới thì vẫn vào",
+    "deferred",
+    "Chờ port ở PR 4 (dựng mô tả ticket): chống lặp theo dòng khi gộp lời kể",
+  ),
+  row(
+    "lib/intake-step/merger.test.ts",
+    "tin mới thì ghi đủ, không mất dòng nào",
+    "deferred",
+    "Chờ port ở PR 4 (dựng mô tả ticket): chống lặp theo dòng khi gộp lời kể",
+  ),
+  row(
+    "lib/intake-step/merger.test.ts",
+    "bỏ dòng lặp, bỏ dấu markdown và bỏ nhãn nút",
+    "deferred",
+    "Chờ port ở PR 4 (dựng mô tả ticket): chống lặp theo dòng khi gộp lời kể",
+  ),
+  row(
+    "lib/intake-step/merger.test.ts",
+    "giữ ngắt đoạn giữa các dòng mới",
+    "deferred",
+    "Chờ port ở PR 4 (dựng mô tả ticket): chống lặp theo dòng khi gộp lời kể",
+  ),
   // ── lib/intake-step/noop-guard.test.ts (6) ──
   row(
     "lib/intake-step/noop-guard.test.ts",
@@ -3042,6 +3085,11 @@ const FILE_ROWS: FileRow[] = [
     "core",
     "đăng ký webhook đã ở core",
     "itsaplan/ensure-webhook.test.ts",
+  ),
+  fileRow(
+    "scripts/golden/record.test.ts",
+    "deferred",
+    "Bộ ghi bản ghi vàng của lễ tân legacy (RFC 0002 PR 2); bản mới ghi bản ghi vàng ở PR 4 (draft v2)",
   ),
   fileRow(
     "lib/itsaplan/client-factory.test.ts",

@@ -23,6 +23,7 @@ export function intakeStep(options: IntakePipelineOptions): AnyMcpTool {
       "xin xác nhận, TỰ TẠO ticket khi người dùng xác nhận và tự ghi phần bổ sung vào ticket đã tạo. " +
       "Gửi nguyên văn `voiceText` cho người dùng. KHÔNG gọi create_issue sau khi tool này đã tạo ticket. " +
       "`message` phải là đúng tin người dùng vừa gửi — TUYỆT ĐỐI không tự gửi lời xác nhận (vd callbackData của nút) thay người dùng; " +
+      "cũng đừng truyền lại lời của chính bạn (bản tóm tắt bạn vừa gửi cho người dùng) — mô tả ticket chỉ nhận lời người báo; " +
       "sau action confirm_summary thì kết thúc lượt, chờ người dùng bấm nút.",
     inputSchema: {
       message: z

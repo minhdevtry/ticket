@@ -59,6 +59,14 @@ import type { DraftSessionRepository } from "../storage/session-repository";
 import { type FieldExtractor, isChitchat, isDeclineAnswer } from "./extractor";
 import type { ExtractedFields } from "./extractor-schema";
 import { mergeExtractedFields } from "./merger";
+import {
+  CANCEL_ACTION_LABEL,
+  CONFIRM_LABEL,
+  CONTINUE_DRAFT_LABEL,
+  KEEP_TICKET_LABEL,
+  NEW_INCIDENT_LABEL,
+  RESUME_PARKED_LABEL,
+} from "./button-labels";
 import type { OnyxRestSearchClient } from "../onyx/rest-search";
 import type { LlmConfig } from "../../worker/llm";
 import type { SimilarTicketSource } from "../kg/similar-ticket-source";
@@ -116,36 +124,15 @@ export const MAX_DESCRIPTION_SYMPTOMS_CHARS = 6000;
 /** Nội dung bổ sung (comment) sau khi tạo ticket tối đa chừng này ký tự. */
 export const MAX_FOLLOW_UP_CHARS = 4000;
 
-const CONFIRM_LABEL = "✅ Đúng rồi, tạo ticket";
 const UNKNOWN_SYSTEM = "Chưa xác định (đội Kỹ thuật sẽ phân loại)";
 const UNKNOWN_DEPT = "Chưa xác định phòng ban";
 
-/**
- * Nhãn 2 nút hỏi "sự cố mới hay bổ sung" (TECH-928) — cố định, không phải
- * danh sách từ khoá đoán ý định: pipeline chỉ so message tiếp theo với ĐÚNG
- * hai chuỗi này (như đã làm với `CONFIRM_LABEL`/"đúng rồi" từ trước tới giờ),
- * không suy luận ý người dùng từ câu chữ tự do.
- */
-const NEW_INCIDENT_LABEL = "Sự cố mới";
-/** Nút huỷ bản xem trước ghi vào ticket đã có. */
-const CANCEL_ACTION_LABEL = "Huỷ";
-/** Nút giữ lại ticket khi người báo đang xem trước thao tác Hủy / Đóng ticket (ADR-0006 cập nhật 10/10/2026). */
-const KEEP_TICKET_LABEL = "Giữ lại";
 const FORCE_NEW_FLAG = "force_new";
 const FORCE_NEW_WINDOW_MS = 2 * 60 * 1000;
 /** Ticket bot vừa tạo trong khoảng này còn chuyển được sang ticket khác ("cái này bổ sung cho TECH-Y"). */
 const JUST_CREATED_WINDOW_MS = 24 * 3600 * 1000;
 /** Kỹ thuật hỏi người báo trong khoảng này thì tin kế tiếp có thể là câu trả lời. */
 const TECH_QUESTION_WINDOW_MS = 72 * 3600 * 1000;
-const CONTINUE_DRAFT_LABEL = "Bổ sung sự cố đang chờ";
-
-/**
- * Nhãn nút nhắc về tờ khai bị GÁC LẠI (`IntakeDocument.parkedDocId`) khi sự cố
- * mới vừa tạo xong ticket hoặc bị huỷ — khác `CONTINUE_DRAFT_LABEL` (dùng để
- * gộp tin xung đột vào tờ khai đang mở NGAY lượt đó). Nút này đưa tờ khai bị
- * gác lại trở thành tài liệu đang mở của chat sau khi sự cố mới đã xong việc.
- */
-const RESUME_PARKED_LABEL = "Tiếp tục sự cố đang chờ";
 
 /** Trạng thái tờ khai còn "mở" — chưa tạo ticket, chưa huỷ, chưa hết hạn. */
 /** Tên "trường" giả cho câu hỏi dữ kiện kỹ thuật trong lastAskedFields / explicitlyMissing. */

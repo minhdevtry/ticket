@@ -23,7 +23,7 @@ Bot khai báo trên `tech.TECH2` (đổi bằng `TIEULINH_TEAM`/`TIEULINH_PROJEC
 | Người báo nhắn chat yêu cầu huỷ hoặc đóng ticket của mình | xem trước + nút xác nhận, bấm xong bot chuyển cột Canceled/Done | **chưa làm**: là việc của lễ tân, thuộc PR 12 của [RFC 0002](/rfc/0002-receptionist) | 0006, 0008 |
 | Quá hạn SLA | bảng `sla_trackers`, quét theo chu kỳ | cron `backoffice.schedule`, quét không trạng thái, chỉ đánh dấu khi đã giao được | |
 | Ticket trùng | LLM phán khi người xử lý nhắc mã ticket anh em, gộp tự động | cùng tín hiệu; mặc định chỉ gợi ý; gộp kiểu legacy sau cờ, mặc định tắt, và chỉ khi comment là của người xử lý được giao | 0006, 0010 |
-| Mô tả ticket | nguyên văn người báo | bot không bao giờ sửa mô tả | 0010 |
+| Mô tả ticket | nguyên văn người báo, mỗi câu một lần, không lẫn lời bot | bot không bao giờ sửa mô tả | 0010 |
 | Nạp tri thức KG/Onyx, `related-curator`, ingest | có | chưa làm | 0007 |
 
 ## Quyết định đáng nói

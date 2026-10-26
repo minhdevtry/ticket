@@ -38,6 +38,26 @@ Hai câu in đậm ở trên không phải lời người báo — đó là suy 
 - **Đường `create_issue` vẫn phụ thuộc LLM** tuân thủ mô tả trường `rawText` — đây là hàng rào mềm, không phải bảo đảm tuyệt đối. Bảo đảm cứng là định tuyến mọi sự cố mới qua `intake_step` (ADR-0008), nơi `rawText` đến thẳng từ Telegram. Nếu `intake_step` hỏng, `create_issue` chỉ còn là dự phòng kém hơn, không phải đường chính.
 - `cleanIncidentDescription` (similar-context.ts) và bộ lọc ở kg-sync **giữ nguyên** — kho KG còn nhiều ticket lịch sử mang mục "Chẩn đoán & Gợi ý", phải tiếp tục cắt bỏ khi đọc.
 
+## Bổ sung 26/10/2026 — mỗi câu chỉ hiện một lần, lời của bot không vào mô tả
+
+Sau khi quyết định trên, mô tả vẫn hiện nội dung **hai lần** trong một số ticket, và đôi khi có lời của bot nằm trong mục "### Mô tả" (đo trên 1.057 ticket dự án TECH, 2026-10-26):
+
+- **TECH-1307 (20/10)** — lượt xác nhận, agent truyền lại đúng tin người báo vừa gửi, chỉ lệch **một dấu cách**: `…@vuihoc.vn****  MK:…` so với `…@vuihoc.vn****   MK:…`. Mô tả hiện cả hai.
+- **TECH-1201 (09/10)** — tin chứa lại tin đầu kèm nhãn nút **"Sự cố mới"**; mô tả hiện nội dung hai lần và lẫn nhãn nút của bot.
+- **TECH-1277 (17/10)** — tin trả lời nhắc lại tên/mã đã có (có in đậm): `**Vương Mai Phương Thúy**` so với `Vương Mai Phương Thúy`.
+- **TECH-1167 (08/10)** — agent truyền lại chính bản tóm tắt của bot ("Em tóm tắt sự cố để anh/chị kiểm tra trước khi tạo ticket: …"), lần hai lệch một chữ ("Phân **E** loại"); mô tả hiện cả khối tóm tắt hai lần.
+- **TECH-1141 (06/10)** — token nội bộ **"noop"** lọt vào mô tả bốn lần.
+
+Nguyên nhân gốc nằm ở `merger.ts`: điều kiện chống lặp là `!prev.includes(message)` — so CẢ tin với lời kể đã có. Một dấu cách thêm là hụt; tin có thêm nhãn nút là hụt; và tin chỉ là token nội bộ/nhãn nút thì lọt thẳng vào mô tả vì điều kiện này chỉ chặn khi **cả tin** là token.
+
+Quyết định bổ sung:
+
+1. **Chống lặp theo DÒNG, có chuẩn hoá** — `merger.ts` `newLinesOnly`: bỏ dấu markdown, gộp khoảng trắng, không phân biệt hoa thường rồi so từng dòng với lời kể đã có; dòng đã có thì bỏ, dòng mới thì giữ. Lời người báo nhắc lại đúng một câu cũ vì thế hiện **một lần** trong mô tả (đây là điểm lệch có chủ đích với "nguyên văn": ưu tiên mô tả không lặp, đổi lại mất tính chất bản ghi nguyên văn của câu lặp — nội dung câu lặp vẫn còn trong `symptoms` và trong lịch sử chat).
+2. **Lời của bot không vào mô tả** — nhãn nút (danh sách hằng ở `lib/intake-step/button-labels.ts`, dùng chung với pipeline để dựng nút) và token nội bộ (`noop`) bị loại khỏi `rawText`.
+3. **Nhãn nút có một nguồn duy nhất** — `button-labels.ts`; `pipeline.ts` import từ đó, không khai lại.
+
+Hệ quả: mô tả ticket sạch hơn (không lặp, không lẫn nhãn nút), và văn bản nguồn cho BM25 (`symptomsOfDescription`) không bị nhân đôi. Phần lớn "trùng" đo được là lượt xác nhận bị agent truyền lại — vẫn là lỗi của agent, nhưng chặn ở merger là hàng rào tất định, đúng nguyên tắc "logic tất định ở tool và engine, prompt chỉ lo diễn đạt".
+
 ## Bài học
 
 Hai đường tạo ticket cùng dùng tên trường `rawText` nhưng khác nguồn gốc dữ liệu, và điều đó không hiện ra trong kiểu dữ liệu. Trường không bắt buộc + schema mô tả lỏng = lỗi im lặng. Khi một tên trường mang ý nghĩa "nguyên văn", phải hỏi nó lấy từ đâu, không chỉ hỏi nó có được gán hay không.
