@@ -124,7 +124,14 @@ export type CopyKey =
   | "priority.level.low" // priority level label for Low
   | "priority.level.medium" // priority level label for Medium
   | "priority.level.high" // priority level label for High
-  | "priority.level.urgent"; // priority level label for Urgent
+  | "priority.level.urgent" // priority level label for Urgent
+  // ── PR 9: tách báo cáo nhiều sự cố (RFC 0002 §1.5 B7) ─────────────────────
+  | "split.question" // ask whether to split N tickets or merge into 1; {count} {summary}
+  | "split.unclear_prefix" // prefix when answer to split question is unclear
+  | "split.next_ticket_notice" // notice when creating next ticket in split queue; {identifier} {student}
+  | "button.split_n" // button to split into N tickets; {count}
+  | "button.merge_one" // button to merge into 1 ticket
+  | "media.ambiguous_notice"; // notice appended to description when images are shared across split tickets
 
 /**
  * The chat↔ticket binding store, so a worker can report back to the reporter.

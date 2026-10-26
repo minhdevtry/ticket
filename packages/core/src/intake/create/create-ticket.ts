@@ -177,10 +177,15 @@ async function run(deps: CreateTicketDeps, req: CreateTicketRequest): Promise<Cr
     title = !isInvalidTitle(fallback) ? fallback : defaultTitle;
   }
   const finalTitle = title;
+  const ambiguousNotice = claim.mediaAmbiguous ? copy.text("media.ambiguous_notice") : "";
+  const description =
+    ambiguousNotice && !ticket.rawText.includes(ambiguousNotice)
+      ? `${ticket.rawText}\n\n${ambiguousNotice}`
+      : ticket.rawText;
   try {
     issue = await tracker.createIssue({
       title: finalTitle,
-      description: ticket.rawText,
+      description,
       priority: ticket.priority,
       category: ticket.category,
       labels: ticket.labels,
@@ -233,7 +238,7 @@ async function run(deps: CreateTicketDeps, req: CreateTicketRequest): Promise<Cr
     ? resolver.resolve(ticket.mediaPaths, [ticket.title, ticket.rawText])
     : ticket.mediaPaths;
   if (mediaPaths.length > 0) {
-    await tracker.attach(issue.id, ticket.rawText, mediaPaths).catch(() => 0);
+    await tracker.attach(issue.id, description, mediaPaths).catch(() => 0);
   }
 
   // Bot inference → a SEPARATE marked comment, never the description (ADR-0010).

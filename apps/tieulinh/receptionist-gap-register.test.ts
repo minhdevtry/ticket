@@ -767,135 +767,240 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/multi-incident.test.ts",
     "splitMultiIncidentReport tách đúng 2 học sinh từ văn bản thật TECH-1146",
-    "deferred",
-    "Chờ port ở PR 9 (tách báo cáo nhiều sự cố)",
+    "ported",
+    [
+      C(
+        "intake/split/split.test.ts",
+        "splitMultiIncidentReport tách đúng 2 học sinh từ văn bản thật TECH-1146",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/multi-incident.test.ts",
     "splitMultiIncidentReport tách đúng 2 ca độc lập từ mã CRM (TECH-1248/1249)",
-    "deferred",
-    "Chờ port ở PR 9 (tách báo cáo nhiều sự cố)",
+    "ported",
+    [
+      C(
+        "intake/split/split.test.ts",
+        "splitMultiIncidentReport tách đúng 2 ca độc lập từ mã CRM (TECH-1248/1249)",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/multi-incident.test.ts",
     "splitMultiIncidentReport vẫn bắt được ca thật có 2 UID khác nhau (TECH-938)",
-    "deferred",
-    "Chờ port ở PR 9 (tách báo cáo nhiều sự cố)",
+    "ported",
+    [
+      C(
+        "intake/split/split.test.ts",
+        "splitMultiIncidentReport vẫn bắt được ca thật có 2 UID khác nhau (TECH-938)",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/multi-incident.test.ts",
     "danh sách học sinh VÍ DỤ dưới một sự cố hệ thống KHÔNG bị tách (TECH-462, TECH-603)",
-    "deferred",
-    "Chờ port ở PR 9 (tách báo cáo nhiều sự cố)",
+    "ported",
+    [
+      C(
+        "intake/split/split.test.ts",
+        "danh sách học sinh VÍ DỤ dưới một sự cố hệ thống KHÔNG bị tách (TECH-462, TECH-603)",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/multi-incident.test.ts",
     "cùng một học sinh nhắc lại ở 2 đoạn (mã KH ở đoạn này, thiếu ở đoạn kia) KHÔNG bị tách (TECH-560)",
-    "deferred",
-    "Chờ port ở PR 9 (tách báo cáo nhiều sự cố)",
+    "ported",
+    [
+      C(
+        "intake/split/split.test.ts",
+        "cùng một học sinh nhắc lại ở 2 đoạn (mã KH ở đoạn này, thiếu ở đoạn kia) KHÔNG bị tách (TECH-560)",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/multi-incident.test.ts",
     "TECH-1248 + TECH-1249: gửi 2 sự cố ở 2 lượt khác nhau — tách thành 2 ticket riêng, nội dung và ảnh không bị lẫn",
-    "deferred",
-    "Chờ port ở PR 9 (tách báo cáo nhiều sự cố)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr9-split.test.ts",
+        "TECH-1248 + TECH-1249: gửi 2 sự cố ở 2 lượt khác nhau — tách thành 2 ticket riêng, nội dung và ảnh không bị lẫn",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/multi-incident.test.ts",
     "TECH-1146: một tin nhắn chứa 2 học sinh — hỏi tách ticket, khi tách mỗi ticket chỉ có đúng học sinh của mình",
-    "deferred",
-    "Chờ port ở PR 9 (tách báo cáo nhiều sự cố)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr9-split.test.ts",
+        "TECH-1146: một tin nhắn chứa 2 học sinh — hỏi tách ticket, khi tách mỗi ticket chỉ có đúng học sinh của mình",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/multi-incident.test.ts",
     "TECH-1146 (chọn gộp 1 ticket): tiêu đề tóm tắt cả 2 học sinh, KHÔNG BAO GIỜ lấy tên người làm tiêu đề",
-    "deferred",
-    "Chờ port ở PR 9 (tách báo cáo nhiều sự cố)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr9-split.test.ts",
+        "TECH-1146 (chọn gộp 1 ticket): tiêu đề tóm tắt cả 2 học sinh, KHÔNG BAO GIỜ lấy tên người làm tiêu đề",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/multi-incident.test.ts",
     "ảnh đính kèm không phân biệt được thuộc học sinh nào: đính kèm cả hai và có ghi chú rõ ràng",
-    "deferred",
-    "Chờ port ở PR 9 (tách báo cáo nhiều sự cố)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr9-split.test.ts",
+        "ảnh đính kèm không phân biệt được thuộc học sinh nào: đính kèm cả hai và có ghi chú rõ ràng",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/multi-incident.test.ts",
     'BUG 5 — người báo gõ "không tách" thì GỘP, tuyệt đối không tách',
-    "deferred",
-    "Chờ port ở PR 9 (tách báo cáo nhiều sự cố)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr9-split.test.ts",
+        'BUG 5 — người báo gõ "không tách" thì GỘP, tuyệt đối không tách',
+      ),
+    ],
   ),
   row(
     "lib/intake-step/multi-incident.test.ts",
     "BUG 6/7 — đang hỏi tách mà người báo huỷ: thoát câu hỏi, xoá luôn hàng đợi tách",
-    "deferred",
-    "Chờ port ở PR 9 (tách báo cáo nhiều sự cố)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr9-split.test.ts",
+        "BUG 6/7 — đang hỏi tách mà người báo huỷ: thoát câu hỏi, xoá luôn hàng đợi tách",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/multi-incident.test.ts",
     "BUG 6 (Vòng 3 — P1): đang hỏi tách mà người báo nhắn câu khác: hỏi lại 1 lần, vẫn không rõ thì gộp 1 ticket không mất nội dung",
-    "deferred",
-    "Chờ port ở PR 9 (tách báo cáo nhiều sự cố)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr9-split.test.ts",
+        "BUG 6 (Vòng 3 — P1): đang hỏi tách mà người báo nhắn câu khác: hỏi lại 1 lần, vẫn không rõ thì gộp 1 ticket không mất nội dung",
+      ),
+    ],
   ),
   // ── lib/intake-step/split-adversarial.test.ts (10) ──
   row(
     "lib/intake-step/split-adversarial.test.ts",
     "A. trạng thái chuẩn: hỏi tách → 'Tách 2 ticket' → 2 ticket, nội dung/ảnh không lẫn",
-    "deferred",
-    "Chờ port ở PR 9 (tách báo cáo nhiều sự cố)",
+    "ported",
+    [
+      C(
+        "intake/engine/split-adversarial.test.ts",
+        "A. trạng thái chuẩn: hỏi tách → 'Tách 2 ticket' → 2 ticket, nội dung/ảnh không lẫn",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/split-adversarial.test.ts",
     "B. phủ định/hủy/gộp tại câu hỏi tách (Bug 5/6, P2: thôi/khỏi = merge)",
-    "deferred",
-    "Chờ port ở PR 9 (tách báo cáo nhiều sự cố)",
+    "ported",
+    [
+      C(
+        "intake/engine/split-adversarial.test.ts",
+        "B. phủ định/hủy/gộp tại câu hỏi tách (Bug 5/6, P2: thôi/khỏi = merge)",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/split-adversarial.test.ts",
     "C. P1 (Blocker): câu trả lời KHÔNG rõ ý giữ nguyên báo cáo + ảnh, hỏi lại 1 lần, vẫn không rõ thì gộp 1 ticket",
-    "deferred",
-    "Chờ port ở PR 9 (tách báo cáo nhiều sự cố)",
+    "ported",
+    [
+      C(
+        "intake/engine/split-adversarial.test.ts",
+        "C. P1 (Blocker): câu trả lời KHÔNG rõ ý giữ nguyên báo cáo + ảnh, hỏi lại 1 lần, vẫn không rõ thì gộp 1 ticket",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/split-adversarial.test.ts",
     "D. dán lại y nguyên báo cáo 2 HS khi đang ở câu hỏi tách",
-    "deferred",
-    "Chờ port ở PR 9 (tách báo cáo nhiều sự cố)",
+    "ported",
+    [
+      C(
+        "intake/engine/split-adversarial.test.ts",
+        "D. dán lại y nguyên báo cáo 2 HS khi đang ở câu hỏi tách",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/split-adversarial.test.ts",
     "E. trả lời bằng MỘT báo cáo mới có định danh KHÁC (HS thứ 3) khi đang hỏi tách",
-    "deferred",
-    "Chờ port ở PR 9 (tách báo cáo nhiều sự cố)",
+    "ported",
+    [
+      C(
+        "intake/engine/split-adversarial.test.ts",
+        "E. trả lời bằng MỘT báo cáo mới có định danh KHÁC (HS thứ 3) khi đang hỏi tách",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/split-adversarial.test.ts",
     "F. không tách được — các dạng KHÔNG phải 2 sự cố độc lập",
-    "deferred",
-    "Chờ port ở PR 9 (tách báo cáo nhiều sự cố)",
+    "ported",
+    [
+      C(
+        "intake/engine/split-adversarial.test.ts",
+        "F. không tách được — các dạng KHÔNG phải 2 sự cố độc lập",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/split-adversarial.test.ts",
     "G. P3: gói tin sau khi tạo ticket 1 khi còn hàng đợi rõ ràng contract (createdIssue + nextDraft)",
-    "deferred",
-    "Chờ port ở PR 9 (tách báo cáo nhiều sự cố)",
+    "ported",
+    [
+      C(
+        "intake/engine/split-adversarial.test.ts",
+        "G. P3: gói tin sau khi tạo ticket 1 khi còn hàng đợi rõ ràng contract (createdIssue + nextDraft)",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/split-adversarial.test.ts",
     "H. P1 (tin chỉ có ảnh / noop): ảnh được gộp vào báo cáo đã park và hỏi lại; noop không mất dữ liệu",
-    "deferred",
-    "Chờ port ở PR 9 (tách báo cáo nhiều sự cố)",
+    "ported",
+    [
+      C(
+        "intake/engine/split-adversarial.test.ts",
+        "H. P1 (tin chỉ có ảnh / noop): ảnh được gộp vào báo cáo đã park và hỏi lại; noop không mất dữ liệu",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/split-adversarial.test.ts",
     "I. TTL: im lặng quá lâu ở câu hỏi tách",
-    "deferred",
-    "Chờ port ở PR 9 (tách báo cáo nhiều sự cố)",
+    "ported",
+    [C("intake/engine/split-adversarial.test.ts", "I. TTL: im lặng quá lâu ở câu hỏi tách")],
   ),
   row(
     "lib/intake-step/split-adversarial.test.ts",
     "J. P4: cụm mức ưu tiên và nhãn phòng ban/hệ thống trần KHÔNG BAO GIỜ là tiêu đề",
-    "deferred",
-    "Chờ port ở PR 9 (tách báo cáo nhiều sự cố)",
+    "ported",
+    [
+      C(
+        "intake/engine/split-adversarial.test.ts",
+        "J. P4: cụm mức ưu tiên và nhãn phòng ban/hệ thống trần KHÔNG BAO GIỜ là tiêu đề",
+      ),
+    ],
   ),
   // ── lib/intake-step/ticket-reply-router.test.ts (14) ──
   row(
