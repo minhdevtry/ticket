@@ -26,7 +26,7 @@ function fold(text: string): string {
 
 const RESOLVED_NAMES = new Set(["resolved", "da xu ly"]);
 
-export function classifyColumn(column: Pick<ProjectColumn, "name" | "stateType">): TicketState {
+export function classifyColumn(column: { name: string; stateType?: string }): TicketState {
   if (RESOLVED_NAMES.has(fold(column.name))) return "resolved";
   if (column.stateType === "completed") return "done";
   if (column.stateType === "canceled") return "canceled";

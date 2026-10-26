@@ -3,6 +3,39 @@
 All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded here.
 
 ## Unreleased
+- **Lệnh nhắm vào ticket đã có** (RFC 0002 PR 11, issue #25). Additive; hoàn thiện cơ chế tiếp nhận và thực thi lệnh nhắm vào ticket đã có (D1-D7, D9):
+  - `@vuihoc/bot-core/intake`:
+    - `D1`: Tìm ứng viên liên quan (`ReplyCandidate`): mã ticket nêu trực tiếp (`mentionedIdentifiers`), số trần (`/(?<!\d)(\d{3,5})(?!\d)/g`) chỉ tính khi khớp ticket của chính chat (`listBindingsForChat`), ticket vừa tạo trong 24 giờ (`JUST_CREATED_WINDOW_MS = 24 * 3_600_000`) khi có mã ticket khác được nhắc, ticket kỹ thuật vừa hỏi trong 72 giờ (`TECH_QUESTION_WINDOW_MS = 72 * 3_600_000`) qua message route (`getLatestMessageRouteForChat` với `kind === "comment"`, route mới hơn hoạt động gần nhất của draft, bỏ qua khi đang soạn dở draft có mô tả và bỏ qua ticket đã đóng trên tracker); danh sách ứng viên cắt trần tối đa 4.
+    - `D2`: Đọc lệnh bằng LLM (`LlmTicketCommandInterpreter`) và fallback tất định không LLM (`stripSupplementCommandWrapper`, `classifyCancelOrCloseIntent`); các từ "huỷ", "cảm ơn", "ok" độc lập không bao giờ coi là nội dung ghi vào ticket; xử lý câu lệnh trần chưa có nội dung/ảnh (TECH-1218): trả về `clarify` (legacy `clarify_intent`), đính kèm nút "Huỷ" (`button.cancel_action`), hướng dẫn người báo gửi ảnh chụp màn hình hoặc nội dung cần bổ sung.
+    - `D3`: Tra cứu ticket (`lookup`): ticket của mình hiển thị đầy đủ tiêu đề, tên cột trạng thái và trao đổi gần nhất của kỹ thuật viên (`lastTechComment`); ticket người khác chỉ hiển thị trạng thái cột, tuyệt đối che giấu tiêu đề và trao đổi kỹ thuật (ADR-0008 §6).
+    - `D4`: Bản xem trước (`previewAction`) và ma trận 8 trạng thái phản hồi (`resolvePendingAction`): nút xác nhận (`button.confirm_append`, `button.confirm_edit`, `button.confirm_move`) và nút Huỷ (`button.cancel_action`); khớp nút chính xác qua `foldButton`; bảo toàn ảnh và nội dung đính kèm khi đang chờ; bỏ bản xem trước khi người báo nhắn việc khác mang ý sự cố mới, bảo toàn payload nếu tin mới là lệnh bổ sung.
+    - `D5`: Sửa ticket (`edit`): bộ lập kế hoạch sửa (`planEdit`) sinh `EditOp[]`, áp thao tác tất định (`applyEditOps`), xem trước thay đổi; kiểm nền chống xung đột (`optimistic concurrency check`) khi người báo bấm xác nhận, từ chối sửa nếu ticket bị sửa đổi trong lúc chờ; cập nhật tracker và ghi comment dấu vết `✏️` (`markBotComment`).
+    - `D6`: Chuyển ticket vừa tạo nhầm sang ticket khác (`move_created`): đọc nội dung mô tả và danh sách ảnh (`descriptionBody`), chép comment sang ticket đích, nối liên kết `duplicates` trên tracker, huỷ ticket nguồn sang `Canceled`, đóng tờ khai nguồn (ADR-0008 §7).
+    - `D7`: Quyền sở hữu (`OwnershipPort`): nhận diện qua binding cùng chat và qua quy ước Telegram ID trong mô tả ticket (hỗ trợ ticket bot cũ); từ chối mọi thao tác ghi nếu không phải chủ ticket (`outcome: "not_owner"`), người ở chat khác không thể bấm hộ nút xác nhận.
+    - `D9`: Tra cứu tiến độ không nêu mã (`isProgressInquiry`): tự động tra cứu ticket gần nhất của chat qua `getLatestBinding` trong cửa sổ 30 phút (`LOOKUP_WINDOW_MS = 30 * 60_000`); quá 30 phút hoặc không có ticket thì trả về câu hỏi làm rõ (`clarify`).
+    - `CopyKey`: bổ sung các khoá `lookup.tech_comment`, `lookup.other_ticket_status`, `lookup.clarify_identifier`, `action.preview_edit`, `action.preview_move`, `action.edit_conflict_rejected`, `action.edit_unclear_prompt`, `action.clarify_empty_append`, `action.not_owner_refusal`, `action.edit_done`, `action.move_done`, `comment.edit_trace`, `comment.move_target_note`, `comment.move_source_note`, `bot.default_name`, `edit.title_label`, `edit.description_label`, `edit.not_present`, `status.unknown`.
+    - `SqliteChannelBindingStore`: bổ sung `getBindingByIdentifier`, bổ sung `updatedAt` cho `getLatestBinding`.
+    - `SqliteMessageRouteStore`: bổ sung `getLatestMessageRouteForChat`.
+    - `TrackerPort` & `adapter`: bổ sung `linkIssues`, `listProjectColumns`, `getIssueTimeline`, trả về `description` trong `getIssue`.
+    - Vòng sửa review (issue #25):
+      - Chuyển `filesNote` trong bản xem trước append qua `CopyCatalog` (`action.suggest_append_media_note`), loại bỏ hardcode tiếng Việt.
+      - Chuyển tên bot mặc định sang `deps.botName ?? deps.copy.text("bot.default_name")`, không hardcode tên riêng trong core.
+      - Nhãn thay đổi `applyEditOps` (`edit.ts`) nhận qua options `EditLabels` kết hợp `CopyCatalog` (`edit.title_label`, `edit.description_label`, `edit.not_present`), fallback trung lập.
+      - Thống nhất helper `withTimeout` tại `packages/core/src/intake/engine/timeout.ts`, xoá trùng lặp giữa `command-interpreter.ts` và `edit.ts`.
+      - Bổ sung ca test kiểm nền khi sửa (`optimistic concurrency check`) từ chối sửa khi có xung đột nền (`action.edit_conflict_rejected`).
+      - Khắc phục `checkIssueClosed` fallback: nạp danh sách `columns` khi tracker chỉ cài đặt `getIssue` + `listProjectColumns`, nhận diện chính xác ticket đã đóng.
+      - Trạng thái fallback tra cứu dùng `CopyKey` `status.unknown`, loại bỏ hardcode "chưa rõ".
+      - Bỏ magic number `columnId: 9`, hỗ trợ cấu hình `defaultCanceledColumnId` qua `IntakeEngineDeps`.
+      - Hỗ trợ tuỳ biến prompt LLM (`systemPrompt` trong `LlmTicketCommandInterpreterOptions`, `editPrompt` trong `PlanEditOptions`).
+  - Port 28 bài kiểm thử từ legacy:
+    - 9 ca từ `lib/intake-step/ticket-reply-router.test.ts` (port sang `packages/core/src/intake/engine/text.test.ts`, `packages/core/src/intake/engine/edit.test.ts`, `packages/core/src/intake/engine/pr11-ticket-commands.test.ts`).
+    - 11 ca flow từ `lib/intake-step/pipeline.flow.test.ts` (port sang `packages/core/src/intake/engine/pr11-ticket-commands.test.ts`).
+    - 6 ca từ `mcp/shared/tools/own-tickets-confirm.test.ts` (port sang `packages/core/src/intake/engine/ownership-confirm.test.ts`).
+    - 1 ca từ `mcp/shared/tools/confirmation-and-binding.test.ts` (port sang `packages/core/src/intake/engine/pr11-ticket-commands.test.ts`).
+    - 1 ca kiểm chứng hành vi D9 tra cứu không nêu mã trong cửa sổ 30 phút.
+  - Cập nhật sổ đối chiếu (`apps/tieulinh/receptionist-gap-register.test.ts`) và bảng parity `ENGINE.md`: 28 dòng `deferred` chuyển sang `ported` (tổng `ported` tăng từ 146 lên 174; `deferred` giảm từ 232 xuống 204; PR 11 còn 0 dòng).
+  - Cập nhật các dòng D1-D7, D9 bảng khoảng trống RFC 0002 mục 1.4 và mục 5 (`docs/rfc/0002-receptionist.md`).
+
 - **Xử lý tin sau khi tạo ticket** (RFC 0002 PR 10, issue #24). Additive; hoàn thiện cơ chế xử lý tin sau khi tạo ticket (C1-C4, G2, B8):
   - `@vuihoc/bot-core/intake`:
     - `C1`: Tờ khai đã tạo là tờ khai ĐÓNG (`draft.status === "created"` và có `issueId`); phân loại ý định người báo trong ngữ cảnh `createdTicket` (`chitchat` cảm ơn không đụng ticket, `cancel` hướng dẫn cú pháp huỷ/đóng, `confirm` nhắc đã tạo mang tính idempotent, `report_issue` mở tờ khai mới độc lập).

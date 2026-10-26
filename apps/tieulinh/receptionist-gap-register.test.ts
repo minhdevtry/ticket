@@ -627,32 +627,57 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "kỹ thuật vừa hỏi → GỢI Ý bổ sung, chưa ghi gì; bấm xác nhận mới ghi",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr11-ticket-commands.test.ts",
+        "kỹ thuật vừa hỏi → GỢI Ý bổ sung, chưa ghi gì; bấm xác nhận mới ghi",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "giục gấp có lý do vào ticket có sẵn → chỉ khi bấm xác nhận mới nâng mức + ghi lý do (thay escalate_issue cũ)",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr11-ticket-commands.test.ts",
+        "giục gấp có lý do vào ticket có sẵn → chỉ khi bấm xác nhận mới nâng mức + ghi lý do (thay escalate_issue cũ)",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "gợi ý → 'Sự cố mới' thì tin vào tờ khai, không ghi ticket cũ",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr11-ticket-commands.test.ts",
+        "gợi ý → 'Sự cố mới' thì tin vào tờ khai, không ghi ticket cũ",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "'bổ sung TECHTEST-795 …' khi đang soạn dở → xem trước + Huỷ; Huỷ thì không ghi, tờ khai giữ nguyên",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr11-ticket-commands.test.ts",
+        "'bổ sung TECHTEST-795 …' khi đang soạn dở → xem trước + Huỷ; Huỷ thì không ghi, tờ khai giữ nguyên",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "đang chờ xác nhận mà nhắn việc khác → bỏ bản xem trước, xử lý tin mới như thường",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr11-ticket-commands.test.ts",
+        "đang chờ xác nhận mà nhắn việc khác → bỏ bản xem trước, xử lý tin mới như thường",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
@@ -668,38 +693,68 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "ticket có Telegram ID người báo trong mô tả cũng là của mình (ticket bot cũ)",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr11-ticket-commands.test.ts",
+        "ticket có Telegram ID người báo trong mô tả cũng là của mình (ticket bot cũ)",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "sửa: xem trước cũ → mới, xác nhận thì sửa thẳng + comment dấu vết",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr11-ticket-commands.test.ts",
+        "sửa: xem trước cũ → mới, xác nhận thì sửa thẳng + comment dấu vết",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "bot vừa tạo nhầm → 'cái này bổ sung cho TECHTEST-795' → xác nhận: chép sang 795, nối trùng, huỷ bản vừa tạo",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr11-ticket-commands.test.ts",
+        "bot vừa tạo nhầm → 'cái này bổ sung cho TECHTEST-795' → xác nhận: chép sang 795, nối trùng, huỷ bản vừa tạo",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "tin báo trạng thái, ticket đã huỷ, hay lời 'huỷ'/'cảm ơn' → không gợi ý ghi vào ticket",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr11-ticket-commands.test.ts",
+        "tin báo trạng thái, ticket đã huỷ, hay lời 'huỷ'/'cảm ơn' → không gợi ý ghi vào ticket",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "không có câu hỏi kỹ thuật, không nhắc mã → không gọi bộ đọc lệnh",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr11-ticket-commands.test.ts",
+        "không có câu hỏi kỹ thuật, không nhắc mã → không gọi bộ đọc lệnh",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "đang soạn dở tờ khai → câu trả lời cho tờ khai không bị kéo sang ticket kỹ thuật vừa hỏi",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr11-ticket-commands.test.ts",
+        "đang soạn dở tờ khai → câu trả lời cho tờ khai không bị kéo sang ticket kỹ thuật vừa hỏi",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
@@ -752,8 +807,13 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "TECH-1218: người báo gửi ảnh trước rồi gõ 'update vào tick TECHTEST-X' (hoặc ngược lại) → bảo toàn ảnh đính kèm và không ghi câu lệnh trần thành comment",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr11-ticket-commands.test.ts",
+        "TECH-1218: người báo gửi ảnh trước rồi gõ 'update vào tick TECHTEST-X' (hoặc ngược lại) → bảo toàn ảnh đính kèm và không ghi câu lệnh trần thành comment",
+      ),
+    ],
   ),
   // ── lib/intake-step/multi-incident.test.ts (17) ──
   row(
@@ -1050,53 +1110,67 @@ const ROWS: Row[] = [
     ],
   ),
   // ── lib/intake-step/ticket-reply-router.test.ts (14) ──
-  row(
-    "lib/intake-step/ticket-reply-router.test.ts",
-    "nhận các cách viết mã ticket",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
-  ),
+  row("lib/intake-step/ticket-reply-router.test.ts", "nhận các cách viết mã ticket", "ported", [
+    C("intake/engine/text.test.ts", "nhận các cách viết mã ticket"),
+  ]),
   row(
     "lib/intake-step/ticket-reply-router.test.ts",
     "append / edit / lookup chỉ nhận mã trong ứng viên; câu kỹ thuật hỏi vào prompt",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr11-ticket-commands.test.ts",
+        "append / edit / lookup chỉ nhận mã trong ứng viên; câu kỹ thuật hỏi vào prompt",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/ticket-reply-router.test.ts",
     "move_created cần ticket vừa tạo làm nguồn",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [C("intake/engine/pr11-ticket-commands.test.ts", "move_created cần ticket vừa tạo làm nguồn")],
   ),
-  row(
-    "lib/intake-step/ticket-reply-router.test.ts",
-    "planEdit lọc thao tác hợp lệ",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
-  ),
+  row("lib/intake-step/ticket-reply-router.test.ts", "planEdit lọc thao tác hợp lệ", "ported", [
+    C("intake/engine/edit.test.ts", "planEdit lọc thao tác hợp lệ"),
+  ]),
   row(
     "lib/intake-step/ticket-reply-router.test.ts",
     "applyEditOps: sửa dòng có sẵn, thêm dòng mới vào cuối Thông tin sự cố, thay câu mô tả duy nhất",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [
+      C(
+        "intake/engine/edit.test.ts",
+        "applyEditOps: sửa dòng có sẵn, thêm dòng mới vào cuối Thông tin sự cố, thay câu mô tả duy nhất",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/ticket-reply-router.test.ts",
     "descriptionBody lấy phần Mô tả và ảnh",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [C("intake/engine/edit.test.ts", "descriptionBody lấy phần Mô tả và ảnh")],
   ),
   row(
     "lib/intake-step/ticket-reply-router.test.ts",
     "mentionedIdentifiers nhận các kiểu người báo hay gõ (TECH-1001, 30/09)",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [
+      C(
+        "intake/engine/text.test.ts",
+        "mentionedIdentifiers nhận các kiểu người báo hay gõ (TECH-1001, 30/09)",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/ticket-reply-router.test.ts",
     "mentionedIdentifiers hỗ trợ khoá dự án có chữ số mà không khớp nhầm SĐT hay mã khác",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [
+      C(
+        "intake/engine/text.test.ts",
+        "mentionedIdentifiers hỗ trợ khoá dự án có chữ số mà không khớp nhầm SĐT hay mã khác",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/ticket-reply-router.test.ts",
@@ -1131,8 +1205,13 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/ticket-reply-router.test.ts",
     "bóc vỏ câu lệnh bổ sung / đính kèm trần (TECH-1218: 'update vào tick TECH-1218') để không ghi câu lệnh thành comment",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [
+      C(
+        "intake/engine/text.test.ts",
+        "bóc vỏ câu lệnh bổ sung / đính kèm trần (TECH-1218: 'update vào tick TECH-1218') để không ghi câu lệnh thành comment",
+      ),
+    ],
   ),
   // ── lib/intake-step/noop-guard.test.ts (6) ──
   row(
@@ -2222,8 +2301,13 @@ const ROWS: Row[] = [
   row(
     "mcp/shared/tools/confirmation-and-binding.test.ts",
     "update_issue: báo updated=false khi cả ghi mô tả lẫn comment đều lỗi, không được báo thành công giả",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr11-ticket-commands.test.ts",
+        "update_issue: báo updated=false khi cả ghi mô tả lẫn comment đều lỗi, không được báo thành công giả",
+      ),
+    ],
   ),
   row(
     "mcp/shared/tools/confirmation-and-binding.test.ts",
@@ -2265,38 +2349,63 @@ const ROWS: Row[] = [
   row(
     "mcp/shared/tools/own-tickets-confirm.test.ts",
     "tra yêu cầu của người khác → không kể gì (kể cả tiêu đề)",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [
+      C(
+        "intake/engine/ownership-confirm.test.ts",
+        "tra yêu cầu của người khác → không kể gì (kể cả tiêu đề)",
+      ),
+    ],
   ),
   row(
     "mcp/shared/tools/own-tickets-confirm.test.ts",
     "tra yêu cầu của mình → đủ tin, trạng thái PO kèm lời giải thích",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [
+      C(
+        "intake/engine/ownership-confirm.test.ts",
+        "tra yêu cầu của mình → đủ tin, trạng thái PO kèm lời giải thích",
+      ),
+    ],
   ),
   row(
     "mcp/shared/tools/own-tickets-confirm.test.ts",
     "không truyền chatId thì không chứng minh được là của mình → từ chối",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [
+      C(
+        "intake/engine/ownership-confirm.test.ts",
+        "không truyền chatId thì không chứng minh được là của mình → từ chối",
+      ),
+    ],
   ),
   row(
     "mcp/shared/tools/own-tickets-confirm.test.ts",
     "bổ sung vào yêu cầu người khác → từ chối, không xem trước, không ghi",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [
+      C(
+        "intake/engine/ownership-confirm.test.ts",
+        "bổ sung vào yêu cầu người khác → từ chối, không xem trước, không ghi",
+      ),
+    ],
   ),
   row(
     "mcp/shared/tools/own-tickets-confirm.test.ts",
     "bổ sung: lần đầu chỉ xem trước (chưa ghi); bấm xác nhận mới ghi đúng bản đã xem",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [
+      C(
+        "intake/engine/ownership-confirm.test.ts",
+        "bổ sung: lần đầu chỉ xem trước (chưa ghi); bấm xác nhận mới ghi đúng bản đã xem",
+      ),
+    ],
   ),
   row(
     "mcp/shared/tools/own-tickets-confirm.test.ts",
     "bấm Huỷ → không ghi, bản chờ bị xoá",
-    "deferred",
-    "Chờ port ở PR 11 (lệnh nhắm vào ticket đã có)",
+    "ported",
+    [C("intake/engine/ownership-confirm.test.ts", "bấm Huỷ → không ghi, bản chờ bị xoá")],
   ),
   // ── mcp/shared/tools/create-issue.intake-dedupe.test.ts (5) ──
   row(
