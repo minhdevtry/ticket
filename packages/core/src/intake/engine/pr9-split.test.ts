@@ -536,4 +536,69 @@ app gia sư vui học`;
     expect(raw).toContain("App Duo bị lỗi đăng nhập");
     expect(raw).toContain("nhờ tech kiểm tra giúp");
   });
+
+  it("khẳng định chuỗi copy split.question* và split.next_ticket_notice* giữ nguyên từng byte tiếng Việt cũ", () => {
+    const copy = makeCopyCatalog(tieuLinhCopy);
+
+    // 1. split.question (có summary tên/mã)
+    const qWithNames = copy.text("split.question", {
+      count: 2,
+      summary: "Lê Văn Anh C, Trần Thị B",
+    });
+    expect(qWithNames).toBe(
+      "Dạ em thấy tin nhắn có 2 học sinh/sự cố khác nhau (Lê Văn Anh C, Trần Thị B) — em tách 2 ticket nhé?",
+    );
+
+    // 2. split.question_no_names (không có tên/mã thô)
+    const qNoNames = copy.text("split.question_no_names", { count: 2 });
+    expect(qNoNames).toBe(
+      "Dạ em thấy tin nhắn có 2 học sinh/sự cố khác nhau (2 sự cố) — em tách 2 ticket nhé?",
+    );
+
+    // 3. split.next_ticket_notice_student (có tên học sinh)
+    const nextWithStudent = copy.text("split.next_ticket_notice_student", {
+      identifier: "TECH-100",
+      studentName: "Trần Thị B",
+    });
+    expect(nextWithStudent).toBe(
+      "Bây giờ em tiếp tục tạo ticket cho sự cố tiếp theo (học sinh Trần Thị B) nhé ạ!",
+    );
+
+    // 4. split.next_ticket_notice (không có tên học sinh)
+    const nextNoStudent = copy.text("split.next_ticket_notice", {
+      identifier: "TECH-100",
+    });
+    expect(nextNoStudent).toBe("Bây giờ em tiếp tục tạo ticket cho sự cố tiếp theo nhé ạ!");
+  });
+
+  it("pipeline: thông báo tiếp theo chọn đúng khoá khi khối kế tiếp không có studentName", async () => {
+    const NO_NAME_SECOND_BLOCK = `**Lê Văn Anh C**
+Code: 9100002
+Mã học sinh: 900103
+Lỗi buổi học
+Quản lý lớp
+
+Code: 9100003
+Mã học sinh: 900104
+Lỗi tài khoản không đăng nhập được
+Quản lý lớp`;
+
+    const asked = await pipeline.run({
+      chatId: "chat-no-student-2",
+      message: NO_NAME_SECOND_BLOCK,
+    });
+    expect(asked.action).toBe("ask_split_or_merge");
+
+    const split = await pipeline.run({ chatId: "chat-no-student-2", message: "Tách 2 ticket" });
+    expect(split.action).toBe("confirm_summary");
+
+    clockRef.now += MIN_CONFIRM_DELAY_MS + 1000;
+    const created = await pipeline.run({ chatId: "chat-no-student-2", message: "đúng rồi" });
+    expect(created.action).toBe("ticket_created");
+    // Khối thứ hai không có studentName -> thông báo tiếp theo dùng split.next_ticket_notice (không chứa "học sinh")
+    expect(created.voiceText).toContain(
+      "Bây giờ em tiếp tục tạo ticket cho sự cố tiếp theo nhé ạ!",
+    );
+    expect(created.voiceText).not.toContain("học sinh");
+  });
 });

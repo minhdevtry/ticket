@@ -83,8 +83,12 @@ export function splitMultiIncidentReport(text: string): SplitBlock[] | null {
   if (validBlocks.length < 2) return null;
 
   // Chỉ tách khi có ≥ 2 giá trị CÙNG LỚP khác nhau (Bug 9: không so `!== undefined`)
-  const customers = new Set(validBlocks.map((b) => b.customerId).filter(Boolean) as string[]);
-  const students = new Set(validBlocks.map((b) => b.studentAccount).filter(Boolean) as string[]);
+  const customers = new Set(
+    validBlocks.map((b) => b.customerId).filter((id): id is string => Boolean(id)),
+  );
+  const students = new Set(
+    validBlocks.map((b) => b.studentAccount).filter((acc): acc is string => Boolean(acc)),
+  );
   if (customers.size >= 2 || students.size >= 2) {
     return validBlocks;
   }

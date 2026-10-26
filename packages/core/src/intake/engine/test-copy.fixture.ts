@@ -63,8 +63,11 @@ export const TEST_COPY: Record<CopyKey, string> = {
   "priority.level.urgent": "Urgent",
   // PR 9
   "split.question": "There are {count} incidents ({summary}) — split into {count} tickets?",
+  "split.question_no_names": "There are {count} incidents — split into {count} tickets?",
   "split.unclear_prefix": "I did not understand your reply — the report is preserved. ",
-  "split.next_ticket_notice": "Now creating ticket for the next incident{student}:",
+  "split.next_ticket_notice": "Now creating ticket for the next incident:",
+  "split.next_ticket_notice_student":
+    "Now creating ticket for the next incident (student {studentName}):",
   "button.split_n": "Split {count} tickets",
   "button.merge_one": "Keep 1 ticket",
   "media.ambiguous_notice": "*(Images shared across multiple split tickets)*",

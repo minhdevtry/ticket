@@ -86,8 +86,12 @@ export const tieuLinhCopy: Record<CopyKey, string> = {
   // ── PR 9: tách báo cáo nhiều sự cố (RFC 0002 §1.5 B7) ─────────────────────
   "split.question":
     "Dạ em thấy tin nhắn có {count} học sinh/sự cố khác nhau ({summary}) — em tách {count} ticket nhé?",
+  "split.question_no_names":
+    "Dạ em thấy tin nhắn có {count} học sinh/sự cố khác nhau ({count} sự cố) — em tách {count} ticket nhé?",
   "split.unclear_prefix": "Dạ em chưa rõ ý anh/chị ạ — nội dung báo cáo em vẫn giữ nguyên. ",
-  "split.next_ticket_notice": "Bây giờ em tiếp tục tạo ticket cho sự cố tiếp theo{student} nhé ạ!",
+  "split.next_ticket_notice": "Bây giờ em tiếp tục tạo ticket cho sự cố tiếp theo nhé ạ!",
+  "split.next_ticket_notice_student":
+    "Bây giờ em tiếp tục tạo ticket cho sự cố tiếp theo (học sinh {studentName}) nhé ạ!",
   "button.split_n": "Tách {count} ticket",
   "button.merge_one": "Gộp 1 ticket",
   "media.ambiguous_notice": "*(Ảnh đính kèm chung cho các sự cố trong cùng lượt báo)*",

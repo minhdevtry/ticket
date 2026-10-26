@@ -43,7 +43,7 @@ import type { DraftRepository } from "../draft/repository";
 import { isExpiredDraft, INTAKE_DRAFT_TTL_MS } from "../draft/repository";
 import type { IntakeDraft, SplitBlock } from "../draft/types";
 import { newDraft, CLOSED_STATUSES } from "../draft/types";
-import { splitMultiIncidentReport } from "../split/split";
+import { splitMultiIncidentReport, classifySplitReply } from "../split";
 import { legacyActionForOutcome } from "./action-map";
 import { createTicket, type CreateTicketDeps } from "../create/create-ticket";
 import type { ConfirmOptions } from "../confirm/protocol";
@@ -658,11 +658,14 @@ export class IntakeEngine {
             { skipConflictCheck: true },
           );
 
-          const student = nextBlock.studentName ? ` (học sinh ${nextBlock.studentName})` : "";
-          const voiceNotice = deps.copy.text("split.next_ticket_notice", {
-            identifier: result.issue.identifier,
-            student,
-          });
+          const voiceNotice = nextBlock.studentName
+            ? deps.copy.text("split.next_ticket_notice_student", {
+                identifier: result.issue.identifier,
+                studentName: nextBlock.studentName,
+              })
+            : deps.copy.text("split.next_ticket_notice", {
+                identifier: result.issue.identifier,
+              });
 
           const latestNextDoc = deps.drafts.getByDocId(nextDoc.docId) ?? nextDoc;
           const out: StepOutput = {
@@ -926,13 +929,20 @@ export class IntakeEngine {
 
   private splitQuestionOutput(draft: IntakeDraft, blocks: SplitBlock[], prefix = ""): StepOutput {
     const { deps } = this;
-    const names = blocks.map((b) => b.studentName || b.customerId || "sự cố").filter(Boolean);
-    const namesSummary = names.length > 0 ? names.join(", ") : `${blocks.length} sự cố`;
+    const names = blocks
+      .map((b) => b.studentName || b.customerId)
+      .filter((name): name is string => Boolean(name));
     const count = blocks.length;
-    const questionText = `${prefix}${deps.copy.text("split.question", {
-      count,
-      summary: namesSummary,
-    })}`;
+    const questionText = `${prefix}${
+      names.length > 0
+        ? deps.copy.text("split.question", {
+            count,
+            summary: names.join(", "),
+          })
+        : deps.copy.text("split.question_no_names", {
+            count,
+          })
+    }`;
     const splitLabel = deps.copy.text("button.split_n", { count });
     const mergeLabel = deps.copy.text("button.merge_one");
     return {
@@ -963,28 +973,9 @@ export class IntakeEngine {
     if (!buffered) {
       return { outcome: "clarify", messages: [] };
     }
-    const reply = message.trim().toLowerCase();
+    const decision = classifySplitReply(message);
 
-    const negated = /(?:^|[^\p{L}])(?:không|ko|k|chẳng|chưa|đừng|khỏi|thôi)(?:$|[^\p{L}])/u.test(
-      reply,
-    );
-    const saysStopSplit = /^(?:thôi|khỏi)(?:\s+(?:ạ|a|nha|nhé|vậy|đi|thôi|khỏi|luôn))*$/u.test(
-      reply,
-    );
-    const saysSplit = !negated && /(?:^|[^\p{L}])tách(?:$|[^\p{L}])/u.test(reply);
-    const agreesToSplit =
-      saysSplit ||
-      (!negated &&
-        /^(?:đúng rồi|ok|oke|okay|ừ|vâng|dạ|chuẩn|tạo đi|yes|đồng ý|đúng)$/u.test(reply));
-    const agreesToMerge =
-      !saysSplit &&
-      (saysStopSplit ||
-        /(?:^|[^\p{L}])gộp(?:$|[^\p{L}])/u.test(reply) ||
-        /để chung|chung 1 ticket|một ticket|1 ticket/u.test(reply) ||
-        (negated && /(?:^|[^\p{L}])tách(?:$|[^\p{L}])/u.test(reply)) ||
-        /^(?:không|ko|k|no)$/u.test(reply));
-
-    if (agreesToSplit) {
+    if (decision === "split") {
       const [firstBlock, ...restBlocks] = buffered.blocks;
       const sharedMedia = Array.from(new Set([...buffered.mediaPaths, ...mediaPaths]));
       const ambiguous = sharedMedia.length > 0 && buffered.blocks.length > 1;
@@ -1010,7 +1001,7 @@ export class IntakeEngine {
       });
     }
 
-    if (agreesToMerge) {
+    if (decision === "merge") {
       return this.mergeParkedSplit(
         draft,
         input,
