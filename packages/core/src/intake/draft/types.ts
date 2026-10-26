@@ -151,8 +151,6 @@ export interface IntakeDraft {
   techReviewDone?: boolean;
   /** Câu hỏi dữ kiện kỹ thuật vừa hỏi — tin kế tiếp là câu trả lời. */
   techQuestion?: string;
-  /** Bộ phận người báo nêu nhưng ngoài danh mục đóng. */
-  unrecognizedDept?: string;
   /** Báo cáo nhiều sự cố đang chờ chọn "tách" hay "gộp 1 ticket" (W29-SPLIT). */
   pendingSplit?: PendingSplit;
   /** Các khối sự cố chờ tạo lần lượt sau khi sự cố hiện tại tạo xong. */

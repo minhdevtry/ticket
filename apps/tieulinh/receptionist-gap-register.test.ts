@@ -3401,12 +3401,6 @@ const FILE_ROWS: FileRow[] = [
     "deferred",
     "Tri thức KG/Onyx/Memgraph, ngoài chuỗi di trú (RFC 0002 mục 7, ADR-0007); RFC riêng sau",
   ),
-  fileRow(
-    "scripts/golden/record.test.ts",
-    "core",
-    "bản ghi vàng đã có ở testing của core (RFC 0002 PR 2)",
-    "testing/golden.test.ts",
-  ),
 ];
 
 function walk(dir: string, out: string[] = []): string[] {

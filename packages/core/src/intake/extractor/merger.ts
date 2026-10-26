@@ -14,11 +14,10 @@
 import type { ExtractedFields } from "../ports";
 import { IDENTIFIER_KEYS, type IdentifierKey } from "../ports";
 import { isInvalidTitle } from "./heuristics";
+import { MAX_RAW_TEXT_CHARS, MAX_RAW_TEXT_TOTAL_CHARS } from "../raw-text";
 
 export const MAX_SYMPTOM_CHARS = 1500;
 export const MAX_SYMPTOMS = 30;
-export const MAX_RAW_TEXT_CHARS = 4000;
-export const MAX_RAW_TEXT_TOTAL_CHARS = 8000;
 
 function cap(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max)}...` : text;
