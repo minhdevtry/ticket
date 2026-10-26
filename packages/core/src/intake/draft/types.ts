@@ -11,6 +11,7 @@
  * `issueCreatedAt`.
  */
 import type { Priority } from "../ports";
+import { DRAFT_VERSION } from "./version";
 
 export type DraftStatus =
   | "collecting"
@@ -41,11 +42,45 @@ export interface DraftTicket {
   mediaPaths: string[];
 }
 
+/** Một khối sự cố trong báo cáo nhiều người (tách/gộp — W29-SPLIT). */
+export interface SplitBlock {
+  text: string;
+  studentName?: string;
+  customerId?: string;
+  studentAccount?: string;
+  reportingDept?: string;
+  title?: string;
+  mediaPaths?: string[];
+}
+
+/** Tin đang chờ người báo chọn "sự cố mới" hay "bổ sung" (định danh xung đột). */
+export interface PendingNewIncident {
+  message: string;
+  mediaPaths: string[];
+  askedAt: string;
+}
+
+/** Báo cáo nhiều sự cố đang chờ người báo chọn "tách" hay "gộp 1 ticket". */
+export interface PendingSplit {
+  blocks: SplitBlock[];
+  mediaPaths: string[];
+  askedAt: string;
+  /** Chữ của những tin CHƯA RÕ Ý ở câu hỏi tách — không bao giờ bị đánh rơi. */
+  extraText?: string[];
+  /** Số lần đã hỏi lại câu tách vì câu trả lời chưa rõ ý (tối đa 1). */
+  clarifyCount?: number;
+}
+
 export interface IntakeDraft {
   docId: string;
   chatId: string;
   revision: number;
   status: DraftStatus;
+  /**
+   * Phiên bản HÌNH DẠNG tờ khai (2 = đủ trường hội thoại). Bản cũ không có
+   * trường này nên mặc định là 1; khi đọc, `migrateDraft` nâng lên bản hiện hành.
+   */
+  version?: number;
   ticket: DraftTicket;
   reporter?: { name?: string; username?: string; nameCode?: string };
 
@@ -97,6 +132,37 @@ export interface IntakeDraft {
   /** The held message/fields that triggered a park, replayed if "new incident". */
   parkedPayload?: { text: string; mediaPaths: string[] };
 
+  // ── draft v2 (RFC 0002 PR 4): trạng thái hội thoại mà legacy giữ ──────────
+  /**
+   * Trường vừa hỏi ở lượt trước — để biết câu "không biết" là trả lời cho
+   * trường nào (A13).
+   */
+  lastAskedFields?: string[];
+  /**
+   * Người báo xin mức ưu tiên kèm lý do (quyết định 29/09): có lý do thì cho
+   * đúng mức xin, không hạ mức bằng chứng.
+   */
+  requestedPriority?: { level: "high" | "urgent"; reason?: string };
+  /** Đã soát tờ khai bằng cổng dữ kiện kỹ thuật (chỉ một lần). */
+  techReviewDone?: boolean;
+  /** Câu hỏi dữ kiện kỹ thuật vừa hỏi — tin kế tiếp là câu trả lời. */
+  techQuestion?: string;
+  /** Bộ phận người báo nêu nhưng ngoài danh mục đóng. */
+  unrecognizedDept?: string;
+  /** Báo cáo nhiều sự cố đang chờ chọn "tách" hay "gộp 1 ticket" (W29-SPLIT). */
+  pendingSplit?: PendingSplit;
+  /** Các khối sự cố chờ tạo lần lượt sau khi sự cố hiện tại tạo xong. */
+  pendingSplitQueue?: SplitBlock[];
+  /** Ảnh đính kèm chung cho nhiều sự cố — mô tả phải nói rõ (W29-SPLIT). */
+  mediaAmbiguous?: boolean;
+  /** Tin đang chờ chọn "sự cố mới" hay "bổ sung" (định danh xung đột). */
+  pendingNewIncident?: PendingNewIncident;
+  /**
+   * Dấu của VIỆC NỀN (tra ticket tương tự, KG…) — để không chạy lặp lại cho
+   * cùng một tờ khai.
+   */
+  backgroundWork?: { kind: string; startedAt: string; finishedAt?: string };
+
   createdAt: string;
   updatedAt: string;
 }
@@ -108,6 +174,7 @@ export function newDraft(docId: string, chatId: string, nowIso: string): IntakeD
     chatId,
     revision: 1,
     status: "collecting",
+    version: DRAFT_VERSION,
     ticket: { title: "", rawText: "", priority: "medium", mediaPaths: [] },
     createdAt: nowIso,
     updatedAt: nowIso,

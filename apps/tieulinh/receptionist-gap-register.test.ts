@@ -113,14 +113,25 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "'ok' khi tài liệu chưa từng được tóm tắt không tạo ticket",
-    "core",
-    [C("intake/create/create-ticket.test.ts", "confirm before a summary was shown cannot create")],
+    "ported",
+    [
+      C(
+        "intake/engine/legacy-flows.test.ts",
+        "'ok' khi tài liệu chưa từng được tóm tắt không tạo ticket",
+      ),
+      C("intake/create/create-ticket.test.ts", "confirm before a summary was shown cannot create"),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "'không vào được lớp' không huỷ tài liệu (không LLM)",
-    "deferred",
-    "Chờ port ở PR 4 (draft v2 và chuẩn hoá đầu vào)",
+    "ported",
+    [
+      C(
+        "intake/engine/legacy-flows.test.ts",
+        "'không vào được lớp' không huỷ tài liệu (không LLM)",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
@@ -131,8 +142,13 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "'không biết' được ghi vào explicitlyMissing và bot thôi hỏi trường đó",
-    "deferred",
-    "Chờ port ở PR 4 (draft v2 và chuẩn hoá đầu vào)",
+    "ported",
+    [
+      C(
+        "intake/engine/legacy-flows.test.ts",
+        "'không biết' được ghi vào explicitlyMissing và bot thôi hỏi trường đó",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
@@ -185,7 +201,7 @@ const ROWS: Row[] = [
     "lib/intake-step/pipeline.flow.test.ts",
     "tin chỉ có ảnh không làm sập, ảnh được gắn vào tài liệu rồi tải lên ticket",
     "deferred",
-    "Chờ port ở PR 4 (draft v2 và chuẩn hoá đầu vào)",
+    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket): gắn ảnh vào ticket (J1)",
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
@@ -201,8 +217,12 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "xác nhận lần hai: không tạo thêm, không comment rác",
-    "core",
+    "ported",
     [
+      C(
+        "intake/engine/legacy-flows.test.ts",
+        "xác nhận lần hai: không tạo thêm, không comment rác",
+      ),
       C(
         "intake/engine/engine.test.ts",
         "idempotent create: a second confirm returns the same ticket, never a duplicate",
@@ -334,8 +354,12 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "phong bì kênh (Conversation info / Sender / context) không lọt vào mô tả ticket",
-    "core",
+    "ported",
     [
+      C(
+        "intake/engine/legacy-flows.test.ts",
+        "phong bì kênh (Conversation info / Sender / context) không lọt vào mô tả ticket",
+      ),
       C(
         "intake/engine/engine.test.ts",
         "channel envelope never enters the ticket description (TECH-924)",
@@ -345,11 +369,12 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "tin nhắn rất dài không thổi phồng mô tả ticket",
-    "core",
+    "ported",
     [
+      C("intake/engine/legacy-flows.test.ts", "tin nhắn rất dài không thổi phồng mô tả ticket"),
       C(
         "intake/engine/engine.test.ts",
-        "description cap: a huge paste is truncated to MAX_DESCRIPTION_CHARS",
+        "rawText cap: a huge paste is truncated to MAX_RAW_TEXT_CHARS (4.000, trần của legacy)",
       ),
     ],
   ),
@@ -871,38 +896,67 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/noop-guard.test.ts",
     "1. Tin noop độc lập: bị bỏ qua, KHÔNG tạo tờ khai trong DB, KHÔNG tạo ticket",
-    "deferred",
-    "Chờ port ở PR 4 (draft v2 và chuẩn hoá đầu vào)",
+    "ported",
+    [
+      C(
+        "intake/engine/noop-guard.test.ts",
+        "1. Tin noop độc lập: bị bỏ qua, KHÔNG tạo tờ khai, KHÔNG tạo ticket",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/noop-guard.test.ts",
     "2. Tin callback_data: noop khi chưa có tờ khai: bị bỏ qua, không tạo tờ khai trong DB",
-    "deferred",
-    "Chờ port ở PR 4 (draft v2 và chuẩn hoá đầu vào)",
+    "ported",
+    [
+      C(
+        "intake/engine/noop-guard.test.ts",
+        "2. Tin callback_data: noop khi chưa có tờ khai: bị bỏ qua, không tạo tờ khai",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/noop-guard.test.ts",
     "3. Mô phỏng đúng chuỗi sự cố TECH-1148: sau khi tạo ticket, bấm nhầm nút noop không làm mở ticket noop mới",
-    "deferred",
-    "Chờ port ở PR 4 (draft v2 và chuẩn hoá đầu vào)",
+    "ported",
+    [
+      C(
+        "intake/engine/noop-guard.test.ts",
+        "3. Sau khi tạo ticket, bấm nhầm nút noop không mở ticket noop mới",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/noop-guard.test.ts",
     "4. Tin noop trong khi đang thu thập thông tin (collecting): không làm ô nhiễm title hay rawText",
-    "deferred",
-    "Chờ port ở PR 4 (draft v2 và chuẩn hoá đầu vào)",
+    "ported",
+    [
+      C(
+        "intake/engine/noop-guard.test.ts",
+        "4. Tin noop trong khi đang thu thập: không làm ô nhiễm title hay rawText",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/noop-guard.test.ts",
     "5. Hàng rào tạo ticket: từ chối tạo ticket khi title hoặc description rỗng hoặc chỉ là noop",
-    "deferred",
-    "Chờ port ở PR 4 (draft v2 và chuẩn hoá đầu vào)",
+    "ported",
+    [
+      C(
+        "intake/engine/noop-guard.test.ts",
+        "5. Hàng rào tạo ticket: từ chối khi tiêu đề hoặc mô tả chỉ là token nội bộ (noop)",
+      ),
+      C(
+        "intake/engine/noop-guard.test.ts",
+        "6. Hàng rào tạo ticket: tờ khai trống (tiêu đề và mô tả rỗng) cũng không tạo ticket",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/noop-guard.test.ts",
     "6. create_issue tool: từ chối tạo ticket khi title hoặc description chỉ là noop",
     "deferred",
-    "Chờ port ở PR 4 (draft v2 và chuẩn hoá đầu vào)",
+    "Chưa port: legacy gọi tool MCP `create_issue` (một cửa vào riêng); core chưa có tool MCP của lễ tân — chờ PR 15 (pack MCP) và PR 16 (adapter OpenClaw). Hàng rào tương đương đã có ở đường tạo ticket của core (`intake/create/create-ticket.ts`), xem ca 5",
   ),
   // ── lib/intake-step/extractor.test.ts (2) ──
   row(
@@ -1496,58 +1550,48 @@ const ROWS: Row[] = [
   row(
     "lib/intake-document/repository.test.ts",
     "lưu và đọc revision mới nhất theo chatId",
-    "core",
-    [
-      C(
-        "intake/draft/repository.test.ts",
-        "getLatestByChatId orders by write time, not revision number",
-      ),
-    ],
+    "ported",
+    [C("intake/draft/version.test.ts", "lưu và đọc revision mới nhất theo chatId")],
   ),
   row(
     "lib/intake-document/repository.test.ts",
     "migrate bản nháp từ intake_sessions thành công",
     "deferred",
-    "Chờ port ở PR 4 (draft v2 và chuẩn hoá đầu vào): migrate draft cũ",
+    "Chưa port: legacy đọc bảng `intake_sessions` và chuẩn hoá nhãn 15→9 giá trị; core chỉ nâng phiên bản tờ khai đọc từ `intake_documents` (`intake/draft/version.test.ts`) — KHÁC legacy. Chờ port ở PR 3 (kho lưu tương thích kho legacy)",
   ),
   row(
     "lib/intake-document/repository.test.ts",
     "tài liệu mới (revision thấp) thắng tài liệu cũ đã huỷ (revision cao)",
-    "core",
+    "ported",
     [
       C(
-        "intake/draft/repository.test.ts",
-        "getLatestByChatId orders by write time, not revision number",
+        "intake/draft/version.test.ts",
+        "tài liệu mới (revision thấp) thắng tài liệu cũ đã huỷ (revision cao)",
       ),
     ],
   ),
   row(
     "lib/intake-document/repository.test.ts",
     "tryInsertRevision chỉ cho một bên giành được cùng một revision",
-    "core",
+    "ported",
     [
       C(
-        "intake/draft/repository.test.ts",
-        "tryInsertRevision is a one-winner compare-and-set on (docId, revision)",
+        "intake/draft/version.test.ts",
+        "tryInsertRevision chỉ cho một bên giành được cùng một revision",
       ),
     ],
   ),
   row(
     "lib/intake-document/repository.test.ts",
     "chatId dạng 'telegram:123' và '123' là cùng một phiên",
-    "core",
-    [
-      C(
-        "intake/draft/repository.test.ts",
-        "chat id variants collapse telegram-prefixed and bare numeric ids",
-      ),
-    ],
+    "ported",
+    [C("intake/draft/version.test.ts", "chatId dạng 'telegram:123' và '123' là cùng một phiên")],
   ),
   row(
     "lib/intake-document/repository.test.ts",
     "bỏ qua bản nháp legacy quá hạn khi migrate",
     "deferred",
-    "Chờ port ở PR 4 (draft v2 và chuẩn hoá đầu vào): migrate draft cũ",
+    "Chưa port: legacy trả `null` (không đọc được bản nháp quá hạn); core đọc được rồi mới đo tuổi theo `INTAKE_DRAFT_TTL_MS` và đóng tờ khai ở tầng engine (`intake/engine/engine.test.ts`) — KHÁC legacy ở tầng kho. Chờ port ở PR 3 (kho lưu tương thích kho legacy)",
   ),
   // ── lib/storage/binding-repository.test.ts (7) ──
   row(
@@ -1714,7 +1758,7 @@ const ROWS: Row[] = [
     "mcp/shared/tools/confirmation-and-binding.test.ts",
     "check_identity: trả về pendingDraft khi có bản nháp ticket đang gom dở",
     "deferred",
-    "Chờ port ở PR 4 (draft v2 và chuẩn hoá đầu vào): pendingDraft đọc từ draft v2",
+    "Chờ port ở PR 15 (pack MCP và skill lễ tân): `check_identity` trả `pendingDraft` đọc từ draft v2",
   ),
   row(
     "mcp/shared/tools/confirmation-and-binding.test.ts",
@@ -1916,7 +1960,7 @@ const ROWS: Row[] = [
     "mcp/shared/tools/validate-fields.parity.test.ts",
     "SQLite persistence: đọc reporting_dept đã lưu & ghi nhận khi có reporting_dept hợp lệ",
     "deferred",
-    "Chờ port ở PR 4 (draft v2 và chuẩn hoá đầu vào): nhớ bộ phận đã lưu",
+    "Chờ port ở PR 7 (hỏi bổ sung theo luật): ghi nhớ bộ phận đã lưu, bộ phận ngoài danh mục (A5)",
   ),
   row(
     "mcp/shared/tools/validate-fields.parity.test.ts",
@@ -3068,6 +3112,12 @@ const FILE_ROWS: FileRow[] = [
     "telegram/reporter-inbound.test.ts",
   ),
   fileRow("worker/llm.test.ts", "core", "client LLM đã ở core", "llm/client.test.ts"),
+  fileRow(
+    "scripts/golden/record.test.ts",
+    "core",
+    "script ghi bản ghi vàng của lễ tân legacy đã có bản tương đương ở core (PR 2)",
+    "testing/golden.test.ts",
+  ),
   fileRow(
     "lib/telegram/alert.test.ts",
     "deferred",

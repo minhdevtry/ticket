@@ -45,7 +45,7 @@ Mỗi file `packages/core/golden/intake/<kịch-bản>.json` là một `GoldenFi
 
 | Trường | So |
 |---|---|
-| `action` | `StepOutcome` của engine đổi sang `action` legacy bằng bảng `LEGACY_ACTION_OF_OUTCOME` (bảng tạm theo RFC 0002 mục 2.3; hàm ánh xạ chính thức vào ở PR 4). Kết quả không có trong bảng (`chitchat`, `needs_resend`) giữ nguyên tên nên lệch hiện rõ |
+| `action` | `StepOutcome` của engine đổi sang `action` legacy bằng bảng chính thức của RFC 0002 mục 2.3 (`legacyActionForOutcome` ở `@vuihoc/bot-core/intake`, xem [engine lễ tân](/reference/intake-engine)). Kết quả không có trong bảng (`chitchat`, `needs_resend`) giữ nguyên tên nên lệch hiện rõ |
 | `voiceText` | Bằng nhau từng chữ sau `normalizeVoiceText` |
 | `buttons` | Bằng nhau từng nút (`text` và `callbackData`), hoặc cùng là `null` |
 

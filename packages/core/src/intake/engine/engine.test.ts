@@ -9,18 +9,9 @@
  * `pipeline.test.ts`, `confirmation-and-binding.test.ts`,
  * `ticket-reply-router.test.ts`, `identifier-grounding.test.ts`.
  */
-import { Database } from "bun:sqlite";
 import { beforeEach, describe, expect, test } from "bun:test";
-import { intakeApplySchema, SqliteDraftRepository, type DraftRepository } from "../draft";
-import { SqliteChannelBindingStore } from "../create";
-import { makeCopyCatalog } from "../copy-catalog";
 import { MIN_CONFIRM_DELAY_MS } from "../confirm";
 import type {
-  Clock,
-  CreateIssueInput,
-  ExtractedFields,
-  ExtractInput,
-  FieldExtractorPort,
   TechReviewerPort,
   TicketActionExecutorPort,
   TicketActionResult,
@@ -29,110 +20,13 @@ import type {
   TicketCommand,
   TicketCommandInput,
   OwnershipPort,
-  TrackerIssue,
-  TrackerPort,
 } from "../ports";
-import { IntakeEngine, type IntakeEngineDeps } from "./engine";
-import { TEST_COPY } from "./test-copy.fixture";
-import { engineTestCatalog } from "./catalog.fixture";
-import type { UrgencyRules } from "../priority";
+import { CHAT, makeHarness, report } from "./engine-harness.fixture";
+import type { Harness } from "./engine-harness.fixture";
+import { MAX_RAW_TEXT_CHARS } from "./engine";
 import type { StepInput } from "./types";
 
-// ── fakes ────────────────────────────────────────────────────────────────────
-
-class FakeClock implements Clock {
-  constructor(private t = 1_000_000) {}
-  now() {
-    return this.t;
-  }
-  advance(ms: number) {
-    this.t += ms;
-  }
-}
-
-class FakeTracker implements TrackerPort {
-  created: CreateIssueInput[] = [];
-  private seq = 0;
-  async createIssue(input: CreateIssueInput): Promise<TrackerIssue> {
-    this.created.push(input);
-    const n = ++this.seq;
-    return { id: 1000 + n, identifier: `TECH-${n}`, title: input.title, url: `https://t/${n}` };
-  }
-  async getIssue(id: number) {
-    return { id, identifier: `TECH-${id - 1000}`, title: "x" };
-  }
-  async addComment() {}
-  async attach(_i: number, _d: string, m: string[]) {
-    return m.length;
-  }
-  async findByIdentifier() {
-    return null;
-  }
-}
-
-/** Scripted extractor: returns the queued result for each call, in order. */
-class ScriptedExtractor implements FieldExtractorPort {
-  private queue: ExtractedFields[] = [];
-  calls: ExtractInput[] = [];
-  push(...fields: ExtractedFields[]) {
-    this.queue.push(...fields);
-    return this;
-  }
-  async extract(input: ExtractInput): Promise<ExtractedFields> {
-    this.calls.push(input);
-    return this.queue.shift() ?? { userIntent: "chitchat" };
-  }
-}
-
-const URGENCY: UrgencyRules = {
-  levels: ["Low", "Medium", "High", "Urgent"],
-  floors: [{ when: { blocksPayment: true }, minLevel: "Urgent", reason: "payment blocked" }],
-  ceilings: [],
-};
-
 // ── harness ───────────────────────────────────────────────────────────────────
-
-interface Harness {
-  engine: IntakeEngine;
-  clock: FakeClock;
-  tracker: FakeTracker;
-  extractor: ScriptedExtractor;
-  drafts: DraftRepository;
-  bindings: SqliteChannelBindingStore;
-  deps: IntakeEngineDeps;
-}
-
-function makeHarness(overrides: Partial<IntakeEngineDeps> = {}): Harness {
-  const db = new Database(":memory:");
-  intakeApplySchema(db);
-  const clock = new FakeClock();
-  const tracker = new FakeTracker();
-  const extractor = new ScriptedExtractor();
-  const drafts = new SqliteDraftRepository(db);
-  const bindings = new SqliteChannelBindingStore(db);
-  let idCounter = 0;
-  const deps: IntakeEngineDeps = {
-    tracker,
-    drafts,
-    bindings,
-    copy: makeCopyCatalog(TEST_COPY),
-    clock,
-    extractor,
-    catalog: engineTestCatalog,
-    variant: "tech",
-    urgencyRules: URGENCY,
-    identifierPrefix: "TECH",
-    genDocId: () => `doc-${++idCounter}`,
-    ...overrides,
-  };
-  return { engine: new IntakeEngine(deps), clock, tracker, extractor, drafts, bindings, deps };
-}
-
-const CHAT = "telegram:555";
-
-function report(symptoms: string[], extra: Partial<ExtractedFields> = {}): ExtractedFields {
-  return { userIntent: "report_issue", symptoms, title: symptoms[0], ...extra };
-}
 
 async function driveToSummary(h: Harness, text = "login is broken"): Promise<void> {
   h.extractor.push(report(["login is broken"], { values: { van_de: "login is broken" } }));
@@ -207,12 +101,14 @@ describe("IntakeEngine.step — collection → summary → create", () => {
     expect(h.extractor.calls[0].text).toContain("the app crashes on open");
   });
 
-  test("description cap: a huge paste is truncated to MAX_DESCRIPTION_CHARS", async () => {
+  test("rawText cap: a huge paste is truncated to MAX_RAW_TEXT_CHARS (4.000, trần của legacy)", async () => {
     const huge = "x".repeat(10_000);
     h.extractor.push(report([huge], { title: "big", values: { van_de: "big" } }));
     await h.engine.step({ chatId: CHAT, message: huge });
     const latest = h.drafts.getLatestByChatId(CHAT)!;
-    expect(latest.ticket.rawText.length).toBeLessThanOrEqual(6001); // 6000 + ellipsis
+    // Trần của MỘT tin (4.000, đúng của legacy). Trần cả cuộc (8.000) thì
+    // `normalize.test.ts` kiểm.
+    expect(latest.ticket.rawText.length).toBe(MAX_RAW_TEXT_CHARS);
   });
 });
 
@@ -482,7 +378,7 @@ describe("IntakeEngine.step — tech review (one round)", () => {
       async review() {
         return {
           missing: ["order code"],
-          question: "Which order code? Reply 'none' and I'll file it.",
+          question: "Which order code? Reply 'không có' and I'll file it.",
         };
       },
     };
@@ -491,9 +387,15 @@ describe("IntakeEngine.step — tech review (one round)", () => {
     const asked = await h.engine.step({ chatId: CHAT, message: "login broken" });
     expect(asked.outcome).toBe("asked");
     expect(asked.messages[0].text).toContain("order code");
-    // answering (even "none") proceeds to the summary
+    // Answering (even "không có") proceeds to the summary.
+    //
+    // PR 4 đổi câu trả lời của ca này từ "none" sang "không có": "none" là TOKEN
+    // NỘI BỘ của nút đã khoá (`INTERNAL_CALLBACK_TOKENS`), nên theo A11 (y hệt
+    // legacy) tin đó bị bỏ qua, không tới được bước hỏi. "không có" là câu trả
+    // lời thật của người báo, và ý của ca test ("bất kỳ câu trả lời nào cũng đi
+    // tiếp") không đổi. Tên ca test giữ nguyên.
     h.extractor.push({ userIntent: "provide_info", symptoms: [] });
-    const out = await h.engine.step({ chatId: CHAT, message: "none" });
+    const out = await h.engine.step({ chatId: CHAT, message: "không có" });
     expect(out.outcome).toBe("summary");
   });
 

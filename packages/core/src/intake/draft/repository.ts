@@ -11,6 +11,7 @@
  */
 import type { Database } from "bun:sqlite";
 import type { IntakeDraft } from "./types";
+import { migrateDraft } from "./version";
 
 /** A draft left idle longer than this is stale — a later message opens a new one. */
 export const INTAKE_DRAFT_TTL_MS = 24 * 3_600_000;
@@ -109,7 +110,8 @@ export class SqliteDraftRepository implements DraftRepository {
 
 function safeParse(json: string): IntakeDraft | null {
   try {
-    return JSON.parse(json) as IntakeDraft;
+    // Đọc tờ khai cũ thì MIGRATE LÚC ĐỌC (draft v2 — RFC 0002 PR 4).
+    return migrateDraft(JSON.parse(json));
   } catch {
     return null;
   }

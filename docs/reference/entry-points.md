@@ -6,7 +6,7 @@
 |---|---|---|
 | `@vuihoc/bot-core/core` | Hạ tầng: logger, tool-error, scaffold MCP server (stdio và HTTP), bộ nạp env, khử PII, `channel-envelope`, formatting chung (kể cả dấu comment bot), SQLite lười và `openPrivateDb` (file riêng tư 0600, lỗi mở thì ném), memo, preload cho test | Mọi bot |
 | `@vuihoc/bot-core/itsaplan` | Client itsaplan, project, trạng thái ticket, đính kèm, nhãn, đăng ký webhook, và front door webhook (chữ ký, chống trùng, server) | Mọi thứ nói chuyện với itsaplan |
-| `@vuihoc/bot-core/intake` | Lễ tân: gate (catalog, trường thiếu), luật ưu tiên, bản nháp, xác nhận, tạo ticket, engine hội thoại `step`, dispatcher báo ngược, reply router, outbox, kho trạng thái ticket (`TicketStateStore`), kênh nhật ký JSONL (`LogChannel`) | Bot tiếp nhận |
+| `@vuihoc/bot-core/intake` | Lễ tân: gate (catalog, trường thiếu), luật ưu tiên, bản nháp (v2, có phiên bản), chuẩn hoá đầu vào, xác nhận, tạo ticket, engine hội thoại `step` và bảng ánh xạ `action` của hợp đồng cũ ([Tham chiếu engine lễ tân](/reference/intake-engine)), dispatcher báo ngược, reply router, outbox, kho trạng thái ticket (`TicketStateStore`), kênh nhật ký JSONL (`LogChannel`) | Bot tiếp nhận |
 | `@vuihoc/bot-core/identity` | Vòng đời danh tính người dùng: đăng ký, duyệt, từ chối, đổi tài khoản (relink) có chặn chiếm danh | Bot cần biết người dùng là ai |
 | `@vuihoc/bot-core/openclaw` | Bộ công cụ viết plugin OpenClaw: giới hạn theo agent, token danh tính theo lượt, nút bấm chờ gửi, kế hoạch đồng bộ workspace và deploy | Plugin chạy trên gateway OpenClaw |
 | `@vuihoc/bot-core/telegram` | Kênh Telegram: transport Bot API, gửi an toàn, tách tin dài, render, media đến, cảnh báo admin, `ChannelPort` cho báo ngược | Bot dùng Telegram |

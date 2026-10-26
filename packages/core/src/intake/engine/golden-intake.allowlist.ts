@@ -8,7 +8,8 @@ import type { GoldenAllow, GoldenField } from "../../testing";
  * - Dòng trong danh sách mà không còn lệch nữa cũng làm test đỏ: PR làm engine khớp phải XOÁ dòng,
  *   để danh sách chỉ co lại. Dòng đứng trước thắng dòng đứng sau khi cùng khớp.
  *
- * Hiện `action` khớp ở mọi lượt trừ một chỗ (huỷ); phần còn lại là chữ và nút.
+ * PR 4 bỏ lệch `action` ở lượt huỷ (kết quả `canceled` khớp hành vi legacy), nên
+ * `action` hiện khớp 100% các lượt; phần còn lại là chữ và nút.
  */
 
 /** `{ kịch-bản: [số lượt] }`: số lượt đếm từ 1. */
@@ -20,18 +21,11 @@ const at = (field: GoldenField, turns: Turns, reason: string): GoldenAllow[] =>
   );
 
 export const GOLDEN_ALLOWLIST: GoldenAllow[] = [
-  // ── action ──────────────────────────────────────────────────────────────────
-  ...at(
-    "action",
-    { "cancel-then-new": [5] },
-    "A9: engine huỷ tờ khai nhưng trả `chitchat` không kèm tin; legacy trả `canceled` (PR 4 thêm kết quả `canceled` và ánh xạ, PR 8 dọn trạng thái)",
-  ),
-
   // ── voiceText ───────────────────────────────────────────────────────────────
   ...at(
     "voiceText",
     { "cancel-then-new": [5] },
-    "A9: engine không nói gì khi huỷ (messages rỗng); legacy báo đã huỷ (PR 4)",
+    "A9: engine đã báo đã huỷ (PR 4 thêm kết quả `canceled` và câu chữ), còn khác chữ tiếng Việt của legacy (PR 14 đưa CopyCatalog của Tiểu Linh)",
   ),
   {
     scenario: "*",
@@ -52,7 +46,7 @@ export const GOLDEN_ALLOWLIST: GoldenAllow[] = [
       "premature-confirm": [1],
       "ticket-creation": [1],
     },
-    "A1: câu hỏi trường thiếu không kèm nút chọn (legacy kèm nút bộ phận); `StepOutput` có nút cho câu hỏi ở PR 4, nút theo trường ở PR 7",
+    "A1: `StepOutput` đã mang nút cho câu hỏi (PR 4), nhưng catalog thử trong test này khai `bo_phan` là trường tự do nên chưa ra nút; nút theo trường thật đến ở PR 7 (catalog của Tiểu Linh)",
   ),
   ...at(
     "buttons",
@@ -67,6 +61,6 @@ export const GOLDEN_ALLOWLIST: GoldenAllow[] = [
   ...at(
     "buttons",
     { "premature-confirm": [3] },
-    "A7: xác nhận tới quá sớm, legacy gửi lại nút xác nhận kèm lời nhắc; engine chỉ nhắc bằng chữ (PR 4)",
+    "A7: xác nhận tới quá sớm thì engine đã gửi lại nút xác nhận kèm lời nhắc (PR 4); còn khác nhãn nút tiếng Việt của legacy (PR 14)",
   ),
 ];
