@@ -61,12 +61,11 @@ import { evaluatePriorityRules, resolveRequestedPriority, type UrgencyRules } fr
 import { findIdentifierConflict } from "./identifiers";
 import { mentionedIdentifiers, foldButton } from "./text";
 import { isDeclineAnswer, isMeaninglessInput, TECH_INFO_FIELD } from "./normalize";
+import { MAX_RAW_TEXT_CHARS, MAX_RAW_TEXT_TOTAL_CHARS } from "../raw-text";
 import type { StepInput, StepOutput, ChannelMessage } from "./types";
 
 /** Max chars of ONE reporter message kept in rawText (legacy parity). */
-export const MAX_RAW_TEXT_CHARS = 4000;
-/** Max chars of rawText over the whole conversation (legacy parity). */
-export const MAX_RAW_TEXT_TOTAL_CHARS = 8000;
+export { MAX_RAW_TEXT_CHARS, MAX_RAW_TEXT_TOTAL_CHARS } from "../raw-text";
 /** Max chars for an append/follow-up to an existing ticket (§2). */
 export const MAX_FOLLOW_UP_CHARS = 4000;
 /** A just-created ticket can be moved into another within this window. */

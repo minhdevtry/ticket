@@ -55,13 +55,13 @@ nó; hãy chép lại cả mục này). Nó mở rộng bức tranh ra toàn b�
 legacy bị đổi tên, xoá hoặc thêm mà sổ không đổi theo, khi một dòng `core`/`ported` trỏ tới test
 không còn tồn tại, hoặc khi các con số dưới đây lệch khỏi sổ.
 
-<!-- gap-register: total=450 core=61 ported=15 deferred=363 by-design=11 -->
+<!-- gap-register: total=450 core=61 ported=59 deferred=319 by-design=11 -->
 
 | Trạng thái | Số test legacy | Nghĩa |
 |---|---|---|
 | `core` | 61 | Engine hoặc thư viện core hiện có đã có test tương ứng (mỗi dòng trỏ tới test đó) |
-| `ported` | 15 | Đã port sang engine của core (`packages/core/src/intake/**`) — PR 4 port 15 dòng (5 dòng `noop-guard`, 4 dòng `repository` của tài liệu, 6 flow); PR 5 đến 14 chuyển dòng `deferred` sang đây |
-| `deferred` | 363 | Chưa có; dòng nêu PR của RFC 0002 sẽ port, hoặc lý do nằm ngoài chuỗi di trú (KG, Onyx, nạp tri thức) |
+| `ported` | 59 | Đã port sang engine của core (`packages/core/src/intake/**`) — PR 4 port 15 dòng (5 dòng `noop-guard`, 4 dòng `repository` của tài liệu, 6 flow); PR 5 port thêm 44 dòng (bộ trích xuất và heuristic tiếng Việt); PR 6 đến 14 chuyển dòng `deferred` sang đây |
+| `deferred` | 319 | Chưa có; dòng nêu PR của RFC 0002 sẽ port, hoặc lý do nằm ngoài chuỗi di trú (KG, Onyx, nạp tri thức) |
 | `by-design` | 11 | Cố ý không có ở bản mới, có lý do (tool ghi trực tiếp của legacy, đường tạo ticket thứ hai, bot khác) |
 | Tổng | 450 | Test của lễ tân và phần dùng chung |
 
@@ -71,7 +71,7 @@ Số test `deferred` theo PR sẽ port (RFC 0002, mục 5):
 |---|---|---|
 | 3 | 9 | Binding và kho tờ khai tương thích kho legacy (2 dòng `repository` của tài liệu: đọc `intake_sessions`, bản nháp quá hạn) |
 | 4 | 0 | Đã port ở PR 4 (5 dòng `noop-guard`, 4 dòng `repository` của tài liệu, 6 flow); 3 dòng legacy chưa port đã chuyển sang PR 3 và PR 15 |
-| 5 | 46 | Bộ trích xuất và heuristic tiếng Việt |
+| 5 | 2 | Bộ trích xuất và heuristic tiếng Việt (PR 5 port 44 dòng; còn 1 ca kịch bản flow và 1 ca câu hỏi bộ phận ngoài danh mục, thuộc PR 7) |
 | 7 | 12 | Hỏi bổ sung theo luật, chốt tiêu đề |
 | 8 | 18 | Gác tờ khai khi có sự cố mới, định danh |
 | 9 | 22 | Tách báo cáo nhiều sự cố |
