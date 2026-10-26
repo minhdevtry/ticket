@@ -131,6 +131,15 @@ export function main(argv: string[]): number {
     console.warn("  Bạn đang chia sẻ checkout này với phiên khác. Đừng `git add -A`.");
   }
 
+  // Cập nhật ref trước khi tạo: `origin/main` trong clone có thể cũ, và worktree tạo
+  // trên base cũ thì mọi thay đổi sau đó phải giải quyết xung đột khi merge lại.
+  const fetch = git(["fetch", "--quiet", "origin"], currentRoot);
+  if (fetch.code !== 0) {
+    console.warn(
+      `new-worktree: không fetch được origin (tiếp tục với ref đang có): ${(fetch.err || fetch.out).trim()}`,
+    );
+  }
+
   const target = worktreePath(workspacesRoot(), repoName, args.branch);
   if (existsSync(target)) {
     console.error(`new-worktree: đường dẫn đã tồn tại: ${target}`);
