@@ -127,7 +127,7 @@ describe("formatTicketDescription", () => {
       reporter: { name: "user_a", username: "@user_a" },
     });
 
-    const reporterLine = description.split("\n").find((l) => l.startsWith("- Người báo:"))!;
+    const reporterLine = description.split("\n").find((l) => l.startsWith("- Người báo:")) ?? "";
     expect(reporterLine).toBe("- Người báo: user_a");
   });
 
@@ -173,7 +173,7 @@ describe("formatTicketDescription", () => {
 
   test("carries a machine-readable copy of the metadata for later updates", () => {
     const description = formatTicketDescription({ incident });
-    const meta = JSON.parse(description.match(/<!-- vuihoc-meta: (.*?) -->/)![1]);
+    const meta = JSON.parse(description.match(/<!-- vuihoc-meta: (.*?) -->/)?.[1] ?? "{}");
 
     expect(meta.roomCode).toBe("ROOM-5511");
     expect(meta.studentAccount).toBe("0900000005");
@@ -365,7 +365,7 @@ describe("appendTicketUpdateDescription", () => {
       device: "iPad",
       timestamp: "2026-03-14 09:30",
     });
-    const meta = JSON.parse(description.match(/<!-- vuihoc-meta: (.*?) -->/)![1]);
+    const meta = JSON.parse(description.match(/<!-- vuihoc-meta: (.*?) -->/)?.[1] ?? "{}");
 
     expect(meta.deviceType).toBe("iPad");
   });
@@ -392,7 +392,7 @@ describe("appendTicketUpdateDescription", () => {
 
     expect(description).not.toContain("- Mã khách hàng: 0900000020");
     expect(description).toContain("- Tài khoản HS / SĐT: 0900000020");
-    const meta = JSON.parse(description.match(/<!-- vuihoc-meta: (.*?) -->/)![1]);
+    const meta = JSON.parse(description.match(/<!-- vuihoc-meta: (.*?) -->/)?.[1] ?? "{}");
     expect(meta.customerId).toBeUndefined();
     expect(meta.studentAccount).toBe("0900000020");
   });
