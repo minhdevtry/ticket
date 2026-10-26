@@ -26,6 +26,9 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Lint & format
         run: bun run lint
+      # Rule đang tắt trong biome.json không có CI nào canh; baseline canh số lỗi không tăng.
+      - name: Lint baseline (rule đang tắt)
+        run: bun run lint:baseline
       - name: Typecheck
         run: bun run check
       - name: Test

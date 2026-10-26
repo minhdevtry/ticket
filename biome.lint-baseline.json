@@ -1,0 +1,5 @@
+{
+  "$comment": "Số lỗi tối đa được phép cho mỗi rule đang được tắt trong biome.json. Rule bị tắt thì không có CI nào canh; baseline này canh để số lỗi không tăng. Thêm lỗi mới thì sửa số ở đây, kèm lý do trong PR.",
+  "suspicious/noExplicitAny": 776,
+  "style/noNonNullAssertion": 406
+}

@@ -38,3 +38,34 @@ bun run --cwd apps/tieulinh-legacy golden:record   # ghi lại bản ghi vàng c
 - Sửa core → thêm test trong core và ghi `packages/core/CHANGELOG.md`.
 - Đổi hành vi hoặc API công khai → cập nhật `docs/` trong cùng PR (CI chặn nếu thiếu; nhãn `no-docs` chỉ cho refactor thuần và test). Mẫu `ts` trong docs phải có cờ `check`, `run` hoặc `no-check`. Không bao giờ chép chữ ký hàm vào docs bằng tay khi TypeDoc đã sinh.
 - Commit theo Conventional Commits, scope là tên package.
+
+## Điều phối Orca
+
+Agent điều phối việc khác trong repo này thì đi qua Orca, để tiến trình hiện trên UI và để có vòng đời, bằng chứng, và người nhận rõ ràng. Không chạy worker nền vô hình.
+
+1. Tạo Run: `orca orchestration run-create --objective "<mục tiêu>" --json`.
+2. Tạo worktree riêng cho từng việc: `orca worktree create --repo path:/home/minhdn3/Documents/ticket --name "<tên>" --base-branch main --issue <số> --json`. Không sửa trong checkout chính, trừ fast-track (typo, docs, ≤ 5 dòng).
+3. Giao việc: `orca orchestration worker-start --run <runId> --spec "<spec>" --worktree "name:<tên worktree>" --agent omp --model minimax/MiniMax-M3.1-Flash:high --json`. Worker chạy trong terminal do Orca quản lý nên hiện trên UI. Spec phải tự chứa: mục tiêu, phần sửa, ràng buộc, phần được phép sửa, tiêu chí chấp nhận, danh sách cấm. Không dùng `omp -p` headless: không ai thấy và dễ bị kill.
+4. Chờ bằng sự kiện, không quét vòng: `orca orchestration check --wait --types "worker_done,escalation,question" --timeout-ms 1800000 --json`. Không `orca terminal wait` để đóng băng coordinator, không tự viết vòng poll.
+5. Bằng chứng phải tự kiểm: coordinator chạy `bun run verify` và `bun run docs:check` trước khi tin lời tự báo của worker. Worker nói "xong" không phải bằng chứng.
+6. Dọn sau khi nhận `worker_done`: `orca orchestration worker-release --dispatch <dispatchId> --json`, `orca orchestration check --ack <deliveryId> --json`, `orca terminal close --terminal <terminalId> --json`.
+
+Cạnh chặn giữa các việc nằm ở issue dependency của GitHub (xem `docs/agents/issue-tracker.md`). PR 7 đến 13 của `docs/rfc/0002-receptionist.md` cùng chạm `engine.ts` nên merge tuần tự, không song song.
+
+Quy tắc cần phán đoán khi review nằm ở `CODING_STANDARDS.md`; quy tắc máy kiểm được nằm ở `bun run verify` và CI.
+
+## Agent skills
+
+Repo này dùng bộ skill của [mattpocock/skills](https://github.com/mattpocock/skills) để việc agent có một ngôn ngữ chung. Cấu hình cho repo:
+
+### Issue tracker
+
+Issue và spec nằm ở GitHub Issues của `minhdevtry/ticket` (dùng `gh` CLI). Xem `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Năm nhãn trạng thái chuẩn (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`) cùng hai nhãn loại (`bug`, `enhancement`). Mỗi issue mang đúng một nhãn trạng thái và một nhãn loại. Xem `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Repo đa ngữ cảnh: `GLOSSARY-MAP.md` ở gốc trỏ tới `GLOSSARY.md` của từng ngữ cảnh, ADR hệ thống ở `docs/adr/`, ADR theo ngữ cảnh ở `packages/core/docs/adr/` và `apps/tieulinh-legacy/docs/adr/`. Xem `docs/agents/domain.md`.
