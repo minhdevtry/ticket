@@ -18,55 +18,6 @@ import { isInternalCallbackToken } from "../../core";
  */
 export const TECH_INFO_FIELD = "__tech";
 
-/** Từ có thể nằm trong một câu trả lời từ chối ("em không biết ạ"). */
-const DECLINE_WORDS: Record<string, true> = {
-  không: true,
-  ko: true,
-  k: true,
-  hông: true,
-  chưa: true,
-  biết: true,
-  rõ: true,
-  có: true,
-  nhớ: true,
-  dạ: true,
-  em: true,
-  chị: true,
-  anh: true,
-  mình: true,
-  ạ: true,
-  nhé: true,
-  nha: true,
-  luôn: true,
-  thông: true,
-  tin: true,
-  cái: true,
-  này: true,
-  đâu: true,
-  rồi: true,
-  cũng: true,
-  e: true,
-  c: true,
-  a: true,
-  thì: true,
-  chịu: true,
-};
-
-/** Từ phủ định đứng trước — "không biết", "chưa có". */
-const DECLINE_NEGATION = /^(?:không|ko|k|hông|chưa)$/;
-/** Từ đi sau phủ định — "biết", "rõ", "có", "nhớ". */
-const DECLINE_AFTER = /^(?:biết|rõ|có|nhớ)$/;
-
-/** Bỏ dấu câu, tách từ — cùng cách legacy tách ("em không biết ạ" → 4 từ). */
-function tokenize(text: string): string[] {
-  return text
-    .normalize("NFC")
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .split(/\s+/)
-    .filter(Boolean);
-}
-
 /**
  * Tin vô nghĩa: rỗng, hoặc chỉ là token nội bộ của nút ("noop"), mà KHÔNG
  * kèm ảnh. Tin này không tạo tờ khai, không tạo ticket, không làm hỏng trạng
@@ -81,15 +32,8 @@ export function isMeaninglessInput(text: string, mediaPaths: readonly string[]):
  * "không biết", "em không rõ ạ", "chưa có" — người báo nói rõ là không trả lời
  * được câu vừa hỏi. Khi đó trường vừa hỏi vào `explicitlyMissing` và bot thôi
  * hỏi trường đó (A13).
+ *
+ * Chủ sở hữu: mô-đun heuristic tiếng Việt (PR 5). Ở đây chỉ re-export để
+ * chỗ gọi cũ của PR 4 không đổi.
  */
-export function isDeclineAnswer(text: string): boolean {
-  if (!text || text.length > 40) return false;
-  const tokens = tokenize(text);
-  if (tokens.length === 0) return false;
-  if (!tokens.every((t) => DECLINE_WORDS[t] === true)) return false;
-  if (tokens.includes("chịu")) return true;
-  for (let i = 0; i < tokens.length - 1; i++) {
-    if (DECLINE_NEGATION.test(tokens[i]) && DECLINE_AFTER.test(tokens[i + 1])) return true;
-  }
-  return false;
-}
+export { isDeclineAnswer } from "../extractor/heuristics";

@@ -191,6 +191,8 @@ export interface ExtractedFields {
   titleExplicit?: boolean;
   /** Observed symptoms — these drive whether a message "carries new content". */
   symptoms?: string[];
+  /** Symptoms explicitly asked to be removed (A14 / "bỏ ý ..."). */
+  removeSymptoms?: string[];
   /** Structured identifier fields (phone/student/order/room/transaction/assignment). */
   identifiers?: Partial<Record<IdentifierKey, string>>;
   /** Catalog field name -> captured value (variant-specific; opaque to the engine). */
@@ -200,6 +202,31 @@ export interface ExtractedFields {
   /** Reporter-requested priority level, honoured only with a reason (29/09 decision). */
   requestedPriority?: string | null;
   requestedPriorityReason?: string | null;
+
+  // Trường miền cho bộ trích xuất: bộ trích xuất ghi thẳng tên trường đã chuẩn hoá
+  // về danh mục, để công cụ khác (ví dụ bộ định danh) đọc mà không phải tra
+  // `values`. Core không đoán tên miền: bộ trích xuất nhận danh mục từ app.
+  product?: string;
+  system?: string;
+  errorCategory?: string;
+  reportingDept?: string;
+  reportingDeptUnrecognized?: string;
+  deviceType?: string;
+  deviceOs?: string;
+  appVersion?: string;
+  browser?: string;
+  customerId?: string;
+  studentAccount?: string;
+  roomCode?: string;
+  transactionId?: string;
+  assignmentId?: string;
+  scope?: "single_user" | "group" | "entire_system";
+  blocksPayment?: boolean;
+  reconciliationMismatch?: boolean;
+  blocksLearning?: boolean;
+  dataLoss?: boolean;
+  hasWorkaround?: boolean;
+  singleDeviceOnly?: boolean;
 }
 
 export const IDENTIFIER_KEYS = [

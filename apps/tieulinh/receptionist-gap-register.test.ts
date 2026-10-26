@@ -962,275 +962,439 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/extractor.test.ts",
     "trích xuất tĩnh và chuẩn hóa OOV thành công",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [C("intake/extractor/extractor.test.ts", "trích xuất tĩnh và chuẩn hóa OOV thành công")],
   ),
   row(
     "lib/intake-step/extractor.test.ts",
     "gộp trường bảo toàn dữ liệu cũ và tăng revision",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [C("intake/extractor/extractor.test.ts", "gộp trường bảo toàn dữ liệu cũ và tăng revision")],
   ),
   // ── lib/intake-step/extractor-rules.test.ts (21) ──
   row(
     "lib/intake-step/extractor-rules.test.ts",
     "chỉ coi là xác nhận khi CẢ tin nhắn là câu đồng ý ngắn",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-rules.test.ts",
+        "chỉ coi là xác nhận khi CẢ tin nhắn là câu đồng ý ngắn",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-rules.test.ts",
     "chỉ huỷ khi có cụm huỷ tường minh — 'không vào được lớp' KHÔNG phải huỷ",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-rules.test.ts",
+        "chỉ huỷ khi có cụm huỷ tường minh — 'không vào được lớp' KHÔNG phải huỷ",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-rules.test.ts",
     "heuristic: tin nhắn báo lỗi bắt đầu bằng 'Yêu cầu' / 'không' vẫn là report_issue",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-rules.test.ts",
+        "heuristic: tin nhắn báo lỗi bắt đầu bằng 'Yêu cầu' / 'không' vẫn là report_issue",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-rules.test.ts",
     "heuristic: lời cảm ơn là chitchat, không sinh triệu chứng",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-rules.test.ts",
+        "heuristic: lời cảm ơn là chitchat, không sinh triệu chứng",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-rules.test.ts",
     "heuristic: tin bổ sung ngắn kèm định danh là provide_info",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-rules.test.ts",
+        "heuristic: tin bổ sung ngắn kèm định danh là provide_info",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-rules.test.ts",
     "heuristic: nhận ra hệ thống từ từ khoá (app Duo → DUO_Vuihoc)",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-rules.test.ts",
+        "heuristic: nhận ra hệ thống từ từ khoá (app Duo → DUO_Vuihoc)",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-rules.test.ts",
     "nhận diện 'không biết' là câu từ chối trả lời, không nhầm với triệu chứng",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-rules.test.ts",
+        "nhận diện 'không biết' là câu từ chối trả lời, không nhầm với triệu chứng",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-rules.test.ts",
     "SĐT nằm trong customerId được chuyển sang studentAccount",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-rules.test.ts",
+        "SĐT nằm trong customerId được chuyển sang studentAccount",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-rules.test.ts",
     "giá trị ngoài danh mục từ LLM bị bỏ, không làm sập extractor",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-rules.test.ts",
+        "giá trị ngoài danh mục từ LLM bị bỏ, không làm sập extractor",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-rules.test.ts",
     "tin nhắn rất dài bị cắt trước khi gửi LLM",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [C("intake/extractor/extractor-rules.test.ts", "tin nhắn rất dài bị cắt trước khi gửi LLM")],
   ),
-  row(
-    "lib/intake-step/extractor-rules.test.ts",
-    "LLM lỗi thì rơi về heuristic",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
-  ),
+  row("lib/intake-step/extractor-rules.test.ts", "LLM lỗi thì rơi về heuristic", "ported", [
+    C("intake/extractor/extractor-rules.test.ts", "LLM lỗi thì rơi về heuristic"),
+  ]),
   row(
     "lib/intake-step/extractor-rules.test.ts",
     "hết cả chuỗi model thì KHÔNG bịa tiêu đề từ dòng đầi",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-rules.test.ts",
+        "hết cả chuỗi model thì KHÔNG bịa tiêu đề từ dòng đầi",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-rules.test.ts",
     "'sửa tiêu đề thành …' đổi được tiêu đề đã có",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [C("intake/extractor/extractor-rules.test.ts", "'sửa tiêu đề thành …' đổi được tiêu đề đã có")],
   ),
   row(
     "lib/intake-step/extractor-rules.test.ts",
     "bằng chứng ưu tiên đã ghi nhận không bị false mặc định ở lượt sau hạ xuống",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-rules.test.ts",
+        "bằng chứng ưu tiên đã ghi nhận không bị false mặc định ở lượt sau hạ xuống",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-rules.test.ts",
     "tiêu đề suy ra ở lượt sau KHÔNG đè tiêu đề cũ khi người dùng không yêu cầu",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-rules.test.ts",
+        "tiêu đề suy ra ở lượt sau KHÔNG đè tiêu đề cũ khi người dùng không yêu cầu",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-rules.test.ts",
     "lượt sau có mô tả mới thì tiêu đề được tóm tắt lại (lời mở đầu không thành tiêu đề mãi)",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-rules.test.ts",
+        "lượt sau có mô tả mới thì tiêu đề được tóm tắt lại (lời mở đầu không thành tiêu đề mãi)",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-rules.test.ts",
     "tiêu đề người dùng tự đặt thì LLM tóm tắt lại không đè được",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-rules.test.ts",
+        "tiêu đề người dùng tự đặt thì LLM tóm tắt lại không đè được",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-rules.test.ts",
     "không có LLM: tiêu đề lấy dòng tả lỗi, không lấy dòng tên học sinh",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-rules.test.ts",
+        "không có LLM: tiêu đề lấy dòng tả lỗi, không lấy dòng tên học sinh",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-rules.test.ts",
     "'bỏ ý …' gỡ triệu chứng khỏi danh sách",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [C("intake/extractor/extractor-rules.test.ts", "'bỏ ý …' gỡ triệu chứng khỏi danh sách")],
   ),
   row(
     "lib/intake-step/extractor-rules.test.ts",
     "structuredOnly: tin xác nhận không bị ghi thành triệu chứng",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-rules.test.ts",
+        "structuredOnly: tin xác nhận không bị ghi thành triệu chứng",
+      ),
+    ],
   ),
-  row(
-    "lib/intake-step/extractor-rules.test.ts",
-    "triệu chứng quá dài bị cắt",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
-  ),
+  row("lib/intake-step/extractor-rules.test.ts", "triệu chứng quá dài bị cắt", "ported", [
+    C("intake/extractor/extractor-rules.test.ts", "triệu chứng quá dài bị cắt"),
+  ]),
   // ── lib/intake-step/extractor-dept-system-title.test.ts (12) ──
   row(
     "lib/intake-step/extractor-dept-system-title.test.ts",
     "nhận ra 'Kế toán' là bộ phận ngoài danh mục",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-dept-system-title.test.ts",
+        "nhận ra 'Kế toán' là bộ phận ngoài danh mục",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-dept-system-title.test.ts",
     "bỏ qua khi bộ phận đã khớp danh mục",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-dept-system-title.test.ts",
+        "bỏ qua khi bộ phận đã khớp danh mục",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-dept-system-title.test.ts",
     "không bịa khi tin không nhắc bộ phận",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-dept-system-title.test.ts",
+        "không bịa khi tin không nhắc bộ phận",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-dept-system-title.test.ts",
     "bỏ qua cụm viết tắt đã có trong DEPT_SYNONYMS",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-dept-system-title.test.ts",
+        "bỏ qua cụm viết tắt đã có trong DEPT_SYNONYMS",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-dept-system-title.test.ts",
     "extractor trả reportingDeptUnrecognized khi LLM không đoán ra bộ phận",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-dept-system-title.test.ts",
+        "extractor trả reportingDeptUnrecognized khi LLM không đoán ra bộ phận",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-dept-system-title.test.ts",
     "nhận Zalo/Viber/Messenger vào Khác_Hạ tầng_IT",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-dept-system-title.test.ts",
+        "nhận Zalo/Viber/Messenger vào Khác_Hạ tầng_IT",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-dept-system-title.test.ts",
     "hệ thống danh mục vẫn thắng từ đồng nghĩa",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-dept-system-title.test.ts",
+        "hệ thống danh mục vẫn thắng từ đồng nghĩa",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-dept-system-title.test.ts",
     "cắt 'Em chào anh, em là …' khỏi tiêu đề heuristic",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-dept-system-title.test.ts",
+        "cắt 'Em chào anh, em là …' khỏi tiêu đề heuristic",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-dept-system-title.test.ts",
     "giữ nguyên câu không có lời chào",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [C("intake/extractor/extractor-dept-system-title.test.ts", "giữ nguyên câu không có lời chào")],
   ),
   row(
     "lib/intake-step/extractor-dept-system-title.test.ts",
     "chỉ chào trơn thì giữ câu gốc",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [C("intake/extractor/extractor-dept-system-title.test.ts", "chỉ chào trơn thì giữ câu gốc")],
   ),
   row(
     "lib/intake-step/extractor-dept-system-title.test.ts",
     "extractor không LLM cho tiêu đề không còn lời chào",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-dept-system-title.test.ts",
+        "extractor không LLM cho tiêu đề không còn lời chào",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-dept-system-title.test.ts",
     "câu hỏi nói rõ bộ phận không có trong danh mục thay vì lặp lại câu cũ",
     "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "PR 7 của RFC 0002: câu hỏi phản hồi là hành vi của engine (hỏi đúng một lần), PR 5 chỉ port phần bộ trích xuất nhận ra bộ phận ngoài danh mục",
   ),
   // ── lib/intake-step/extractor-evidence.test.ts (10) ──
   row(
     "lib/intake-step/extractor-evidence.test.ts",
     "prompt gửi LLM liệt kê đủ khoá JSON, gồm các trường bằng chứng",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-evidence.test.ts",
+        "prompt gửi LLM liệt kê đủ khoá JSON, gồm các trường bằng chứng",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-evidence.test.ts",
     "LLM không trả bằng chứng thì luật nhận diện bù: cả lớp không vào học được → group + blocksLearning",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-evidence.test.ts",
+        "LLM không trả bằng chứng thì luật nhận diện bù: cả lớp không vào học được → group + blocksLearning",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-evidence.test.ts",
     "giá trị LLM trả về thắng luật nhận diện",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [C("intake/extractor/extractor-evidence.test.ts", "giá trị LLM trả về thắng luật nhận diện")],
   ),
   row(
     "lib/intake-step/extractor-evidence.test.ts",
     "không LLM: một học sinh không vào được lớp → blocksLearning, scope single_user",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-evidence.test.ts",
+        "không LLM: một học sinh không vào được lớp → blocksLearning, scope single_user",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-evidence.test.ts",
     "không LLM: không thanh toán được → blocksPayment",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-evidence.test.ts",
+        "không LLM: không thanh toán được → blocksPayment",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-evidence.test.ts",
     "không tạo/lên được đơn → blocksPayment (đúng câu hỏi trong urgency-rules)",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-evidence.test.ts",
+        "không tạo/lên được đơn → blocksPayment (đúng câu hỏi trong urgency-rules)",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-evidence.test.ts",
     "luật nhận diện thấy cụm rõ ràng thì thắng false mặc định của LLM",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-evidence.test.ts",
+        "luật nhận diện thấy cụm rõ ràng thì thắng false mặc định của LLM",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-evidence.test.ts",
     "tin bổ sung không mô tả lỗi (chỉ SĐT) không bịa bằng chứng",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-evidence.test.ts",
+        "tin bổ sung không mô tả lỗi (chỉ SĐT) không bịa bằng chứng",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-evidence.test.ts",
     "tin không nhắc bộ phận thì bỏ giá trị LLM đoán",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-evidence.test.ts",
+        "tin không nhắc bộ phận thì bỏ giá trị LLM đoán",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/extractor-evidence.test.ts",
     "nhận khi tin nhắc đúng tên, không dấu, hay viết tắt",
-    "deferred",
-    "Chờ port ở PR 5 (llmExtractor và heuristic tiếng Việt)",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-evidence.test.ts",
+        "nhận khi tin nhắc đúng tên, không dấu, hay viết tắt",
+      ),
+    ],
   ),
   // ── lib/intake-step/pipeline.test.ts (7) ──
   row(
