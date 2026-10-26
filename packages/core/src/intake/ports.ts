@@ -140,15 +140,16 @@ export type CopyKey =
   | "priority.level.medium" // priority level label for Medium
   | "priority.level.high" // priority level label for High
   | "priority.level.urgent" // priority level label for Urgent
-  // ── PR 9: tách báo cáo nhiều sự cố (RFC 0002 §1.5 B7) ─────────────────────
+  // ── PR 9: tách báo cáo nhiều sự cố (RFC 0002 §1.2 B7) ─────────────────────
   | "split.question" // ask whether to split N tickets or merge into 1 (with names summary); {count} {summary}
   | "split.question_no_names" // ask whether to split N tickets or merge into 1 (when no names); {count}
+  | "split.unnamed_item" // fallback label for an unnamed incident block in split summary (legacy: "sự cố")
   | "split.unclear_prefix" // prefix when answer to split question is unclear
   | "split.next_ticket_notice" // notice when creating next ticket in split queue (no student name); {identifier}
   | "split.next_ticket_notice_student" // notice when creating next ticket in split queue with student name; {identifier} {studentName}
   | "button.split_n" // button to split into N tickets; {count}
   | "button.merge_one" // button to merge into 1 ticket
-  | "media.ambiguous_notice" // notice appended to description when images are shared across split tickets
+  | "media.attachments_heading" // heading for attachments section in ticket description
   // ── PR 10: tin sau khi tạo ticket (RFC 0002 §1.5 C1-C4, G2, B8) ─────────────
   | "ticket.closed_refusal" // refuse supplement into closed ticket; {identifier} {statusLabel}
   | "ticket.chitchat_after_create" // polite answer when reporter thanks after create; {identifier}
@@ -167,7 +168,8 @@ export type CopyKey =
   | "status.closed_canceled" // label for canceled status ("Đã hủy (Canceled)")
   | "comment.supplement_default_content" // fallback content for supplement comment when text is empty
   | "reporter.default_name" // fallback name for reporter in comment when unknown
-  | "notify.on_call_supplement"; // alert line sent to on-call channel; {botName} {identifier} {summary}
+  | "notify.on_call_supplement" // alert line sent to on-call channel; {botName} {identifier} {summary}
+  | "media.ambiguous_notice"; // notice appended to description when images are shared across split tickets
 
 /**
  * The chat↔ticket binding store, so a worker can report back to the reporter.
