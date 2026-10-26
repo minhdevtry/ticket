@@ -41,6 +41,8 @@ All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded
   - Cập nhật dòng B7 bảng khoảng trống RFC 0002 mục 1.2 (`docs/rfc/0002-receptionist.md`).
   - Sửa sau vòng review:
     - Định danh người báo (`reporter`) gộp vào tờ khai ngay đầu `collect()` (khớp legacy `pipeline.ts:737-741`), **trước** các nhánh gác. Trước đây chỉ gộp trong `mergeIntoDraft()` — chạy sau khi đã rời nhánh gác — nên tờ khai đang gác mất người báo, và binding của ticket sinh ra từ tờ khai đó có `reporter_username` rỗng. `mergeIntoDraft` nay dùng chung hàm thuần `mergeReporter()` (bỏ field rỗng rồi tràn đè, không xoá field của lượt trước) thay vì thay thế trọn vẹn.
+    - `/new` không còn bị nuốt khi đang treo câu hỏi tách: nhánh `pendingSplit` chuyển xuống **sau** nhánh `/new` (khớp legacy `pipeline.ts:537-548` đứng trước `collect()`). PR 9 đặt nhánh `pendingSplit` lên trước nên người báo bấm `/new` lúc đang được hỏi "tách hay gộp" vẫn bị hỏi lại thay vì mở sự cố mới (ADR-0008, A12). Tin rỗng lúc đang treo câu hỏi tách cũng hỏi lại thay vì bị bỏ qua (`pipeline.ts:469-471`).
+    - Tờ khai đang treo câu hỏi tách **giữ được** câu hỏi khi người báo bấm nút "Tiếu tục sự cố đang chờ": `resumeParkedDraft` kiểm `pendingSplit` trước khi chạy lại gate (khớp legacy — `resumeParkedDraft` gọi `collect()`, mà `collect()` kiểm `pendingSplit` ở đầu `pipeline.ts:745`).
 
 - **Gác tờ khai khi có sự cố mới** (RFC 0002 PR 8, issue #22). Additive; hoàn thiện các kịch bản gác B5, B6, A12:
   - `@vuihoc/bot-core/intake`:

@@ -130,6 +130,7 @@ interface PipelineTester {
     message: string;
     mediaPaths?: string[];
     reporter?: { name?: string; username?: string; nameCode?: string };
+    forceNew?: boolean;
   }): Promise<PipelineResult>;
 }
 
@@ -173,6 +174,7 @@ function buildPipeline(
       message: string;
       mediaPaths?: string[];
       reporter?: { name?: string; username?: string; nameCode?: string };
+      forceNew?: boolean;
     }) {
       const out = await engine.step(input);
       const activeDocId = out.docId ?? repo.getLatestByChatId(input.chatId)?.docId ?? "";
@@ -788,5 +790,54 @@ lỗi tài khoản nè bạn ơi`;
     }>;
     expect(rows.length).toBeGreaterThan(0);
     expect(rows[0]?.reporter_username).toBe("anh_te");
+  });
+
+  it("/new KHÔNG bị nuốt khi đang treo câu hỏi tách (khớp legacy pipeline.ts:537-548)", async () => {
+    // Legacy kiểm cờ `/new` TRƯỚC khi vào `collect()` (nơi mới kiểm
+    // `pendingSplit`), nên `/new` lúc đang treo câu hỏi tách vẫn mở sự cố mới.
+    // PR 9 đưa nhánh `pendingSplit` lên trước nhánh `/new` → cờ bị nuốt, người
+    // báo bấm `/new` vẫn bị hỏi lại "tách hay gộp" (ADR-0008, A12).
+    const res1 = await pipeline.run({ chatId: "chat-forcenew-split", message: MULTI_STUDENT_MSG });
+    expect(res1.action).toBe("ask_split_or_merge");
+    const docIdBefore = res1.docId;
+
+    const res2 = await pipeline.run({
+      chatId: "chat-forcenew-split",
+      message: "sự cố mới của em, app không mở được",
+      forceNew: true,
+    });
+    // Tờ khai mới đã mở — không còn treo câu hỏi tách.
+    expect(res2.docId).not.toBe(docIdBefore);
+    expect(res2.document.pendingSplit).toBeUndefined();
+  });
+
+  it("tờ khai đang treo câu hỏi tách GIỮ được câu hỏi khi phục hồi (khớp legacy pipeline.ts:1505-1511)", async () => {
+    // Legacy `resumeParkedDraft` gọi `collect()` — mà `collect()` kiểm
+    // `pendingSplit` ở ĐẦU — nên câu hỏi tách được hỏi lại, không mất.
+    const res1 = await pipeline.run({ chatId: "chat-resume-split", message: MULTI_STUDENT_MSG });
+    expect(res1.action).toBe("ask_split_or_merge");
+    const parkedDocId = res1.docId;
+
+    // `/new` gác tờ khai đang treo lại, rồi tạo ticket sự cố mới.
+    await pipeline.run({
+      chatId: "chat-resume-split",
+      message: "90000009\nQuản lý lớp\nsự cố mới của em, app không mở được",
+      forceNew: true,
+    });
+    clockRef.now += MIN_CONFIRM_DELAY_MS + 1000;
+    const created = await pipeline.run({
+      chatId: "chat-resume-split",
+      message: tieuLinhCopy["button.confirm_create"],
+    });
+    expect(created.action).toBe("ticket_created");
+
+    // Bấm nút phục hồi → câu hỏi tách của tờ khai cũ phải còn.
+    const resumed = await pipeline.run({
+      chatId: "chat-resume-split",
+      message: tieuLinhCopy["button.resume_parked"],
+    });
+    expect(resumed.action).toBe("ask_split_or_merge");
+    expect(resumed.voiceText).toContain("tách 2 ticket");
+    expect(resumed.docId).toBe(parkedDocId);
   });
 });

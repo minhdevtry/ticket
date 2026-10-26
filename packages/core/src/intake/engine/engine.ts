@@ -216,26 +216,36 @@ export class IntakeEngine {
       // continue collecting on the fresh draft below
     }
 
-    // 3.05. A split question ("split N tickets or keep 1?") is awaiting the reporter's choice (W29-SPLIT).
-    if (draft?.pendingSplit) {
-      return this.resolvePendingSplit(draft, input, text, mediaPaths, nowIso);
-    }
-
     // 3.1 Tin vô nghĩa (rỗng, hoặc token nội bộ "noop" của nút đã khoá) mà
     //      không kèm ảnh: BỎ QUA hoàn toàn — không tạo tờ khai, không tạo
     //      ticket, không làm hỏng trạng thái đang có (TECH-1148). Chỉ trả lời
     //      theo trạng thái tờ khai để người báo không bị bỏ rơi.
+    // Legacy parity: tin rỗng lúc đang treo câu hỏi tách phải hỏi lại, không
+    // mất báo cáo đã park (`pipeline.ts:469-471`).
     if (isMeaninglessInput(text, mediaPaths)) {
+      if (draft?.pendingSplit) {
+        return this.resolvePendingSplit(draft, input, text, mediaPaths, nowIso);
+      }
       return this.respondToMeaningless(draft);
     }
 
     // 4. Explicit /new flag → park the open draft and open a new one.
+    // Legacy parity: `/new` được kiểm TRƯỚC nhánh câu hỏi tách
+    // (`pipeline.ts:537-548` đứng trước `collect()`, còn `collect()` mới kiểm
+    // `pendingSplit` ở `pipeline.ts:745`). Nếu nhánh `pendingSplit` đứng trước
+    // thì cờ `/new` bị nuốt: người báo bấm `/new` lúc đang treo câu hỏi tách
+    // vẫn bị hỏi lại "tách hay gộp" thay vì mở sự cố mới (ADR-0008, A12).
     if (input.forceNew && draft && !CLOSED_STATUSES.has(draft.status)) {
       const fresh = this.openFresh(input.chatId, nowIso);
       fresh.parkedDocId = draft.docId;
       deps.drafts.saveRevision(fresh);
       // Fall through: collect the message onto the fresh draft.
       draft = fresh;
+    }
+
+    // 4.05. A split question ("split N tickets or keep 1?") is awaiting the reporter's choice (W29-SPLIT).
+    if (draft?.pendingSplit) {
+      return this.resolvePendingSplit(draft, input, text, mediaPaths, nowIso);
     }
 
     // 5. Existing ticket commands (e.g. "bổ sung TECH-X", "sửa TECH-X", lookup)
@@ -1172,6 +1182,21 @@ export class IntakeEngine {
       updatedAt: nowIso,
     };
     deps.drafts.saveRevision(touched);
+
+    // Tờ khai đang gác có thể đang treo câu hỏi tách (người báo bấm `/new` lúc
+    // đang được hỏi "tách hay gộp"). Legacy `resumeParkedDraft` gọi `collect()`
+    // — mà `collect()` kiểm `pendingSplit` ở ĐẦU (pipeline.ts:745) — nên câu
+    // hỏi tách được hỏi lại, không mất. Core phải làm tương tự.
+    if (touched.pendingSplit) {
+      return this.resolvePendingSplit(
+        touched,
+        { chatId: touched.chatId, message: "" },
+        "",
+        [],
+        nowIso,
+      );
+    }
+
     const record = this.toRecord(touched);
     const gate = evaluateGate(deps.catalog, record);
     this.writeRecordBack(touched, record, gate.effectiveValues);

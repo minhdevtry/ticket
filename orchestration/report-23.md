@@ -261,3 +261,34 @@ Các vấn đề sau là **mất nội dung theo tiêu chí B7 "không bao giờ
    - Phần mở đầu ("Em gửi 2 sự cố sau ạ"), phần cuối ("Đề nghị kỹ thuật xem giúp cả hai em"), và khối không đủ điều kiện (chỉ có tên, không có `Code`/`Mã HS`) đều không vào bất kỳ ticket nào.
    - Legacy mất y hệt.
 3. **Chữ lặp khi dán lại toàn bộ báo cáo nhiều khối** (mục 5.1, đã nêu từ vòng trước) — vẫn còn, không tự sửa.
+
+## 9. Sửa sau vòng soi thứ ba (workflow soi bất biến & ranh giới)
+
+Vòng soi này tập trung vào bất biến và ranh giới miền. Nó ra 10 finding; **3 cái được xác nhận là lỗi thật và đã sửa**, 2 cái là lệch parity đã sửa, 5 cái bị bác bỏ sau khi tái hiện bằng probe. Dưới đây là bảng tổng hợp.
+
+### 9.1. `/new` bị nuốt khi đang treo câu hỏi tách — ĐÃ SỬA
+
+- *Hiện tượng*: PR 9 đưa nhánh `pendingSplit` ra khỏi `collect()` và đặt lên vị trí 3.05 — **trước** nhánh `/new` (4). Legacy kiểm cờ `/new` ở `pipeline.ts:537-548`, tức là **trước** khi vào `collect()` (nơi mới kiểm `pendingSplit` ở `pipeline.ts:745`).
+- *Hệ quả*: người báo bấm `/new` lúc đang được hỏi "tách hay gộp" vẫn bị hỏi lại câu hỏi tách, không mở được sự cố mới. Vi phạm ADR-0008 và hàng A12 của RFC 0002 (ghi "Đủ").
+- *Đã sửa*: nhánh `/new` nằm trước `pendingSplit`; tin rỗng lúc đang treo câu hỏi tách thì hỏi lại thay vì bị bỏ qua (`pipeline.ts:469-471`).
+
+### 9.2. Tờ khai đang treo câu hỏi tách mất câu hỏi khi phục hồi — ĐÃ SỬA
+
+- *Hiện tượng*: `resumeParkedDraft` chạy lại gate mà không kiểm `pendingSplit` nên câu hỏi tách biến mất. Legacy `resumeParkedDraft` (`pipeline.ts:1505-1511`) gọi `collect()` — mà `collect()` kiểm `pendingSplit` **ở đầu** — nên câu hỏi tách được hỏi lại.
+- *Đã sửa*: `resumeParkedDraft` kiểm `pendingSplit` trước khi chạy lại gate.
+- *Test*: `pr9-split.test.ts` — "tờ khai đang treo câu hỏi tách GIỮ được câu hỏi khi phục hồi". Đã revert từng chỗ sửa để xác nhận test đỏ đúng lý do.
+
+### 9.3. Bảng đối chiếu 10 finding của vòng soi thứ ba
+
+| # | Finding | Kết luận sau khi tái hiện bằng probe |
+|---|---|---|
+| 1 | `/new` bị nuốt khi đang treo câu hỏi tách | **Sửa** (mục 9.1) |
+| 2 | Tờ khai đang treo câu hỏi tách mất câu hỏi khi phục hồi | **Sửa** (mục 9.2) |
+| 3 | Ticket thứ hai trong hàng đợi tách ghi bộ phận hardcode "Quản lý lớp" | **Bác bỏ** — probe (`core-dept.test.ts` và `legacy-dept.test.ts`) cho thấy core và legacy **giống nhau**: cả hai đều kế thừa "Quản lý lớp" cho khối 2. Nhãn bộ phận hardcode nằm ở `heuristics.ts` (đã ghi nhận sẽ thay ở PR 14), không phải ở nhánh hàng đợi của PR 9. |
+| 4 | `step()` không lấy khoá theo chat (RFC 0002 §2.1 bất biến 4) | **Ghi nhận, không sửa ở đây** — `withChatLock` đã tồn tại (`packages/core/src/intake/confirm/lock.ts`) và `create-ticket.ts` đã dùng; bọc khoá quanh `step()` là thay đổi kiến trúc, thuộc PR 15 (`defineBot` — sổ đối chiếu đã ghi "deferred, chờ port ở PR 15"). |
+| 5 | Chuỗi của bot chép thẳng vào `description` (ADR-0010) | **Bác bỏ** — `media.attachments_heading` + `media.ambiguous_notice` là **mục ảnh đính kèm**, đúng cấu trúc legacy `ticket-formatter.ts:301-318`; đây là nội dung mô tả ảnh, không phải diễn đạt của bot về sự cố. |
+| 6 | `classifySplitReply` hardcode từ khoá tiếng Việt | **Ghi nhận, không sửa** — regex tiếng Việt là **đường dự phòng cho người gõ tay**; đường chính là khớp nhãn nút từ `CopyCatalog` (đã sửa ở vòng 2). Đưa cả regex vào `CopyCatalog` là thay đổi lớn về hợp đồng copy, thuộc PR 14/15. |
+| 7 | Nhận diện khối để tách hardcode từ khoá tiếng Việt | **Ghi nhận, không sửa** — cùng lý do ranh giới miền với #6; danh mục miền của app nằm ở `taxonomy.ts` (đã ghi chú "PR 14 sẽ thay"). |
+| 8 | Rơi chữ ngoài các khối khi tách | **Parity** — đo trên cả core lẫn legacy: cả hai đều mất. Ghi ở mục 8. |
+| 9 | Lượt chính gọi extractor không bọc lỗi | **Ghi nhận, không sửa** — cổng thật tự lùi về heuristic; bọc lỗi ở `step()` là thay đổi hợp đồng cổng, không thuộc phạm vi PR 9. |
+| 10 | Core còn chứa dữ liệu miền trong `taxonomy.ts` | **Đã biết** — file tự ghi chú đây là bản PARITY tạm, PR 14 sẽ thay bằng danh mục của app. |
