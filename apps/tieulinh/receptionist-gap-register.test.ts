@@ -3507,6 +3507,39 @@ describe("sổ đối chiếu lễ tân legacy -> core / Tiểu Linh mới", () 
     expect(doc.includes(marker), `ENGINE.md thiếu dòng: ${marker}`).toBe(true);
   });
 
+  test("bảng số test deferred theo PR trong ENGINE.md khớp sổ", () => {
+    // Bảng này viết tay nên trôi: thêm một dòng `deferred` mà quên cập nhật thì
+    // không ai biết. Test này chặn điều đó.
+    const byPr = new Map<number, number>();
+    for (const r of ROWS.filter((x) => x.status === "deferred")) {
+      const m = /PR (\d+)/.exec(r.why ?? "");
+      if (!m) continue;
+      const pr = Number(m[1]);
+      byPr.set(pr, (byPr.get(pr) ?? 0) + 1);
+    }
+
+    const doc = text("packages/core/docs/parity/ENGINE.md");
+    const block =
+      /<!-- gap-register-deferred-by-pr -->([\s\S]*?)<!-- \/gap-register-deferred-by-pr -->/.exec(
+        doc,
+      );
+    expect(block, "ENGINE.md thiếu khối <!-- gap-register-deferred-by-pr -->").not.toBeNull();
+
+    const table = new Map<number, number>();
+    for (const m of (block?.[1] ?? "").matchAll(/^\| (\d+) \| (\d+) \|/gm)) {
+      table.set(Number(m[1]), Number(m[2]));
+    }
+
+    for (const [pr, n] of byPr) {
+      expect(table.get(pr), `ENGINE.md thiếu PR ${pr} trong bảng số test deferred theo PR`).toBe(n);
+    }
+    for (const [pr, n] of table) {
+      if (!byPr.has(pr)) {
+        expect(n, `ENGINE.md ghi PR ${pr} còn ${n} dòng deferred, số không có trong sổ`).toBe(0);
+      }
+    }
+  });
+
   test("tóm tắt: mọi dòng có trạng thái hợp lệ", () => {
     expect(count("ported") + count("core") + count("deferred") + count("by-design")).toBe(
       ROWS.length,
