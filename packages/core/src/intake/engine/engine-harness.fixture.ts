@@ -15,8 +15,10 @@ import type {
   ExtractInput,
   FieldExtractorPort,
   TrackerIssue,
+  Priority,
   TrackerPort,
 } from "../ports";
+import type { ProjectAssignee } from "../../itsaplan";
 import { IntakeEngine, type IntakeEngineDeps } from "./engine";
 import { TEST_COPY } from "./test-copy.fixture";
 import { engineTestCatalog } from "./catalog.fixture";
@@ -35,23 +37,82 @@ export class FakeClock implements Clock {
 export class FakeTracker implements TrackerPort {
   created: CreateIssueInput[] = [];
   comments: Array<{ issueId: number; body: string }> = [];
+  updates: Array<{
+    issueId: number;
+    patch: { priority?: Priority; title?: string; description?: string };
+  }> = [];
+  closedIssues: Set<number> = new Set();
+  issueStates: Map<
+    number,
+    { stateType?: string; state?: "open" | "resolved" | "done" | "canceled" }
+  > = new Map();
+  assignees: ProjectAssignee[] = [];
+  timelines: Map<number, unknown[]> = new Map();
+  issues: Map<number, TrackerIssue> = new Map();
   private seq = 0;
+
   async createIssue(input: CreateIssueInput): Promise<TrackerIssue> {
     this.created.push(input);
     const n = ++this.seq;
-    return { id: 1000 + n, identifier: `TECH-${n}`, title: input.title, url: `https://t/${n}` };
+    const issue: TrackerIssue = {
+      id: 1000 + n,
+      identifier: `TECH-${n}`,
+      title: input.title,
+      url: `https://t/${n}`,
+      priority: input.priority,
+    };
+    this.issues.set(issue.id, issue);
+    return issue;
   }
-  async getIssue(id: number) {
-    return { id, identifier: `TECH-${id - 1000}`, title: "x" };
+  async getIssue(id: number): Promise<TrackerIssue | null> {
+    return this.issues.get(id) ?? { id, identifier: `TECH-${id - 1000}`, title: "x" };
   }
-  async addComment(issueId: number, body: string) {
+  async addComment(issueId: number, body: string): Promise<void> {
     this.comments.push({ issueId, body });
   }
-  async attach(_i: number, _d: string, m: string[]) {
+  async attach(_i: number, _d: string, m: string[]): Promise<number> {
     return m.length;
   }
-  async findByIdentifier() {
+  async findByIdentifier(identifier: string): Promise<TrackerIssue | null> {
+    for (const iss of this.issues.values()) {
+      if (iss.identifier.toUpperCase() === identifier.toUpperCase()) return iss;
+    }
     return null;
+  }
+  async updateIssue(
+    issueId: number,
+    patch: { priority?: Priority; title?: string; description?: string },
+  ): Promise<void> {
+    this.updates.push({ issueId, patch });
+    const iss = this.issues.get(issueId);
+    if (iss) {
+      if (patch.priority) iss.priority = patch.priority;
+      if (patch.title) iss.title = patch.title;
+    }
+  }
+  async isIssueClosed(issueId: number): Promise<boolean> {
+    if (this.closedIssues.has(issueId)) return true;
+    const s = this.issueStates.get(issueId);
+    return (
+      s?.state === "done" ||
+      s?.state === "canceled" ||
+      s?.stateType === "completed" ||
+      s?.stateType === "canceled"
+    );
+  }
+  async getIssueState(issueId: number) {
+    return (
+      this.issueStates.get(issueId) ??
+      (this.closedIssues.has(issueId)
+        ? { state: "done" as const, stateType: "completed" }
+        : { state: "open" as const, stateType: "started" })
+    );
+  }
+  async getProjectAssignees() {
+    return this.assignees;
+  }
+  async getIssueTimeline(issueId: number) {
+    return this.timelines.get(issueId) ?? [];
   }
 }
 

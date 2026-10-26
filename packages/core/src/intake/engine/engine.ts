@@ -66,12 +66,31 @@ import {
   extractLabelledIdentifiers,
   identityConflict,
 } from "./identifiers";
-import { mentionedIdentifiers, foldButton, saysNewIncident, withTypedDetail } from "./text";
+import {
+  mentionedIdentifiers,
+  foldButton,
+  saysNewIncident,
+  stripNewIncidentDeclaration,
+  withTypedDetail,
+} from "./text";
 import { isDeclineAnswer, isMeaninglessInput, TECH_INFO_FIELD } from "./normalize";
 import { MAX_RAW_TEXT_CHARS, MAX_RAW_TEXT_TOTAL_CHARS } from "../raw-text";
-import type { StepInput, StepOutput, ChannelMessage } from "./types";
+import type { StepInput, StepOutput } from "./types";
 import { type ReplayOraclePort, applyReplayControlOverride } from "./oracle";
-import { isInvalidTitle, deriveFallbackTitle, isExplicitCancel } from "../extractor/heuristics";
+import {
+  isInvalidTitle,
+  deriveFallbackTitle,
+  isExplicitCancel,
+  isChitchat,
+  isShortConfirmation,
+} from "../extractor/heuristics";
+import {
+  isIssueClosed,
+  closedTicketRefusalMessage,
+  resolveSupplementMentionTarget,
+  formatSupplementComment,
+  notifyOnCallSupplement,
+} from "../notify/supplement-notifier";
 import { SCOPE_RANK, EVIDENCE_FLAGS } from "../extractor/merger";
 
 /** Max chars of ONE reporter message kept in rawText (legacy parity). */
@@ -122,6 +141,7 @@ export interface IntakeEngineDeps {
    * TL2 extraction, merging, and business rules untouched. Absent in production.
    */
   oracle?: ReplayOraclePort;
+  notifier?: { broadcastAlert?: (text: string) => Promise<void> };
 }
 
 export class IntakeEngine {
@@ -174,7 +194,7 @@ export class IntakeEngine {
 
     // 1. A write to an existing ticket is awaiting the reporter's button (ADR-0008).
     if (draft?.pendingTicketAction) {
-      return this.resolvePendingAction(draft, text);
+      return this.resolvePendingAction(draft, text, mediaPaths, nowIso);
     }
 
     // 2. A park ("new incident or append?") is awaiting the reporter's choice (TECH-928).
@@ -214,11 +234,15 @@ export class IntakeEngine {
       draft = fresh;
     }
 
-    // 5. An already-created ticket in this chat + a follow-up: route to the
-    //    existing-ticket command path, never overwrite its identifiers (TECH-956).
-    if ((draft && draft.status === "created") || this.mentionsExistingTicket(text)) {
-      const routed = await this.routeExistingTicket(draft, text, mediaPaths);
+    // 5. Existing ticket commands (e.g. "bổ sung TECH-X", "sửa TECH-X", lookup)
+    if (this.mentionsExistingTicket(text)) {
+      const routed = await this.routeExistingTicket(draft, input.chatId, text, mediaPaths);
       if (routed) return routed;
+    }
+
+    // 5.1 Post-create ticket flow (RFC 0002 PR 10, C1-C4, G2, B8):
+    if (draft && draft.status === "created" && draft.issueId) {
+      return this.handlePostCreate(draft, input, text, mediaPaths, nowIso);
     }
 
     // 6. Ordinary collection.
@@ -233,7 +257,7 @@ export class IntakeEngine {
     text: string,
     mediaPaths: string[],
     nowIso: string,
-    options?: { skipConflictCheck?: boolean },
+    options?: { skipConflictCheck?: boolean; preExtracted?: ExtractedFields },
   ): Promise<StepOutput> {
     const { deps } = this;
     const open = existing && !CLOSED_STATUSES.has(existing.status) ? existing : null;
@@ -241,12 +265,14 @@ export class IntakeEngine {
     // vừa hỏi (A13). Luật tất định, không nhờ LLM.
     const declined = isDeclineAnswer(text);
 
-    const extracted = await deps.extractor.extract({
-      text,
-      attachments: mediaPaths.length,
-      draftTitle: open?.ticket.title || undefined,
-      context: this.buildExtractContext(existing),
-    });
+    const extracted =
+      options?.preExtracted ??
+      (await deps.extractor.extract({
+        text,
+        attachments: mediaPaths.length,
+        draftTitle: open?.ticket.title || undefined,
+        context: this.buildExtractContext(existing),
+      }));
 
     // A plain confirm with no live draft summary is chitchat here; the write
     // path's confirmation protocol owns real confirms once a summary is shown.
@@ -329,6 +355,7 @@ export class IntakeEngine {
         outcome: "asked",
         messages: [{ text: deps.copy.text("ask.describe_incident", { item }) }],
         missingFields: ["short_description"],
+        docId: draft.docId,
       };
     }
 
@@ -337,6 +364,7 @@ export class IntakeEngine {
       return {
         outcome: "clarify",
         messages: [{ text: deps.copy.text("clarify.greeting") }],
+        docId: draft.docId,
       };
     }
 
@@ -380,6 +408,7 @@ export class IntakeEngine {
         outcome: "asked",
         messages: [{ text: question, ...(buttons ? { buttons } : {}) }],
         missingFields: gate.missingRequired,
+        docId: draft.docId,
       };
     }
 
@@ -401,6 +430,7 @@ export class IntakeEngine {
           outcome: "asked",
           messages: [{ text: question, ...(buttons ? { buttons } : {}) }],
           missingFields: [systemField],
+          docId: draft.docId,
         };
       }
     }
@@ -420,6 +450,7 @@ export class IntakeEngine {
         outcome: "asked",
         messages: [{ text: question }],
         missingFields: [],
+        docId: draft.docId,
       };
     }
 
@@ -447,7 +478,7 @@ export class IntakeEngine {
         draft.techQuestion = review.question;
         draft.lastAskedFields = [TECH_INFO_FIELD];
         deps.drafts.saveRevision(draft);
-        return { outcome: "asked", messages: [{ text: review.question }] };
+        return { outcome: "asked", messages: [{ text: review.question }], docId: draft.docId };
       }
       draft.techReviewDone = true;
     }
@@ -611,9 +642,10 @@ export class IntakeEngine {
 
     switch (result.kind) {
       case "created": {
-        if (deps.postCreate) {
+        const post = deps.postCreate;
+        if (post) {
           await safe(() =>
-            deps.postCreate!.afterCreate({
+            post.afterCreate({
               issue: result.issue,
               description: draft.ticket.rawText,
               chatId: draft.chatId,
@@ -1167,34 +1199,55 @@ export class IntakeEngine {
 
   private async routeExistingTicket(
     draft: IntakeDraft | null,
+    chatId: string,
     text: string,
     mediaPaths: string[],
   ): Promise<StepOutput | null> {
     const { deps } = this;
-    if (!deps.commands) return null;
-
-    const candidates = this.buildCandidates(draft, text);
+    const candidates = this.buildCandidates(chatId, draft, text);
     if (candidates.length === 0) return null;
 
-    const command = await deps.commands.interpret({
-      message: text,
-      attachments: mediaPaths.length,
-      candidates,
-      draftTitle: draft && !CLOSED_STATUSES.has(draft.status) ? draft.ticket.title : undefined,
-    });
-    if (command.action === "new" || command.action === "unclear") return null;
-
+    let command: TicketCommand | null = null;
+    if (deps.commands) {
+      command = await deps.commands.interpret({
+        message: text,
+        attachments: mediaPaths.length,
+        candidates,
+        draftTitle: draft && !CLOSED_STATUSES.has(draft.status) ? draft.ticket.title : undefined,
+      });
+    } else {
+      const m =
+        /(?:bổ\s*sung|thêm|update|cập\s*nhật)\s+([A-Z0-9_]+-\d+)(?:\s*[:\-–]?\s*(.*))?$/iu.exec(
+          text.trim(),
+        );
+      if (m) {
+        command = { action: "append", identifier: m[1].toUpperCase(), content: m[2]?.trim() || "" };
+      }
+    }
+    if (!command || command.action === "new" || command.action === "unclear") return null;
+    const cmd = command;
     const target = candidates.find(
-      (c) => c.identifier.toUpperCase() === targetId(command).toUpperCase(),
+      (c) => c.identifier.toUpperCase() === targetId(cmd).toUpperCase(),
     );
     if (!target) return null;
+
+    // Check if target ticket is closed (W29-NOTIFY / test 18)
+    const isClosed = await this.checkIssueClosed(target.issueId);
+    if (isClosed) {
+      const statusLabel = await this.resolveClosedStatusLabel(target.issueId);
+      return {
+        outcome: "closed_refusal",
+        messages: [{ text: closedTicketRefusalMessage(target.identifier, statusLabel) }],
+        issue: { id: target.issueId, identifier: target.identifier },
+      };
+    }
 
     // Lookup is read-only; ownership gates only WRITES (ADR-0008 §6).
     if (command.action === "lookup") {
       return this.lookup(target, draft);
     }
 
-    const own = this.isOwn(target, draft);
+    const own = this.isOwn(target, chatId);
     if (!own) {
       return {
         outcome: "not_owner",
@@ -1203,11 +1256,11 @@ export class IntakeEngine {
     }
 
     // A write to an existing ticket NEVER happens here — show a preview + button (ADR-0008).
-    return this.previewAction(draft, command);
+    return this.previewAction(draft, command, target);
   }
 
   private lookup(target: ReplyCandidate, draft: IntakeDraft | null): StepOutput {
-    const own = this.isOwn(target, draft);
+    const own = this.isOwn(target, draft?.chatId ?? "");
     const key = own ? "lookup.status" : "lookup.not_owner";
     return {
       outcome: own ? "lookup" : "not_owner",
@@ -1219,6 +1272,7 @@ export class IntakeEngine {
   private previewAction(
     draft: IntakeDraft | null,
     command: Extract<TicketCommand, { action: "append" | "edit" | "move_created" }>,
+    target?: ReplyCandidate,
   ): StepOutput {
     const { deps } = this;
     const nowIso = new Date(deps.clock.now()).toISOString();
@@ -1259,7 +1313,16 @@ export class IntakeEngine {
 
     const withPending: IntakeDraft = {
       ...base,
-      pendingTicketAction: { kind, identifier, content, instruction, from, confirmLabel: doLabel },
+      pendingTicketAction: {
+        kind,
+        identifier,
+        issueId: target?.issueId,
+        content,
+        instruction,
+        from,
+        confirmLabel: doLabel,
+        askedAt: nowIso,
+      },
       updatedAt: nowIso,
     };
     deps.drafts.saveRevision(withPending);
@@ -1285,34 +1348,413 @@ export class IntakeEngine {
     };
   }
 
-  private async resolvePendingAction(draft: IntakeDraft, text: string): Promise<StepOutput> {
-    const { deps } = this;
-    const pending = draft.pendingTicketAction!;
-    const folded = foldButton(text);
-    const nowIso = new Date(deps.clock.now()).toISOString();
+  // ── post-create ticket flow (RFC 0002 PR 10, C1-C4, G2, B8) ───────────────────
 
-    // Execute ONLY on an exact button match (ADR-0008; TECH-795/975/1013).
+  private async handlePostCreate(
+    draft: IntakeDraft,
+    input: StepInput,
+    text: string,
+    mediaPaths: string[],
+    nowIso: string,
+  ): Promise<StepOutput> {
+    const { deps } = this;
+    const issueId = draft.issueId ?? 0;
+    const identifier = draft.issueIdentifier || `TECH-${issueId}`;
+
+    // 1. Kiểm tra trạng thái đóng của ticket đã tạo (W29-NOTIFY)
+    const isClosed = await this.checkIssueClosed(issueId);
+    if (isClosed) {
+      const statusLabel = await this.resolveClosedStatusLabel(issueId);
+      if (saysNewIncident(text)) {
+        return this.startNewIncidentFromPostCreate(draft, input, text, mediaPaths, nowIso);
+      }
+      const extractedEarly = await deps.extractor.extract({
+        text,
+        attachments: mediaPaths.length,
+        draftTitle: draft.ticket.title,
+        context: this.buildExtractContext(draft),
+      });
+      if (extractedEarly.userIntent === "report_issue") {
+        return this.startNewIncidentFromPostCreate(
+          draft,
+          input,
+          text,
+          mediaPaths,
+          nowIso,
+          extractedEarly,
+        );
+      }
+      return {
+        outcome: "closed_refusal",
+        messages: [{ text: closedTicketRefusalMessage(identifier, statusLabel) }],
+        issue: { id: issueId, identifier, url: draft.issueUrl },
+      };
+    }
+
+    // 2. Ticket đang mở: trích xuất ý định với createdTicket context
+    const extracted = await deps.extractor.extract({
+      text,
+      attachments: mediaPaths.length,
+      draftTitle: draft.ticket.title,
+      context: this.buildExtractContext(draft),
+    });
+    // 3. Phân loại ý định:
+    // 3.0. Nếu có ảnh: luôn coi là bổ sung (ADR-0008, TECH-1013), không bao giờ là chitchat
+    if (mediaPaths.length > 0) {
+      const lead = deps.copy.text("action.suggest_append_lead", { identifier });
+      return this.proposeSuggestAction(draft, input, text, mediaPaths, lead, nowIso);
+    }
+
+    // 3.1. Chitchat / Cảm ơn (C1)
+    if (extracted.userIntent === "chitchat" || isChitchat(text)) {
+      return {
+        outcome: "already_created",
+        messages: [{ text: deps.copy.text("ticket.chitchat_after_create", { identifier }) }],
+        issue: { id: issueId, identifier, url: draft.issueUrl },
+      };
+    }
+
+    // 3.2. Huỷ chung chung (C1, ADR-0006)
+    if (extracted.userIntent === "cancel" || isExplicitCancel(text)) {
+      return {
+        outcome: "already_created",
+        messages: [{ text: deps.copy.text("ticket.cancel_hint_after_create", { identifier }) }],
+        issue: { id: issueId, identifier, url: draft.issueUrl },
+      };
+    }
+
+    // 3.3. Xác nhận lại (C1)
+    if (extracted.userIntent === "confirm" || isShortConfirmation(text)) {
+      return {
+        outcome: "already_created",
+        messages: [{ text: deps.copy.text("ticket.already_created_hint", { identifier }) }],
+        issue: { id: issueId, identifier, url: draft.issueUrl },
+      };
+    }
+
+    // 3.4. Nhận diện "ticket mới ạ" (C2, TECH-1013)
+    if (saysNewIncident(text)) {
+      const stripped = stripNewIncidentDeclaration(text);
+      if (stripped.length < 12 && mediaPaths.length === 0) {
+        const fresh = this.openFresh(input.chatId, nowIso);
+        deps.drafts.saveRevision(fresh);
+        return {
+          outcome: "clarify",
+          messages: [{ text: "Dạ vâng, anh/chị mô tả sự cố mới giúp em nhé ạ." }],
+          docId: fresh.docId,
+        };
+      }
+      return this.startNewIncidentFromPostCreate(draft, input, text, mediaPaths, nowIso, extracted);
+    }
+
+    // 3.5. Báo sự cố mới (C1)
+    if (extracted.userIntent === "report_issue") {
+      return this.startNewIncidentFromPostCreate(draft, input, text, mediaPaths, nowIso, extracted);
+    }
+
+    // 3.6. Định danh xung đột so với ticket đã tạo (C3)
+    const conflictField = this.findConflictingField(draft, extracted);
+    if (conflictField && text) {
+      const lead = deps.copy.text("action.suggest_conflict_lead", { identifier });
+      return this.proposeSuggestAction(draft, input, text, mediaPaths, lead, nowIso);
+    }
+
+    // 3.7. Bổ sung thông tin hoặc gửi ảnh (C2, ADR-0008)
+    const lead = deps.copy.text("action.suggest_append_lead", { identifier });
+    return this.proposeSuggestAction(draft, input, text, mediaPaths, lead, nowIso);
+  }
+
+  private async startNewIncidentFromPostCreate(
+    _draft: IntakeDraft,
+    input: StepInput,
+    text: string,
+    mediaPaths: string[],
+    nowIso: string,
+    preExtracted?: ExtractedFields,
+  ): Promise<StepOutput> {
+    const fresh = this.openFresh(input.chatId, nowIso);
+    let messageToCollect = text;
+    if (saysNewIncident(text)) {
+      const stripped = stripNewIncidentDeclaration(text);
+      if (stripped.length >= 12) {
+        messageToCollect = stripped;
+      }
+    }
+    return this.collect(fresh, input, messageToCollect, mediaPaths, nowIso, {
+      preExtracted,
+    });
+  }
+
+  private async proposeSuggestAction(
+    draft: IntakeDraft,
+    input: StepInput,
+    text: string,
+    mediaPaths: string[],
+    lead: string,
+    nowIso: string,
+  ): Promise<StepOutput> {
+    const { deps } = this;
+    const issueId = draft.issueId ?? 0;
+    const createdId = draft.issueIdentifier || `TECH-${issueId}`;
+    const created: ReplyCandidate = {
+      identifier: createdId,
+      issueId,
+      title: draft.ticket.title,
+      ownTicket: true,
+      mentioned: false,
+      justCreated: true,
+    };
+
+    const others = await this.otherOpenTickets(input.chatId, createdId);
+    let primary = created;
+    if (others.length > 0 && text && deps.commands) {
+      const command = await deps.commands
+        .interpret({
+          message: text,
+          attachments: mediaPaths.length,
+          candidates: [created, ...others],
+        })
+        .catch(() => ({ action: "unclear" }) as TicketCommand);
+      if (command.action === "append") {
+        primary =
+          [created, ...others].find(
+            (c) => c.identifier.toUpperCase() === command.identifier.toUpperCase(),
+          ) ?? created;
+      }
+    }
+
+    const alternatives = [created, ...others]
+      .filter((c) => c.identifier.toUpperCase() !== primary.identifier.toUpperCase())
+      .slice(0, 3);
+
+    const title = primary.title ? ` «${primary.title}»` : "";
+    const quoted = text ? `\n\n> ${cap(text, 500).replace(/\n/g, "\n> ")}` : "";
+    const files = mediaPaths.length ? `\n(kèm ${mediaPaths.length} ảnh/tệp)` : "";
+    const alts = alternatives.length
+      ? `\n\nAnh/chị còn ticket đang mở khác, nếu tin này thuộc ticket đó thì bấm đúng mã:\n${alternatives.map((a) => `- ${a.identifier}${a.title ? ` «${a.title}»` : ""}`).join("\n")}`
+      : "";
+
+    const newIncidentLabel = deps.copy.text("button.new_incident");
+    const doLabel = deps.copy.text("button.confirm_append", { identifier: primary.identifier });
+
+    const adjustedLead =
+      primary.identifier === createdId ? lead : lead.replace(createdId, primary.identifier);
+    const messageText = `${adjustedLead}${title} phải không ạ? Em sẽ ghi vào ${primary.identifier}:${quoted}${files}${alts}\n\nAnh/chị bấm nút xác nhận để em ghi, hoặc "${newIncidentLabel}" nếu là việc khác nhé.`;
+
+    const pending: NonNullable<IntakeDraft["pendingTicketAction"]> = {
+      kind: "suggest",
+      identifier: primary.identifier,
+      issueId: primary.issueId,
+      content: text,
+      message: text,
+      mediaPaths,
+      lead: adjustedLead,
+      alternatives: alternatives.map((a) => ({
+        identifier: a.identifier,
+        issueId: a.issueId,
+        title: a.title,
+      })),
+      confirmLabel: doLabel,
+      askedAt: nowIso,
+    };
+
+    const saved: IntakeDraft = {
+      ...draft,
+      revision: draft.revision + 1,
+      updatedAt: nowIso,
+      pendingTicketAction: pending,
+    };
+    deps.drafts.saveRevision(saved);
+
+    const buttons = this.buildTicketActionButtons(pending);
+
+    return {
+      outcome: "action_preview",
+      messages: [
+        {
+          text: messageText,
+          buttons,
+        },
+      ],
+      issue: { id: primary.issueId, identifier: primary.identifier },
+      docId: draft.docId,
+    };
+  }
+
+  private buildTicketActionButtons(
+    pending: NonNullable<IntakeDraft["pendingTicketAction"]>,
+  ): InlineButton[][] {
+    const { deps } = this;
+    const buttons: InlineButton[][] = [];
+    buttons.push([{ text: pending.confirmLabel, callbackData: pending.confirmLabel }]);
+    for (const alt of pending.alternatives ?? []) {
+      const altLabel = deps.copy.text("button.confirm_append", { identifier: alt.identifier });
+      buttons.push([{ text: altLabel, callbackData: altLabel }]);
+    }
+    if (pending.kind === "suggest") {
+      const newIncLabel = deps.copy.text("button.new_incident");
+      buttons.push([{ text: newIncLabel, callbackData: newIncLabel }]);
+    } else {
+      const cancelLabel = deps.copy.text("button.cancel_action");
+      buttons.push([{ text: cancelLabel, callbackData: cancelLabel }]);
+    }
+    return buttons;
+  }
+
+  private async resolvePendingAction(
+    draft: IntakeDraft,
+    text: string,
+    mediaPaths: string[],
+    nowIso: string,
+  ): Promise<StepOutput> {
+    const { deps } = this;
+    const pending = draft.pendingTicketAction;
+    if (!pending) {
+      return {
+        outcome: "action_canceled",
+        messages: [{ text: deps.copy.text("action.canceled") }],
+      };
+    }
+    const folded = foldButton(text);
+
+    // 1. Khớp nút của ticket chính
     if (folded === foldButton(pending.confirmLabel)) {
-      deps.drafts.saveRevision({ ...draft, pendingTicketAction: undefined, updatedAt: nowIso });
+      return this.executeConfirmedTicketAction(draft, pending, mediaPaths, nowIso);
+    }
+
+    // 2. Khớp nút của một ticket thay thế (B8)
+    const alt = (pending.alternatives ?? []).find(
+      (a) =>
+        folded ===
+        foldButton(deps.copy.text("button.confirm_append", { identifier: a.identifier })),
+    );
+    if (alt) {
+      const altPending = {
+        ...pending,
+        identifier: alt.identifier,
+        issueId: alt.issueId,
+        alternatives: undefined,
+      };
+      return this.executeConfirmedTicketAction(draft, altPending, mediaPaths, nowIso);
+    }
+
+    // 3. Người báo bấm "Sự cố mới" hoặc gõ câu mang ý sự cố mới (C2, TECH-1013)
+    const newIncidentLabel = foldButton(deps.copy.text("button.new_incident"));
+    if (pending.kind === "suggest" && (folded === newIncidentLabel || saysNewIncident(text))) {
+      const cleared: IntakeDraft = {
+        ...draft,
+        revision: draft.revision + 1,
+        pendingTicketAction: undefined,
+        updatedAt: nowIso,
+      };
+      deps.drafts.saveRevision(cleared);
+      const base = CLOSED_STATUSES.has(cleared.status)
+        ? this.openFresh(draft.chatId, nowIso)
+        : cleared;
+      const combinedMessage = withTypedDetail(pending.message ?? pending.content ?? "", text);
+      const combinedMedia = Array.from(new Set([...(pending.mediaPaths ?? []), ...mediaPaths]));
+      return this.collect(base, { chatId: draft.chatId }, combinedMessage, combinedMedia, nowIso);
+    }
+
+    // 4. Huỷ / Abort
+    const cancelLabel = foldButton(deps.copy.text("button.cancel_action"));
+    const isAbort =
+      folded === cancelLabel ||
+      (!mentionedIdentifiers(text, deps.identifierPrefix ?? "").length && isExplicitCancel(text));
+    if (isAbort) {
+      const cleared: IntakeDraft = {
+        ...draft,
+        revision: draft.revision + 1,
+        pendingTicketAction: undefined,
+        updatedAt: nowIso,
+      };
+      deps.drafts.saveRevision(cleared);
+      return {
+        outcome: "action_canceled",
+        messages: [{ text: deps.copy.text("action.canceled") }],
+        docId: draft.docId,
+      };
+    }
+
+    // 5. Đang ở suggest: gửi thêm ảnh
+    if (pending.kind === "suggest" && mediaPaths.length > 0) {
+      const nextMedia = Array.from(new Set([...(pending.mediaPaths ?? []), ...mediaPaths]));
+      const updatedPending = { ...pending, mediaPaths: nextMedia };
+      const updatedDoc: IntakeDraft = {
+        ...draft,
+        revision: draft.revision + 1,
+        updatedAt: nowIso,
+        pendingTicketAction: updatedPending,
+      };
+      deps.drafts.saveRevision(updatedDoc);
+      return {
+        outcome: "action_preview",
+        messages: [
+          {
+            text: deps.copy.text("action.suggest_unclear_prompt_with_media", {
+              count: nextMedia.length,
+            }),
+            buttons: this.buildTicketActionButtons(updatedPending),
+          },
+        ],
+        docId: draft.docId,
+      };
+    }
+
+    // 6. Đang ở suggest: gõ việc khác mà không bấm nút
+    if (pending.kind === "suggest") {
+      return {
+        outcome: "action_preview",
+        messages: [
+          {
+            text: deps.copy.text("action.suggest_unclear_prompt"),
+            buttons: this.buildTicketActionButtons(pending),
+          },
+        ],
+        docId: draft.docId,
+      };
+    }
+
+    // Default fallback cho pending khác (edit/move)
+    return { outcome: "action_preview", messages: [{ text: deps.copy.text("action.canceled") }] };
+  }
+
+  private async executeConfirmedTicketAction(
+    draft: IntakeDraft,
+    pending: NonNullable<IntakeDraft["pendingTicketAction"]>,
+    extraMedia: string[],
+    nowIso: string,
+  ): Promise<StepOutput> {
+    const { deps } = this;
+    const issueId =
+      pending.issueId ?? (draft.issueIdentifier === pending.identifier ? draft.issueId : undefined);
+    const identifier = pending.identifier;
+
+    // Clear pendingTicketAction
+    const cleared: IntakeDraft = {
+      ...draft,
+      revision: draft.revision + 1,
+      pendingTicketAction: undefined,
+      updatedAt: nowIso,
+    };
+    deps.drafts.saveRevision(cleared);
+
+    // If edit or move (not suggest/append), delegate to deps.actions if present
+    if (pending.kind === "edit" || pending.kind === "move") {
       if (!deps.actions) {
         return {
           outcome: "action_canceled",
           messages: [{ text: deps.copy.text("action.canceled") }],
         };
       }
-      const result = await deps.actions.execute({
-        kind: pending.kind === "suggest" ? "append" : pending.kind,
+      await deps.actions.execute({
+        kind: pending.kind,
         identifier: pending.identifier,
         content: pending.content,
         instruction: pending.instruction,
         from: pending.from,
       });
-      const doneKey =
-        pending.kind === "edit"
-          ? "action.done_edit"
-          : pending.kind === "move"
-            ? "action.done_move"
-            : "action.done_append";
+      const doneKey = pending.kind === "edit" ? "action.done_edit" : "action.done_move";
       return {
         outcome: "action_done",
         messages: [
@@ -1326,17 +1768,215 @@ export class IntakeEngine {
       };
     }
 
-    const cancelLabel = foldButton(deps.copy.text("button.cancel_action"));
-    if (folded === cancelLabel) {
-      deps.drafts.saveRevision({ ...draft, pendingTicketAction: undefined, updatedAt: nowIso });
-      return {
-        outcome: "action_canceled",
-        messages: [{ text: deps.copy.text("action.canceled") }],
-      };
+    // ── Supplement (kind === "suggest" or "append") ──
+    if (issueId !== undefined) {
+      const isClosed = await this.checkIssueClosed(issueId);
+      if (isClosed) {
+        const statusLabel = await this.resolveClosedStatusLabel(issueId);
+        return {
+          outcome: "closed_refusal",
+          messages: [{ text: closedTicketRefusalMessage(identifier, statusLabel) }],
+          issue: { id: issueId, identifier },
+        };
+      }
     }
 
-    // Anything else: the reporter did not confirm — do NOT write. Keep pending.
-    return { outcome: "action_preview", messages: [{ text: deps.copy.text("action.canceled") }] };
+    const textContent = (pending.content ?? pending.message ?? "").trim();
+    const media = Array.from(new Set([...(pending.mediaPaths ?? []), ...extraMedia]));
+    const parts: string[] = [];
+    if (textContent) {
+      parts.push(cap(textContent, MAX_FOLLOW_UP_CHARS));
+    }
+
+    if (media.length > 0 && issueId !== undefined) {
+      await deps.tracker.attach(issueId, "", media).catch(() => 0);
+      for (const m of media) {
+        parts.push(`![](${m})`);
+      }
+    }
+
+    // G2: Priority escalation
+    if (pending.message) {
+      const asked = await deps.extractor
+        .extract({
+          text: pending.message,
+          attachments: media.length,
+          draftTitle: draft.ticket.title,
+          context: { createdTicket: { identifier } },
+        })
+        .catch(() => null);
+
+      if (
+        asked?.requestedPriority &&
+        asked.requestedPriorityReason &&
+        (asked.requestedPriority === "high" || asked.requestedPriority === "urgent")
+      ) {
+        const reqPrio = asked.requestedPriority as Priority;
+        const targetIssue =
+          issueId !== undefined ? await deps.tracker.getIssue(issueId).catch(() => null) : null;
+        const currentPrio = (targetIssue?.priority ??
+          (draft.issueId === issueId ? draft.ticket.priority : "medium")) as Priority;
+        const prioOrder: Record<Priority, number> = { urgent: 4, high: 3, medium: 2, low: 1 };
+        const prioLabel: Record<Priority, string> = {
+          urgent: "Khẩn cấp (Urgent)",
+          high: "Cao (High)",
+          medium: "Trung bình (Medium)",
+          low: "Thấp (Low)",
+        };
+        if (prioOrder[reqPrio] > prioOrder[currentPrio]) {
+          if (issueId !== undefined && deps.tracker.updateIssue) {
+            await deps.tracker.updateIssue(issueId, { priority: reqPrio }).catch(() => {});
+          }
+          if (draft.issueId === issueId) {
+            cleared.ticket.priority = reqPrio;
+            cleared.requestedPriority = {
+              level: reqPrio as "high" | "urgent",
+              reason: asked.requestedPriorityReason,
+            };
+            deps.drafts.saveRevision(cleared);
+          }
+          parts.push(
+            `⏫ Nâng mức ưu tiên ${prioLabel[currentPrio]} → ${prioLabel[reqPrio]} theo đề nghị của người báo. Lý do: ${asked.requestedPriorityReason}`,
+          );
+        }
+      }
+    }
+
+    // Mention resolution
+    let mentionUsername: string | null = null;
+    if (issueId !== undefined) {
+      const issueObj = await deps.tracker.getIssue(issueId).catch(() => null);
+      const mention = await resolveSupplementMentionTarget({
+        tracker: deps.tracker,
+        issue: { id: issueId, assigneeUserId: issueObj?.assigneeUserId },
+        reporterNames: [draft.reporter?.name],
+      }).catch(() => null);
+      mentionUsername = mention?.username ?? null;
+    }
+
+    if (parts.length === 0) {
+      parts.push(textContent || "Bổ sung thông tin");
+    }
+
+    const commentBody = formatSupplementComment({
+      who: draft.reporter?.name || "Người báo",
+      parts,
+      mention: mentionUsername,
+      style: draft.issueId === issueId ? "user_update" : "who_supplement",
+    });
+
+    if (issueId !== undefined) {
+      await deps.tracker.addComment(issueId, commentBody);
+    }
+
+    if (deps.notifier) {
+      await notifyOnCallSupplement({
+        notifier: deps.notifier,
+        identifier,
+        summary: parts.join(" "),
+      }).catch(() => {});
+    }
+
+    if (deps.actions) {
+      await deps.actions
+        .execute({
+          kind: "append",
+          identifier,
+          content: textContent,
+        })
+        .catch(() => ({ ok: true }));
+    }
+
+    return {
+      outcome: "action_done",
+      messages: [
+        {
+          text: `Em đã cập nhật bổ sung thông tin này vào ticket ${identifier} cho anh/chị rồi nhé ạ!`,
+        },
+      ],
+      issue: { id: issueId ?? 0, identifier },
+      docId: draft.docId,
+    };
+  }
+
+  private async otherOpenTickets(
+    chatId: string,
+    exceptIdentifier: string,
+  ): Promise<ReplyCandidate[]> {
+    const { deps } = this;
+    if (!deps.bindings || typeof deps.bindings.listBindingsForChat !== "function") return [];
+    const list = deps.bindings.listBindingsForChat(chatId, 8, deps.identifierPrefix);
+    const out: ReplyCandidate[] = [];
+    for (const b of list) {
+      if (b.identifier.toUpperCase() === exceptIdentifier.toUpperCase() || out.length >= 3)
+        continue;
+      try {
+        const isClosed = await this.checkIssueClosed(b.issueId);
+        if (isClosed) continue;
+        const issue = await deps.tracker.getIssue(b.issueId).catch(() => null);
+        out.push({
+          identifier: b.identifier,
+          issueId: b.issueId,
+          title: issue?.title ?? b.title,
+          ownTicket: true,
+          mentioned: false,
+        });
+      } catch {
+        // ignore errors reading one ticket
+      }
+    }
+    return out;
+  }
+
+  private async checkIssueClosed(issueId: number): Promise<boolean> {
+    const { deps } = this;
+    if (deps.tracker.isIssueClosed) {
+      try {
+        return await deps.tracker.isIssueClosed(issueId);
+      } catch {
+        return false;
+      }
+    }
+    if (deps.tracker.getIssueState) {
+      try {
+        const stateObj = await deps.tracker.getIssueState(issueId);
+        return stateObj?.state === "done" || stateObj?.state === "canceled";
+      } catch {
+        return false;
+      }
+    }
+    const issue = await deps.tracker.getIssue(issueId).catch(() => null);
+    if (!issue) return false;
+    return isIssueClosed(issue);
+  }
+
+  private async resolveClosedStatusLabel(issueId: number): Promise<string> {
+    const { deps } = this;
+    if (deps.tracker.getIssueState) {
+      try {
+        const stateObj = await deps.tracker.getIssueState(issueId);
+        if (stateObj?.state === "canceled" || stateObj?.stateType === "canceled") {
+          return "Đã hủy (Canceled)";
+        }
+      } catch {
+        // ignore
+      }
+    }
+    const issue = await deps.tracker.getIssue(issueId).catch(() => null);
+    if (issue?.stateType === "canceled") return "Đã hủy (Canceled)";
+    return "Hoàn tất (Done)";
+  }
+
+  private findConflictingField(draft: IntakeDraft, extracted: ExtractedFields): string | null {
+    const existingIds = this.draftIdentifiers(draft);
+    const incomingIds: Partial<Record<IdentifierKey, string>> = {
+      ...(extracted.identifiers ?? {}),
+    };
+    for (const key of IDENTIFIER_KEYS) {
+      const val = (extracted as unknown as Record<string, unknown>)[key] ?? extracted.values?.[key];
+      if (typeof val === "string" && val.trim()) incomingIds[key] = val.trim();
+    }
+    return findIdentifierConflict(existingIds, incomingIds);
   }
 
   // ── small pieces ────────────────────────────────────────────────────────────
@@ -1377,6 +2017,7 @@ export class IntakeEngine {
           buttons: layoutButtons([{ text: confirmLabel, callbackData: confirmLabel }]),
         },
       ],
+      docId: draft.docId,
     };
   }
 
@@ -1628,11 +2269,15 @@ export class IntakeEngine {
 
   private mentionsExistingTicket(text: string): boolean {
     const prefix = this.deps.identifierPrefix;
-    if (!prefix) return false;
-    return mentionedIdentifiers(text, prefix).length > 0;
+    if (prefix && mentionedIdentifiers(text, prefix).length > 0) return true;
+    return /\b[A-Z0-9_]+-\d+\b/i.test(text);
   }
 
-  private buildCandidates(draft: IntakeDraft | null, text: string): ReplyCandidate[] {
+  private buildCandidates(
+    chatId: string,
+    draft: IntakeDraft | null,
+    text: string,
+  ): ReplyCandidate[] {
     const { deps } = this;
     const out = new Map<string, ReplyCandidate>();
 
@@ -1652,31 +2297,42 @@ export class IntakeEngine {
     }
 
     // Explicitly mentioned ids resolve against the binding store.
-    if (deps.identifierPrefix) {
-      for (const id of mentionedIdentifiers(text, deps.identifierPrefix)) {
-        const binding = deps.bindings.getLatestBinding(draft?.chatId ?? "", deps.identifierPrefix);
-        const existing = out.get(id.toUpperCase());
-        if (existing) {
-          existing.mentioned = true;
-        } else {
-          out.set(id.toUpperCase(), {
-            identifier: id,
-            issueId: binding?.identifier?.toUpperCase() === id.toUpperCase() ? binding.issueId : 0,
-            title: binding?.title,
-            ownTicket: binding?.identifier?.toUpperCase() === id.toUpperCase(),
-            mentioned: true,
-          });
-        }
+    const mentioned = deps.identifierPrefix
+      ? mentionedIdentifiers(text, deps.identifierPrefix)
+      : (text.match(/\b[A-Z0-9_]+-\d+\b/gi) ?? []);
+
+    const allBindings =
+      typeof deps.bindings.listBindingsForChat === "function"
+        ? deps.bindings.listBindingsForChat(chatId, 20)
+        : [];
+
+    for (const id of mentioned) {
+      const prefix = id.split("-")[0];
+      const binding =
+        allBindings.find((b) => b.identifier.toUpperCase() === id.toUpperCase()) ??
+        deps.bindings.getLatestBinding(chatId, prefix);
+      const existing = out.get(id.toUpperCase());
+      if (existing) {
+        existing.mentioned = true;
+      } else {
+        const isMatched = binding?.identifier?.toUpperCase() === id.toUpperCase();
+        out.set(id.toUpperCase(), {
+          identifier: id,
+          issueId: isMatched ? binding.issueId : 0,
+          title: isMatched ? binding.title : undefined,
+          ownTicket: isMatched,
+          mentioned: true,
+        });
       }
     }
     return [...out.values()];
   }
 
-  private isOwn(target: ReplyCandidate, draft: IntakeDraft | null): boolean {
+  private isOwn(target: ReplyCandidate, chatId: string): boolean {
     if (target.ownTicket) return true;
     const ownership = this.deps.ownership;
     if (!ownership) return false;
-    return ownership.isOwnTicket({ identifier: target.identifier, chatId: draft?.chatId ?? "" });
+    return ownership.isOwnTicket({ identifier: target.identifier, chatId });
   }
 }
 

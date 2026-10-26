@@ -119,11 +119,17 @@ export interface IntakeDraft {
   pendingTicketAction?: {
     kind: "append" | "edit" | "move" | "suggest";
     identifier: string;
+    issueId?: number;
     content?: string;
+    message?: string;
+    mediaPaths?: string[];
     instruction?: string;
     from?: string;
+    lead?: string;
+    alternatives?: Array<{ identifier: string; issueId: number; title?: string }>;
     /** The exact button label the reporter must send to execute it. */
     confirmLabel: string;
+    askedAt?: string;
   };
   /**
    * A conflicting-identifier or full-report park (TECH-928 / E2E 28/09): this

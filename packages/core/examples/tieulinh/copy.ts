@@ -95,4 +95,19 @@ export const tieuLinhCopy: Record<CopyKey, string> = {
   "button.split_n": "Tách {count} ticket",
   "button.merge_one": "Gộp 1 ticket",
   "media.ambiguous_notice": "*(Ảnh đính kèm chung cho các sự cố trong cùng lượt báo)*",
+  // ── PR 10: tin sau khi tạo ticket (RFC 0002 §1.5 C1-C4, G2, B8) ─────────────
+  "ticket.closed_refusal":
+    "Dạ ticket {identifier} hiện đã đóng ở trạng thái {statusLabel} trên hệ thống rồi nên không thể ghi bổ sung được nữa ạ. Nếu cần hỗ trợ sự cố mới, anh/chị vui lòng tạo ticket mới giúp em nhé ạ.",
+  "ticket.chitchat_after_create":
+    "Dạ không có gì ạ! Ticket {identifier} đang được đội Kỹ thuật tiếp nhận, có cập nhật em sẽ báo anh/chị ngay nhé.",
+  "ticket.cancel_hint_after_create":
+    'Dạ nếu anh/chị muốn hủy hoặc đóng ticket {identifier}, anh/chị nhắn rõ giúp em "hủy {identifier}" (kèm lý do nếu có) để em xác nhận chuyển trạng thái nhé ạ.',
+  "ticket.already_created_hint":
+    "Dạ ticket {identifier} em đã tạo rồi ạ, anh/chị không cần xác nhận lại nhé.",
+  "action.suggest_append_lead": "Dạ tin này là bổ sung cho {identifier}",
+  "action.suggest_conflict_lead": "Dạ tin này có thông tin (SĐT/mã) khác với {identifier}",
+  "action.suggest_unclear_prompt":
+    "Dạ anh/chị bấm giúp em một nút phía trên để em ghi đúng chỗ nhé ạ.",
+  "action.suggest_unclear_prompt_with_media":
+    "Dạ anh/chị bấm giúp em một nút phía trên để em ghi đúng chỗ (đã nhận kèm {count} ảnh/tệp) nhé ạ.",
 };

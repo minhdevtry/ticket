@@ -8,3 +8,4 @@ export * from "./reply-router";
 export * from "./stores";
 export * from "./outbox";
 export * from "./log-channel";
+export * from "./supplement-notifier";
