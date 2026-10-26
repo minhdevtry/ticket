@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "bun:test";
 import {
   filterPairs,
@@ -156,5 +159,75 @@ describe("compare", () => {
     expect(p2.v).toBe(2);
     expect(p2.tl1.action).toBe("confirm_summary");
     expect(p2.tl1.summary?.system).toBe("DUO");
+  });
+
+  it("CLI compare.ts --metrics: thoát mã khác 0 (EXIT 1) khi M0 > 0", async () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), "shadow-metrics-unsafe-"));
+    const filePath = join(tmpDir, "pairs.jsonl");
+    const unsafePair: PairV2 = {
+      v: 2,
+      eid: "e-cli-unsafe",
+      ts: Date.now(),
+      chatId: "chat-cli",
+      text: "tin báo",
+      tl1: { reply: "cần thêm thông tin", action: "ask_missing_field" },
+      tl2: {
+        reply: "đã tạo ticket",
+        outcome: "created",
+        buttons: [],
+        fields: {},
+        latencyMs: 50,
+        error: null,
+      },
+      diff: { class: "S0", code: "unconfirmed_ticket_creation" },
+    };
+    writeFileSync(filePath, `${JSON.stringify(unsafePair)}\n`, "utf8");
+
+    const compareScript = join(import.meta.dir, "compare.ts");
+    const proc = Bun.spawn(["bun", "run", compareScript, filePath, "--metrics"], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const exitCode = await proc.exited;
+    const stdout = await new Response(proc.stdout).text();
+
+    rmSync(tmpDir, { recursive: true, force: true });
+    expect(exitCode).toBe(1);
+    expect(stdout).toContain("**CHẶN**");
+  });
+
+  it("CLI compare.ts --metrics: thoát mã 0 khi M0 = 0", async () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), "shadow-metrics-safe-"));
+    const filePath = join(tmpDir, "pairs.jsonl");
+    const safePair: PairV2 = {
+      v: 2,
+      eid: "e-cli-safe",
+      ts: Date.now(),
+      chatId: "chat-cli",
+      text: "tin báo",
+      tl1: { reply: "cần thêm thông tin", action: "ask_missing_field" },
+      tl2: {
+        reply: "xin thêm thông tin",
+        outcome: "asked",
+        buttons: [],
+        fields: {},
+        latencyMs: 50,
+        error: null,
+      },
+      diff: { class: "S2", code: "wording_difference" },
+    };
+    writeFileSync(filePath, `${JSON.stringify(safePair)}\n`, "utf8");
+
+    const compareScript = join(import.meta.dir, "compare.ts");
+    const proc = Bun.spawn(["bun", "run", compareScript, filePath, "--metrics"], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const exitCode = await proc.exited;
+    const stdout = await new Response(proc.stdout).text();
+
+    rmSync(tmpDir, { recursive: true, force: true });
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("**ĐẠT**");
   });
 });

@@ -11,36 +11,31 @@
  * Tính các chỉ số M0-M4 theo RFC 4.5.
  */
 import { Database } from "bun:sqlite";
-import { makeCopyCatalog } from "../../packages/core/src/intake/copy-catalog.ts";
-import { SqliteChannelBindingStore } from "../../packages/core/src/intake/create/index.ts";
 import {
-  intakeApplySchema,
-  SqliteDraftRepository,
-} from "../../packages/core/src/intake/draft/index.ts";
-import type { IntakeDraft } from "../../packages/core/src/intake/draft/types.ts";
-import {
+  type Clock,
+  type CopyCatalog,
+  type CreateIssueInput,
+  type FieldCatalog,
+  type FieldExtractorPort,
   IntakeEngine,
   type IntakeEngineDeps,
-} from "../../packages/core/src/intake/engine/engine.ts";
-import {
+  MIN_CONFIRM_DELAY_MS,
+  type ReplayOraclePort,
+  SqliteChannelBindingStore,
+  SqliteDraftRepository,
+  type StepOutcome,
+  TEST_COPY,
+  type TrackerIssue,
+  type TrackerPort,
+  type UrgencyRules,
+  engineTestCatalog,
+  evaluateGate,
+  intakeApplySchema,
   legacyActionForOutcome,
+  makeCopyCatalog,
   outcomesForLegacyAction,
-} from "../../packages/core/src/intake/engine/action-map.ts";
-import type { StepOutcome } from "../../packages/core/src/intake/engine/types.ts";
-import type { ReplayOraclePort } from "../../packages/core/src/intake/engine/oracle.ts";
-import { TEST_COPY } from "../../packages/core/src/intake/engine/test-copy.fixture.ts";
-import { engineTestCatalog } from "../../packages/core/src/intake/engine/catalog.fixture.ts";
-import { evaluateGate, type FieldCatalog } from "../../packages/core/src/intake/gate/index.ts";
-import { MIN_CONFIRM_DELAY_MS } from "../../packages/core/src/intake/confirm/protocol.ts";
-import type {
-  Clock,
-  CopyCatalog,
-  CreateIssueInput,
-  FieldExtractorPort,
-  TrackerIssue,
-  TrackerPort,
-} from "../../packages/core/src/intake/ports.ts";
-import type { UrgencyRules } from "../../packages/core/src/intake/priority/priority.ts";
+} from "@vuihoc/bot-core/intake";
+import type { IntakeDraft } from "@vuihoc/bot-core/intake";
 import {
   classifyTl1Reply,
   extractAskedField,
@@ -154,6 +149,15 @@ function makeIsolatedEngine(
 /**
  * Phân lớp lệch S0 / S1 / S2 theo RFC 4.4.
  */
+function normalizePriority(p: string): string {
+  const s = p.trim().toLowerCase();
+  if (s === "khẩn cấp" || s === "rất khẩn cấp" || s === "urgent") return "urgent";
+  if (s === "cao" || s === "gấp" || s === "high") return "high";
+  if (s === "trung bình" || s === "bình thường" || s === "medium") return "medium";
+  if (s === "thấp" || s === "không gấp" || s === "low") return "low";
+  return s;
+}
+
 export function classifyDiff(
   tl1: { reply?: string | null; action: LegacyIntakeAction; summary?: Tl1Summary | null },
   tl2: {
@@ -168,6 +172,7 @@ export function classifyDiff(
     userIntent?: string;
     pastUserMessages: string[];
     draft?: IntakeDraft | null;
+    trackedIdentifier?: string;
   },
 ): PairDiff {
   // ── S0 (Không an toàn) ──────────────────────────────────────────────────
@@ -182,6 +187,48 @@ export function classifyDiff(
       code: "unconfirmed_ticket_creation",
       detail: "TL2 tạo ticket khi người dùng chưa xác nhận và TL1 không tạo ticket",
     };
+  }
+  // 1b. Ghi vào ticket đã có khi TL1 chỉ hỏi (RFC 0002 §4.4)
+  if (tl2.outcome === "action_done" && tl1.action === "ask_missing_field") {
+    return {
+      class: "S0",
+      code: "existing_ticket_write",
+      detail: "TL2 ghi vào ticket đã có khi TL1 chỉ hỏi",
+    };
+  }
+
+  // 1c. Đè định danh: TL2 ghi đè định danh của ticket đã có (RFC 0002 §4.4)
+  if (
+    (tl2.outcome === "action_done" || tl2.outcome === "created") &&
+    context.draft?.issueIdentifier
+  ) {
+    const targetIdentifier =
+      (tl2.fields?.identifier as string) ??
+      (tl2.fields?.issueIdentifier as string) ??
+      tl2.createdTicket?.identifier;
+    if (targetIdentifier && targetIdentifier !== context.draft.issueIdentifier) {
+      return {
+        class: "S0",
+        code: "identifier_overwritten",
+        detail: `TL2 ghi đè định danh ticket: cũ=${context.draft.issueIdentifier}, mới=${targetIdentifier}`,
+      };
+    }
+  }
+
+  // 1d. Huỷ/đóng ticket không phải của người báo (RFC 0002 §4.4)
+  if (tl2.outcome === "action_canceled" || tl2.outcome === "closed_refusal") {
+    const targetId =
+      (tl2.fields?.identifier as string) ??
+      (tl2.fields?.issueIdentifier as string) ??
+      context.draft?.pendingTicketAction?.identifier;
+    const trackedId = context.trackedIdentifier ?? context.draft?.issueIdentifier;
+    if (targetId && trackedId && targetId !== trackedId) {
+      return {
+        class: "S0",
+        code: "foreign_ticket_closed",
+        detail: `TL2 huỷ/đóng ticket không phải của người báo: đang theo dõi=${trackedId}, thao tác=${targetId}`,
+      };
+    }
   }
 
   // 2. Lộ phong bì kênh hoặc token noop vào ticket
@@ -272,14 +319,18 @@ export function classifyDiff(
     };
   }
 
-  // Nếu cùng ở lúc tóm tắt / xác nhận: so nội dung trường
+  // Nếu cùng ở lúc tóm tắt / xác nhận: so nội dung 6 trường theo RFC 0002 §4.5 M2
   if ((tl1.action === "confirm_summary" || tl1.action === "ticket_created") && tl1.summary) {
     const s = tl1.summary;
     const values = context.draft?.record?.values ?? {};
-    const effectiveSystem = (values.system as string) || (values.he_thong as string);
-    const effectiveDept = (values.reporting_dept as string) || (values.bo_phan as string);
 
-    if (s.system && effectiveSystem && s.system.toLowerCase() !== effectiveSystem.toLowerCase()) {
+    // 1. Hệ thống
+    const effectiveSystem = (values.system as string) || (values.he_thong as string);
+    if (
+      s.system &&
+      effectiveSystem &&
+      s.system.trim().toLowerCase() !== effectiveSystem.trim().toLowerCase()
+    ) {
       return {
         class: "S1",
         code: "ticket_field_mismatch",
@@ -289,10 +340,15 @@ export function classifyDiff(
       };
     }
 
+    // 2. Bộ phận
+    const effectiveDept =
+      (values.reporting_dept as string) ||
+      (values.bo_phan as string) ||
+      (values.phong_ban as string);
     if (
       s.reportingDept &&
       effectiveDept &&
-      s.reportingDept.toLowerCase() !== effectiveDept.toLowerCase()
+      s.reportingDept.trim().toLowerCase() !== effectiveDept.trim().toLowerCase()
     ) {
       return {
         class: "S1",
@@ -301,6 +357,85 @@ export function classifyDiff(
         tl2Field: effectiveDept,
         detail: `Lệch bộ phận: TL1=${s.reportingDept}, TL2=${effectiveDept}`,
       };
+    }
+
+    // 3. Sản phẩm
+    const effectiveProduct = (values.product as string) || (values.san_pham as string);
+    if (
+      s.product &&
+      effectiveProduct &&
+      s.product.trim().toLowerCase() !== effectiveProduct.trim().toLowerCase()
+    ) {
+      return {
+        class: "S1",
+        code: "ticket_field_mismatch",
+        tl1Field: s.product,
+        tl2Field: effectiveProduct,
+        detail: `Lệch sản phẩm: TL1=${s.product}, TL2=${effectiveProduct}`,
+      };
+    }
+
+    // 4. Mức ưu tiên
+    const effectivePriority =
+      (values.muc_uu_tien as string) ||
+      (values.priority as string) ||
+      context.draft?.ticket?.priority;
+    if (s.priority && effectivePriority) {
+      const p1 = normalizePriority(s.priority);
+      const p2 = normalizePriority(String(effectivePriority));
+      if (p1 !== p2) {
+        return {
+          class: "S1",
+          code: "ticket_field_mismatch",
+          tl1Field: s.priority,
+          tl2Field: String(effectivePriority),
+          detail: `Lệch mức ưu tiên: TL1=${s.priority}, TL2=${effectivePriority}`,
+        };
+      }
+    }
+
+    // 5. Định danh (mã khách hàng / tài khoản học sinh / SĐT)
+    const sIdentifier = s.customerId || s.studentAccount;
+    const effectiveIdentifier =
+      (values.dinh_danh as string) ||
+      (values.studentAccount as string) ||
+      (values.student_account as string) ||
+      (values.customerId as string) ||
+      (values.customer_id as string) ||
+      (values.ma_khach_hang as string) ||
+      (values.tai_khoan_hs as string) ||
+      (values.sdt as string);
+    if (
+      sIdentifier &&
+      effectiveIdentifier &&
+      sIdentifier.trim().toLowerCase() !== effectiveIdentifier.trim().toLowerCase()
+    ) {
+      return {
+        class: "S1",
+        code: "ticket_field_mismatch",
+        tl1Field: sIdentifier,
+        tl2Field: effectiveIdentifier,
+        detail: `Lệch định danh: TL1=${sIdentifier}, TL2=${effectiveIdentifier}`,
+      };
+    }
+
+    // 6. Số tệp đính kèm
+    if (typeof s.attachmentCount === "number") {
+      const effectiveAttachCount =
+        typeof values.so_tep === "number"
+          ? values.so_tep
+          : typeof values.attachment_count === "number"
+            ? values.attachment_count
+            : context.draft?.ticket?.mediaPaths?.length;
+      if (typeof effectiveAttachCount === "number" && s.attachmentCount !== effectiveAttachCount) {
+        return {
+          class: "S1",
+          code: "attachment_count_mismatch",
+          tl1Field: String(s.attachmentCount),
+          tl2Field: String(effectiveAttachCount),
+          detail: `Lệch số tệp đính kèm: TL1=${s.attachmentCount}, TL2=${effectiveAttachCount}`,
+        };
+      }
     }
   }
 
@@ -617,6 +752,17 @@ export interface ShadowMetrics {
   m3: {
     jaccardAsked: number;
     extraQuestionRate: number;
+    byChat?: Record<
+      string,
+      {
+        jaccardAsked: number;
+        extraQuestionRate: number;
+        tl1Asked: string[];
+        tl2Asked: string[];
+        totalTl2Questions: number;
+        extraTl2Questions: number;
+      }
+    >;
   };
   m4: number; // Branch decision match rate (park/split/merge)
   classes: {
@@ -646,11 +792,26 @@ export function calculateMetrics(pairs: PairV2[]): ShadowMetrics {
   let branchTurns = 0;
   let branchMatched = 0;
 
-  const tl1AskedFields = new Set<string>();
-  const tl2AskedFields = new Set<string>();
-  let totalTl2Questions = 0;
-  let extraTl2Questions = 0;
+  // Lượt 1 cho M3: Gom trường được hỏi theo từng chatId
+  const chatQuestions = new Map<
+    string,
+    {
+      tl1Asked: Set<string>;
+      tl2Asked: Set<string>;
+      tl2Turns: Array<{ field?: string }>;
+    }
+  >();
 
+  const getChatData = (chatId: string) => {
+    let d = chatQuestions.get(chatId);
+    if (!d) {
+      d = { tl1Asked: new Set(), tl2Asked: new Set(), tl2Turns: [] };
+      chatQuestions.set(chatId, d);
+    }
+    return d;
+  };
+
+  // Pass 1: Thu thập trường theo từng chatId và tính thống kê cơ bản
   for (const p of pairs) {
     const diffClass = p.diff?.class;
     if (diffClass === "S0") m0++;
@@ -662,7 +823,14 @@ export function calculateMetrics(pairs: PairV2[]): ShadowMetrics {
     if (!actionStats[tl1Action]) actionStats[tl1Action] = { total: 0, matched: 0 };
     actionStats[tl1Action].total++;
 
-    const isActionMatch = diffClass !== "S0" && p.diff?.code !== "action_mismatch";
+    // M1: Cùng lớp hành động (RFC 0002 §4.5)
+    // - asked_other_field, ticket_field_mismatch, attachment_count_mismatch: cùng lớp action -> matched
+    // - action_mismatch, branch_mismatch: khác lớp action -> không matched
+    // - S0: không an toàn -> không matched
+    const isActionMatch =
+      diffClass !== "S0" &&
+      p.diff?.code !== "action_mismatch" &&
+      p.diff?.code !== "branch_mismatch";
     if (isActionMatch) {
       actionStats[tl1Action].matched++;
     }
@@ -670,7 +838,11 @@ export function calculateMetrics(pairs: PairV2[]): ShadowMetrics {
     // M2: Xác nhận / tạo ticket
     if (tl1Action === "confirm_summary" || tl1Action === "ticket_created") {
       confirmationTurns++;
-      if (p.diff?.code !== "ticket_field_mismatch" && p.diff?.class !== "S0") {
+      if (
+        p.diff?.code !== "ticket_field_mismatch" &&
+        p.diff?.code !== "attachment_count_mismatch" &&
+        p.diff?.class !== "S0"
+      ) {
         confirmedFieldsMatched++;
       }
       if (p.diff?.code !== "rawtext_missing_words") {
@@ -678,21 +850,17 @@ export function calculateMetrics(pairs: PairV2[]): ShadowMetrics {
       }
     }
 
-    // M3: Hỏi bổ sung
+    // M3 Pass 1: Thu thập trường hỏi theo chatId
+    const cData = getChatData(p.chatId || "default");
     if (tl1Action === "ask_missing_field") {
       const f1 = p.diff?.tl1Field ?? extractAskedField(p.tl1.reply);
-      if (f1) tl1AskedFields.add(f1);
+      if (f1) cData.tl1Asked.add(f1);
     }
     if (p.tl2.outcome === "asked") {
-      totalTl2Questions++;
       const f2 =
         p.diff?.tl2Field ?? extractAskedField(p.tl2.reply) ?? extractAskedField(p.tl1.reply);
-      if (f2) {
-        tl2AskedFields.add(f2);
-        if (!tl1AskedFields.has(f2)) {
-          extraTl2Questions++;
-        }
-      }
+      if (f2) cData.tl2Asked.add(f2);
+      cData.tl2Turns.push({ field: f2 });
     }
 
     // M4: Quyết định rẽ (park/split/merge)
@@ -709,18 +877,57 @@ export function calculateMetrics(pairs: PairV2[]): ShadowMetrics {
     }
   }
 
-  const total = pairs.length;
-  const m1 =
-    total > 0
-      ? (total - m0 - (s1 - pairs.filter((p) => p.diff?.code === "asked_other_field").length)) /
-        total
-      : 1;
+  // Pass 2 cho M3: Tính Jaccard và tỉ lệ hỏi thừa trên từng cuộc hội thoại (chatId)
+  const byChat: Record<
+    string,
+    {
+      jaccardAsked: number;
+      extraQuestionRate: number;
+      tl1Asked: string[];
+      tl2Asked: string[];
+      totalTl2Questions: number;
+      extraTl2Questions: number;
+    }
+  > = {};
 
-  // Jaccard similarity M3: |A ∩ B| / |A ∪ B|
-  const intersection = new Set([...tl1AskedFields].filter((x) => tl2AskedFields.has(x)));
-  const union = new Set([...tl1AskedFields, ...tl2AskedFields]);
-  const jaccardAsked = union.size > 0 ? intersection.size / union.size : 1;
-  const extraQuestionRate = totalTl2Questions > 0 ? extraTl2Questions / totalTl2Questions : 0;
+  let sumJaccard = 0;
+  let sumExtraRate = 0;
+  const chatList = Array.from(chatQuestions.entries());
+
+  for (const [chatId, data] of chatList) {
+    const totalTl2 = data.tl2Turns.length;
+    let extraTl2 = 0;
+    for (const turn of data.tl2Turns) {
+      if (turn.field && !data.tl1Asked.has(turn.field)) {
+        extraTl2++;
+      }
+    }
+    const extraRate = totalTl2 > 0 ? extraTl2 / totalTl2 : 0;
+
+    const union = new Set([...data.tl1Asked, ...data.tl2Asked]);
+    const intersection = new Set([...data.tl1Asked].filter((x) => data.tl2Asked.has(x)));
+    const jaccard = union.size > 0 ? intersection.size / union.size : 1;
+
+    byChat[chatId] = {
+      jaccardAsked: jaccard,
+      extraQuestionRate: extraRate,
+      tl1Asked: Array.from(data.tl1Asked),
+      tl2Asked: Array.from(data.tl2Asked),
+      totalTl2Questions: totalTl2,
+      extraTl2Questions: extraTl2,
+    };
+
+    sumJaccard += jaccard;
+    sumExtraRate += extraRate;
+  }
+
+  const numChats = chatList.length;
+  const jaccardAsked = numChats > 0 ? sumJaccard / numChats : 1;
+  const extraQuestionRate = numChats > 0 ? sumExtraRate / numChats : 0;
+
+  const total = pairs.length;
+  const actionMatchedCount = Object.values(actionStats).reduce((sum, a) => sum + a.matched, 0);
+  const m1 = total > 0 ? actionMatchedCount / total : 1;
 
   const m2FieldRate = confirmationTurns > 0 ? confirmedFieldsMatched / confirmationTurns : 1;
   const m2RawTextRate = confirmationTurns > 0 ? rawTextCompleteCount / confirmationTurns : 1;
@@ -746,6 +953,7 @@ export function calculateMetrics(pairs: PairV2[]): ShadowMetrics {
     m3: {
       jaccardAsked,
       extraQuestionRate,
+      byChat,
     },
     m4: m4Rate,
     classes: {

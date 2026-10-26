@@ -11,12 +11,8 @@
  * - Acceptance Criterion 7: Synthetic tests for TECH-928 and TECH-1013.
  */
 import { describe, expect, test } from "bun:test";
-import { CachedFieldExtractor } from "../../packages/core/src/testing/extraction-cache.ts";
-import type {
-  ExtractedFields,
-  ExtractInput,
-  FieldExtractorPort,
-} from "../../packages/core/src/intake/ports.ts";
+import { CachedFieldExtractor } from "@vuihoc/bot-core/testing";
+import type { ExtractedFields, ExtractInput, FieldExtractorPort } from "@vuihoc/bot-core/intake";
 import {
   calculateMetrics,
   classifyDiff,
@@ -187,6 +183,282 @@ describe("Diff Classification — S0 / S1 / S2", () => {
     );
     expect(diff.class).toBe("S0");
     expect(diff.code).toBe("rawtext_missing_words");
+  });
+  test("S0: existing_ticket_write — TL2 ghi vào ticket đã có khi TL1 chỉ hỏi", () => {
+    const diff = classifyDiff(
+      { action: "ask_missing_field", reply: "Anh/chị bổ sung thông tin giúp em" },
+      { outcome: "action_done", reply: "Đã cập nhật ticket TECH-1", buttons: [], fields: {} },
+      "Cần bổ sung",
+      { pastUserMessages: ["Cần bổ sung"] },
+    );
+    expect(diff.class).toBe("S0");
+    expect(diff.code).toBe("existing_ticket_write");
+  });
+
+  test("S0: identifier_overwritten — TL2 ghi đè định danh ticket đã có", () => {
+    const diff = classifyDiff(
+      { action: "ticket_created", reply: "Đã tạo ticket TECH-100" },
+      {
+        outcome: "action_done",
+        reply: "Đã ghi nhận vào TECH-200",
+        buttons: [],
+        fields: { identifier: "TECH-200" },
+      },
+      "sửa ticket",
+      {
+        pastUserMessages: ["sửa ticket"],
+        draft: {
+          docId: "d1",
+          chatId: "c1",
+          revision: 2,
+          status: "created",
+          issueIdentifier: "TECH-100",
+          createdAt: "",
+          updatedAt: "",
+          ticket: { title: "Lỗi", rawText: "sửa ticket", priority: "medium", mediaPaths: [] },
+        },
+      },
+    );
+    expect(diff.class).toBe("S0");
+    expect(diff.code).toBe("identifier_overwritten");
+  });
+
+  test("S0: foreign_ticket_closed — TL2 huỷ/đóng ticket không thuộc người báo", () => {
+    const diff = classifyDiff(
+      { action: "ask_missing_field", reply: "Bạn muốn huỷ ticket nào?" },
+      {
+        outcome: "action_canceled",
+        reply: "Đã huỷ ticket TECH-999",
+        buttons: [],
+        fields: { identifier: "TECH-999" },
+      },
+      "huỷ ticket",
+      {
+        pastUserMessages: ["huỷ ticket"],
+        trackedIdentifier: "TECH-100",
+        draft: {
+          docId: "d1",
+          chatId: "c1",
+          revision: 1,
+          status: "ready_for_confirmation",
+          issueIdentifier: "TECH-100",
+          createdAt: "",
+          updatedAt: "",
+          ticket: { title: "Lỗi", rawText: "huỷ ticket", priority: "medium", mediaPaths: [] },
+        },
+      },
+    );
+    expect(diff.class).toBe("S0");
+    expect(diff.code).toBe("foreign_ticket_closed");
+  });
+
+  test("S1: ticket_field_mismatch — lệch hệ thống lúc xác nhận", () => {
+    const diff = classifyDiff(
+      {
+        action: "confirm_summary",
+        reply: "Tóm tắt: hệ thống CRM",
+        summary: { system: "CRM", reportingDept: "Vận hành" },
+      },
+      { outcome: "summary", reply: "Tóm tắt", buttons: [], fields: {} },
+      "đúng",
+      {
+        pastUserMessages: ["Lỗi"],
+        draft: {
+          docId: "d1",
+          chatId: "c1",
+          revision: 1,
+          status: "ready_for_confirmation",
+          createdAt: "",
+          updatedAt: "",
+          ticket: { title: "Lỗi", rawText: "Lỗi", priority: "medium", mediaPaths: [] },
+          record: {
+            variant: "tech",
+            values: { he_thong: "LiveClass", bo_phan: "Vận hành" },
+            questionCount: {},
+            explicitlyMissing: [],
+          },
+        },
+      },
+    );
+    expect(diff.class).toBe("S1");
+    expect(diff.code).toBe("ticket_field_mismatch");
+    expect(diff.tl1Field).toBe("CRM");
+    expect(diff.tl2Field).toBe("LiveClass");
+  });
+
+  test("S1: ticket_field_mismatch — lệch bộ phận lúc xác nhận", () => {
+    const diff = classifyDiff(
+      {
+        action: "confirm_summary",
+        reply: "Tóm tắt: bộ phận CS",
+        summary: { system: "CRM", reportingDept: "CS" },
+      },
+      { outcome: "summary", reply: "Tóm tắt", buttons: [], fields: {} },
+      "đúng",
+      {
+        pastUserMessages: ["Lỗi"],
+        draft: {
+          docId: "d1",
+          chatId: "c1",
+          revision: 1,
+          status: "ready_for_confirmation",
+          createdAt: "",
+          updatedAt: "",
+          ticket: { title: "Lỗi", rawText: "Lỗi", priority: "medium", mediaPaths: [] },
+          record: {
+            variant: "tech",
+            values: { he_thong: "CRM", bo_phan: "Kế toán" },
+            questionCount: {},
+            explicitlyMissing: [],
+          },
+        },
+      },
+    );
+    expect(diff.class).toBe("S1");
+    expect(diff.code).toBe("ticket_field_mismatch");
+    expect(diff.tl1Field).toBe("CS");
+    expect(diff.tl2Field).toBe("Kế toán");
+  });
+
+  test("S1: ticket_field_mismatch — lệch sản phẩm lúc xác nhận", () => {
+    const diff = classifyDiff(
+      {
+        action: "confirm_summary",
+        reply: "Tóm tắt: sản phẩm Duo",
+        summary: { product: "Duo" },
+      },
+      { outcome: "summary", reply: "Tóm tắt", buttons: [], fields: {} },
+      "đúng",
+      {
+        pastUserMessages: ["Lỗi"],
+        draft: {
+          docId: "d1",
+          chatId: "c1",
+          revision: 1,
+          status: "ready_for_confirmation",
+          createdAt: "",
+          updatedAt: "",
+          ticket: { title: "Lỗi", rawText: "Lỗi", priority: "medium", mediaPaths: [] },
+          record: {
+            variant: "tech",
+            values: { san_pham: "Vuihoc App" },
+            questionCount: {},
+            explicitlyMissing: [],
+          },
+        },
+      },
+    );
+    expect(diff.class).toBe("S1");
+    expect(diff.code).toBe("ticket_field_mismatch");
+    expect(diff.tl1Field).toBe("Duo");
+    expect(diff.tl2Field).toBe("Vuihoc App");
+  });
+
+  test("S1: ticket_field_mismatch — lệch mức ưu tiên lúc xác nhận", () => {
+    const diff = classifyDiff(
+      {
+        action: "confirm_summary",
+        reply: "Tóm tắt: mức ưu tiên Khẩn cấp",
+        summary: { priority: "Khẩn cấp" },
+      },
+      { outcome: "summary", reply: "Tóm tắt", buttons: [], fields: {} },
+      "đúng",
+      {
+        pastUserMessages: ["Lỗi"],
+        draft: {
+          docId: "d1",
+          chatId: "c1",
+          revision: 1,
+          status: "ready_for_confirmation",
+          createdAt: "",
+          updatedAt: "",
+          ticket: { title: "Lỗi", rawText: "Lỗi", priority: "medium", mediaPaths: [] },
+          record: {
+            variant: "tech",
+            values: { muc_uu_tien: "Thấp" },
+            questionCount: {},
+            explicitlyMissing: [],
+          },
+        },
+      },
+    );
+    expect(diff.class).toBe("S1");
+    expect(diff.code).toBe("ticket_field_mismatch");
+    expect(diff.tl1Field).toBe("Khẩn cấp");
+    expect(diff.tl2Field).toBe("Thấp");
+  });
+
+  test("S1: ticket_field_mismatch — lệch định danh lúc xác nhận", () => {
+    const diff = classifyDiff(
+      {
+        action: "confirm_summary",
+        reply: "Tóm tắt: HS 0900000001",
+        summary: { studentAccount: "0900000001" },
+      },
+      { outcome: "summary", reply: "Tóm tắt", buttons: [], fields: {} },
+      "đúng",
+      {
+        pastUserMessages: ["Lỗi"],
+        draft: {
+          docId: "d1",
+          chatId: "c1",
+          revision: 1,
+          status: "ready_for_confirmation",
+          createdAt: "",
+          updatedAt: "",
+          ticket: { title: "Lỗi", rawText: "Lỗi", priority: "medium", mediaPaths: [] },
+          record: {
+            variant: "tech",
+            values: { studentAccount: "0900000009" },
+            questionCount: {},
+            explicitlyMissing: [],
+          },
+        },
+      },
+    );
+    expect(diff.class).toBe("S1");
+    expect(diff.code).toBe("ticket_field_mismatch");
+    expect(diff.tl1Field).toBe("0900000001");
+    expect(diff.tl2Field).toBe("0900000009");
+  });
+
+  test("S1: attachment_count_mismatch — lệch số tệp đính kèm lúc xác nhận", () => {
+    const diff = classifyDiff(
+      {
+        action: "confirm_summary",
+        reply: "Tóm tắt: Đính kèm 2 tệp",
+        summary: { attachmentCount: 2 },
+      },
+      { outcome: "summary", reply: "Tóm tắt", buttons: [], fields: {} },
+      "đúng",
+      {
+        pastUserMessages: ["Lỗi"],
+        draft: {
+          docId: "d1",
+          chatId: "c1",
+          revision: 1,
+          status: "ready_for_confirmation",
+          createdAt: "",
+          updatedAt: "",
+          ticket: {
+            title: "Lỗi",
+            rawText: "Lỗi",
+            priority: "medium",
+            mediaPaths: ["/tmp/file1.png"],
+          },
+          record: {
+            variant: "tech",
+            values: {},
+            questionCount: {},
+            explicitlyMissing: [],
+          },
+        },
+      },
+    );
+    expect(diff.class).toBe("S1");
+    expect(diff.code).toBe("attachment_count_mismatch");
+    expect(diff.tl1Field).toBe("2");
+    expect(diff.tl2Field).toBe("1");
   });
 
   test("S1: hỏi trường khác", () => {
@@ -538,5 +810,184 @@ describe("Tiêu chí 2: Replay trên cặp tổng hợp ra đúng M0-M4 và M0 b
     expect(m.m3.jaccardAsked).toBeGreaterThanOrEqual(0.9);
     expect(m.m3.extraQuestionRate).toBeLessThanOrEqual(0.05);
     expect(m.m4).toBeGreaterThanOrEqual(0.95);
+  });
+});
+
+describe("Tiêu chí 1: M3 ổn định theo thứ tự duyệt và cô lập theo chat", () => {
+  test("M3 ổn định theo thứ tự duyệt (đảo thứ tự cặp cho cùng kết quả)", () => {
+    const pair1: PairV2 = {
+      v: 2,
+      eid: "e1",
+      ts: 1000,
+      chatId: "chat-order-1",
+      text: "Lỗi 1",
+      tl1: { reply: "Anh/chị cho biết bộ phận", action: "ask_missing_field" },
+      tl2: {
+        reply: "Thuộc hệ thống nào ạ?",
+        outcome: "asked",
+        buttons: [],
+        fields: {},
+        latencyMs: 50,
+        error: null,
+      },
+      diff: { class: "S1", code: "asked_other_field", tl1Field: "bo_phan", tl2Field: "he_thong" },
+    };
+    const pair2: PairV2 = {
+      v: 2,
+      eid: "e2",
+      ts: 2000,
+      chatId: "chat-order-1",
+      text: "Lỗi 2",
+      tl1: { reply: "Thuộc hệ thống nào ạ?", action: "ask_missing_field" },
+      tl2: {
+        reply: "Anh/chị cho biết bộ phận",
+        outcome: "asked",
+        buttons: [],
+        fields: {},
+        latencyMs: 50,
+        error: null,
+      },
+      diff: { class: "S1", code: "asked_other_field", tl1Field: "he_thong", tl2Field: "bo_phan" },
+    };
+
+    const forward = calculateMetrics([pair1, pair2]);
+    const reverse = calculateMetrics([pair2, pair1]);
+
+    expect(forward.m3.extraQuestionRate).toBe(0);
+    expect(reverse.m3.extraQuestionRate).toBe(0);
+    expect(forward.m3.jaccardAsked).toBe(reverse.m3.jaccardAsked);
+    expect(forward.m3.jaccardAsked).toBe(1.0);
+    expect(forward.m3.extraQuestionRate).toBe(reverse.m3.extraQuestionRate);
+  });
+
+  test("M3 cô lập theo chat (trường của chat A không lẫn vào chat B)", () => {
+    const pairA: PairV2 = {
+      v: 2,
+      eid: "ea1",
+      ts: 1000,
+      chatId: "chat-A",
+      text: "Tin A",
+      tl1: { reply: "Thuộc hệ thống nào ạ?", action: "ask_missing_field" },
+      tl2: {
+        reply: "Thuộc hệ thống nào ạ?",
+        outcome: "asked",
+        buttons: [],
+        fields: {},
+        latencyMs: 50,
+        error: null,
+      },
+      diff: { class: "S2", code: "wording_difference" },
+    };
+    const pairB: PairV2 = {
+      v: 2,
+      eid: "eb1",
+      ts: 2000,
+      chatId: "chat-B",
+      text: "Tin B",
+      tl1: { reply: "Anh/chị cho biết bộ phận", action: "ask_missing_field" },
+      tl2: {
+        reply: "Thuộc hệ thống nào ạ?",
+        outcome: "asked",
+        buttons: [],
+        fields: {},
+        latencyMs: 50,
+        error: null,
+      },
+      diff: { class: "S1", code: "asked_other_field", tl1Field: "bo_phan", tl2Field: "he_thong" },
+    };
+
+    const metrics = calculateMetrics([pairA, pairB]);
+    expect(metrics.m3.byChat).toBeDefined();
+    expect(metrics.m3.byChat?.["chat-A"].extraQuestionRate).toBe(0);
+    expect(metrics.m3.byChat?.["chat-B"].extraQuestionRate).toBe(1.0);
+    expect(metrics.m3.extraQuestionRate).toBe(0.5);
+  });
+});
+
+describe("Tiêu chí 4: M1 công thức tổng và bảng chi tiết theo action phải khớp nhau", () => {
+  test("4 cặp đều là S1: M1 tổng khớp chính xác với tỉ lệ của actionBreakdown", () => {
+    const pairs: PairV2[] = [
+      {
+        v: 2,
+        eid: "m1-1",
+        ts: 1000,
+        chatId: "c1",
+        text: "t1",
+        tl1: { reply: "hỏi A", action: "ask_missing_field" },
+        tl2: {
+          reply: "hỏi B",
+          outcome: "asked",
+          buttons: [],
+          fields: {},
+          latencyMs: 50,
+          error: null,
+        },
+        diff: { class: "S1", code: "asked_other_field", tl1Field: "a", tl2Field: "b" },
+      },
+      {
+        v: 2,
+        eid: "m1-2",
+        ts: 2000,
+        chatId: "c1",
+        text: "t2",
+        tl1: { reply: "tóm tắt", action: "confirm_summary", summary: { system: "A" } },
+        tl2: {
+          reply: "tóm tắt",
+          outcome: "summary",
+          buttons: [],
+          fields: { system: "B" },
+          latencyMs: 50,
+          error: null,
+        },
+        diff: { class: "S1", code: "ticket_field_mismatch" },
+      },
+      {
+        v: 2,
+        eid: "m1-3",
+        ts: 3000,
+        chatId: "c1",
+        text: "t3",
+        tl1: { reply: "hỏi tách", action: "ask_split_or_merge" },
+        tl2: {
+          reply: "hỏi thường",
+          outcome: "asked",
+          buttons: [],
+          fields: {},
+          latencyMs: 50,
+          error: null,
+        },
+        diff: { class: "S1", code: "branch_mismatch" },
+      },
+      {
+        v: 2,
+        eid: "m1-4",
+        ts: 4000,
+        chatId: "c1",
+        text: "t4",
+        tl1: { reply: "tạo ticket", action: "ticket_created" },
+        tl2: {
+          reply: "hỏi thông tin",
+          outcome: "asked",
+          buttons: [],
+          fields: {},
+          latencyMs: 50,
+          error: null,
+        },
+        diff: { class: "S1", code: "action_mismatch" },
+      },
+    ];
+
+    const metrics = calculateMetrics(pairs);
+    expect(metrics.m1).toBe(0.5);
+
+    const breakdownMatched = Object.values(metrics.actionBreakdown).reduce(
+      (sum, item) => sum + item.matched,
+      0,
+    );
+    const breakdownTotal = Object.values(metrics.actionBreakdown).reduce(
+      (sum, item) => sum + item.total,
+      0,
+    );
+    expect(breakdownMatched / breakdownTotal).toBe(metrics.m1);
   });
 });

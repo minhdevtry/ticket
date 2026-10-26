@@ -27,7 +27,7 @@
 ### 1.5 Cặp `v: 2` và chỉ số M0-M4
 - Mở rộng `Pair` trong `tools/tl2-shadow/queue.ts`: thêm `PairV2`, `PairDiff`, `DiffClass` (`S0` | `S1` | `S2`), giữ nguyên tương thích đọc cho file cặp `v: 1` cũ.
 - Triển khai phân loại lệch `classifyDiff`:
-  - `S0` (không an toàn): tạo ticket khi chưa xác nhận, lộ phong bì kênh hoặc token `noop`, mất chữ người báo khỏi `rawText`, đè định danh.
+  - `S0` (không an toàn): tạo ticket khi chưa xác nhận, lộ phong bì kênh hoặc token `noop`, mất chữ người báo khỏi `rawText`, đè định danh (`identifier_overwritten`), ghi vào ticket đã có khi TL1 chỉ hỏi (`existing_ticket_write`), huỷ/đóng ticket không phải của người báo (`foreign_ticket_closed`).
   - `S1` (hành vi): hỏi trường khác (`asked_other_field`), lệch rẽ nhánh (`branch_mismatch`), lệch trường lúc xác nhận (`ticket_field_mismatch`), lệch hành động (`action_mismatch`).
   - `S2` (bề mặt): khác biệt câu chữ (`wording_difference`).
 - Triển khai `calculateMetrics` và `renderMetrics`: tính đầy đủ các chỉ số M0-M4 theo RFC 4.5.
@@ -120,20 +120,33 @@ Kết quả:
 @vuihoc/tieulinh-legacy check: Exited with code 0
 ```
 
-### 3.5 Kiểm tra docs
+### 3.5 Kiểm tra docs (đầy đủ build site theo tiêu chí chấp nhận)
 Lệnh:
 ```bash
-bun run docs:snippets && bun run docs:refs
+bun run docs:check
 ```
 Kết quả:
 ```
+$ bun run docs:build && bun run docs:snippets && bun run docs:refs
+$ bun run docs:gen && bun run --cwd docs build
+$ bun run scripts/gen-docs.ts
+copy-keys: 31 khoá
+adr-index: 16 ADR
+$ typedoc --options typedoc.json
+[info] markdown generated at ./reference/api
+$ vitepress build
+✓ building client + server bundles...
+✓ rendering pages...
+build complete in 43.63s.
+$ bun run scripts/check-doc-snippets.ts
 Mẫu code: 26 `ts check`, 14 `ts run`, 2 `ts no-check`.
+$ bun run scripts/check-docs-refs.ts
 Docs khớp code: 48 trang, đường dẫn, subpath, biến môi trường, sự kiện, sidebar.
+(EXIT 0)
 ```
-
 ## 4. Test nào thêm, test nào port
 
-### Test thêm mới (tổng cộng 41 test mới):
+### Test thêm mới và cập nhật (tổng cộng 55 test trong vòng PR 6):
 1. `packages/core/src/intake/engine/oracle.test.ts` (9 test):
    - Mặc định tắt oracle: engine chạy tự nhiên, không đổi hành vi.
    - Ép `ask_missing_field`: đổi trường vừa hỏi và ghi nhận vào `explicitlyMissing` khi bị từ chối.
@@ -153,10 +166,12 @@ Docs khớp code: 48 trang, đường dẫn, subpath, biến môi trường, s�
    - Phân loại đúng 100% trên cả 6 kịch bản vàng (22 lượt).
    - Đọc ngược trường từ tóm tắt dạng `voiceText` và `displayMarkdown`.
    - Nhận diện trường thiếu được hỏi.
-4. `tools/tl2-shadow/receptionist-replay.test.ts` (14 test):
+4. `tools/tl2-shadow/receptionist-replay.test.ts` (26 test, gồm 12 test mới ở vòng sửa review):
    - Tầng 1: replay lượt `t` độc lập trên trạng thái `t-1` ép bởi TL1.
    - Phân lớp S0: tạo ticket chưa xác nhận, lộ phong bì kênh, lộ token noop, mất chữ người báo khỏi rawText.
+   - Bổ sung S0: `existing_ticket_write`, `identifier_overwritten`, `foreign_ticket_closed`.
    - Phân lớp S1: hỏi trường khác (`asked_other_field`).
+   - Bổ sung M2 S1: đối chiếu đủ 6 trường (hệ thống, bộ phận, sản phẩm, mức ưu tiên, định danh) với mã `ticket_field_mismatch` và số tệp đính kèm với mã `attachment_count_mismatch`.
    - Phân lớp S2: cùng hành động khác câu chữ bề mặt (`wording_difference`).
    - Tầng 2: `runFreeConversation` đo điểm lệch và hội tụ.
    - Tầng 3: `evaluateRelaxedConfirm` (gate đủ tạo ticket; gate thiếu ghi `tl2_stricter`).
@@ -164,11 +179,15 @@ Docs khớp code: 48 trang, đường dẫn, subpath, biến môi trường, s�
    - Tiêu chí 7: Kịch bản tổng hợp **TECH-928** (nhiều sự cố trong 1 tin, định danh xung đột, giữ nguyên SĐT trong rawText).
    - Tiêu chí 7: Kịch bản tổng hợp **TECH-1013** (tin sau khi tạo ticket không tự ghi vào ticket cũ mà hỏi trước).
    - Tiêu chí 2: Replay trên cặp tổng hợp ra đúng M0-M4 và M0 = 0.
-5. `tools/tl2-shadow/compare.test.ts` (bổ sung 3 test):
+   - Tiêu chí 1: M3 ổn định theo thứ tự duyệt (đảo thứ tự cặp ra cùng kết quả).
+   - Tiêu chí 1: M3 cô lập theo từng chat (trường chat A không lẫn vào chat B).
+   - Tiêu chí 4: M1 công thức tổng và bảng chi tiết theo action khớp 100%.
+5. `tools/tl2-shadow/compare.test.ts` (bổ sung 5 test):
    - Nâng cấp `v: 1` sang `v: 2` và tính M0-M4.
    - Phát hiện S0 và đếm M0 > 0.
-   - Thoát mã 1 khi M0 > 0.
-
+   - Phân loại action của TL1.
+   - CLI `compare.ts --metrics`: spawn tiến trình thật kiểm tra thoát mã 1 (`process.exit(1)`) khi M0 > 0.
+   - CLI `compare.ts --metrics`: spawn tiến trình thật kiểm tra thoát mã 0 khi M0 = 0.
 ## 5. Còn dở gì, và phần đó thuộc PR nào
 
 - **PR 7**: Hỏi bổ sung theo luật (A1-A5: nút cho trường, nhánh variant, hỏi hệ thống 1 lần, hỏi lý do gấp 1 lần, bộ phận ngoài danh mục; B3 chốt tiêu đề; B4 gộp trường đầy đủ).
@@ -176,3 +195,62 @@ Docs khớp code: 48 trang, đường dẫn, subpath, biến môi trường, s�
 - **PR 9**: Tách báo cáo nhiều sự cố (B7: bộ tách, hỏi tách/gộp, hàng đợi, mediaAmbiguous).
 - **PR 10**: Tin sau khi tạo ticket (C1-C4, G2: ngữ cảnh ticket đã tạo, bổ sung comment không ghi đè mô tả, nút theo ticket đang mở).
 - **PR 11 - 17**: Lệnh nhắm vào ticket đã có, huỷ/đóng theo yêu cầu người báo, soát thông tin, dữ liệu domain app mới, `defineBot` lễ tân, adapter OpenClaw, runbook deploy.
+
+## 6. Sửa sau review (vòng 2 — issue #20)
+
+### 6.1 Bảng đối chiếu các finding và vị trí sửa
+
+| Nhóm | Trục | Finding | file:dòng sửa | Ca test chứng minh | Ghi chú / Trạng thái |
+|---|---|---|---|---|---|
+| 1 (Nặng) | 5 (Đo lường) | M3 phụ thuộc thứ tự duyệt và gom chung trường qua các chat | `tools/tl2-shadow/receptionist-replay.ts:799-930` | `receptionist-replay.test.ts:821-872` (2 test) | Tách 2 lượt duyệt, gom `tl1Asked`/`tl2Asked` theo `chatId`. Đảo thứ tự cặp ra kết quả giống hệt; chat A không lẫn vào chat B. Đã thêm bảng chi tiết M3 theo chat trong `compare.ts:225-238`. |
+| 2a (Trung bình) | 5 (Đo lường) & 3 (Ranh giới) | M2 thiếu đối chiếu hệ thống, sản phẩm, bộ phận, mức ưu tiên, định danh, số tệp | `tools/tl2-shadow/receptionist-replay.ts:324-444` | `receptionist-replay.test.ts:271-465` (6 test) | So sánh đủ 6 trường theo RFC 4.5; chuẩn hoá khoảng trắng và chữ hoa/thường; so mức ưu tiên theo ánh xạ tương đương; so số tệp dạng số (mã `attachment_count_mismatch`). Nếu trường TL1 có mà TL2 chưa có thì coi là chưa so được, không tính lệch. |
+| 2b (Trung bình) | 3 (Ranh giới engine) | Thiếu quy tắc S0: đè định danh, huỷ/đóng ticket người khác, ghi vào ticket cũ khi TL1 chỉ hỏi | `tools/tl2-shadow/receptionist-replay.ts:191-233` | `receptionist-replay.test.ts:191-269` (3 test) | Bổ sung `existing_ticket_write`, `identifier_overwritten`, `foreign_ticket_closed`. Nhận diện từ đầu vào hiện có (`outcome`, `fields.identifier`, `draft.issueIdentifier`, `context.trackedIdentifier`). Các luồng command đầy đủ của ticket cũ thuộc PR 11 & 12. |
+| 2c (Trung bình) | 5 (Đo lường) | M1 mâu thuẫn giữa công thức tổng và bảng chi tiết từng action | `tools/tl2-shadow/receptionist-replay.ts:830-840, 934` | `receptionist-replay.test.ts:875-941` (1 test) | Thống nhất 1 công thức duy nhất: cùng lớp action (`diffClass !== "S0" && code !== "action_mismatch" && code !== "branch_mismatch"`). Bảng chi tiết và tỉ lệ tổng khớp nhau 100%. |
+| 3a (Nhẹ) | 1 (Chuẩn hoá code) | Nhánh `custom` thừa trong oracle | `packages/core/src/intake/engine/oracle.ts:46-48, 137` | `oracle.test.ts` (9 pass) | Bỏ hoàn toàn nhánh `action: "custom"` và override tuỳ ý để bảo vệ bất biến của tờ khai. |
+| 3b (Nhẹ) | 2 (Hợp đồng worker) | Báo cáo thiếu lệnh docs đầy đủ và thiếu test CLI mã thoát | `tools/tl2-shadow/compare.test.ts:164-218`, `report-20.md` | `compare.test.ts:164-218` (2 test spawn tiến trình thật) | Bổ sung 2 test subprocess thật (`Bun.spawn`) cho mã thoát của `compare.ts --metrics`. Cập nhật kết quả `bun run docs:check` thật. |
+| 4 (Nhẹ) | 1 (Chuẩn hoá code) | Import xuyên package vào `packages/core/src/...` | `packages/core/src/intake/engine/index.ts:11-13`, `tools/tl2-shadow/package.json:15-17`, `tools/tl2-shadow/*.ts` | `bun run check`, `bun test` | Xuất `engineTestCatalog` và `TEST_COPY` ra `@vuihoc/bot-core/intake`, cập nhật `CHANGELOG.md`, khai báo `"@vuihoc/bot-core": "workspace:*"` trong `tools/tl2-shadow/package.json`, chuyển toàn bộ relative import sang subpath công khai `@vuihoc/bot-core/intake` và `@vuihoc/bot-core/testing`. |
+
+### 6.2 Bằng chứng lệnh đã chạy với kết quả thật
+
+1. **Kiểm tra kiểu toàn bộ workspace (`bun run check`)**:
+```
+@vuihoc/bot-core check: Exited with code 0
+@vuihoc/tl2-shadow check: Exited with code 0
+@vuihoc/tieulinh check: Exited with code 0
+@vuihoc/tieulinh-legacy check: Exited with code 0
+```
+
+2. **Kiểm tra toàn bộ test suite (`bun test`)**:
+```
+2480 pass, 27 skip, 0 fail, 14256 expect() calls across 214 files. [109.99s]
+- @vuihoc/tl2-shadow: 154 pass, 0 fail (14 files)
+- @vuihoc/bot-core: 1261 pass, 0 fail (99 files)
+- @vuihoc/tieulinh: 77 pass, 0 fail
+- @vuihoc/tieulinh-legacy: 988 pass, 0 fail
+```
+
+3. **Kiểm tra lint baseline (`bun run scripts/lint-baseline.ts --base=origin/main`)**:
+```
+ok   style/noNonNullAssertion: không thêm lỗi mới (HEAD: 2, base: 2)
+ok   suspicious/noExplicitAny: không thêm lỗi mới (HEAD: 1, base: 1)
+Số lỗi của các rule đang tắt không tăng so với nhánh nền 'origin/main'.
+```
+
+4. **Kiểm tra repo công khai (`bun run scan`)**:
+```
+✓ public-hygiene scan clean (EXIT 0)
+```
+
+5. **Kiểm tra docs đầy đủ (`bun run docs:check`)**:
+```
+$ bun run docs:build && bun run docs:snippets && bun run docs:refs
+✓ building client + server bundles...
+✓ rendering pages...
+build complete in 43.63s.
+Mẫu code: 26 `ts check`, 14 `ts run`, 2 `ts no-check`.
+Docs khớp code: 48 trang, đường dẫn, subpath, biến môi trường, sự kiện, sidebar.
+(EXIT 0)
+```
+
+6. **Kiểm tra lockfile `bun.lock`**:
+Chỉ thêm duy nhất `@vuihoc/bot-core: "workspace:*"` vào workspace `@vuihoc/tl2-shadow`, không nâng cấp phiên bản bất kỳ dependency nào khác.

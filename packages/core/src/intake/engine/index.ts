@@ -8,3 +8,6 @@ export * from "./normalize";
 export * from "./action-map";
 /** RFC 0002 PR 6: replay oracle cho shadow replay và kiểm thử từng lượt. */
 export * from "./oracle";
+/** Test fixtures cho replay shadow và người dùng thư viện kiểm thử. */
+export { engineTestCatalog } from "./catalog.fixture";
+export { TEST_COPY } from "./test-copy.fixture";

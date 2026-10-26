@@ -45,10 +45,6 @@ export type ReplayOracleAction =
   | {
       action: "ask_new_or_continue";
       pendingNewIncident?: PendingNewIncident;
-    }
-  | {
-      action: "custom";
-      override: Partial<IntakeDraft>;
     };
 
 export interface ReplayOracleContext {
@@ -137,10 +133,6 @@ export function applyReplayControlOverride(
         text: updated.pendingNewIncident.message,
         mediaPaths: updated.pendingNewIncident.mediaPaths,
       };
-      break;
-    }
-    case "custom": {
-      Object.assign(updated, decision.override);
       break;
     }
   }

@@ -221,6 +221,22 @@ export function renderMetrics(m: ShadowMetrics): string {
     "",
     `Tổng lượt: ${m.totalPairs} | Khớp hoàn toàn: ${m.classes.matched} | S0 (nguy hiểm): ${m.classes.s0} | S1 (hành vi): ${m.classes.s1} | S2 (bề mặt): ${m.classes.s2}`,
   ];
+
+  if (m.m3.byChat && Object.keys(m.m3.byChat).length > 0) {
+    lines.push("");
+    lines.push("### Chi tiết M3 theo cuộc hội thoại");
+    lines.push("");
+    lines.push("| Chat | TL1 hỏi | TL2 hỏi | Jaccard | Hỏi ngoài TL1 |");
+    lines.push("|---|---|---|---|---|");
+    for (const [chatId, c] of Object.entries(m.m3.byChat)) {
+      const tl1Str = c.tl1Asked.length ? c.tl1Asked.join(", ") : "(không)";
+      const tl2Str = c.tl2Asked.length ? c.tl2Asked.join(", ") : "(không)";
+      lines.push(
+        `| ${chatId} | ${tl1Str} | ${tl2Str} | ${pct(c.jaccardAsked)} | ${pct(c.extraQuestionRate)} |`,
+      );
+    }
+  }
+
   return lines.join("\n");
 }
 export function renderFull(pairs: Pair[]): string {

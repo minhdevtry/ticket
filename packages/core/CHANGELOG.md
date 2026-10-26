@@ -8,6 +8,8 @@ All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded
     - `IntakeEngineDeps.oracle` (`ReplayOraclePort`): oracle tuỳ chọn cho engine tiếp nhận, phục vụ chế độ replay bóng từng lượt. Khi bật, oracle ghi đè trạng thái điều khiển của tờ khai (`status`, `lastAskedFields`, `summaryShownAt`, `pendingSplit`, `pendingNewIncident`, `issueIdentifier`) theo quyết định của TL1 ở các lượt quá khứ, giữ nguyên toàn bộ logic trích xuất và luật nghiệp vụ của TL2. Mặc định tắt (`undefined`), engine chạy tự nhiên không đổi gì.
     - `applyReplayControlOverride`: hàm thuần cập nhật trạng thái điều khiển của tờ khai mà không làm mất nội dung hay định danh của người báo.
     - `ScriptedReplayOracle`: helper cho kịch bản replay nhiều lượt theo chuỗi quyết định.
+    - `engineTestCatalog`, `TEST_COPY`: xuất khẩu fixture thử nghiệm ra subpath công khai cho shadow replay và người dùng thư viện kiểm thử.
+    - Bỏ nhánh hành động `action: "custom"` chưa dùng khỏi `ReplayOracleAction` để bảo toàn bất biến an toàn của tờ khai.
   - `@vuihoc/bot-core/testing`:
     - `CachedFieldExtractor` (+ `ExtractionCacheMissError`, `CachedFieldExtractorOptions`, `computeExtractKey`): bộ bọc đệm trích xuất trường determinism hoá các lần chạy lại, lưu file 0600 trong thư mục 0700 theo ADR-0005. Hỗ trợ chế độ `offlineOnly` (không gọi mạng/LLM, ném lỗi khi trượt cache), bảo đảm chạy lại nhiều lần cho kết quả giống hệt 100%.
   - `tools/tl2-shadow`:

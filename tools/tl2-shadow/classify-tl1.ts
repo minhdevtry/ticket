@@ -7,10 +7,7 @@
  *    gồm: tiêu đề, sản phẩm, hệ thống, bộ phận, mã khách hàng / HS, mức ưu tiên, số tệp đính kèm.
  * 3. `extractAskedField`: xác định trường mà TL1 đang hỏi trong câu hỏi thiếu thông tin.
  */
-import {
-  LEGACY_INTAKE_ACTIONS,
-  type LegacyIntakeAction,
-} from "../../packages/core/src/intake/engine/action-map.ts";
+import { LEGACY_INTAKE_ACTIONS, type LegacyIntakeAction } from "@vuihoc/bot-core/intake";
 
 export { LEGACY_INTAKE_ACTIONS, type LegacyIntakeAction };
 
