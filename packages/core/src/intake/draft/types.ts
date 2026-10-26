@@ -135,6 +135,8 @@ export interface IntakeDraft {
   parkedPayload?: { text: string; mediaPaths: string[] };
   /** Unrecognized department name if mentioned but not in catalog (TECH-1146). */
   unrecognizedDept?: string;
+  /** Danh sách triệu chứng đã gộp qua các lượt (B4). */
+  symptoms?: string[];
 
   // ── draft v2 (RFC 0002 PR 4): trạng thái hội thoại mà legacy giữ ──────────
   /**

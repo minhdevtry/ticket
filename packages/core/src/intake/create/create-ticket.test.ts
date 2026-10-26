@@ -283,3 +283,76 @@ describe("safe ticket creation", () => {
     expect(retry.kind).toBe("created");
   });
 });
+
+describe("B3: title validation and fallback on create", () => {
+  test("tiêu đề bình thường (hợp lệ) → giữ nguyên khi gửi tới tracker", async () => {
+    seedReadyDraft(h, "c1", {
+      title: "Không vào được Classin",
+      rawText: "Em không vào được Classin để dạy học.",
+    });
+    h.clock.advance(MIN_CONFIRM_DELAY_MS);
+    const res = await createTicket(h.deps, { chatId: "c1" });
+    expect(res.kind).toBe("created");
+    expect(h.tracker.created[0]?.title).toBe("Không vào được Classin");
+  });
+
+  test("tiêu đề là tên người hoặc mã trần → thay bằng tiêu đề dự phòng từ lời báo", async () => {
+    // Tên người
+    seedReadyDraft(h, "c1", {
+      title: "Trần Thị B",
+      rawText: "Trần Thị B\nCode: 9100003\nKhông vào được phòng học",
+    });
+    h.clock.advance(MIN_CONFIRM_DELAY_MS);
+    const res1 = await createTicket(h.deps, { chatId: "c1" });
+    expect(res1.kind).toBe("created");
+    expect(h.tracker.created[0]?.title).not.toContain("Trần Thị B");
+    expect(h.tracker.created[0]?.title).toBe("Không vào được phòng học");
+
+    // Mã trần
+    seedReadyDraft(h, "c2", {
+      title: "Code: 9100003",
+      rawText: "Code: 9100003\nLỗi không tải được tài liệu bài tập",
+    });
+    h.clock.advance(MIN_CONFIRM_DELAY_MS);
+    const res2 = await createTicket(h.deps, { chatId: "c2" });
+    expect(res2.kind).toBe("created");
+    expect(h.tracker.created[1]?.title).not.toContain("9100003");
+    expect(h.tracker.created[1]?.title).toBe("Lỗi không tải được tài liệu bài tập");
+  });
+
+  test("lời báo không dựng được tiêu đề hợp lệ → dùng copy.text('ticket.fallback_title')", async () => {
+    // rawText chỉ có tên người và mã số, deriveFallbackTitle không ra tiêu đề hợp lệ
+    seedReadyDraft(h, "c1", {
+      title: "Trần Thị B",
+      rawText: "Trần Thị B\nCode: 9100003",
+    });
+    h.clock.advance(MIN_CONFIRM_DELAY_MS);
+    const res = await createTicket(h.deps, { chatId: "c1" });
+    expect(res.kind).toBe("created");
+    const fallbackTitle = h.deps.copy.text("ticket.fallback_title");
+    expect(h.tracker.created[0]?.title).toBe(fallbackTitle);
+    expect(fallbackTitle.length).toBeGreaterThan(0);
+  });
+
+  test("tiêu đề rỗng → rơi về tiêu đề dự phòng từ lời báo hoặc copy fallback", async () => {
+    // Tiêu đề rỗng, rawText có mô tả sự cố → fallback từ lời báo
+    seedReadyDraft(h, "c1", {
+      title: "",
+      rawText: "Học sinh không nộp được bài tập về nhà",
+    });
+    h.clock.advance(MIN_CONFIRM_DELAY_MS);
+    const res1 = await createTicket(h.deps, { chatId: "c1" });
+    expect(res1.kind).toBe("created");
+    expect(h.tracker.created[0]?.title).toBe("Học sinh không nộp được bài tập về nhà");
+
+    // Tiêu đề rỗng, rawText không dựng được tiêu đề hợp lệ → dùng copy fallback
+    seedReadyDraft(h, "c2", {
+      title: "   ",
+      rawText: "9100003",
+    });
+    h.clock.advance(MIN_CONFIRM_DELAY_MS);
+    const res2 = await createTicket(h.deps, { chatId: "c2" });
+    expect(res2.kind).toBe("created");
+    expect(h.tracker.created[1]?.title).toBe(h.deps.copy.text("ticket.fallback_title"));
+  });
+});

@@ -32,6 +32,7 @@ import type { IntakeDraft } from "../draft/types";
 import { evaluateConfirmation, type ConfirmOptions } from "../confirm/protocol";
 import { withChatLock } from "../confirm/lock";
 import { isBareConfirmation, mergeOverDraft, type TicketInput } from "./merge";
+import { isInvalidTitle, deriveFallbackTitle } from "../extractor/heuristics";
 
 /** Within this window after a create, a re-confirm is treated as the same incident. */
 export const INTAKE_DUPLICATE_WINDOW_MS = 30 * 60_000;
@@ -169,9 +170,16 @@ async function run(deps: CreateTicketDeps, req: CreateTicketRequest): Promise<Cr
 
   // Write to the tracker. Description = reporter verbatim text.
   let issue: TrackerIssue;
+  let title = ticket.title?.trim();
+  if (!title || isInvalidTitle(title, ticket.rawText)) {
+    const fallback = deriveFallbackTitle(ticket.rawText);
+    const defaultTitle = copy.text("ticket.fallback_title");
+    title = !isInvalidTitle(fallback) ? fallback : defaultTitle;
+  }
+  const finalTitle = title;
   try {
     issue = await tracker.createIssue({
-      title: ticket.title || ticket.rawText.slice(0, 80),
+      title: finalTitle,
       description: ticket.rawText,
       priority: ticket.priority,
       category: ticket.category,
@@ -193,6 +201,7 @@ async function run(deps: CreateTicketDeps, req: CreateTicketRequest): Promise<Cr
   // Write the `created` revision IMMEDIATELY — nothing below may cause a recreate.
   const createdDoc: IntakeDraft = {
     ...claim,
+    ticket: { ...claim.ticket, title: finalTitle },
     revision: claim.revision + 1,
     status: "created",
     issueId: issue.id,

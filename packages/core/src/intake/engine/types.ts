@@ -56,4 +56,6 @@ export interface StepOutput {
   messages: ChannelMessage[];
   /** Created/looked-up ticket, when there is one. */
   issue?: { id: number; identifier: string; url?: string };
+  /** Các trường còn thiếu đang được hỏi ở lượt này (A1, A3). */
+  missingFields?: string[];
 }

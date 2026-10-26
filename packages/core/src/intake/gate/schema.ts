@@ -77,7 +77,12 @@ export function buildFieldSchema(catalog: FieldCatalog, options: FieldSchemaOpti
 export function readRecordFromInput(
   catalog: FieldCatalog,
   input: Record<string, unknown>,
-): { variant: string; rawValues: Record<string, unknown>; cannotAnswer: string[] } {
+): {
+  variant: string;
+  rawValues: Record<string, unknown>;
+  cannotAnswer: string[];
+  askedCount?: Record<string, number>;
+} {
   const variantKeys = Object.keys(catalog.variants);
   const variant =
     typeof input.variant === "string" && catalog.variants[input.variant]
@@ -89,8 +94,17 @@ export function readRecordFromInput(
   for (const name of Object.keys(fillable)) {
     if (input[name] !== undefined) rawValues[name] = input[name];
   }
+  const askedCount =
+    input.askedCount && typeof input.askedCount === "object"
+      ? (input.askedCount as Record<string, number>)
+      : undefined;
 
-  return { variant, rawValues, cannotAnswer: (input.cannotAnswer as string[]) ?? [] };
+  return {
+    variant,
+    rawValues,
+    cannotAnswer: (input.cannotAnswer as string[]) ?? [],
+    ...(askedCount ? { askedCount } : {}),
+  };
 }
 
 /**

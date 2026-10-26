@@ -3,6 +3,22 @@
 All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded here.
 
 ## Unreleased
+- **Hỏi bổ sung theo luật** (RFC 0002 PR 7, issue #21). Additive; hoàn thiện các kịch bản hỏi thiếu A1-A5, chốt tiêu đề B3 và gộp trường B4.
+  - `@vuihoc/bot-core/intake`:
+    - `IntakeEngineDeps.variant`: hỗ trợ hàm suy ra `(draft, record) => string` bên cạnh hằng số `string`, cho phép chuyển nhánh động theo nội dung hội thoại (A1).
+    - `IntakeEngineDeps`: thêm `systemField` và `departmentField` để app tiêm tên trường hệ thống/bộ phận độc lập với schema miền.
+    - `FieldRole` (`FieldSpec.role`, `RawField.role`/`RawField.vai_tro`): gắn cờ vai trò trung tính `"system"` | `"department"` trong catalog, core không hardcode tên trường miền tiếng Việt (theo góp ý coordinator).
+    - `FieldSpec.maxRetries`: cấu hình ngân sách hỏi lại từng trường; `readRecordFromInput` nhận diện `askedCount` từ working memory.
+    - `A2`: kiểm tra mô tả sự cố qua `hasDescription`: gửi chỉ ảnh hỏi `short_description`; chào đơn thuần trả về `clarify`.
+    - `A3`: luật hỏi hệ thống một lần ngoài gate kèm nút qua `ask.system`; nếu người báo không rõ thì tóm tắt ghi "Chưa xác định".
+    - `A4`: người báo xin gấp (`requestedPriority`) mà chưa có lý do thì hỏi lý do một lần (`ask.priority_reason`); trả lời lý do thì nâng mức ưu tiên tương ứng; trả lời từ chối thì giữ mức theo bằng chứng.
+    - `A5`: nhận diện bộ phận ngoài danh mục (`unrecognizedDept`) và hỏi lại bằng thông điệp riêng `ask.unrecognized_dept` kèm nút enum thay vì lặp lại câu hỏi cũ.
+    - `B3`: chốt tiêu đề không bao giờ là tên người, mã trần hay lời chào (dùng `isInvalidTitle` và `deriveFallbackTitle`); tiêu đề dự phòng đi qua `CopyCatalog` (`ticket.fallback_title`).
+    - `B4`: gộp trường an toàn: `structuredOnly` khi tin xác nhận/huỷ/chitchat/từ chối; `removeSymptoms` gỡ triệu chứng; bằng chứng ưu tiên chỉ nới (cờ boolean không bị hạ từ true về false, scope đơn điệu tăng theo `SCOPE_RANK`).
+    - `CopyKey`: thêm các khoá `ask.system`, `ask.priority_reason`, `ask.unrecognized_dept`, `clarify.greeting`, `ask.describe_incident`, `ask.describe_incident_item`, `field.unknown_value`, `summary.priority_line`, `ticket.fallback_title`, `priority.level.{low,medium,high,urgent}`.
+    - `StepOutput`: thêm trường `missingFields?: string[]` để caller và bài kiểm tra theo dõi trường đang hỏi.
+  - Port 10 bài kiểm thử từ legacy (`pipeline.flow.test.ts`, `multi-incident.test.ts`, `extractor-dept-system-title.test.ts`), cập nhật sổ đối chiếu và bảng parity `ENGINE.md`.
+
 - **Replay lễ tân từng lượt và chỉ số sẵn sàng** (RFC 0002 PR 6 / ADR-0005). Additive; không đổi hành vi production hay API hiện có của engine.
   - `@vuihoc/bot-core/intake`:
     - `IntakeEngineDeps.oracle` (`ReplayOraclePort`): oracle tuỳ chọn cho engine tiếp nhận, phục vụ chế độ replay bóng từng lượt. Khi bật, oracle ghi đè trạng thái điều khiển của tờ khai (`status`, `lastAskedFields`, `summaryShownAt`, `pendingSplit`, `pendingNewIncident`, `issueIdentifier`) theo quyết định của TL1 ở các lượt quá khứ, giữ nguyên toàn bộ logic trích xuất và luật nghiệp vụ của TL2. Mặc định tắt (`undefined`), engine chạy tự nhiên không đổi gì.

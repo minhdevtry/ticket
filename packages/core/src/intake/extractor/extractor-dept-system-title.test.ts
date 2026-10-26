@@ -1,7 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import { detectSystem, detectUnrecognizedDept, stripGreeting } from "./heuristics";
 import { FieldExtractor } from "./llm-extractor";
-
+import { makeHarness, CHAT } from "../engine/engine-harness.fixture";
+import { createCatalog } from "../gate/catalog";
+import { makeCopyCatalog } from "../copy-catalog";
+import { TEST_COPY } from "../engine/test-copy.fixture";
 describe("Bộ phận ngoài danh mục (unrecognized dept)", () => {
   it("nhận ra 'Kế toán' là bộ phận ngoài danh mục", () => {
     expect(detectUnrecognizedDept("Tôi bên bộ phận Kế toán ạ")).toBe("Kế toán");
@@ -92,5 +95,54 @@ describe("Bộ phận ngoài danh mục", () => {
     );
     expect(res.reportingDept).toBeUndefined();
     expect(res.reportingDeptUnrecognized).toBe("Kế toán");
+  });
+
+  it("câu hỏi nói rõ bộ phận không có trong danh mục thay vì lặp lại câu cũ", async () => {
+    const h = makeHarness({
+      catalog: createCatalog({
+        fields: {
+          nhanh: {
+            tech: {
+              ten: "Tech",
+              truong_mo_dau: "reporting_dept",
+              recap: ["reporting_dept"],
+              truong: {
+                reporting_dept: {
+                  vai_tro: "department",
+                  bat_buoc: true,
+                  kieu: "enum:phong_ban",
+                  duoc_hoi: true,
+                  nhan: "Bộ phận",
+                  hoi: "Anh/chị ở bộ phận nào ạ?",
+                },
+              },
+            },
+          },
+        },
+        enums: { phong_ban: ["Sale", "CSKH"] },
+      }),
+      copy: makeCopyCatalog({
+        ...TEST_COPY,
+        "ask.unrecognized_dept":
+          'Bộ phận "{dept}" của anh/chị không có trong danh mục của em. Anh/chị chọn giúp em một trong các bộ phận sau nhé ạ.',
+      }),
+    });
+
+    h.extractor.push({
+      userIntent: "report_issue",
+      symptoms: ["Zalo PC bị đơ"],
+      reportingDeptUnrecognized: "Kế toán",
+    });
+
+    const res = await h.engine.step({
+      chatId: CHAT,
+      message:
+        "Em chào anh, Zalo PC em bị đơ không gửi được tin cho khách. Em bên bộ phận Kế toán ạ.",
+    });
+
+    expect(res.outcome).toBe("asked");
+    expect(res.missingFields).toContain("reporting_dept");
+    expect(res.messages[0].text).toContain("Kế toán");
+    expect(res.messages[0].text).toContain("không có trong danh mục");
   });
 });
