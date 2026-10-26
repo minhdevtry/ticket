@@ -118,4 +118,19 @@ export const TEST_COPY: Record<CopyKey, string> = {
   "status.unknown": "unknown",
   "notify.on_call_supplement":
     "📢 **[{botName}]** Reporter supplemented ticket **{identifier}**:\n> {summary}",
+  // ── PR 12: huỷ và đóng ticket theo yêu cầu người báo (RFC 0002 §1.4 D8, ADR-0006) ──
+  "button.confirm_cancel": "Cancel {identifier}",
+  "button.confirm_close": "Close {identifier}",
+  "button.keep_ticket": "Keep ticket",
+  "action.preview_cancel_ticket": "Confirm cancel ticket {identifier}{title}{quoted}{files}",
+  "action.preview_close_ticket": "Confirm close ticket {identifier}{title}{quoted}{files}",
+  "action.cancel_close_done": "Done {actionLabel} ticket {identifier}.{draftNote}",
+  "action.keep_ticket_done": "Kept ticket {identifier} unchanged.",
+  "action.cannot_read_status": "Cannot read status for {identifier}.",
+  "action.label_close": "closed (Done)",
+  "action.label_cancel": "canceled (Canceled)",
+  "action.draft_kept_note": " Active draft «{title}» is preserved.",
+  "ticket.cancel_close_closed_refusal": "Ticket {identifier} is already closed as {statusLabel}.",
+  "comment.cancel_or_close_trace":
+    "{icon} **{who}** requested {action} ticket → **{state}**.\nReason: {reason}",
 };

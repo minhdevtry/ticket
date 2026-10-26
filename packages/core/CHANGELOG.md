@@ -3,6 +3,31 @@
 All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded here.
 
 ## Unreleased
+- **Huỷ và đóng ticket theo yêu cầu người báo** (RFC 0002 PR 12, issue #26). Additive; hoàn thiện cơ chế huỷ (Canceled) hoặc đóng (Done) ticket theo yêu cầu người báo (D8 theo ADR-0006 bản 10/10):
+  - `@vuihoc/bot-core/intake`:
+    - `D8`: Cơ chế người báo yêu cầu huỷ/đóng ticket của chính mình:
+      - Phân loại ý định tất định qua `classifyCancelOrCloseIntent`: ý định `cancel` khi nói rõ "hủy/huỷ/bỏ/không cần nữa/...", ý định `close` khi nói "đóng/đóc/học sinh đã vào được/đã ổn/..." không kèm từ huỷ; loại trừ các câu sửa thật, chuyển ticket trùng, câu thiếu mã ticket hoặc mô tả sự cố có từ ngữ đóng/hủy.
+      - Đếm số bình luận của chuyên viên kỹ thuật (`countSpecialistTimelineComments`) trên timeline ticket: chỉ tính thành viên dự án là người thật, loại bỏ bot (`isBotComment`, `isSystemActor`, định danh agent/bot), loại bỏ người báo.
+      - Ngưỡng bình luận chuyên viên cấu hình được qua `minSpecialistCommentsForDone` trong `IntakeEngineDeps` (mặc định 3).
+      - Bảng quyết định Canceled vs Done:
+        - Ticket đã ở `Done` hoặc `Canceled`: từ chối lịch sự qua `ticket.cancel_close_closed_refusal` ("Dạ ticket {identifier} hiện đã đóng ở trạng thái {statusLabel} trên hệ thống rồi nên em không chuyển lại nữa ạ."), không chuyển lại và không ghi comment.
+        - Không phải chủ ticket (`ownTicket === false`): từ chối qua `action.not_owner_refusal`.
+        - Người báo yêu cầu huỷ rõ (`intent === "cancel"`): đề xuất `cancel_ticket` chuyển sang `Canceled` bất kể trạng thái hiện tại.
+        - Người báo yêu cầu đóng (`intent === "close"`): nếu ticket đang ở cột `Resolved` HOẶC có từ 3 bình luận chuyên viên trở lên thì đề xuất `close_ticket` chuyển sang `Done`; nếu chưa đủ điều kiện chuyên viên thì đề xuất `cancel_ticket` chuyển sang `Canceled`.
+      - Luôn qua xác nhận một chạm (ADR-0008): nút xác nhận `button.confirm_cancel` ("✅ Hủy {identifier}") hoặc `button.confirm_close` ("✅ Đóng {identifier}") và nút từ chối `button.keep_ticket` ("Giữ lại", tuyệt đối không dùng "Huỷ" tránh nhầm lẫn); người lạ ở chat khác không thể bấm hộ nút xác nhận.
+      - Bấm nút "Giữ lại" hoặc gõ từ chối: giữ nguyên ticket, không đổi trạng thái và không ghi comment (`outcome: "action_canceled"`, thông điệp `action.keep_ticket_done`).
+      - Chốt chặn an toàn tuyệt đối khi thực thi: đọc lại trạng thái ticket và đếm lại bình luận chuyên viên tại thời điểm bấm nút xác nhận; chỉ chuyển `Done` khi pending là `close_ticket` VÀ thoả mãn điều kiện chuyên viên xử lý lúc bấm nút; nếu ticket bị đổi trạng thái giữa lúc đề xuất và lúc bấm thì tự động chuyển sang `Canceled` hoặc từ chối nếu đã đóng.
+      - Chuyển cột qua `TrackerPort.listProjectColumns` và `classifyColumn`, không hardcode `columnId`.
+      - Ghi comment dấu vết (`comment.cancel_or_close_trace`) lên ticket sau khi chuyển cột: kèm icon (`✅` hoặc `🛑`), người yêu cầu (`who` đã escape), hành động (`đóng` hoặc `hủy`), trạng thái đích (`Done` hoặc `Canceled`), và lý do kèm ảnh đính kèm (nội dung đã qua `escapeItsaplanMarkdown`).
+      - Cập nhật trạng thái tờ khai sang `canceled` nếu tờ khai hiện tại là ticket vừa huỷ/đóng.
+    - Mở rộng `pendingTicketAction.kind` với `"cancel_ticket" | "close_ticket"`.
+    - `CopyKey`: bổ sung các khoá `button.confirm_cancel`, `button.confirm_close`, `button.keep_ticket`, `action.preview_cancel_ticket`, `action.preview_close_ticket`, `action.cancel_close_done`, `action.keep_ticket_done`, `action.cannot_read_status`, `action.label_close`, `action.label_cancel`, `action.draft_kept_note`, `ticket.cancel_close_closed_refusal`, `comment.cancel_or_close_trace`; toàn bộ câu chữ và nhãn nút lấy từ `CopyCatalog`, core không hardcode tiếng Việt.
+  - Port 12 bài kiểm thử từ legacy:
+    - 7 ca flow từ `lib/intake-step/pipeline.flow.test.ts` (port sang `packages/core/src/intake/engine/pr12-cancel-close.test.ts`).
+    - 5 ca router từ `lib/intake-step/ticket-reply-router.test.ts` (port sang `packages/core/src/intake/engine/pr12-cancel-close.test.ts`).
+  - Cập nhật sổ đối chiếu (`apps/tieulinh/receptionist-gap-register.test.ts`) và bảng parity `ENGINE.md`: 12 dòng `deferred` chuyển sang `ported` (tổng `ported` tăng từ 174 lên 186; `deferred` giảm từ 204 xuống 192; PR 12 còn 0 dòng).
+  - Cập nhật dòng D8 bảng khoảng trống RFC 0002 mục 1.4 và mục 5 (`docs/rfc/0002-receptionist.md`).
+
 - **Lệnh nhắm vào ticket đã có** (RFC 0002 PR 11, issue #25). Additive; hoàn thiện cơ chế tiếp nhận và thực thi lệnh nhắm vào ticket đã có (D1-D7, D9):
   - `@vuihoc/bot-core/intake`:
     - `D1`: Tìm ứng viên liên quan (`ReplyCandidate`): mã ticket nêu trực tiếp (`mentionedIdentifiers`), số trần (`/(?<!\d)(\d{3,5})(?!\d)/g`) chỉ tính khi khớp ticket của chính chat (`listBindingsForChat`), ticket vừa tạo trong 24 giờ (`JUST_CREATED_WINDOW_MS = 24 * 3_600_000`) khi có mã ticket khác được nhắc, ticket kỹ thuật vừa hỏi trong 72 giờ (`TECH_QUESTION_WINDOW_MS = 72 * 3_600_000`) qua message route (`getLatestMessageRouteForChat` với `kind === "comment"`, route mới hơn hoạt động gần nhất của draft, bỏ qua khi đang soạn dở draft có mô tả và bỏ qua ticket đã đóng trên tracker); danh sách ứng viên cắt trần tối đa 4.

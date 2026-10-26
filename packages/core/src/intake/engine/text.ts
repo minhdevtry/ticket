@@ -1,3 +1,5 @@
+import { isBotComment } from "../../core/formatting";
+import { isSystemActor, type TimelineCommentEntry } from "../notify/supplement-notifier";
 /**
  * Pure text helpers for the conversation engine (ticket 09): find ticket
  * identifiers a reporter mentioned, and fold text for button-match comparison.
@@ -238,4 +240,92 @@ export function isProgressInquiry(text: string): boolean {
     return false;
   }
   return PROGRESS_INQUIRY_RE.test(trimmed);
+}
+
+export const MIN_SPECIALIST_COMMENTS_FOR_DONE = 3;
+
+const NON_SPECIALIST_ACTOR_RE =
+  /\b(?:ti[eể]u\s*linh|tieulinh|iris|bot-ticket-intake|bot-iris-intake|onyx|bot|ai-coder|ai-lead|ai-qa|coder\s*ai|lead\s*ai|qa\s*ai)\b|^admin$/i;
+
+/**
+ * Đếm số bình luận của chuyên viên (thành viên dự án trên Itsaplan, không phải bot/@tieulinh,
+ * không phải người báo) trên timeline của một ticket.
+ */
+export function countSpecialistTimelineComments(
+  timeline: unknown[],
+  options?: {
+    reporterNames?: Array<string | undefined | null>;
+    projectAssignees?: Array<{
+      userId?: string;
+      name?: string;
+      username?: string | null;
+      kind?: string | null;
+    }>;
+  },
+): number {
+  if (!Array.isArray(timeline) || timeline.length === 0) return 0;
+  const reporterSet = new Set(
+    (options?.reporterNames ?? [])
+      .map((n) =>
+        String(n ?? "")
+          .trim()
+          .replace(/^@/, "")
+          .toLowerCase(),
+      )
+      .filter(Boolean),
+  );
+  const humanMembers = (options?.projectAssignees ?? []).filter(
+    (a) =>
+      a &&
+      a.kind !== "agent" &&
+      !isSystemActor(a.name) &&
+      !NON_SPECIALIST_ACTOR_RE.test(`${a.name ?? ""} ${a.username ?? ""}`),
+  );
+  const memberIds = new Set(humanMembers.map((a) => String(a.userId ?? "").trim()).filter(Boolean));
+  const memberNames = new Set(
+    humanMembers.flatMap((a) =>
+      [a.name, a.username]
+        .map((s) =>
+          String(s ?? "")
+            .trim()
+            .toLowerCase(),
+        )
+        .filter(Boolean),
+    ),
+  );
+  const enforceMemberList = memberIds.size > 0 || memberNames.size > 0;
+
+  let count = 0;
+  for (const raw of timeline) {
+    if (!raw || typeof raw !== "object") continue;
+    const item = raw as TimelineCommentEntry;
+    if (item.kind !== "comment" || typeof item.body !== "string" || !item.body.trim()) continue;
+    if (isBotComment(item.body)) continue;
+    if (item.actorKind === "agent") continue;
+    const actorName = String(item.actorName ?? "").trim();
+    const actorUsername = String(item.actorUsername ?? "")
+      .trim()
+      .replace(/^@/, "");
+    const actorUserId = String(item.actorUserId ?? "").trim();
+    if (
+      !actorName ||
+      isSystemActor(actorName) ||
+      NON_SPECIALIST_ACTOR_RE.test(`${actorName} ${actorUsername}`)
+    )
+      continue;
+    if (
+      reporterSet.has(actorName.toLowerCase()) ||
+      (actorUsername && reporterSet.has(actorUsername.toLowerCase()))
+    )
+      continue;
+    if (enforceMemberList) {
+      const matchedById = Boolean(actorUserId && memberIds.has(actorUserId));
+      const matchedByName =
+        memberNames.has(actorName.toLowerCase()) ||
+        (Boolean(actorUsername) && memberNames.has(actorUsername.toLowerCase()));
+      if (!matchedById && !matchedByName) continue;
+    }
+    count++;
+  }
+  return count;
 }

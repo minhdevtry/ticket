@@ -58,7 +58,13 @@ export interface TrackerPort {
   findByIdentifier(identifier: string): Promise<TrackerIssue | null>;
   updateIssue?(
     issueId: number,
-    patch: { priority?: Priority; title?: string; description?: string; columnId?: number },
+    patch: {
+      priority?: Priority;
+      title?: string;
+      description?: string;
+      columnId?: number;
+      state?: "done" | "canceled" | "open" | "resolved";
+    },
   ): Promise<void>;
   isIssueClosed?(issueId: number): Promise<boolean>;
   getIssueState?(
@@ -195,7 +201,21 @@ export type CopyKey =
   | "edit.not_present" // fallback text when edited field is not yet present
   | "status.unknown" // fallback label when ticket status/column is unknown
   | "notify.on_call_supplement" // alert line sent to on-call channel; {botName} {identifier} {summary}
-  | "media.ambiguous_notice"; // notice appended to description when images are shared across split tickets
+  | "media.ambiguous_notice" // notice appended to description when images are shared across split tickets
+  // ── PR 12: huỷ và đóng ticket theo yêu cầu người báo (RFC 0002 §1.4 D8, ADR-0006) ──
+  | "button.confirm_cancel" // label for "confirm cancel {identifier}" button
+  | "button.confirm_close" // label for "confirm close {identifier}" button
+  | "button.keep_ticket" // label for "keep ticket" button (rejection)
+  | "action.preview_cancel_ticket" // preview before canceling ticket; {identifier} {title} {quoted} {files} {keepLabel}
+  | "action.preview_close_ticket" // preview before closing ticket; {identifier} {title} {quoted} {files} {keepLabel}
+  | "action.cancel_close_done" // cancel or close executed; {actionLabel} {identifier} {draftNote}
+  | "action.keep_ticket_done" // reporter chose to keep ticket; {identifier}
+  | "action.cannot_read_status" // cannot read issue/columns to check status; {identifier}
+  | "action.label_close" // label for close action ("đóng (Hoàn tất)")
+  | "action.label_cancel" // label for cancel action ("hủy (Đã hủy)")
+  | "action.draft_kept_note" // notice that active draft is kept untouched; {title}
+  | "ticket.cancel_close_closed_refusal" // refuse cancel/close for already closed ticket; {identifier} {statusLabel}
+  | "comment.cancel_or_close_trace"; // trace comment on ticket after cancel/close; {icon} {who} {action} {state} {reason}
 
 /**
  * The chat↔ticket binding store, so a worker can report back to the reporter.

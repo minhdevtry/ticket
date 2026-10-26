@@ -76,25 +76,40 @@ export class LlmTicketCommandInterpreter implements TicketCommandInterpreterPort
   async interpret(input: TicketCommandInput): Promise<TicketCommand> {
     const cancelIntent = classifyCancelOrCloseIntent(input.message);
     const supplement = stripSupplementCommandWrapper(input.message);
+    const projectKeys = new Set([
+      ...input.candidates.map((c) => c.identifier.split("-")[0]).filter(Boolean),
+    ]);
+    const msgMentions = new Set(
+      [...projectKeys].flatMap((pk) =>
+        mentionedIdentifiers(input.message, pk).map((id) => id.toUpperCase()),
+      ),
+    );
+
+    if (cancelIntent) {
+      const mentionedOwn = input.candidates.find(
+        (c) => (c.mentioned || msgMentions.has(c.identifier.toUpperCase())) && c.ownTicket,
+      );
+      const mentionedAny = input.candidates.find(
+        (c) => c.mentioned || msgMentions.has(c.identifier.toUpperCase()),
+      );
+      const cancelTarget = mentionedOwn ?? mentionedAny;
+      if (cancelTarget) {
+        return {
+          action: "cancel_or_close",
+          identifier: cancelTarget.identifier,
+          content: input.message.trim(),
+          intent: cancelIntent,
+        };
+      }
+    }
 
     if (!this.completeFn) {
-      if (cancelIntent) {
-        const target =
-          input.candidates.find((c) => c.mentioned && c.ownTicket) ??
-          input.candidates.find((c) => c.mentioned);
-        if (target) {
-          return {
-            action: "cancel_or_close",
-            identifier: target.identifier,
-            content: input.message.trim(),
-            intent: cancelIntent,
-          };
-        }
-      }
       if (supplement.isSupplementCommand) {
         const target =
-          input.candidates.find((c) => c.mentioned && c.ownTicket) ??
-          input.candidates.find((c) => c.mentioned);
+          input.candidates.find(
+            (c) => (c.mentioned || msgMentions.has(c.identifier.toUpperCase())) && c.ownTicket,
+          ) ??
+          input.candidates.find((c) => c.mentioned || msgMentions.has(c.identifier.toUpperCase()));
         if (target) {
           return {
             action: "append",
@@ -133,33 +148,6 @@ export class LlmTicketCommandInterpreter implements TicketCommandInterpreterPort
       const from = find(parsed.from) ?? input.candidates.find((c) => c.justCreated);
       if (from?.justCreated && from.identifier !== target.identifier) {
         return { action: "move_created", from: from.identifier, identifier: target.identifier };
-      }
-    }
-
-    const projectKeys = new Set([
-      ...input.candidates.map((c) => c.identifier.split("-")[0]).filter(Boolean),
-    ]);
-    const msgMentions = new Set(
-      [...projectKeys].flatMap((pk) =>
-        mentionedIdentifiers(input.message, pk).map((id) => id.toUpperCase()),
-      ),
-    );
-
-    if (cancelIntent) {
-      const mentionedOwn = input.candidates.find(
-        (c) => (c.mentioned || msgMentions.has(c.identifier.toUpperCase())) && c.ownTicket,
-      );
-      const mentionedAny = input.candidates.find(
-        (c) => c.mentioned || msgMentions.has(c.identifier.toUpperCase()),
-      );
-      const cancelTarget = mentionedOwn ?? mentionedAny;
-      if (cancelTarget) {
-        return {
-          action: "cancel_or_close",
-          identifier: cancelTarget.identifier,
-          content: input.message.trim(),
-          intent: cancelIntent,
-        };
       }
     }
 

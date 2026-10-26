@@ -765,44 +765,79 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "hủy rõ (chưa xử lý / đang xử lý dở kể cả có ≥3 comment chuyên viên / đã xử lý Resolved) → luôn chuyển Canceled (cột 5) + escapeItsaplanMarkdown",
-    "deferred",
-    "Chờ port ở PR 12 (huỷ và đóng ticket theo yêu cầu người báo)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr12-cancel-close.test.ts",
+        "hủy rõ (chưa xử lý / đang xử lý dở kể cả có ≥3 comment chuyên viên / đã xử lý Resolved) → luôn chuyển Canceled (cột 5) + escapeItsaplanMarkdown",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "nói 'đóng' khi chưa xử lý (0, 1 hoặc 2 bình luận chuyên viên, chưa ở Resolved) → chuyển Canceled (cột 5), nút [✅ Hủy ... / Giữ lại]",
-    "deferred",
-    "Chờ port ở PR 12 (huỷ và đóng ticket theo yêu cầu người báo)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr12-cancel-close.test.ts",
+        "nói 'đóng' khi chưa xử lý (0, 1 hoặc 2 bình luận chuyên viên, chưa ở Resolved) → chuyển Canceled (cột 5), nút [✅ Hủy ... / Giữ lại]",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "nói 'đóng' khi đã có chuyên viên xử lý (≥ 3 bình luận chuyên viên HOẶC đang ở cột Resolved) → chuyển Done (cột 4), nút [✅ Đóng ... / Giữ lại]",
-    "deferred",
-    "Chờ port ở PR 12 (huỷ và đóng ticket theo yêu cầu người báo)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr12-cancel-close.test.ts",
+        "nói 'đóng' khi đã có chuyên viên xử lý (≥ 3 bình luận chuyên viên HOẶC đang ở cột Resolved) → chuyển Done (cột 4), nút [✅ Đóng ... / Giữ lại]",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "ticket đã ở Done (cột 4) hoặc Canceled (cột 5) → không chuyển lại, không ghi comment, trả lời lịch sự",
-    "deferred",
-    "Chờ port ở PR 12 (huỷ và đóng ticket theo yêu cầu người báo)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr12-cancel-close.test.ts",
+        "ticket đã ở Done (cột 4) hoặc Canceled (cột 5) → không chuyển lại, không ghi comment, trả lời lịch sự",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "không phải chủ ticket (ownTicket = false) → từ chối hủy/đóng, không đổi cột, không ghi comment",
-    "deferred",
-    "Chờ port ở PR 12 (huỷ và đóng ticket theo yêu cầu người báo)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr12-cancel-close.test.ts",
+        "không phải chủ ticket (ownTicket = false) → từ chối hủy/đóng, không đổi cột, không ghi comment",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "bấm nút 'Giữ lại' hoặc fallback trong proposeEdit khi ops=[] hoạt động chuẩn, và chốt chặn không bao giờ chuyển Done khi chưa đủ điều kiện",
-    "deferred",
-    "Chờ port ở PR 12 (huỷ và đóng ticket theo yêu cầu người báo)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr12-cancel-close.test.ts",
+        "bấm nút 'Giữ lại' hoặc fallback trong proposeEdit khi ops=[] hoạt động chuẩn, và chốt chặn không bao giờ chuyển Done khi chưa đủ điều kiện",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "người khác (chat khác) không bấm hộ nút xác nhận hủy được; câu mô tả sự cố có chữ đóng/hủy khi unclear hỏi lại Bổ sung/Sự cố mới chứ không hủy vé",
-    "deferred",
-    "Chờ port ở PR 12 (huỷ và đóng ticket theo yêu cầu người báo)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr12-cancel-close.test.ts",
+        "người khác (chat khác) không bấm hộ nút xác nhận hủy được; câu mô tả sự cố có chữ đóng/hủy khi unclear hỏi lại Bổ sung/Sự cố mới chứ không hủy vé",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
@@ -1175,32 +1210,57 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/ticket-reply-router.test.ts",
     "phân loại tất định các câu thật yêu cầu HỦY rõ → intent = 'cancel'",
-    "deferred",
-    "Chờ port ở PR 12 (huỷ và đóng ticket theo yêu cầu người báo)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr12-cancel-close.test.ts",
+        "phân loại tất định các câu thật yêu cầu HỦY rõ → intent = 'cancel'",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/ticket-reply-router.test.ts",
     "phân loại tất định các câu yêu cầu ĐÓNG / báo đã dùng được (không kèm từ hủy) → intent = 'close'",
-    "deferred",
-    "Chờ port ở PR 12 (huỷ và đóng ticket theo yêu cầu người báo)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr12-cancel-close.test.ts",
+        "phân loại tất định các câu yêu cầu ĐÓNG / báo đã dùng được (không kèm từ hủy) → intent = 'close'",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/ticket-reply-router.test.ts",
     "không bắt nhầm câu sửa thật, chuyển ticket trùng, câu thiếu mã ticket hay mô tả sự cố có chữ hủy/đóng (≥20 câu thực tế)",
-    "deferred",
-    "Chờ port ở PR 12 (huỷ và đóng ticket theo yêu cầu người báo)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr12-cancel-close.test.ts",
+        "không bắt nhầm câu sửa thật, chuyển ticket trùng, câu thiếu mã ticket hay mô tả sự cố có chữ hủy/đóng (≥20 câu thực tế)",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/ticket-reply-router.test.ts",
     "LlmTicketCommandInterpreter định tuyến tất định sang cancel_or_close kể cả khi LLM trả edit / unclear",
-    "deferred",
-    "Chờ port ở PR 12 (huỷ và đóng ticket theo yêu cầu người báo)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr12-cancel-close.test.ts",
+        "LlmTicketCommandInterpreter định tuyến tất định sang cancel_or_close kể cả khi LLM trả edit / unclear",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/ticket-reply-router.test.ts",
     "countSpecialistTimelineComments chỉ đếm bình luận của chuyên viên TECH, loại bỏ bot và người báo",
-    "deferred",
-    "Chờ port ở PR 12 (huỷ và đóng ticket theo yêu cầu người báo)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr12-cancel-close.test.ts",
+        "countSpecialistTimelineComments chỉ đếm bình luận của chuyên viên TECH, loại bỏ bot và người báo",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/ticket-reply-router.test.ts",
