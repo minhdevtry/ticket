@@ -29,6 +29,10 @@ export const TEST_COPY: Record<CopyKey, string> = {
   "button.cancel_action": "Cancel",
   "park.identifier_conflict": "New incident or append to the current one?",
   "park.full_report": "New incident or append to the current one?",
+  "park.unclear":
+    'Please press either "New incident" or "Add to current draft" above; I didn\'t catch that.',
+  "park.canceled": "Discarded the held message. Incident «{title}» is still waiting.",
+  "park.reminder": " There is also an earlier incident «{title}» waiting to be confirmed.",
   "action.preview_append": "Append to {identifier}: {content}",
   "action.preview_edit": "Edit {identifier}: {changes}",
   "action.preview_move": "Move {from} into {identifier}",

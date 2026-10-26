@@ -95,6 +95,9 @@ export type CopyKey =
   | "button.cancel_action" // label for cancelling a preview of a write to an existing ticket
   | "park.identifier_conflict" // a conflicting identifier arrived; new incident or append? (TECH-928)
   | "park.full_report" // a complete report arrived while another draft was mid-collection
+  | "park.unclear" // reporter's answer to park was unclear; prompt again with buttons
+  | "park.canceled" // reporter canceled the held park message
+  | "park.reminder" // reminder appended when creating/canceling ticket that an earlier draft is waiting; {title}
   | "action.preview_append" // preview before appending to an existing ticket; {identifier} {content}
   | "action.preview_edit" // preview before editing an existing ticket; {identifier} {changes}
   | "action.preview_move" // preview before moving the just-created ticket; {from} {identifier}

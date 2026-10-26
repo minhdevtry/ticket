@@ -41,6 +41,11 @@ export const tieuLinhCopy: Record<CopyKey, string> = {
   "park.full_report":
     "Dạ anh/chị đang có một sự cố ghi dở. Tin này là sự cố MỚI hay bổ sung vào sự cố " +
     "đang chờ ạ?",
+  "park.unclear":
+    'Dạ anh/chị bấm giúp em nút "Sự cố mới" hay "Bổ sung sự cố đang chờ" phía trên nhé ạ, em chưa rõ ý ạ.',
+  "park.canceled":
+    "Dạ em bỏ tin vừa rồi ạ. Sự cố «{title}» vẫn đang chờ, anh/chị nhắn tiếp khi cần nhé.",
+  "park.reminder": " Còn sự cố «{title}» anh/chị báo trước đó đang chờ xác nhận ạ.",
   "action.preview_append":
     "Dạ em sẽ ghi thêm vào {identifier} nội dung sau ạ:\n{content}\nĐúng thì anh/chị bấm nút giúp em nhé.",
   "action.preview_edit":

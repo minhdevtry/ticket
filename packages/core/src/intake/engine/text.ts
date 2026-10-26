@@ -39,3 +39,28 @@ export function foldButton(value: string): string {
     .trim()
     .toLowerCase();
 }
+
+/**
+ * Người báo GÕ CHỮ thay vì bấm nút "Sự cố mới" (TECH-1013, 30/09: gõ "ticket mới ạ", tin bị
+ * ghi tiếp vào ticket cũ). Chỉ dùng ở nơi lỡ hiểu sai còn an toàn: khi đang chờ người báo chọn,
+ * hoặc ngay sau khi ticket vừa tạo — hiểu nhầm thành "sự cố mới" chỉ tốn thêm một ticket.
+ */
+export const NEW_INCIDENT_SAID =
+  /(?<![\p{L}\p{N}])(?:(?:ticket|sự cố|lỗi|yêu cầu|vấn đề|việc|báo)\s+(?:mới|khác)|tạo\s+(?:(?:ticket|sự cố)\s+)?mới|không phải\s+(?:là\s+)?(?:thông tin\s+)?bổ sung|(?:phụ huynh|học sinh|khách hàng|khách|hs|ph)\s+khác)(?![\p{L}\p{N}])/iu;
+
+export function saysNewIncident(text: string): boolean {
+  return NEW_INCIDENT_SAID.test(text);
+}
+
+/** Bỏ cụm "ticket mới ạ" để biết người báo còn nói thêm nội dung sự cố hay không. */
+export function stripNewIncidentDeclaration(text: string): string {
+  return text
+    .replace(new RegExp(NEW_INCIDENT_SAID.source, "giu"), " ")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
+/** Tin gõ tay kèm chữ "sự cố mới": nếu còn nội dung thì nối vào tin đang chờ, còn không thì bỏ. */
+export function withTypedDetail(buffered: string, typed: string): string {
+  return stripNewIncidentDeclaration(typed).length >= 12 ? `${buffered}\n${typed}` : buffered;
+}
