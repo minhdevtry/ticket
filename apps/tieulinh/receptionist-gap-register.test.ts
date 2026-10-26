@@ -60,6 +60,7 @@ function legacyTitles(src: string): string[] {
 }
 
 const C = (file: string, title: string): Ref => ({ file: `${CORE}${file}`, title });
+const APP = (file: string, title: string): Ref => ({ file: `apps/tieulinh/${file}`, title });
 
 const row = (file: string, title: string, status: Status, rest: Ref[] | string): Row =>
   typeof rest === "string" ? { file, title, status, why: rest } : { file, title, status, to: rest };
@@ -591,38 +592,58 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "thiếu dữ kiện → hỏi MỘT lượt, câu trả lời vào mô tả rồi mới tóm tắt",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr13-review-checklist.test.ts",
+        "thiếu dữ kiện → hỏi MỘT lượt, câu trả lời vào mô tả rồi mới tóm tắt",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "câu trả lời chỉ gồm một mã vẫn vào mô tả",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [C("intake/engine/pr13-review-checklist.test.ts", "câu trả lời chỉ gồm một mã vẫn vào mô tả")],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "mã đơn / link có trong lời báo được đưa vào 'Trường đã có'",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr13-review-checklist.test.ts",
+        "mã đơn / link có trong lời báo được đưa vào 'Trường đã có'",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "người báo bấm 'Không có' → tóm tắt luôn, không hỏi lại",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr13-review-checklist.test.ts",
+        "người báo bấm 'Không có' → tóm tắt luôn, không hỏi lại",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "hỏi hết (checklist): một tin có ảnh màn hình, trả lời/'Không có' đều đi tiếp tới tóm tắt",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr13-review-checklist.test.ts",
+        "hỏi hết (checklist): một tin có ảnh màn hình, trả lời/'Không có' đều đi tiếp tới tóm tắt",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "đủ dữ kiện hoặc soát lỗi → tóm tắt như cũ",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [C("intake/engine/pr13-review-checklist.test.ts", "đủ dữ kiện hoặc soát lỗi → tóm tắt như cũ")],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
@@ -1902,147 +1923,236 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/tech-review.test.ts",
     "đọc JSON LLM: tối đa 3 dữ kiện + câu hỏi; hướng dẫn và lời báo đều vào prompt",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [
+      C(
+        "intake/review/llm-review.test.ts",
+        "đọc JSON LLM: tối đa 3 dữ kiện + câu hỏi; hướng dẫn và lời báo đều vào prompt",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/tech-review.test.ts",
     "đủ dữ kiện, thiếu câu hỏi hay JSON hỏng → coi như đủ",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [C("intake/review/llm-review.test.ts", "đủ dữ kiện, thiếu câu hỏi hay JSON hỏng → coi như đủ")],
   ),
   row(
     "lib/intake-step/tech-review.test.ts",
     "LLM treo quá hạn → lỗi (pipeline bắt và bỏ qua)",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [C("intake/review/llm-review.test.ts", "LLM treo quá hạn → lỗi (pipeline bắt và bỏ qua)")],
   ),
   // ── lib/intake-step/checklist-review.test.ts (21) ──
   row(
     "lib/intake-step/checklist-review.test.ts",
     "không có ảnh → luôn xin ảnh màn hình, một tin, kết bằng 'không có'",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [
+      C(
+        "intake/review/checklist-review.test.ts",
+        "không có ảnh → luôn xin ảnh màn hình, một tin, kết bằng 'không có'",
+      ),
+    ],
   ),
-  row(
-    "lib/intake-step/checklist-review.test.ts",
-    "có ảnh đính kèm → không xin ảnh nữa",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
-  ),
+  row("lib/intake-step/checklist-review.test.ts", "có ảnh đính kèm → không xin ảnh nữa", "ported", [
+    C("intake/review/checklist-review.test.ts", "có ảnh đính kèm → không xin ảnh nữa"),
+  ]),
   row(
     "lib/intake-step/checklist-review.test.ts",
     "CARE → xin link student-detail; đã có link thì bỏ",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [
+      C(
+        "intake/review/checklist-review.test.ts",
+        "CARE → xin link student-detail; đã có link thì bỏ",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/checklist-review.test.ts",
     "CRM → xin link contact, LMS/khoá → xin UID hoặc link LMS",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [
+      C(
+        "intake/review/checklist-review.test.ts",
+        "CRM → xin link contact, LMS/khoá → xin UID hoặc link LMS",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/checklist-review.test.ts",
     "mã đơn hàng: hỏi khi nói về đơn/hạn, bỏ khi đã có DH…",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [
+      C(
+        "intake/review/checklist-review.test.ts",
+        "mã đơn hàng: hỏi khi nói về đơn/hạn, bỏ khi đã có DH…",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/checklist-review.test.ts",
     "không hỏi nguyên nhân, không xin mật khẩu TeamViewer",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [
+      C(
+        "intake/review/checklist-review.test.ts",
+        "không hỏi nguyên nhân, không xin mật khẩu TeamViewer",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/checklist-review.test.ts",
     "việc rõ ràng không thuộc TECH (chấm công/AMIS) → không hỏi",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [
+      C(
+        "intake/review/checklist-review.test.ts",
+        "việc rõ ràng không thuộc TECH (chấm công/AMIS) → không hỏi",
+      ),
+    ],
   ),
-  row(
-    "lib/intake-step/checklist-review.test.ts",
-    "báo đủ hết → missing rỗng",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
-  ),
+  row("lib/intake-step/checklist-review.test.ts", "báo đủ hết → missing rỗng", "ported", [
+    C("intake/review/checklist-review.test.ts", "báo đủ hết → missing rỗng"),
+  ]),
   row(
     "lib/intake-step/checklist-review.test.ts",
     "không có mục học được → kết quả y như buildChecklist(input)",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [
+      C(
+        "intake/review/checklist-review.test.ts",
+        "không có mục học được → kết quả y như buildChecklist(input)",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/checklist-review.test.ts",
     "mục học được chưa có dòng cố định → thêm dòng cuối, đánh số tiếp, vẫn một tin và kết bằng 'không có'",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [
+      C(
+        "intake/review/checklist-review.test.ts",
+        "mục học được chưa có dòng cố định → thêm dòng cuối, đánh số tiếp, vẫn một tin và kết bằng 'không có'",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/checklist-review.test.ts",
     "mục đã được hỏi hoặc đã có sẵn ở dòng cố định → không lặp lại",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [
+      C(
+        "intake/review/checklist-review.test.ts",
+        "mục đã được hỏi hoặc đã có sẵn ở dòng cố định → không lặp lại",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/checklist-review.test.ts",
     "OTHER và mục lạ bị bỏ qua; trùng lặp chỉ một lần",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [
+      C(
+        "intake/review/checklist-review.test.ts",
+        "OTHER và mục lạ bị bỏ qua; trùng lặp chỉ một lần",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/checklist-review.test.ts",
     "NOT_TECH vẫn không hỏi dù có mục học được",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [C("intake/review/checklist-review.test.ts", "NOT_TECH vẫn không hỏi dù có mục học được")],
   ),
   row(
     "lib/intake-step/checklist-review.test.ts",
     "ChecklistTechReviewer: bộ học lỗi thì vẫn hỏi như cũ",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [
+      C(
+        "intake/review/checklist-review.test.ts",
+        "ChecklistTechReviewer: bộ học lỗi thì vẫn hỏi như cũ",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/checklist-review.test.ts",
     "ChecklistTechReviewer: đưa đúng hệ thống cho bộ học",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [
+      C(
+        "intake/review/checklist-review.test.ts",
+        "ChecklistTechReviewer: đưa đúng hệ thống cho bộ học",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/checklist-review.test.ts",
     "sắp xếp theo tỉ lệ (W26): CARE có CARE_STUDENT_LINK tỉ lệ cao nhất → đứng ngay sau ảnh màn hình",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [
+      C(
+        "intake/review/checklist-review.test.ts",
+        "sắp xếp theo tỉ lệ (W26): CARE có CARE_STUDENT_LINK tỉ lệ cao nhất → đứng ngay sau ảnh màn hình",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/checklist-review.test.ts",
     "ảnh màn hình luôn được ghim đầu tiên khi được hỏi, kể cả tỉ lệ thấp hơn mục khác",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [
+      C(
+        "intake/review/checklist-review.test.ts",
+        "ảnh màn hình luôn được ghim đầu tiên khi được hỏi, kể cả tỉ lệ thấp hơn mục khác",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/checklist-review.test.ts",
     "đã có ảnh đính kèm → không hỏi ảnh màn hình, mục có tỉ lệ cao nhất đứng đầu",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [
+      C(
+        "intake/review/checklist-review.test.ts",
+        "đã có ảnh đính kèm → không hỏi ảnh màn hình, mục có tỉ lệ cao nhất đứng đầu",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/checklist-review.test.ts",
     "hoà tỉ lệ (stable ties): giữ thứ tự base, mục học thêm cùng tỉ lệ đứng sau mục cố định",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [
+      C(
+        "intake/review/checklist-review.test.ts",
+        "hoà tỉ lệ (stable ties): giữ thứ tự base, mục học thêm cùng tỉ lệ đứng sau mục cố định",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/checklist-review.test.ts",
     "không có tỉ lệ (hoặc tất cả bằng 0) → đầu ra trùng khớp 100% từng byte với bản cũ",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [
+      C(
+        "intake/review/checklist-review.test.ts",
+        "không có tỉ lệ (hoặc tất cả bằng 0) → đầu ra trùng khớp 100% từng byte với bản cũ",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/checklist-review.test.ts",
     "ChecklistTechReviewer: tra cứu lỗi → không sắp xếp, kết quả như cũ",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin)",
+    "ported",
+    [
+      C(
+        "intake/review/checklist-review.test.ts",
+        "ChecklistTechReviewer: tra cứu lỗi → không sắp xếp, kết quả như cũ",
+      ),
+    ],
   ),
   // ── lib/identifier-grounding.test.ts (11) ──
   row(
@@ -3335,100 +3445,132 @@ const ROWS: Row[] = [
   row(
     "lib/ask-learning/lookup.test.ts",
     "dbPath rỗng hoặc undefined → trả về undefined",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin): cổng learned",
+    "ported",
+    [APP("ask-learning/lookup.test.ts", "dbPath rỗng hoặc undefined → trả về undefined")],
   ),
   row(
     "lib/ask-learning/lookup.test.ts",
     "đường dẫn file không mở được → trả về undefined",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin): cổng learned",
+    "ported",
+    [APP("ask-learning/lookup.test.ts", "đường dẫn file không mở được → trả về undefined")],
   ),
   row(
     "lib/ask-learning/lookup.test.ts",
     "kho hợp lệ → trả về cả items và shares, vừa là mảng vừa có thuộc tính shares",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin): cổng learned",
+    "ported",
+    [
+      APP(
+        "ask-learning/lookup.test.ts",
+        "kho hợp lệ → trả về cả items và shares, vừa là mảng vừa có thuộc tính shares",
+      ),
+    ],
   ),
   // ── lib/ask-learning/learned.test.ts (13) ──
   row(
     "lib/ask-learning/learned.test.ts",
     "mục cần gần đây được học; mục chỉ cần từ 2 năm trước rơi ra",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin): cổng learned",
+    "ported",
+    [
+      C(
+        "intake/review/learned.test.ts",
+        "mục cần gần đây được học; mục chỉ cần từ 2 năm trước rơi ra",
+      ),
+    ],
   ),
   row(
     "lib/ask-learning/learned.test.ts",
     "dưới ngưỡng số ticket hoặc tỉ lệ thì không học",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin): cổng learned",
+    "ported",
+    [C("intake/review/learned.test.ts", "dưới ngưỡng số ticket hoặc tỉ lệ thì không học")],
   ),
   row(
     "lib/ask-learning/learned.test.ts",
     "bình luận đã có trong báo cáo (already_in_report) không được tính",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin): cổng learned",
+    "ported",
+    [
+      C(
+        "intake/review/learned.test.ts",
+        "bình luận đã có trong báo cáo (already_in_report) không được tính",
+      ),
+    ],
   ),
   row(
     "lib/ask-learning/learned.test.ts",
     "học theo từng hệ thống, không lẫn sang hệ thống khác",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin): cổng learned",
+    "ported",
+    [C("intake/review/learned.test.ts", "học theo từng hệ thống, không lẫn sang hệ thống khác")],
   ),
   row(
     "lib/ask-learning/learned.test.ts",
     "nhãn cũ (OMS_Vuihoc) được gộp vào hệ thống chuẩn lúc truy vấn",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin): cổng learned",
+    "ported",
+    [
+      C(
+        "intake/review/learned.test.ts",
+        "nhãn cũ (OMS_Vuihoc) được gộp vào hệ thống chuẩn lúc truy vấn",
+      ),
+    ],
   ),
   row(
     "lib/ask-learning/learned.test.ts",
     "nhãn App/Web chưa rõ được đếm cho cả DUO_Vuihoc và VH_Tự học",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin): cổng learned",
+    "ported",
+    [
+      C(
+        "intake/review/learned.test.ts",
+        "nhãn App/Web chưa rõ được đếm cho cả DUO_Vuihoc và VH_Tự học",
+      ),
+    ],
   ),
   row(
     "lib/ask-learning/learned.test.ts",
     "learnedReport: 9 hệ thống chuẩn + nhãn chưa map",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin): cổng learned",
+    "ported",
+    [C("intake/review/learned.test.ts", "learnedReport: 9 hệ thống chuẩn + nhãn chưa map")],
   ),
   row(
     "lib/ask-learning/learned.test.ts",
     "trả về tỉ lệ cho mọi mục có trọng số, kể cả không qua ngưỡng minTickets / minShare",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin): cổng learned",
+    "ported",
+    [
+      C(
+        "intake/review/learned.test.ts",
+        "trả về tỉ lệ cho mọi mục có trọng số, kể cả không qua ngưỡng minTickets / minShare",
+      ),
+    ],
   ),
   row(
     "lib/ask-learning/learned.test.ts",
     "nhãn cũ (OMS_Vuihoc) gộp vào CRM_Vuihoc theo taxonomy absorbs",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin): cổng learned",
+    "ported",
+    [
+      C(
+        "intake/review/learned.test.ts",
+        "nhãn cũ (OMS_Vuihoc) gộp vào CRM_Vuihoc theo taxonomy absorbs",
+      ),
+    ],
   ),
   row(
     "lib/ask-learning/learned.test.ts",
     "hệ thống rỗng hoặc không có ticket → trả về object rỗng",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin): cổng learned",
+    "ported",
+    [C("intake/review/learned.test.ts", "hệ thống rỗng hoặc không có ticket → trả về object rỗng")],
   ),
   row(
     "lib/ask-learning/learned.test.ts",
     "nhãn chuẩn và nhãn gộp theo taxonomy absorbs",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin): cổng learned",
+    "ported",
+    [C("intake/review/learned.test.ts", "nhãn chuẩn và nhãn gộp theo taxonomy absorbs")],
   ),
   row(
     "lib/ask-learning/learned.test.ts",
     "nhãn App/Web chưa rõ → cả DUO_Vuihoc lẫn VH_Tự học",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin): cổng learned",
+    "ported",
+    [C("intake/review/learned.test.ts", "nhãn App/Web chưa rõ → cả DUO_Vuihoc lẫn VH_Tự học")],
   ),
-  row(
-    "lib/ask-learning/learned.test.ts",
-    "nhãn lạ hoặc rỗng → không map",
-    "deferred",
-    "Chờ port ở PR 13 (soát thông tin): cổng learned",
-  ),
+  row("lib/ask-learning/learned.test.ts", "nhãn lạ hoặc rỗng → không map", "ported", [
+    C("intake/review/learned.test.ts", "nhãn lạ hoặc rỗng → không map"),
+  ]),
   // ── lib/ask-learning/candidate.test.ts (6) ──
   row(
     "lib/ask-learning/candidate.test.ts",
