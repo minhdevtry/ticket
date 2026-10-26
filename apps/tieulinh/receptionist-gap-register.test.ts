@@ -910,6 +910,24 @@ const ROWS: Row[] = [
     "deferred",
     "Chờ port ở PR 4 (dựng mô tả ticket): chống lặp theo dòng khi gộp lời kể",
   ),
+  row(
+    "lib/intake-step/merger.test.ts",
+    "agent gõ lại lệch một chữ thì không lặp (khối tóm tắt của bot)",
+    "deferred",
+    "Chờ port ở PR 4 (dựng mô tả ticket): chống lặp dòng gần giống khi gộp lời kể",
+  ),
+  row(
+    "lib/intake-step/merger.test.ts",
+    "hai sự cố khác nhau dù lệch ít chữ vẫn phải giữ cả hai",
+    "deferred",
+    "Chờ port ở PR 4 (dựng mô tả ticket): chống lặp dòng gần giống, có chốt số/email mới",
+  ),
+  row(
+    "lib/intake-step/merger.test.ts",
+    "câu khác nghĩa (buổi tối vs buổi sáng) thì không gộp",
+    "deferred",
+    "Chờ port ở PR 4 (dựng mô tả ticket): chống lặp dòng gần giống, có chốt số/email mới",
+  ),
   // ── lib/intake-step/noop-guard.test.ts (6) ──
   row(
     "lib/intake-step/noop-guard.test.ts",

@@ -53,8 +53,9 @@ Nguyên nhân gốc nằm ở `merger.ts`: điều kiện chống lặp là `!pr
 Quyết định bổ sung:
 
 1. **Chống lặp theo DÒNG, có chuẩn hoá** — `merger.ts` `newLinesOnly`: bỏ dấu markdown, gộp khoảng trắng, không phân biệt hoa thường rồi so từng dòng với lời kể đã có; dòng đã có thì bỏ, dòng mới thì giữ. Lời người báo nhắc lại đúng một câu cũ vì thế hiện **một lần** trong mô tả (đây là điểm lệch có chủ đích với "nguyên văn": ưu tiên mô tả không lặp, đổi lại mất tính chất bản ghi nguyên văn của câu lặp — nội dung câu lặp vẫn còn trong `symptoms` và trong lịch sử chat).
-2. **Lời của bot không vào mô tả** — nhãn nút (danh sách hằng ở `lib/intake-step/button-labels.ts`, dùng chung với pipeline để dựng nút) và token nội bộ (`noop`) bị loại khỏi `rawText`.
-3. **Nhãn nút có một nguồn duy nhất** — `button-labels.ts`; `pipeline.ts` import từ đó, không khai lại.
+2. **Dòng "gần lặp" cũng bỏ, nhưng có chốt an toàn** — agent gõ lại lệch một–hai ký tự ("Phân **E** loại" thay "Phân loại") thì dòng đó vẫn là bản lặp, nên bỏ khi lệch ≤ 2 ký tự (Levenshtein có dải hẹp, chỉ so dòng dài ≥ 25 ký tự) **và** dòng mới không mang số/email mới. Chốt "số/email mới" là chốt an toàn quan trọng: "lớp 5" và "lớp 6" lệch một ký tự nhưng là hai sự cố khác nhau, phải giữ cả hai.
+3. **Lời của bot không vào mô tả** — nhãn nút (danh sách hằng ở `lib/intake-step/button-labels.ts`, dùng chung với pipeline để dựng nút) và token nội bộ (`noop`) bị loại khỏi `rawText`.
+4. **Nhãn nút có một nguồn duy nhất** — `button-labels.ts`; `pipeline.ts` import từ đó, không khai lại.
 
 Hệ quả: mô tả ticket sạch hơn (không lặp, không lẫn nhãn nút), và văn bản nguồn cho BM25 (`symptomsOfDescription`) không bị nhân đôi. Phần lớn "trùng" đo được là lượt xác nhận bị agent truyền lại — vẫn là lỗi của agent, nhưng chặn ở merger là hàng rào tất định, đúng nguyên tắc "logic tất định ở tool và engine, prompt chỉ lo diễn đạt".
 

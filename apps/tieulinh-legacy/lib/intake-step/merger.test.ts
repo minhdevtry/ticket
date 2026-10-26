@@ -97,6 +97,42 @@ describe("rawText: lời kể của người báo không hiện lặp", () => {
       "không vào được lớp\nmàn hình trắng\nthử lại vẫn lỗi",
     );
   });
+
+  it("agent gõ lại lệch một chữ thì không lặp (khối tóm tắt của bot)", () => {
+    const first = "• Hệ thống: CARE_Vuihoc · Phân loại: Lỗi kỹ thuật · Bộ phận: Quản lý lớp";
+    const typedAgain = "• Hệ thống: CARE_Vuihoc · Phân E loại: Lỗi kỹ thuật · Bộ phận: Quản lý lớp";
+    const merged = mergeExtractedFields(
+      doc(first),
+      extracted(["Phân loại lỗi kỹ thuật"]),
+      2,
+      typedAgain,
+    );
+    expect(merged.fields.rawText?.value).toBe(first);
+  });
+
+  it("hai sự cố khác nhau dù lệch ít chữ vẫn phải giữ cả hai", () => {
+    const merged = mergeExtractedFields(
+      doc("Học sinh không vào được lớp 5 buổi tối thứ Hai"),
+      extracted(["Không vào được lớp 5"]),
+      2,
+      "Học sinh không vào được lớp 6 buổi tối thứ Hai",
+    );
+    expect(merged.fields.rawText?.value).toBe(
+      "Học sinh không vào được lớp 5 buổi tối thứ Hai\nHọc sinh không vào được lớp 6 buổi tối thứ Hai",
+    );
+  });
+
+  it("câu khác nghĩa (buổi tối vs buổi sáng) thì không gộp", () => {
+    const merged = mergeExtractedFields(
+      doc("Học sinh không vào được lớp học buổi tối thứ Hai"),
+      extracted(["Không vào được lớp buổi tối"]),
+      2,
+      "Học sinh không vào được lớp học buổi sáng thứ Hai",
+    );
+    expect(merged.fields.rawText?.value).toBe(
+      "Học sinh không vào được lớp học buổi tối thứ Hai\nHọc sinh không vào được lớp học buổi sáng thứ Hai",
+    );
+  });
 });
 
 describe("newLinesOnly", () => {

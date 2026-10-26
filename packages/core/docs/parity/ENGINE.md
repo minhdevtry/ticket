@@ -55,22 +55,22 @@ nó; hãy chép lại cả mục này). Nó mở rộng bức tranh ra toàn b�
 legacy bị đổi tên, xoá hoặc thêm mà sổ không đổi theo, khi một dòng `core`/`ported` trỏ tới test
 không còn tồn tại, hoặc khi các con số dưới đây lệch khỏi sổ.
 
-<!-- gap-register: total=457 core=69 ported=0 deferred=377 by-design=11 -->
+<!-- gap-register: total=460 core=69 ported=0 deferred=380 by-design=11 -->
 
 | Trạng thái | Số test legacy | Nghĩa |
 |---|---|---|
 | `core` | 69 | Engine hoặc thư viện core hiện có đã có test tương ứng (mỗi dòng trỏ tới test đó) |
 | `ported` | 0 | Đã port sang `apps/tieulinh` (PR 1 không port gì; PR 2 đến 14 chuyển dòng `deferred` sang đây) |
-| `deferred` | 377 | Chưa có; dòng nêu PR của RFC 0002 sẽ port, hoặc lý do nằm ngoài chuỗi di trú (KG, Onyx, nạp tri thức) |
+| `deferred` | 380 | Chưa có; dòng nêu PR của RFC 0002 sẽ port, hoặc lý do nằm ngoài chuỗi di trú (KG, Onyx, nạp tri thức) |
 | `by-design` | 11 | Cố ý không có ở bản mới, có lý do (tool ghi trực tiếp của legacy, đường tạo ticket thứ hai, bot khác) |
-| Tổng | 457 | Test của lễ tân và phần dùng chung |
+| Tổng | 460 | Test của lễ tân và phần dùng chung |
 
 Số test `deferred` theo PR sẽ port (RFC 0002, mục 5):
 
 | PR | Số test | Chủ đề |
 |---|---|---|
 | 3 | 7 | Binding tương thích kho legacy |
-| 4 | 20 | Draft v2, chuẩn hoá đầu vào, chống tin `noop`, chống lặp lời kể |
+| 4 | 23 | Draft v2, chuẩn hoá đầu vào, chống tin `noop`, chống lặp lời kể |
 | 5 | 46 | Bộ trích xuất và heuristic tiếng Việt |
 | 7 | 11 | Hỏi bổ sung theo luật, chốt tiêu đề |
 | 8 | 18 | Gác tờ khai khi có sự cố mới, định danh |

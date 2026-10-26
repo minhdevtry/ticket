@@ -18,29 +18,77 @@ function cap(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max)}...` : text;
 }
 
+/** Độ dài tối thiểu để so "gần giống" — dòng ngắn thì dễ trùng nhầm. */
+const NEAR_DUPLICATE_MIN_CHARS = 25;
+/** Số ký tự được phép lệch để coi là "gần lặp" (agent gõ lại lệch 1–2 ký tự). */
+const NEAR_DUPLICATE_MAX_EDITS = 2;
+
+/** Mọi số / email trong dòng — dòng mới mang số mới thì KHÔNG phải bản lặp. */
+const IDENTIFIER_TOKEN = /\d+|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+/g;
+
+function identifierTokens(line: string): Set<string> {
+  return new Set(line.match(IDENTIFIER_TOKEN) ?? []);
+}
+
+/**
+ * Hai dòng cách nhau không quá {@link NEAR_DUPLICATE_MAX_EDITS} ký tự? (Levenshtein
+ * có dải hẹp: chỉ xét các ô trong khoảng `k` — O(n·k), không O(n²)).
+ */
+function withinFewEdits(a: string, b: string): boolean {
+  const k = NEAR_DUPLICATE_MAX_EDITS;
+  if (a === b) return true;
+  if (Math.abs(a.length - b.length) > k) return false;
+  const inf = k + 1;
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = new Array<number>(b.length + 1).fill(inf);
+    if (i <= k) cur[0] = i;
+    const lo = Math.max(1, i - k);
+    const hi = Math.min(b.length, i + k);
+    for (let j = lo; j <= hi; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+    }
+    let best = inf;
+    for (let j = lo; j <= hi; j++) best = Math.min(best, cur[j]);
+    if (best > k) return false;
+    prev = cur;
+  }
+  return prev[b.length] <= k;
+}
+
 /**
  * Phần MỚI của một tin so với lời kể đã có — bỏ dòng lặp lại và dòng là lời của
  * bot, để mục "### Mô tả" không hiện nội dung hai lần.
  *
  * Vì sao cần: lượt xác nhận, agent (OpenClaw) đôi khi truyền lại chính tin
- * người báo vừa gửi — có khi y nguyên, có khi lệch một dấu cách, có khi kèm
- * nhãn nút ("Sự cố mới") hoặc token nội bộ ("noop"). So sánh "tin có nằm trong
- * lời kể không" bằng `includes` trên CẢ tin nên hụt: lệch một dấu cách là
- * thêm nguyên tin, và tên nút/token nội bộ lọt thẳng vào mô tả (TECH-1141,
- * TECH-1201, TECH-1307).
+ * người báo vừa gửi — có khi y nguyên, có khi lệch một dấu cách, có khi gõ lại
+ * lệch một chữ, có khi kèm nhãn nút ("Sự cố mới") hoặc token nội bộ ("noop").
+ * So sánh "tin có nằm trong lời kể không" bằng `includes` trên CẢ tin nên hụt:
+ * lệch một dấu cách là thêm nguyên tin, và tên nút/token nội bộ lọt thẳng vào
+ * mô tả (TECH-1141, TECH-1167, TECH-1201, TECH-1307).
  *
  * So sánh theo DÒNG và chuẩn hoá (bỏ dấu markdown, gộp khoảng trắng, không
  * phân biệt hoa thường): dòng đã có thì bỏ, dòng mới thì giữ. Lời người báo
  * nhắc lại đúng một câu cũ vì thế chỉ hiện một lần trong mô tả.
+ *
+ * Dòng "gần lặp" (lệch ≤ 2 ký tự, ví dụ agent gõ lại lệch một chữ) cũng bị
+ * bỏ — nhưng CHỈ khi dòng mới không mang số/email mới: "lớp 5" và "lớp 6" là
+ * hai sự cố khác nhau, không được gộp.
  */
 export function newLinesOnly(message: string, existing: string): string {
-  const seen = new Set(
-    existing
-      .split("\n")
-      .map(normalizeLine)
-      .filter((line) => line !== ""),
-  );
+  const existingLines = existing
+    .split("\n")
+    .map(normalizeLine)
+    .filter((line) => line !== "");
+  const seen = new Set(existingLines);
+  // Số/email đã có trong lời kể: dòng mới mang số mới thì không phải bản lặp.
+  const knownIdentifiers = new Set<string>();
+  for (const line of existingLines)
+    for (const id of identifierTokens(line)) knownIdentifiers.add(id);
+
   const kept: string[] = [];
+  const keptLines: string[] = [];
   for (const rawLine of message.split("\n")) {
     const line = rawLine.trim();
     if (line === "") {
@@ -51,8 +99,21 @@ export function newLinesOnly(message: string, existing: string): string {
     if (isBotButtonLabel(line) || isInternalCallbackToken(line)) continue;
     const normalized = normalizeLine(line);
     if (seen.has(normalized)) continue;
+    if (normalized.length >= NEAR_DUPLICATE_MIN_CHARS) {
+      const newIdentifiers = [...identifierTokens(normalized)].filter(
+        (id) => !knownIdentifiers.has(id),
+      );
+      if (newIdentifiers.length === 0) {
+        const twin = [...keptLines, ...existingLines].find(
+          (other) => other.length >= NEAR_DUPLICATE_MIN_CHARS && withinFewEdits(other, normalized),
+        );
+        if (twin !== undefined) continue;
+      }
+    }
     seen.add(normalized);
     kept.push(line);
+    keptLines.push(normalized);
+    for (const id of identifierTokens(normalized)) knownIdentifiers.add(id);
   }
   return kept.join("\n").trim();
 }
