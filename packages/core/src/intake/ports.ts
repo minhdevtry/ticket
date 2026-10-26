@@ -125,14 +125,16 @@ export type CopyKey =
   | "priority.level.medium" // priority level label for Medium
   | "priority.level.high" // priority level label for High
   | "priority.level.urgent" // priority level label for Urgent
-  // ── PR 9: tách báo cáo nhiều sự cố (RFC 0002 §1.5 B7) ─────────────────────
+  // ── PR 9: tách báo cáo nhiều sự cố (RFC 0002 §1.2 B7) ─────────────────────
   | "split.question" // ask whether to split N tickets or merge into 1 (with names summary); {count} {summary}
   | "split.question_no_names" // ask whether to split N tickets or merge into 1 (when no names); {count}
+  | "split.unnamed_item" // fallback label for an unnamed incident block in split summary (legacy: "sự cố")
   | "split.unclear_prefix" // prefix when answer to split question is unclear
   | "split.next_ticket_notice" // notice when creating next ticket in split queue (no student name); {identifier}
   | "split.next_ticket_notice_student" // notice when creating next ticket in split queue with student name; {identifier} {studentName}
   | "button.split_n" // button to split into N tickets; {count}
   | "button.merge_one" // button to merge into 1 ticket
+  | "media.attachments_heading" // heading for attachments section in ticket description
   | "media.ambiguous_notice"; // notice appended to description when images are shared across split tickets
 
 /**

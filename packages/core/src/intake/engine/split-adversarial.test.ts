@@ -369,8 +369,12 @@ describe("W29-SPLIT pipeline đối kháng (Port từ legacy split-adversarial.t
     expect(r2.action).toBe("ask_split_or_merge");
     expect(r2.document.pendingSplit).toBeDefined();
     expect(r2.document.pendingSplit?.blocks.length).toBe(2);
+    // Khẳng định đầu ra extraText:
+    // Theo đúng logic legacy (pipeline.ts:1315-1316), b.text.includes(carriedText) so từng khối đơn lẻ;
+    // khi dán lại cả báo cáo nhiều khối thì carriedText chứa cả 2 khối, nên extraText nhận lại TWO_STUDENTS
+    // (đây là hành vi có sẵn ở legacy, xem report-23 mục 7).
+    expect(r2.document.pendingSplit?.extraText).toEqual([TWO_STUDENTS]);
   });
-
   it("E. trả lời bằng MỘT báo cáo mới có định danh KHÁC (HS thứ 3) khi đang hỏi tách", async () => {
     const db0 = new Database(":memory:");
     intakeApplySchema(db0);

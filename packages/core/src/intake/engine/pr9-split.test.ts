@@ -8,13 +8,14 @@ import { intakeApplySchema, SqliteDraftRepository } from "../draft";
 import { SqliteChannelBindingStore } from "../create";
 import { makeCopyCatalog } from "../copy-catalog";
 import { tieuLinhCopy } from "../../../examples/tieulinh/copy";
+import { TEST_COPY } from "./test-copy.fixture";
 import { createCatalog } from "../gate/catalog";
 import { FieldExtractor } from "../extractor/llm-extractor";
 import { IntakeEngine } from "./engine";
 import { legacyActionForOutcome } from "./action-map";
 import { URGENCY } from "./engine-harness.fixture";
 import { MIN_CONFIRM_DELAY_MS } from "../confirm";
-import type { TrackerPort, TrackerIssue } from "../ports";
+import type { TrackerPort, TrackerIssue, CopyKey, FieldExtractorPort } from "../ports";
 import type { InlineButton } from "../gate/types";
 
 interface FakeItsaplanCalls {
@@ -131,19 +132,25 @@ function buildPipeline(
   repo: SqliteDraftRepository,
   it$: FakeItsaplan,
   clockRef: { now: number },
+  options?: {
+    copy?: Record<CopyKey, string>;
+    extractor?: FieldExtractorPort;
+  },
 ): PipelineTester {
   const bindingRepo = new SqliteChannelBindingStore(db);
-  const extractor = new FieldExtractor({
-    domain: {
-      reportingDepts: ["Quản lý lớp", "Sale", "CSKH", "Vận hành"],
-    },
-  });
+  const extractor =
+    options?.extractor ??
+    new FieldExtractor({
+      domain: {
+        reportingDepts: ["Quản lý lớp", "Sale", "CSKH", "Vận hành"],
+      },
+    });
 
   const engine = new IntakeEngine({
     tracker: it$.tracker,
     drafts: repo,
     bindings: bindingRepo,
-    copy: makeCopyCatalog(tieuLinhCopy),
+    copy: makeCopyCatalog(options?.copy ?? tieuLinhCopy),
     clock: {
       now: () => clockRef.now,
     },
@@ -600,5 +607,149 @@ Quản lý lớp`;
       "Bây giờ em tiếp tục tạo ticket cho sự cố tiếp theo nhé ạ!",
     );
     expect(created.voiceText).not.toContain("học sinh");
+  });
+  it('bấm nút callbackData thật ("Split N tickets" / "Keep 1 ticket") hoạt động chính xác với bản copy tiếng Anh (TEST_COPY), tờ khai không rơi chữ', async () => {
+    const enPipeline = buildPipeline(db, repo, it$, clockRef, { copy: TEST_COPY });
+    // 1. Nhánh bấm nút tách
+    const r1 = await enPipeline.run({
+      chatId: "en-chat-split",
+      message: MULTI_STUDENT_MSG,
+    });
+    expect(r1.outcome).toBe("split_question");
+    const splitButton = r1.buttons[0]?.[0];
+    const mergeButton = r1.buttons[0]?.[1];
+    expect(splitButton?.text).toBe("Split 2 tickets");
+    expect(splitButton?.callbackData).toBe("Split 2 tickets");
+    expect(mergeButton?.text).toBe("Keep 1 ticket");
+    expect(mergeButton?.callbackData).toBe("Keep 1 ticket");
+
+    // Bấm nút split thật bằng callbackData của nút
+    const rSplit = await enPipeline.run({
+      chatId: "en-chat-split",
+      message: splitButton?.callbackData ?? "",
+    });
+    // Không bị đứng yên ở split_question
+    expect(rSplit.outcome).not.toBe("split_question");
+    expect(rSplit.document.pendingSplit).toBeUndefined();
+    expect(rSplit.document.pendingSplitQueue?.length).toBe(1);
+    // Tờ khai CÓ chứa chữ của khối 1 (không rơi chữ, rawText không rỗng)
+    const rawFirst = rSplit.document.fields.rawText?.value ?? "";
+    expect(rawFirst.length).toBeGreaterThan(0);
+    expect(rawFirst).toContain("Lê Văn Anh C");
+    expect(rawFirst).toContain("900103");
+
+    // 2. Nhánh bấm nút gộp
+    const r2 = await enPipeline.run({
+      chatId: "en-chat-merge",
+      message: MULTI_STUDENT_MSG,
+    });
+    expect(r2.outcome).toBe("split_question");
+    const rMerge = await enPipeline.run({
+      chatId: "en-chat-merge",
+      message: mergeButton?.callbackData ?? "",
+    });
+    expect(rMerge.outcome).not.toBe("split_question");
+    expect(rMerge.document.pendingSplit).toBeUndefined();
+    expect(rMerge.document.pendingSplitQueue?.length ?? 0).toBe(0);
+    const rawMerged = rMerge.document.fields.rawText?.value ?? "";
+    expect(rawMerged).toContain("Lê Văn Anh C");
+    expect(rawMerged).toContain("Trần Thị B");
+  });
+
+  it('bấm nút callbackData thật ("Tách 2 ticket" / "Gộp 1 ticket") hoạt động chính xác với bản copy tiếng Việt (tieuLinhCopy), tờ khai không rơi chữ', async () => {
+    // 1. Nhánh bấm nút tách
+    const r1 = await pipeline.run({
+      chatId: "vi-chat-split",
+      message: MULTI_STUDENT_MSG,
+    });
+    expect(r1.action).toBe("ask_split_or_merge");
+    const splitButton = r1.buttons[0]?.[0];
+    const mergeButton = r1.buttons[0]?.[1];
+    expect(splitButton?.callbackData).toBe("Tách 2 ticket");
+    expect(mergeButton?.callbackData).toBe("Gộp 1 ticket");
+
+    const rSplit = await pipeline.run({
+      chatId: "vi-chat-split",
+      message: splitButton?.callbackData ?? "",
+    });
+    expect(rSplit.action).not.toBe("ask_split_or_merge");
+    expect(rSplit.document.pendingSplit).toBeUndefined();
+    expect(rSplit.document.pendingSplitQueue?.length).toBe(1);
+    const rawFirst = rSplit.document.fields.rawText?.value ?? "";
+    expect(rawFirst.length).toBeGreaterThan(0);
+    expect(rawFirst).toContain("Lê Văn Anh C");
+
+    // 2. Nhánh bấm nút gộp
+    await pipeline.run({
+      chatId: "vi-chat-merge",
+      message: MULTI_STUDENT_MSG,
+    });
+    const rMerge = await pipeline.run({
+      chatId: "vi-chat-merge",
+      message: mergeButton?.callbackData ?? "",
+    });
+    expect(rMerge.action).not.toBe("ask_split_or_merge");
+    expect(rMerge.document.pendingSplit).toBeUndefined();
+    const rawMerged = rMerge.document.fields.rawText?.value ?? "";
+    expect(rawMerged).toContain("Lê Văn Anh C");
+    expect(rawMerged).toContain("Trần Thị B");
+  });
+
+  it("thứ tự tách-trước-huỷ: tin nhắn tách được dù extractor đoán intent cancel vẫn hỏi tách (khớp legacy)", async () => {
+    const cancelExtractor: FieldExtractorPort = {
+      async extract(input) {
+        return {
+          userIntent: "cancel",
+          ticket: { rawText: input.text },
+          symptoms: [],
+        };
+      },
+    };
+
+    const cancelPipeline = buildPipeline(db, repo, it$, clockRef, { extractor: cancelExtractor });
+    const res = await cancelPipeline.run({
+      chatId: "chat-split-over-cancel",
+      message: MULTI_STUDENT_MSG,
+    });
+    // Kiểm tra tách trước: vẫn phải hỏi tách ticket, không bị huỷ thẳng
+    expect(res.action).toBe("ask_split_or_merge");
+    expect(res.status).not.toBe("canceled");
+    expect(res.document.pendingSplit).toBeDefined();
+  });
+
+  it("nhánh huỷ không kích hoạt khi tin huỷ có kèm ảnh (mediaPaths.length > 0) (khớp legacy)", async () => {
+    const cancelExtractor: FieldExtractorPort = {
+      async extract(input) {
+        return {
+          userIntent: "cancel",
+          ticket: { rawText: input.text },
+          symptoms: [],
+        };
+      },
+    };
+
+    const cancelPipeline = buildPipeline(db, repo, it$, clockRef, { extractor: cancelExtractor });
+    const res = await cancelPipeline.run({
+      chatId: "chat-cancel-with-media",
+      message: "thôi huỷ đi em",
+      mediaPaths: ["/tmp/evidence.png"],
+    });
+    // Có ảnh đính kèm: không bị coi là huỷ thẳng (khớp legacy pipeline.ts:773)
+    expect(res.status).not.toBe("canceled");
+    expect(res.action).not.toBe("canceled");
+  });
+
+  it("câu hỏi tách cho khối không có tên học sinh/khách hàng dùng 'sự cố' (sự cố, sự cố) khớp legacy", async () => {
+    const NO_NAME_BLOCKS = `UID: 900017
+lỗi buổi học nè bạn ơi
+
+UID: 900018
+lỗi tài khoản nè bạn ơi`;
+    const res = await pipeline.run({
+      chatId: "chat-nameless-split",
+      message: NO_NAME_BLOCKS,
+    });
+    expect(res.action).toBe("ask_split_or_merge");
+    expect(res.voiceText).toContain("(sự cố, sự cố)");
   });
 });

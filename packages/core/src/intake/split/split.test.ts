@@ -91,4 +91,26 @@ HS đăng ký khóa học 1 năm có 100 buổi thôi, khóa cũ HS đã học h
 Thông tin trên ảnh: học sinh Phạm Văn O, Code: 9100004, mã học sinh: 900101.`;
     expect(splitMultiIncidentReport(tech560)).toBeNull();
   });
+  it("tiêu đề từng khối khớp legacy (Sự cố kỹ thuật) trên ca không dựng được tiêu đề mô tả lỗi", () => {
+    const text = `90000001
+Code: 90000001
+lỗi
+
+90000002
+Code: 90000002
+lỗi`;
+
+    // Khối không có dòng lỗi ≥ 8 ký tự và không có tên học sinh:
+    // Core nhận fallbackTitle từ CopyCatalog (ticket.fallback_title), khớp với "Sự cố kỹ thuật" của legacy
+    const blocksWithFallback = splitMultiIncidentReport(text, { fallbackTitle: "Sự cố kỹ thuật" });
+    expect(blocksWithFallback).not.toBeNull();
+    expect(blocksWithFallback?.length).toBe(2);
+    expect(blocksWithFallback?.[0]?.title).toBe("Sự cố kỹ thuật");
+    expect(blocksWithFallback?.[1]?.title).toBe("Sự cố kỹ thuật");
+
+    // Khi không truyền fallbackTitle thì để rỗng để tầng trên tự quyết
+    const blocksBare = splitMultiIncidentReport(text);
+    expect(blocksBare?.[0]?.title).toBe("");
+    expect(blocksBare?.[1]?.title).toBe("");
+  });
 });

@@ -24,7 +24,16 @@ import {
 export const EXAMPLE_LIST_MARKER =
   /(?:\bvdu\b|\bví\s*dụ\b|\bvd\b|dưới\s*đây|các\s+hs\b|các\s+học\s*sinh\b|một\s*số\s+hs\b|một\s*số\s+học\s*sinh\b|kèm\s+(?:các\s+)?hs)/iu;
 
-export function splitMultiIncidentReport(text: string): SplitBlock[] | null {
+export interface SplitOptions {
+  /** Tiêu đề dự phòng khi không dựng được tiêu đề từ nội dung khối (lấy từ CopyCatalog) */
+  fallbackTitle?: string;
+}
+
+export function splitMultiIncidentReport(
+  text: string,
+  options?: SplitOptions | string,
+): SplitBlock[] | null {
+  const fallbackTitle = typeof options === "string" ? options : options?.fallbackTitle;
   if (!text || text.length < 30) return null;
   // "Vdu:", "ví dụ", "dưới đây là 2 HS", "các HS" → một sự cố hệ thống kèm ví dụ
   if (EXAMPLE_LIST_MARKER.test(text)) return null;
@@ -65,11 +74,12 @@ export function splitMultiIncidentReport(text: string): SplitBlock[] | null {
     } else if (!info.customerId && !/[A-Z]{2,5}[-_]?\d{4,}/.test(block)) {
       continue;
     }
-    const title = deriveFallbackTitle(
+    const derived = deriveFallbackTitle(
       block,
       undefined,
       info.studentName ? [info.studentName] : undefined,
     );
+    const title = derived || fallbackTitle || "";
     validBlocks.push({
       text: block,
       studentName: info.studentName,

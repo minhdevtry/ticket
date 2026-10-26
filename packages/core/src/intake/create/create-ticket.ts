@@ -89,16 +89,16 @@ async function run(deps: CreateTicketDeps, req: CreateTicketRequest): Promise<Cr
 
   // Idempotent: a ticket already created for this chat in the dedupe window → return it.
   const existing = findCreatedTicket(draft, now);
-  if (existing) {
+  if (existing && existing.issueId && existing.issueIdentifier) {
     return {
       kind: "already_created",
       issue: {
-        id: existing.issueId!,
-        identifier: existing.issueIdentifier!,
+        id: existing.issueId,
+        identifier: existing.issueIdentifier,
         title: existing.ticket.title,
         url: existing.issueUrl,
       },
-      message: copy.text("ticket.already_created", { identifier: existing.issueIdentifier! }),
+      message: copy.text("ticket.already_created", { identifier: existing.issueIdentifier }),
     };
   }
 
@@ -178,9 +178,10 @@ async function run(deps: CreateTicketDeps, req: CreateTicketRequest): Promise<Cr
   }
   const finalTitle = title;
   const ambiguousNotice = claim.mediaAmbiguous ? copy.text("media.ambiguous_notice") : "";
+  const attachmentsHeading = copy.text("media.attachments_heading");
   const description =
     ambiguousNotice && !ticket.rawText.includes(ambiguousNotice)
-      ? `${ticket.rawText}\n\n${ambiguousNotice}`
+      ? `${ticket.rawText}\n\n${attachmentsHeading}\n\n${ambiguousNotice}`
       : ticket.rawText;
   try {
     issue = await tracker.createIssue({

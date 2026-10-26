@@ -34,9 +34,24 @@ Vòng sửa này giao **6 việc**, xếp theo mức độ.
 `"Split {count} tickets"` và `"Keep 1 ticket"`):
 
 ```
-" Split 2 tickets" -> unknown   ❌ bấm nút không tách
-"Keep 1 ticket"    -> merge     (may mắc vì "keep" chứa "e"? kiểm lại)
+"Split 2 tickets" -> unknown   ❌ bấm nút không tách
 ```
+
+**Hệ quả đã đo (probe của coordinator trên engine thật, bản copy tiếng Anh):**
+```
+lượt 1: split_question      (nút: "Split 2 tickets")
+lượt 2 (bấm nút "Split 2 tickets"): split_question   ← ĐỨNG YÊN, không tách không gộp
+rawText sau đó: rỗng (0 ký tự)                       ← chữ chưa vào tờ khai
+```
+
+Nghĩa là **bấm nút "Tách" chết hoàn toàn** khi bộ copy không phải tiếng Việt — và đó **chính là
+bộ copy mà test dùng** (`TEST_COPY`), nên bộ test hiện tại **không bắt được** lỗi này. (Nút "Gộp"
+may mắn vì nhãn "Keep 1 ticket" chứa "1 ticket" khớp regex `/một ticket|1 ticket/` — nhưng đó là
+trùng hợp, không phải cố ý.)
+
+Đây là lý do ca test phải chạy với **cả hai** bộ copy: bản tiếng Việt (app thật) và bản tiếng
+Anh (`TEST_COPY`) — và phải **bấm nút thật** (gửi `callbackData` của nút), không chỉ gọi hàm
+phân loại.
 
 **Cách sửa đúng — không hardcode tiếng Việt vào logic.** Bộ đọc phải nhận ra **chính nhãn nút**
 mà engine gửi, thay vì đoán bằng regex ngôn ngữ. Gợi ý:
@@ -48,9 +63,11 @@ mà engine gửi, thay vì đoán bằng regex ngôn ngữ. Gợi ý:
 
 **Cần làm.**
 1. Sửa để bấm nút **luôn** được nhận ra, bất kể bản copy dùng ngôn ngữ nào.
-2. Thêm test với bản copy **tiếng Anh** (`TEST_COPY`) chứng minh bấm `callbackData` của nút
-   "Split N tickets" → tách, và của nút "Keep 1 ticket" → gộp. Test này **phải thất bại** với
-   code hiện tại.
+2. Thêm test **bấm nút thật** (gửi `callbackData` của nút vào engine) với **cả hai** bộ copy:
+   - bản tiếng Việt (`examples/tieulinh/copy.ts`): bấm "Tách N ticket" → tách, "Gộp 1 ticket" → gộp.
+   - bản tiếng Anh (`TEST_COPY`): bấm "Split N tickets" → tách, "Keep 1 ticket" → gộp.
+   Test tiếng Anh **phải thất bại** với code hiện tại, và phải khẳng định **cả đầu ra**: sau khi
+   bấm nút tách thì tờ khai **có** chứa chữ của các khối (không rơi chữ).
 3. Giữ nguyên hành vi gõ tay tiếng Việt ("không tách" → gộp, "thôi" → gộp, "tách 2 ticket" → tách).
 
 ### 2. (Trung bình) `deriveFallbackTitle` lệch parity ở ca không dựng được tiêu đề
