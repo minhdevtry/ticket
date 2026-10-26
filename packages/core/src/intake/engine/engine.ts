@@ -63,6 +63,7 @@ import { mentionedIdentifiers, foldButton } from "./text";
 import { isDeclineAnswer, isMeaninglessInput, TECH_INFO_FIELD } from "./normalize";
 import { MAX_RAW_TEXT_CHARS, MAX_RAW_TEXT_TOTAL_CHARS } from "../raw-text";
 import type { StepInput, StepOutput, ChannelMessage } from "./types";
+import { type ReplayOraclePort, applyReplayControlOverride } from "./oracle";
 
 /** Max chars of ONE reporter message kept in rawText (legacy parity). */
 export { MAX_RAW_TEXT_CHARS, MAX_RAW_TEXT_TOTAL_CHARS } from "../raw-text";
@@ -102,17 +103,40 @@ export interface IntakeEngineDeps {
   draftTtlMs?: number;
   /** New doc ids (defaults to a monotonic clock-based id). */
   genDocId?: () => string;
+  /**
+   * Optional replay oracle (RFC 0002 PR 6 / ADR-0005): for shadow replay mode,
+   * forces past control branches so turn t-1 reflects TL1 decisions while keeping
+   * TL2 extraction, merging, and business rules untouched. Absent in production.
+   */
+  oracle?: ReplayOraclePort;
 }
 
 export class IntakeEngine {
   constructor(private readonly deps: IntakeEngineDeps) {}
 
-  step(input: StepInput): Promise<StepOutput> {
+  async step(input: StepInput): Promise<StepOutput> {
     // NOTE: the create critical section is serialized inside the ticket-08
     // `createTicket` (its own per-chat lock + atomic revision CAS). We do NOT
     // take an outer lock here — it would be re-entered by `finishCreate` and
     // deadlock, since the per-chat lock is not reentrant.
-    return this.run(input);
+    const output = await this.run(input);
+    if (this.deps.oracle) {
+      const latestDraft = this.deps.drafts.getLatestByChatId(input.chatId);
+      if (latestDraft) {
+        const forced = await this.deps.oracle.getControlAction({
+          chatId: input.chatId,
+          input,
+          draft: latestDraft,
+          output,
+        });
+        if (forced) {
+          const nowIso = new Date(this.deps.clock.now()).toISOString();
+          const overridden = applyReplayControlOverride(latestDraft, forced, nowIso);
+          this.deps.drafts.saveRevision(overridden);
+        }
+      }
+    }
+    return output;
   }
 
   private async run(input: StepInput): Promise<StepOutput> {

@@ -8,3 +8,4 @@ export * from "../llm/fake-llm";
 export * from "./manual-clock";
 export * from "./scripted-chat";
 export * from "./golden";
+export * from "./extraction-cache";

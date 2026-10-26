@@ -100,6 +100,7 @@ export interface RelayConfig {
   allowFrom: string[];
   token: string | null;
   dir: string;
+  target: "gateway" | "receptionist";
   gatewayUrl: string;
   gatewayTokenPath: string;
   model: string;
@@ -189,6 +190,7 @@ export function relayConfig(env: Env = process.env): RelayConfig {
     allowFrom,
     token,
     dir,
+    target: env.TL2_SHADOW_TARGET === "receptionist" ? "receptionist" : "gateway",
     gatewayUrl,
     gatewayTokenPath: env.TL2_GATEWAY_TOKEN_FILE || join(dir, "gateway.token"),
     model: env.TL2_MODEL || "openclaw/ticket-intake-agent-2",

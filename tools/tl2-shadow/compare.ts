@@ -10,8 +10,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { dataDir } from "./config.ts";
-import type { Pair } from "./queue.ts";
-
+import type { Pair, PairV2 } from "./queue.ts";
+import { calculateMetrics, type ShadowMetrics } from "./receptionist-replay.ts";
+import { classifyTl1Reply, readTl1Summary } from "./classify-tl1.ts";
+export { calculateMetrics, type ShadowMetrics };
 export function parseSince(spec: string, now = Date.now()): number {
   const m = spec.match(/^(\d+)\s*(m|h|d)$/i);
   if (!m) throw new Error(`--since không hợp lệ: ${spec} (ví dụ 30m, 24h, 7d)`);
@@ -106,7 +108,9 @@ const clock = (ts: number) => new Date(ts).toISOString().slice(5, 16).replace("T
 const shortChat = (c: string) => (c.length > 6 ? `…${c.slice(-5)}` : c);
 
 function tl2Cell(p: Pair): string {
-  return p.tl2.error ? `[LỖI] ${p.tl2.error}` : (p.tl2.reply ?? "(trống)");
+  if (p.tl2.error) return `[LỖI] ${p.tl2.error}`;
+  const prefix = p.v === 2 && p.diff?.class ? `[${p.diff.class}] ` : "";
+  return `${prefix}${p.tl2.reply ?? "(trống)"}`;
 }
 
 export function renderTable(pairs: Pair[], termWidth = 120, maxRows = 6): string {
@@ -162,10 +166,63 @@ export function renderTable(pairs: Pair[], termWidth = 120, maxRows = 6): string
 }
 
 const toolLine = (p: Pair) =>
-  p.tl1.tools.length
+  p.tl1.tools?.length
     ? p.tl1.tools.map((t) => `${stripControl(t.tool)}${t.ok ? "" : " (lỗi)"}`).join(", ")
     : "-";
 
+export function toPairV2(p: Pair): PairV2 {
+  if (p.v === 2) return p;
+  const action = classifyTl1Reply(p.tl1.reply);
+  const summary = readTl1Summary(p.tl1.reply);
+  return {
+    v: 2,
+    eid: p.eid,
+    ts: p.ts,
+    chatId: p.chatId,
+    text: p.text,
+    tl1: {
+      reply: p.tl1.reply,
+      action,
+      summary: summary ? (summary as Record<string, unknown>) : null,
+      tools: p.tl1.tools,
+    },
+    tl2: {
+      reply: p.tl2.reply,
+      latencyMs: p.tl2.latencyMs,
+      model: p.tl2.model,
+      error: p.tl2.error,
+    },
+    diff: null,
+  };
+}
+
+export function renderMetrics(m: ShadowMetrics): string {
+  const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
+  const m0Status = m.m0 === 0 ? "ĐẠT" : "CHẶN";
+  const m1Status = m.m1 >= 0.95 ? "ĐẠT" : "CHƯA ĐẠT";
+  const m2FieldStatus = m.m2.fieldMatchRate >= 0.97 ? "ĐẠT" : "CHƯA ĐẠT";
+  const m2RawStatus = m.m2.rawTextCompleteRate === 1.0 ? "ĐẠT" : "CHƯA ĐẠT";
+  const m3JaccardStatus = m.m3.jaccardAsked >= 0.9 ? "ĐẠT" : "CHƯA ĐẠT";
+  const m3ExtraStatus = m.m3.extraQuestionRate <= 0.05 ? "ĐẠT" : "CHƯA ĐẠT";
+  const m4Status = m.m4 >= 0.95 ? "ĐẠT" : "CHƯA ĐẠT";
+
+  const lines = [
+    "## Chỉ số sẵn sàng lễ tân (M0 - M4) — RFC 0002 §4.5",
+    "",
+    "| Chỉ số | Tên chỉ số | Giá trị đo | Ngưỡng tham khảo | Đánh giá |",
+    "|---|---|---|---|---|",
+    `| M0 | An toàn (lệch S0) | ${m.m0} | = 0 | **${m0Status}** |`,
+    `| M1 | Khớp hành động | ${pct(m.m1)} | >= 95% | ${m1Status} |`,
+    `| M2 | Nội dung ticket (trường) | ${pct(m.m2.fieldMatchRate)} | >= 97% | ${m2FieldStatus} |`,
+    `| M2 | Nội dung ticket (rawText) | ${pct(m.m2.rawTextCompleteRate)} | = 100% | ${m2RawStatus} |`,
+    `| M3 | Độ thẩm vấn (Jaccard) | ${pct(m.m3.jaccardAsked)} | >= 90% | ${m3JaccardStatus} |`,
+    `| M3 | Hỏi ngoài TL1 | ${pct(m.m3.extraQuestionRate)} | <= 5% | ${m3ExtraStatus} |`,
+    `| M4 | Quyết định rẽ | ${pct(m.m4)} | >= 95% | ${m4Status} |`,
+    "",
+    `Tổng lượt: ${m.totalPairs} | Khớp hoàn toàn: ${m.classes.matched} | S0 (nguy hiểm): ${m.classes.s0} | S1 (hành vi): ${m.classes.s1} | S2 (bề mặt): ${m.classes.s2}`,
+  ];
+  return lines.join("\n");
+}
 export function renderFull(pairs: Pair[]): string {
   return pairs
     .map((p) =>
@@ -224,6 +281,14 @@ if (import.meta.main) {
       chat: value("--chat"),
       limit: Number(value("--limit") ?? 30),
     });
+    if (flag("--metrics")) {
+      const v2Pairs = pairs.map(toPairV2);
+      const metrics = calculateMetrics(v2Pairs);
+      if (flag("--json")) console.log(JSON.stringify(metrics, null, 2));
+      else console.log(renderMetrics(metrics));
+      if (metrics.m0 > 0) process.exit(1);
+      process.exit(0);
+    }
     if (flag("--json")) console.log(pairs.map((p) => JSON.stringify(p)).join("\n"));
     else {
       console.log(summarize(pairs));
