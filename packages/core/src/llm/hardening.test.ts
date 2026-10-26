@@ -296,6 +296,8 @@ describe.each(APIS)("client: hạn tổng, hết giờ, Retry-After, usage (%s)"
       retryBaseDelayMs: 10_000,
       retryMaxDelayMs: 10_000,
       deadlineMs: 1000,
+      // Jitter tất định: backoff luôn dài hơn hạn tổng, nên không lần thử lại nào được phép.
+      random: () => 1,
       sleep: async (ms) => void waits.push(ms),
     })
       .complete({ messages: user("?") })
@@ -304,6 +306,21 @@ describe.each(APIS)("client: hạn tổng, hết giờ, Retry-After, usage (%s)"
     expect(err.status).toBe(503);
     expect(waits).toEqual([]);
     expect(fake.requests).toHaveLength(1);
+  });
+
+  it("backoff dùng nguồn ngẫu nhiên đã cho, nên thời gian chờ tất định", async () => {
+    const waits: number[] = [];
+    fake.script({ status: 503 }, { status: 503 }, { text: "xong" });
+    const res = await llmFor(api, {
+      retryBaseDelayMs: 1000,
+      retryMaxDelayMs: 1000,
+      maxRetries: 2,
+      random: () => 0.5,
+      sleep: async (ms) => void waits.push(ms),
+    }).complete({ messages: user("?") });
+    // Mỗi lần thử lại chờ đúng một nửa trần backoff, không phụ thuộc may rủi.
+    expect(waits).toEqual([500, 500]);
+    expect(res.text).toBe("xong");
   });
 
   it("lỗi 5xx/mạng vẫn transient ở cấp run", async () => {

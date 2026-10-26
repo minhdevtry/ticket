@@ -4,6 +4,11 @@ All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded
 
 ## Unreleased
 
+- **Backoff của client LLM có nguồn ngẫu nhiên để chọn (tiêu chí chấp nhận: test tất định)**. Additive; không đổi hành vi mặc định.
+  - `@vuihoc/bot-core/llm`: `CreateLlmOptions.random` (mặc định `Math.random`) thay nguồn ngẫu nhiên của backoff full jitter. Test truyền hàm cố định thì thời gian chờ giữa các lần thử lại tất định.
+  - `calculateBackoff(attempt, baseDelayMs, maxDelayMs, random?)` ở `@vuihoc/bot-core/itsaplan` nhận nguồn ngẫu nhiên tuỳ chọn; mặc định không đổi.
+  - Sửa test trôi: `llm/hardening.test.ts` ("backoff không vừa trong hạn tổng") trước đây đỏ ngẫu nhiên vì jitter có thể rơi dưới hạn tổng.
+
 - **Khung kịch bản hội thoại và bản ghi vàng cho engine tiếp nhận** (RFC 0002, PR 2). Additive; không đổi API hiện có.
   - `@vuihoc/bot-core/testing`: `ScriptedChat` (+ `ChatEngine`, `Script`, `ScriptTurn`, `TurnExpectation`, `ScriptRun`,
     `TurnRecord`, `Mismatch`): chạy kịch bản "tin vào, kỳ vọng ra" qua `engine.step`, ghi từng lượt và liệt kê chỗ lệch;

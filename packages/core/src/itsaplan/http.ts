@@ -48,10 +48,19 @@ export class HttpError extends Error {
   }
 }
 
-/** Exponential backoff with full jitter. */
-export function calculateBackoff(attempt: number, baseDelayMs: number, maxDelayMs: number): number {
+/**
+ * Exponential backoff with full jitter.
+ *
+ * `random` cho phép test chọn jitter tất định; mặc định là `Math.random`.
+ */
+export function calculateBackoff(
+  attempt: number,
+  baseDelayMs: number,
+  maxDelayMs: number,
+  random: () => number = Math.random,
+): number {
   const exp = Math.min(maxDelayMs, baseDelayMs * 2 ** attempt);
-  return Math.floor(Math.random() * exp);
+  return Math.floor(random() * exp);
 }
 
 /** Parse a `Retry-After` header value (seconds or HTTP date) into milliseconds. */
