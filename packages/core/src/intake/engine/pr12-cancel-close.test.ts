@@ -635,7 +635,9 @@ describe("RFC 0002 PR 12 — Huỷ và đóng ticket theo yêu cầu người b�
       const engine = buildEngine();
       await engine.step({ chatId: CHAT, message: "Đóng ticket TECHTEST-999" });
       // Chuyên viên đóng ticket trong lúc người báo đang nhìn bản xem trước.
-      it$.issues.get(5999)!.columnId = 4; // cột Done
+      const issue999 = it$.issues.get(5999);
+      if (!issue999) throw new Error("thiếu issue 5999 trong fake tracker");
+      issue999.columnId = 4; // cột Done
       it$.calls.updateIssue.length = 0;
       it$.calls.addComment.length = 0;
       const out = await engine.step({ chatId: CHAT, message: "✅ Đóng TECHTEST-999" });
