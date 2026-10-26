@@ -29,6 +29,7 @@ export interface TrackerIssue {
   stateType?: string;
   priority?: Priority;
   assigneeUserId?: string | null;
+  description?: string;
 }
 
 export interface CreateIssueInput {
@@ -57,7 +58,7 @@ export interface TrackerPort {
   findByIdentifier(identifier: string): Promise<TrackerIssue | null>;
   updateIssue?(
     issueId: number,
-    patch: { priority?: Priority; title?: string; description?: string },
+    patch: { priority?: Priority; title?: string; description?: string; columnId?: number },
   ): Promise<void>;
   isIssueClosed?(issueId: number): Promise<boolean>;
   getIssueState?(
@@ -65,6 +66,14 @@ export interface TrackerPort {
   ): Promise<{ stateType?: string; state?: "open" | "resolved" | "done" | "canceled" } | null>;
   getProjectAssignees?(projectKey?: string): Promise<ProjectAssignee[]>;
   getIssueTimeline?(issueId: number): Promise<unknown[]>;
+  linkIssues?(
+    fromIssueId: number,
+    toIssueId: number,
+    linkType: "duplicates" | "relates" | "blocks" | "relates_to" | "blocked_by",
+  ): Promise<void>;
+  listProjectColumns?(
+    projectKey?: string,
+  ): Promise<Array<{ id: number; name: string; stateType?: string }>>;
 }
 
 /** Injected time source — one knob so the confirm/stale guards are testable. */
@@ -118,10 +127,22 @@ export type CopyKey =
   | "action.preview_move" // preview before moving the just-created ticket; {from} {identifier}
   | "action.done_append" // append executed; {identifier}
   | "action.done_edit" // edit executed; {identifier}
+  | "action.edit_done" // edit executed; {identifier}
   | "action.done_move" // move executed; {from} {identifier}
-  | "action.canceled" // the previewed action was canceled
-  | "lookup.status" // report an existing ticket's status; {identifier} {status}
+  | "action.move_done" // move executed; {from} {identifier}
+  | "action.canceled" // the previewed action was canceled; {identifier}
+  | "action.edit_conflict_rejected" // edit rejected because issue changed during preview; {identifier}
+  | "action.edit_unclear_prompt" // edit instruction was unclear; {identifier}
+  | "action.clarify_empty_append" // bare append command without content/media; {identifier}
+  | "action.not_owner_refusal" // refuse write to someone else's ticket; {identifier}
+  | "lookup.status" // report an existing ticket's status; {identifier} {status} {title}
   | "lookup.not_owner" // the ticket is someone else's — status only, no edits (ADR-0008 §6)
+  | "lookup.other_ticket_status" // lookup ticket of someone else (status only); {identifier} {status}
+  | "lookup.tech_comment" // trailing line with last tech comment; {comment}
+  | "lookup.clarify_identifier" // ask reporter for ticket identifier when lookup has no identifier
+  | "comment.edit_trace" // trace comment on ticket after edit; {who} {lines}
+  | "comment.move_target_note" // comment on target ticket after move; {who} {from} {body} {images}
+  | "comment.move_source_note" // comment on source ticket after move; {who} {target} {botName}
   | "draft.expired_new" // the previous draft expired; starting fresh
   | "draft.canceled" // the reporter canceled the draft on request
   | "draft.awaiting_confirmation" // a summary is shown; waiting for the reporter to press the button
@@ -195,7 +216,7 @@ export interface ChannelBindingStore {
   getLatestBinding(
     chatId: string,
     identifierPrefix?: string,
-  ): { issueId: number; identifier: string; title?: string } | null;
+  ): { issueId: number; identifier: string; title?: string; updatedAt?: string } | null;
   /**
    * Ticket mới nhất gắn với MỘT NGƯỜI BÁO theo user id (khóa định danh bền), độc
    * lập với chat id. Tùy chọn vì không phải bot nào cũng tra theo người; bot
@@ -223,6 +244,10 @@ export interface ChannelBindingStore {
     limit?: number,
     identifierPrefix?: string,
   ): Array<{ issueId: number; identifier: string; title?: string }>;
+  /** Find binding by ticket identifier. */
+  getBindingByIdentifier?(
+    identifier: string,
+  ): { issueId: number; chatId: string; identifier: string; title?: string } | null;
 }
 
 /**
@@ -377,17 +402,60 @@ export interface OwnershipPort {
   isOwnTicket(input: { identifier: string; chatId: string; description?: string }): boolean;
 }
 
-/** Default ownership: a ticket is "own" iff this chat holds its binding. */
-export function bindingOwnershipPort(bindings: ChannelBindingStore): OwnershipPort {
+/**
+ * Creates an ownership port that checks:
+ * 1. Ticket binding matching chatId (or bareChatId).
+ * 2. Telegram ID convention in ticket description (for old tickets without binding).
+ */
+export function createOwnershipPort(
+  bindings: ChannelBindingStore,
+  options?: {
+    allowDescriptionTelegramId?: boolean;
+  },
+): OwnershipPort {
+  const allowDesc = options?.allowDescriptionTelegramId ?? true;
   return {
-    isOwnTicket({ identifier, chatId }) {
-      // A loose check: the latest binding for this chat matches the identifier.
-      const latest = bindings.getLatestBinding(chatId);
-      return latest?.identifier?.toUpperCase() === identifier.toUpperCase();
+    isOwnTicket({ identifier, chatId, description }) {
+      if (!chatId) return false;
+      const cleanChatId = chatId.trim();
+      const bareChatId = cleanChatId.replace(/^telegram:/i, "");
+
+      // 1. Check binding by identifier
+      if (typeof bindings.getBindingByIdentifier === "function") {
+        const b = bindings.getBindingByIdentifier(identifier);
+        if (b) {
+          const boundBare = b.chatId.replace(/^telegram:/i, "");
+          if (boundBare === bareChatId) return true;
+        }
+      }
+
+      // 2. Check listBindingsForChat
+      if (typeof bindings.listBindingsForChat === "function") {
+        const list = bindings.listBindingsForChat(cleanChatId, 50);
+        if (list.some((b) => b.identifier.toUpperCase() === identifier.toUpperCase())) return true;
+        if (bareChatId !== cleanChatId) {
+          const bareList = bindings.listBindingsForChat(bareChatId, 50);
+          if (bareList.some((b) => b.identifier.toUpperCase() === identifier.toUpperCase()))
+            return true;
+        }
+      } else {
+        const latest = bindings.getLatestBinding(cleanChatId);
+        if (latest?.identifier?.toUpperCase() === identifier.toUpperCase()) return true;
+      }
+
+      // 3. Check Telegram ID in description
+      if (allowDesc && /^\d{5,}$/.test(bareChatId) && description) {
+        return new RegExp(`(?<!\\d)${bareChatId}(?!\\d)`).test(description);
+      }
+      return false;
     },
   };
 }
 
+/** Default ownership: delegates to `createOwnershipPort`. */
+export function bindingOwnershipPort(bindings: ChannelBindingStore): OwnershipPort {
+  return createOwnershipPort(bindings);
+}
 /**
  * Executes a confirmed write to an EXISTING ticket (append/edit/move). Only ever
  * called after the reporter pressed the matching confirm button (ADR-0008). The
@@ -429,11 +497,17 @@ export interface ReplyCandidate {
   ownTicket: boolean;
   /** The reporter named this identifier in the message. */
   mentioned: boolean;
+  /** Câu kỹ thuật vừa hỏi người báo về ticket này (nếu có). */
+  techQuestion?: string;
+  /** Bot vừa chuyển tin của ticket này (comment kỹ thuật…) tới người báo. */
+  recentlyRelayed?: boolean;
   /** The bot just created this ticket in this chat (a move_created candidate). */
   justCreated?: boolean;
 }
+export type CancelOrCloseIntent = "cancel" | "close";
 export type TicketCommand =
   | { action: "append"; identifier: string; content: string }
+  | { action: "cancel_or_close"; identifier: string; content: string; intent?: CancelOrCloseIntent }
   | { action: "edit"; identifier: string; instruction: string }
   | { action: "lookup"; identifier: string }
   | { action: "move_created"; from: string; identifier: string }
@@ -588,8 +662,9 @@ export interface MessageRoute {
   chatId: string;
   issueId: number;
   identifier: string;
+  kind?: MessageRouteKind;
+  createdAt?: string;
 }
-
 /**
  * Records and reads message routes keyed by (messageId, channel, chatId), so a
  * reporter's reply to a notification message is routed to the right ticket.
@@ -613,6 +688,13 @@ export interface MessageRouteStore {
    * chat's ticket.
    */
   getMessageRoute(messageId: string, channelType: string, chatId: string): MessageRoute | null;
+  /** Tra route gửi tin gần nhất tới chat trong cửa sổ thời gian. */
+  getLatestMessageRouteForChat?(
+    channelType: string,
+    chatIds: string[],
+    sinceMs: number,
+    kind?: MessageRouteKind,
+  ): MessageRoute | null;
 }
 
 /**

@@ -80,6 +80,7 @@ export function itsaplanTrackerPort(opts: ItsaplanTrackerOptions): TrackerPort {
             stateType: issue.stateType,
             priority: issue.priority as Priority,
             assigneeUserId: issue.assigneeUserId,
+            description: issue.description,
           }
         : null;
     },
@@ -107,7 +108,7 @@ export function itsaplanTrackerPort(opts: ItsaplanTrackerOptions): TrackerPort {
 
     async updateIssue(
       issueId: number,
-      patch: { priority?: Priority; title?: string; description?: string },
+      patch: { priority?: Priority; title?: string; description?: string; columnId?: number },
     ): Promise<void> {
       await client.updateIssue(issueId, patch);
     },
@@ -144,6 +145,26 @@ export function itsaplanTrackerPort(opts: ItsaplanTrackerOptions): TrackerPort {
 
     async getIssueTimeline(issueId: number) {
       return (await client.getIssueTimeline(issueId).catch(() => [])) ?? [];
+    },
+
+    async linkIssues(
+      fromIssueId: number,
+      toIssueId: number,
+      linkType: "duplicates" | "relates" | "blocks" | "relates_to" | "blocked_by",
+    ): Promise<void> {
+      if (typeof client.linkIssues === "function") {
+        const mappedKind =
+          linkType === "duplicates"
+            ? "duplicates"
+            : linkType === "blocks" || linkType === "blocked_by"
+              ? "blocks"
+              : "relates";
+        await client.linkIssues(fromIssueId, toIssueId, mappedKind);
+      }
+    },
+
+    async listProjectColumns(key = projectKey) {
+      return (await client.listProjectColumns(key).catch(() => [])) ?? [];
     },
   };
 }
