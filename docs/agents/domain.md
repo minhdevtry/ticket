@@ -6,10 +6,7 @@ How the engineering skills should consume this repo's domain documentation when 
 
 - **`GLOSSARY-MAP.md`** at the repo root: it points at one `GLOSSARY.md` per context. Read each one relevant to the topic.
 - **`GLOSSARY.md`** at the repo root, if it exists.
-- **`docs/adr/`**: read ADRs that touch the area you're about to work in. This repo is multi-context, so also read the context-scoped ADRs:
-  - `packages/core/docs/adr/`
-  - `apps/tieulinh-legacy/docs/adr/`
-  - `apps/tieulinh/docs/adr/` (nếu có)
+- **`docs/adr/`**: read ADRs that touch the area you're about to work in. This repo is multi-context, so also read the context-scoped ADRs in `packages/core/docs/adr/` and `apps/tieulinh-legacy/docs/adr/`.
 
 If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The `/domain-modeling` skill (reached via `/grill-with-docs` and `/improve-codebase-architecture`) creates them lazily when terms or decisions actually get resolved.
 
@@ -26,8 +23,7 @@ Multi-context repo (presence of `GLOSSARY-MAP.md` at the root):
 │   └── docs/adr/                     ← context-specific decisions
 ├── apps/
 │   ├── tieulinh/
-│   │   ├── GLOSSARY.md
-│   │   └── docs/adr/
+│   │   └── GLOSSARY.md
 │   └── tieulinh-legacy/
 │       ├── GLOSSARY.md
 │       └── docs/adr/
