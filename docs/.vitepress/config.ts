@@ -71,6 +71,7 @@ export default defineConfig({
             { text: "Cấu hình và biến môi trường", link: "/reference/config-env" },
             { text: "Giao thức agent-runs", link: "/reference/agent-runs" },
             { text: "LLM (llm)", link: "/reference/llm" },
+            { text: "Engine lễ tân (intake)", link: "/reference/intake-engine" },
             { text: "Testing (testing)", link: "/reference/testing" },
             { text: "Sự kiện webhook itsaplan", link: "/reference/webhook-events" },
             { text: "Danh sách CopyKey", link: "/reference/copy-keys" },

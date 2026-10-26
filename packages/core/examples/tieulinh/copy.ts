@@ -56,4 +56,8 @@ export const tieuLinhCopy: Record<CopyKey, string> = {
     "Dạ {identifier} không phải ticket của anh/chị nên em chỉ xem được trạng thái thôi ạ.",
   "draft.expired_new":
     "Dạ sự cố cũ để lâu quá nên em khép lại rồi ạ. Mình bắt đầu sự cố mới nhé, anh/chị mô tả giúp em.",
+  "draft.canceled": "Dạ vâng ạ. Khi nào anh/chị cần báo sự cố thì cứ nhắn em nhé ạ.",
+  "draft.awaiting_confirmation":
+    "Dạ em đang chờ anh/chị bấm nút xác nhận ở tin tóm tắt phía trên ạ.",
+  "ask.missing_info": "Anh/chị bổ sung giúp em thông tin còn thiếu nhé ạ.",
 };

@@ -39,4 +39,7 @@ export const TEST_COPY: Record<CopyKey, string> = {
   "lookup.status": "{identifier} status: {status}",
   "lookup.not_owner": "{identifier} belongs to someone else; status only",
   "draft.expired_new": "Your previous draft expired; starting fresh",
+  "draft.canceled": "Canceled. Tell me whenever you need to report an issue.",
+  "draft.awaiting_confirmation": "Press the confirm button in the summary above.",
+  "ask.missing_info": "Please add the missing details.",
 };
