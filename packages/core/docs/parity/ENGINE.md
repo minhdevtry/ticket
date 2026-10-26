@@ -67,12 +67,13 @@ không còn tồn tại, hoặc khi các con số dưới đây lệch khỏi s�
 
 Số test `deferred` theo PR sẽ port (RFC 0002, mục 5):
 
+<!-- gap-register-deferred-by-pr -->
 | PR | Số test | Chủ đề |
 |---|---|---|
 | 3 | 9 | Binding và kho tờ khai tương thích kho legacy (2 dòng `repository` của tài liệu: đọc `intake_sessions`, bản nháp quá hạn) |
 | 4 | 0 | Đã port ở PR 4 (5 dòng `noop-guard`, 4 dòng `repository` của tài liệu, 6 flow); 3 dòng legacy chưa port đã chuyển sang PR 3 và PR 15 |
-| 5 | 2 | Bộ trích xuất và heuristic tiếng Việt (PR 5 port 44 dòng; còn 1 ca kịch bản flow và 1 ca câu hỏi bộ phận ngoài danh mục, thuộc PR 7) |
-| 7 | 12 | Hỏi bổ sung theo luật, chốt tiêu đề |
+| 5 | 1 | Bộ trích xuất và heuristic tiếng Việt (PR 5 port 44 dòng; còn 1 ca kịch bản flow và 1 ca câu hỏi bộ phận ngoài danh mục, thuộc PR 7) |
+| 7 | 13 | Hỏi bổ sung theo luật, chốt tiêu đề |
 | 8 | 18 | Gác tờ khai khi có sự cố mới, định danh |
 | 9 | 22 | Tách báo cáo nhiều sự cố |
 | 10 | 37 | Tin sau khi tạo ticket |
@@ -82,6 +83,7 @@ Số test `deferred` theo PR sẽ port (RFC 0002, mục 5):
 | 14 | 77 | Dữ liệu domain, chữ, định dạng ticket |
 | 15 | 8 | Pack MCP và skill (1 dòng `noop-guard`: tool MCP `create_issue`) |
 | 16 | 7 | Adapter OpenClaw |
+<!-- /gap-register-deferred-by-pr -->
 
 Phần còn lại của `deferred` (KG, Onyx, nạp tri thức `ask-learning`, `related-curator`) nằm ngoài chuỗi di
 trú (RFC 0002, mục 7). Các file test không phải của lễ tân (hạ tầng dùng chung đã chuyển lên core, KG,
