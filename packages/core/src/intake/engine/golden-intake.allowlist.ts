@@ -35,19 +35,6 @@ export const GOLDEN_ALLOWLIST: GoldenAllow[] = [
       "Chữ: engine dùng chữ thử tiếng Anh và mẫu tóm tắt chung; chữ, câu hỏi và mẫu tóm tắt tiếng Việt của Tiểu Linh vào ở PR 7 (câu hỏi) và PR 14 (CopyCatalog, mẫu tóm tắt)",
   },
 
-  // ── buttons ─────────────────────────────────────────────────────────────────
-  ...at(
-    "buttons",
-    {
-      "cancel-then-new": [1, 2, 6],
-      "double-click": [1],
-      "expiry-24h": [1, 2],
-      "first-ok": [1, 2],
-      "premature-confirm": [1],
-      "ticket-creation": [1],
-    },
-    "A1: `StepOutput` đã mang nút cho câu hỏi (PR 4), nhưng catalog thử trong test này khai `bo_phan` là trường tự do nên chưa ra nút; nút theo trường thật đến ở PR 7 (catalog của Tiểu Linh)",
-  ),
   ...at(
     "buttons",
     {

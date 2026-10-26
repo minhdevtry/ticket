@@ -9,6 +9,8 @@
 /** Which variant of the catalog applies. IRIS calls these "nhánh"; Tiểu Linh keys them by product. */
 export type VariantKey = string;
 
+export type FieldRole = "system" | "department";
+
 export interface FieldSpec {
   /** Field name as it appears in the record and in the generated tool schema. */
   name: string;
@@ -28,6 +30,10 @@ export interface FieldSpec {
   prompt?: string;
   /** Follow-up phrasings for attempts 2..n. Their count sets the retry budget. */
   followUpPrompts?: string[];
+  /** Số lần hỏi tối đa cho riêng trường này (ngân sách hỏi). */
+  maxRetries?: number;
+  /** Vai trò trung tính trong quy trình hội thoại (hệ thống, bộ phận). */
+  role?: FieldRole;
   /** Value to assume once the retry budget is spent. */
   exhaustedDefault?: string;
   /** True when several enum values may be given at once. */

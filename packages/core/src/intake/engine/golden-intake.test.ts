@@ -76,7 +76,7 @@ const catalog = createCatalog({
           },
           bo_phan: {
             bat_buoc: true,
-            kieu: "text",
+            kieu: "enum:phong_ban",
             duoc_hoi: true,
             nhan: "Department",
             hoi: "Which team?",
@@ -85,6 +85,9 @@ const catalog = createCatalog({
         },
       },
     },
+  },
+  enums: {
+    phong_ban: ["Vận hành", "Vận đơn", "CSKH", "CSHV", "Chuyên môn", "Sale", "Quản lý lớp"],
   },
 });
 

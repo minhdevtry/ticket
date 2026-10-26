@@ -18,7 +18,7 @@
  * copy is a `CopyCatalog` key, all button labels come from the catalog, all
  * identifier/ownership/domain logic is a port or a pure helper.
  */
-import { stripChannelEnvelope } from "../../core";
+import { stripChannelEnvelope, isInternalCallbackToken } from "../../core";
 import type {
   Clock,
   CopyCatalog,
@@ -56,6 +56,7 @@ import {
   type FieldCatalog,
   type IntakeRecord,
   type InlineButton,
+  type GateResult,
 } from "../gate";
 import { evaluatePriorityRules, resolveRequestedPriority, type UrgencyRules } from "../priority";
 import { findIdentifierConflict } from "./identifiers";
@@ -64,6 +65,8 @@ import { isDeclineAnswer, isMeaninglessInput, TECH_INFO_FIELD } from "./normaliz
 import { MAX_RAW_TEXT_CHARS, MAX_RAW_TEXT_TOTAL_CHARS } from "../raw-text";
 import type { StepInput, StepOutput, ChannelMessage } from "./types";
 import { type ReplayOraclePort, applyReplayControlOverride } from "./oracle";
+import { isInvalidTitle, deriveFallbackTitle } from "../extractor/heuristics";
+import { SCOPE_RANK, EVIDENCE_FLAGS } from "../extractor/merger";
 
 /** Max chars of ONE reporter message kept in rawText (legacy parity). */
 export { MAX_RAW_TEXT_CHARS, MAX_RAW_TEXT_TOTAL_CHARS } from "../raw-text";
@@ -86,8 +89,12 @@ export interface IntakeEngineDeps {
   extractor: FieldExtractorPort;
   /** The domain field catalog (variant/gate config) — one variant key per bot flow. */
   catalog: FieldCatalog;
-  /** Which catalog variant to collect under (bots with one flow pass a constant). */
-  variant: string;
+  /** Which catalog variant to collect under, or a function resolving it per turn. */
+  variant: string | ((draft: IntakeDraft, record: IntakeRecord) => string);
+  /** Optional system field name (e.g. "he_thong" or "system"). Auto-detected if omitted. */
+  systemField?: string;
+  /** Optional department field name (e.g. "phong_ban" or "reporting_dept"). Auto-detected if omitted. */
+  departmentField?: string;
   /** Priority rule table (floors/ceilings) — injected data, never baked in. */
   urgencyRules: UrgencyRules;
   /** Optional one-round technical review before confirmation. */
@@ -249,10 +256,39 @@ export class IntakeEngine {
     // Merge this turn's fields onto the draft (draft never loses identifiers it had).
     const draft = this.mergeIntoDraft(open, input, extracted, text, mediaPaths, nowIso, declined);
 
+    // A2: Chưa có mô tả sự cố (chỉ có ảnh hoặc chào thuần tuý)
+    const onlyMedia = mediaPaths.length > 0 && text.trim().length === 0;
+    const isGreetingOnly =
+      extracted.userIntent === "chitchat" &&
+      !draft.ticket.rawText.trim() &&
+      !draft.ticket.title.trim() &&
+      (draft.symptoms?.length ?? 0) === 0;
+
+    if (onlyMedia && !this.hasDescription(draft)) {
+      draft.status = "collecting";
+      this.bumpAsked(draft, ["short_description"]);
+      draft.lastAskedFields = ["short_description"];
+      deps.drafts.saveRevision(draft);
+      const item = deps.copy.text("ask.describe_incident_item");
+      return {
+        outcome: "asked",
+        messages: [{ text: deps.copy.text("ask.describe_incident", { item }) }],
+        missingFields: ["short_description"],
+      };
+    }
+
+    if (isGreetingOnly) {
+      deps.drafts.saveRevision(draft);
+      return {
+        outcome: "clarify",
+        messages: [{ text: deps.copy.text("clarify.greeting") }],
+      };
+    }
+
     // "không biết" → trường vừa hỏi vào explicitlyMissing, bot thôi hỏi trường đó.
     if (declined && draft.lastAskedFields?.length) {
       const rec = draft.record ?? {
-        variant: deps.variant,
+        variant: this.resolveVariant(draft),
         values: {},
         questionCount: {},
         explicitlyMissing: [],
@@ -271,12 +307,72 @@ export class IntakeEngine {
       this.bumpAsked(draft, gate.fieldsToAsk);
       draft.lastAskedFields = gate.fieldsToAsk;
       deps.drafts.saveRevision(draft);
-      const question = gate.questionText || deps.copy.text("ask.opening");
-      const buttons = this.questionButtons(gate.fieldsToAsk[0]);
+      const firstField = gate.fieldsToAsk[0];
+      const deptField = this.resolveDeptField(record.variant);
+      let question: string;
+      if (
+        draft.unrecognizedDept &&
+        gate.fieldsToAsk.length === 1 &&
+        deptField &&
+        firstField === deptField
+      ) {
+        question = deps.copy.text("ask.unrecognized_dept", { dept: draft.unrecognizedDept });
+      } else {
+        question = gate.questionText || deps.copy.text("ask.opening");
+      }
+      const buttons = this.questionButtons(firstField, draft);
       return {
         outcome: "asked",
         messages: [{ text: question, ...(buttons ? { buttons } : {}) }],
+        missingFields: gate.missingRequired,
       };
+    }
+
+    // Kịch bản B' (A3): hỏi hệ thống MỘT lần kèm nút ngoài gate
+    const systemField = this.resolveSystemField(record.variant);
+    if (systemField) {
+      const systemValue = record.values[systemField];
+      const systemKnown = Boolean(systemValue && systemValue.trim().length > 0);
+      const explicitlyMissing = new Set(draft.record?.explicitlyMissing ?? []);
+      const askedCount = draft.record?.questionCount?.[systemField] ?? 0;
+      const systemSettled = explicitlyMissing.has(systemField) || askedCount >= 1;
+      if (!systemKnown && !systemSettled) {
+        this.bumpAsked(draft, [systemField]);
+        draft.lastAskedFields = [systemField];
+        deps.drafts.saveRevision(draft);
+        const question = deps.copy.text("ask.system");
+        const buttons = this.questionButtons(systemField, draft);
+        return {
+          outcome: "asked",
+          messages: [{ text: question, ...(buttons ? { buttons } : {}) }],
+          missingFields: [systemField],
+        };
+      }
+    }
+
+    // Xin gấp mà chưa nói lý do (A4): hỏi MỘT lần
+    const reqPri = draft.requestedPriority;
+    const level = reqPri?.level;
+    const hasReason = Boolean(reqPri?.reason?.trim());
+    const askedPriorityReason = (draft.record?.questionCount?.priority_reason ?? 0) >= 1;
+    if (level && !hasReason && !askedPriorityReason) {
+      this.bumpAsked(draft, ["priority_reason"]);
+      draft.lastAskedFields = ["priority_reason"];
+      deps.drafts.saveRevision(draft);
+      const want = deps.copy.text(`priority.level.${level}` as const);
+      const question = deps.copy.text("ask.priority_reason", { level: want });
+      return {
+        outcome: "asked",
+        messages: [{ text: question }],
+        missingFields: [],
+      };
+    }
+
+    // Chốt tiêu đề (B3): tiêu đề không bao giờ là tên người hay mã trần
+    if (!draft.ticket.title || isInvalidTitle(draft.ticket.title, draft.ticket.rawText)) {
+      const fallback = deriveFallbackTitle(draft.ticket.rawText, draft.symptoms);
+      const defaultTitle = deps.copy.text("ticket.fallback_title");
+      draft.ticket.title = fallback && !isInvalidTitle(fallback) ? fallback : defaultTitle;
     }
 
     // Priority: floors raise, ceilings cap, floor wins ties; reporter request
@@ -376,9 +472,65 @@ export class IntakeEngine {
   }
 
   /** Nút lựa chọn cho câu hỏi, khi trường vừa hỏi là enum có danh mục. */
-  private questionButtons(fieldName: string | undefined): InlineButton[][] | undefined {
+  private resolveVariant(draft: IntakeDraft | null, record?: IntakeRecord): string {
+    if (typeof this.deps.variant === "function") {
+      const d = draft ?? ({} as IntakeDraft);
+      const r = record ??
+        d.record ?? {
+          variant: "",
+          values: {},
+          questionCount: {},
+          explicitlyMissing: [],
+        };
+      return this.deps.variant(d, r);
+    }
+    return this.deps.variant;
+  }
+
+  private resolveSystemField(variantKey?: string): string | undefined {
+    if (this.deps.systemField) return this.deps.systemField;
+    const vKey = variantKey ?? this.resolveVariant(null);
+    const variant = this.deps.catalog.variants[vKey];
+    if (!variant) return undefined;
+    for (const [name, field] of Object.entries(variant.fields)) {
+      if (field.role === "system" || name === "system") {
+        return name;
+      }
+    }
+    return undefined;
+  }
+
+  private resolveDeptField(variantKey?: string): string | undefined {
+    if (this.deps.departmentField) return this.deps.departmentField;
+    const vKey = variantKey ?? this.resolveVariant(null);
+    const variant = this.deps.catalog.variants[vKey];
+    if (!variant) return undefined;
+    for (const [name, field] of Object.entries(variant.fields)) {
+      if (field.role === "department" || name === "department") {
+        return name;
+      }
+    }
+    return undefined;
+  }
+
+  private hasDescription(draft: IntakeDraft): boolean {
+    const title = draft.ticket.title;
+    const rawText = draft.ticket.rawText;
+    const symptoms = (draft.symptoms ?? []).filter((s) => !isInternalCallbackToken(s));
+    const hasTitle = Boolean(title && !isInternalCallbackToken(title));
+    const hasRaw = Boolean(rawText && !isInternalCallbackToken(rawText));
+    return hasTitle || symptoms.length > 0 || hasRaw;
+  }
+
+  /** Nút lựa chọn cho câu hỏi, khi trường vừa hỏi là enum có danh mục. */
+  private questionButtons(
+    fieldName: string | undefined,
+    draft?: IntakeDraft | null,
+  ): InlineButton[][] | undefined {
     if (!fieldName) return undefined;
-    const field = getVariant(this.deps.catalog, this.deps.variant).fields[fieldName];
+    const variantKey = this.resolveVariant(draft ?? null);
+    const variant = this.deps.catalog.variants[variantKey];
+    const field = variant?.fields[fieldName];
     if (!field) return undefined;
     return fieldButtons(this.deps.catalog, field) ?? undefined;
   }
@@ -727,17 +879,40 @@ export class IntakeEngine {
   }
 
   // ── small pieces ────────────────────────────────────────────────────────────
-
-  private summaryOutput(draft: IntakeDraft, gate: ReturnType<typeof evaluateGate>): StepOutput {
+  private summaryOutput(draft: IntakeDraft, gate: GateResult): StepOutput {
     const { deps } = this;
-    const recap = buildRecap(deps.catalog, this.toRecord(draft), gate);
+    const priority = draft.ticket.priority || "medium";
+    const priorityLabel = deps.copy.text(`priority.level.${priority}` as const);
+    const derived: Record<string, string> = {
+      priority: priorityLabel,
+      muc_do_uu_tien: priorityLabel,
+      muc_khan_cap: priorityLabel,
+    };
+    const systemField = this.resolveSystemField(draft.record?.variant);
+    if (systemField && (!gate.effectiveValues[systemField] || !draft.record?.values[systemField])) {
+      const unknownValue = deps.copy.text("field.unknown_value");
+      derived[systemField] = unknownValue;
+      gate.effectiveValues[systemField] = unknownValue;
+    }
+    const recap = buildRecap(deps.catalog, this.toRecord(draft), gate, { derived });
+    let recapText = recap;
+    const variant = getVariant(deps.catalog, this.resolveVariant(draft, draft.record));
+    const blocked = new Set(deps.catalog.recapBlocklist);
+    const hasPriorityInRecap = variant.recapFields.some(
+      (f) =>
+        (f === "priority" || f === "muc_do_uu_tien" || f === "muc_khan_cap") && !blocked.has(f),
+    );
+    if (!hasPriorityInRecap) {
+      const priorityLine = deps.copy.text("summary.priority_line", { priority: priorityLabel });
+      recapText = recap ? `${recap}\n${priorityLine}` : priorityLine;
+    }
     const hint = deps.copy.text("summary.confirm_hint");
     const confirmLabel = deps.copy.text("button.confirm_create");
     return {
       outcome: "summary",
       messages: [
         {
-          text: `${recap}\n\n${hint}`.trim(),
+          text: `${recapText}\n\n${hint}`.trim(),
           buttons: layoutButtons([{ text: confirmLabel, callbackData: confirmLabel }]),
         },
       ],
@@ -746,13 +921,14 @@ export class IntakeEngine {
 
   private resolvePriority(draft: IntakeDraft, extracted: ExtractedFields): Priority {
     const { deps } = this;
-    const evidence = { ...(draft.evidence ?? {}), ...(extracted.evidence ?? {}) };
+    const evidence = { ...(draft.evidence ?? {}) };
     const verdict = evaluatePriorityRules(deps.urgencyRules, "Medium", evidence);
+    const reqPri = draft.requestedPriority;
     const requested =
-      extracted.requestedPriority && extracted.requestedPriorityReason
+      reqPri && reqPri.reason?.trim()
         ? {
-            level: titleCase(extracted.requestedPriority),
-            reason: extracted.requestedPriorityReason,
+            level: titleCase(reqPri.level),
+            reason: reqPri.reason,
           }
         : undefined;
     const resolved = resolveRequestedPriority(
@@ -777,41 +953,93 @@ export class IntakeEngine {
     const base = open ?? this.openFresh(input.chatId, nowIso);
     const ticket = { ...base.ticket };
 
+    // structuredOnly = true khi tin xác nhận, huỷ, cảm ơn hoặc từ chối (B4)
+    const isConfirmOrCancel =
+      extracted.userIntent === "confirm" ||
+      extracted.userIntent === "cancel" ||
+      extracted.userIntent === "chitchat";
+    const structuredOnly = declined || isConfirmOrCancel;
+
     // Title: fill if empty, or refresh when new content arrives (not locked).
-    // Câu trả lời từ chối ("không biết") KHÔNG đổi tiêu đề (legacy: structuredOnly).
+    const carriesNewContent = (extracted.symptoms?.length ?? 0) > 0;
     if (
-      !declined &&
+      !structuredOnly &&
       extracted.title &&
-      (extracted.titleExplicit || !ticket.title || (extracted.symptoms?.length ?? 0) > 0)
+      (extracted.titleExplicit || !ticket.title || (carriesNewContent && !ticket.titleExplicit))
     ) {
-      ticket.title = cap(extracted.title.trim(), 120);
+      const candidate = cap(extracted.title.trim(), 120);
+      const reportContext = `${ticket.rawText}\n${text}`;
+      if (!isInvalidTitle(candidate, reportContext)) {
+        ticket.title = candidate;
+        if (extracted.titleExplicit) ticket.titleExplicit = true;
+      }
     }
 
+    // Symptoms (B4): union, dedupe, removals applied
+    const prevSymptoms = base.symptoms ?? [];
+    const removals = (extracted.removeSymptoms ?? [])
+      .map((r) => r.trim().toLowerCase())
+      .filter(Boolean);
+    const keptPrev = prevSymptoms.filter((s) => !removals.some((r) => s.toLowerCase().includes(r)));
+    const incomingSymptoms = structuredOnly
+      ? []
+      : (extracted.symptoms ?? [])
+          .map((s) => truncate(s.trim(), 1500))
+          .filter((s) => !isInternalCallbackToken(s));
+    const mergedSymptoms = Array.from(
+      new Set([...keptPrev, ...incomingSymptoms].filter(Boolean)),
+    ).slice(-30);
+
     // rawText = reporter VERBATIM, appended across turns, capped (ADR-0010, §2).
-    // - Một tin dài hơn MAX_RAW_TEXT_CHARS bị cắt; tổng cả cuộc cắt ở
-    //   MAX_RAW_TEXT_TOTAL_CHARS (đúng trần của legacy).
-    // - Câu trả lời cho câu hỏi dữ kiện kỹ thuật LUÔN vào mô tả, kể cả khi
-    //   chỉ là một mã (appendRawText của legacy).
-    // - Câu trả lời từ chối ("không biết") KHÔNG vào mô tả.
     const message = truncate(text.trim(), MAX_RAW_TEXT_CHARS);
     const answeringTechQuestion =
       base.lastAskedFields?.includes(TECH_INFO_FIELD) === true && !declined;
+    const answeringDescription =
+      base.lastAskedFields?.includes("short_description") === true && !declined;
     const carriesText =
-      !declined &&
-      ((extracted.symptoms?.length ?? 0) > 0 ||
+      !structuredOnly &&
+      (incomingSymptoms.length > 0 ||
         hasIdentifier(extracted) ||
+        extracted.userIntent === "report_issue" ||
         extracted.userIntent === "provide_info" ||
-        answeringTechQuestion);
-    if (carriesText && message) {
+        answeringTechQuestion ||
+        answeringDescription);
+    if (carriesText && message && !isInternalCallbackToken(message)) {
       ticket.rawText =
         ticket.rawText && !ticket.rawText.includes(message)
           ? cap(`${ticket.rawText}\n${message}`, MAX_RAW_TEXT_TOTAL_CHARS)
           : ticket.rawText || cap(message, MAX_RAW_TEXT_TOTAL_CHARS);
     }
+    if (answeringDescription && message && !ticket.rawText) {
+      ticket.rawText = cap(message, MAX_RAW_TEXT_TOTAL_CHARS);
+    }
+
+    // Priority reason: answer to priority_reason question
+    const answeringPriorityReason = base.lastAskedFields?.includes("priority_reason") === true;
+    let requestedPriority = base.requestedPriority;
+    if (extracted.requestedPriority) {
+      const norm = extracted.requestedPriority.toLowerCase();
+      const level: "high" | "urgent" = norm === "urgent" ? "urgent" : "high";
+      requestedPriority = {
+        level,
+        reason: extracted.requestedPriorityReason
+          ? truncate(extracted.requestedPriorityReason.trim(), 300)
+          : requestedPriority?.reason,
+      };
+    }
+    if (answeringPriorityReason) {
+      if (declined) {
+        if (requestedPriority) requestedPriority = { ...requestedPriority, reason: undefined };
+      } else if (message) {
+        const reason = truncate(message, 300);
+        if (requestedPriority) requestedPriority = { ...requestedPriority, reason };
+        else requestedPriority = { level: "high", reason };
+      }
+    }
 
     // Identifiers: fill blanks only — a created/collected id is never overwritten.
     const record = base.record ?? {
-      variant: deps.variant,
+      variant: this.resolveVariant(base),
       values: {},
       questionCount: {},
       explicitlyMissing: [],
@@ -822,6 +1050,35 @@ export class IntakeEngine {
       if (incoming && !values[key]) values[key] = incoming;
     }
 
+    // Evidence monotonic ("bằng chứng chỉ nới" — B4):
+    const evidence: Record<string, unknown> = { ...(base.evidence ?? {}) };
+    const incomingScope = extracted.scope ?? (extracted.evidence?.scope as string | undefined);
+    if (incomingScope) {
+      const currentScope = (evidence.scope as string | undefined) ?? "none";
+      if ((SCOPE_RANK[incomingScope] ?? 0) > (SCOPE_RANK[currentScope] ?? 0)) {
+        evidence.scope = incomingScope;
+      }
+    }
+    for (const flag of EVIDENCE_FLAGS) {
+      const val = extracted[flag] ?? extracted.evidence?.[flag];
+      if (typeof val === "boolean" && evidence[flag] !== true) {
+        evidence[flag] = val;
+      }
+    }
+
+    // Unrecognized dept (A5):
+    let unrecognizedDept = base.unrecognizedDept;
+    const unrecognizedCandidate =
+      extracted.reportingDeptUnrecognized ??
+      (extracted.values?.reportingDeptUnrecognized as string | undefined);
+    if (unrecognizedCandidate && unrecognizedCandidate.trim() !== "") {
+      unrecognizedDept = unrecognizedCandidate.trim();
+    }
+    const deptField = this.resolveDeptField(record.variant);
+    if (deptField && values[deptField]) {
+      unrecognizedDept = undefined;
+    }
+
     // Media unioned, de-duped (§2).
     ticket.mediaPaths = Array.from(new Set([...(ticket.mediaPaths ?? []), ...mediaPaths]));
 
@@ -830,8 +1087,15 @@ export class IntakeEngine {
       status: "collecting",
       ticket,
       reporter: input.reporter ?? base.reporter,
-      record: { ...record, variant: deps.variant, values },
-      evidence: { ...(base.evidence ?? {}), ...(extracted.evidence ?? {}) },
+      record: {
+        ...record,
+        variant: this.resolveVariant(base, { ...record, values }),
+        values,
+      },
+      evidence,
+      symptoms: mergedSymptoms,
+      unrecognizedDept,
+      requestedPriority,
       updatedAt: nowIso,
     };
   }
@@ -857,7 +1121,7 @@ export class IntakeEngine {
 
   private toRecord(draft: IntakeDraft): IntakeRecord {
     const r = draft.record;
-    const record = createRecord(r?.variant ?? this.deps.variant, { ...(r?.values ?? {}) });
+    const record = createRecord(this.resolveVariant(draft, r), { ...(r?.values ?? {}) });
     record.questionCount = { ...(r?.questionCount ?? {}) };
     record.explicitlyMissing = [...(r?.explicitlyMissing ?? [])].filter((f) => f !== "__tech");
     return record;
@@ -880,7 +1144,7 @@ export class IntakeEngine {
 
   private bumpAsked(draft: IntakeDraft, fields: string[]): void {
     const rec = draft.record ?? {
-      variant: this.deps.variant,
+      variant: this.resolveVariant(draft),
       values: {},
       questionCount: {},
       explicitlyMissing: [],

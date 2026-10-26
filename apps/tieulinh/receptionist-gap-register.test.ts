@@ -101,8 +101,13 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "tóm tắt hiện mức ưu tiên bằng tiếng Việt, không in 'MEDIUM'",
-    "deferred",
-    "Chờ port ở PR 7 (hỏi bổ sung theo luật)",
+    "ported",
+    [
+      C(
+        "intake/engine/legacy-flows.test.ts",
+        "tóm tắt hiện mức ưu tiên bằng tiếng Việt, không in 'MEDIUM'",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
@@ -136,8 +141,13 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "câu hỏi dùng nhãn tiếng Việt, không lộ tên trường nội bộ, và nút được đẩy ra Telegram",
-    "deferred",
-    "Chờ port ở PR 7 (hỏi bổ sung theo luật)",
+    "ported",
+    [
+      C(
+        "intake/engine/legacy-flows.test.ts",
+        "câu hỏi dùng nhãn tiếng Việt, không lộ tên trường nội bộ, và nút được đẩy ra Telegram",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
@@ -153,8 +163,13 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "mặc định Medium (không còn rơi về Low) và gửi Itsaplan chữ thường",
-    "deferred",
-    "Chờ port ở PR 7 (hỏi bổ sung theo luật)",
+    "ported",
+    [
+      C(
+        "intake/engine/legacy-flows.test.ts",
+        "mặc định Medium (không còn rơi về Low) và gửi Itsaplan chữ thường",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
@@ -176,8 +191,13 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "xin gấp chưa có lý do → hỏi một lần; trả lời lý do → High",
-    "deferred",
-    "Chờ port ở PR 7 (hỏi bổ sung theo luật)",
+    "ported",
+    [
+      C(
+        "intake/engine/legacy-flows.test.ts",
+        "xin gấp chưa có lý do → hỏi một lần; trả lời lý do → High",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
@@ -324,14 +344,19 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "thiếu hệ thống: hỏi MỘT lần kèm nút, không biết thì tóm tắt ghi rõ 'Chưa xác định'",
-    "deferred",
-    "Chờ port ở PR 7 (hỏi bổ sung theo luật)",
+    "ported",
+    [
+      C(
+        "intake/engine/legacy-flows.test.ts",
+        "thiếu hệ thống: hỏi MỘT lần kèm nút, không biết thì tóm tắt ghi rõ 'Chưa xác định'",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "chọn hệ thống qua nút thì điền đúng giá trị",
-    "deferred",
-    "Chờ port ở PR 7 (hỏi bổ sung theo luật)",
+    "ported",
+    [C("intake/engine/legacy-flows.test.ts", "chọn hệ thống qua nút thì điền đúng giá trị")],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
@@ -647,20 +672,35 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/multi-incident.test.ts",
     "chỉ coi là tên người khi từ ĐẦU là họ Việt và mọi từ viết hoa Unicode thật",
-    "deferred",
-    "Chờ port ở PR 7 (hỏi bổ sung theo luật)",
+    "ported",
+    [
+      C(
+        "intake/extractor/heuristics.test.ts",
+        "chỉ coi là tên người khi từ ĐẦU là họ Việt và mọi từ viết hoa Unicode thật",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/multi-incident.test.ts",
     "chốt tiêu đề: nhận 8 tiêu đề Title-Case, từ chối tên người / mã trần / lời chào",
-    "deferred",
-    "Chờ port ở PR 7 (hỏi bổ sung theo luật)",
+    "ported",
+    [
+      C(
+        "intake/extractor/heuristics.test.ts",
+        "chốt tiêu đề: nhận 8 tiêu đề Title-Case, từ chối tên người / mã trần / lời chào",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/multi-incident.test.ts",
     "deriveFallbackTitle lấy dòng mô tả lỗi, không lấy tên học sinh (TECH-1146)",
-    "deferred",
-    "Chờ port ở PR 7 (hỏi bổ sung theo luật)",
+    "ported",
+    [
+      C(
+        "intake/extractor/heuristics.test.ts",
+        "deriveFallbackTitle lấy dòng mô tả lỗi, không lấy tên học sinh (TECH-1146)",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/multi-incident.test.ts",
@@ -1287,8 +1327,13 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/extractor-dept-system-title.test.ts",
     "câu hỏi nói rõ bộ phận không có trong danh mục thay vì lặp lại câu cũ",
-    "deferred",
-    "PR 7 của RFC 0002: câu hỏi phản hồi là hành vi của engine (hỏi đúng một lần), PR 5 chỉ port phần bộ trích xuất nhận ra bộ phận ngoài danh mục",
+    "ported",
+    [
+      C(
+        "intake/extractor/extractor-dept-system-title.test.ts",
+        "câu hỏi nói rõ bộ phận không có trong danh mục thay vì lặp lại câu cũ",
+      ),
+    ],
   ),
   // ── lib/intake-step/extractor-evidence.test.ts (10) ──
   row(
@@ -1970,13 +2015,13 @@ const ROWS: Row[] = [
     "mcp/shared/tools/confirmation-and-binding.test.ts",
     "checkRequiredFields: nhớ phòng ban vào sqlite, phiên sau thôi hỏi lại",
     "deferred",
-    "Chờ port ở PR 7 (hỏi bổ sung theo luật): trí nhớ bộ phận giữa các phiên (A3)",
+    "Chờ port ở PR 15 (defineBot lễ tân thành pack MCP và skill): tool MCP check_required_fields",
   ),
   row(
     "mcp/shared/tools/confirmation-and-binding.test.ts",
     "checkRequiredFields: không khai bộ nhớ thì giữ nguyên hành vi cũ — vẫn hỏi lại",
     "deferred",
-    "Chờ port ở PR 7 (hỏi bổ sung theo luật): trí nhớ bộ phận giữa các phiên (A3)",
+    "Chờ port ở PR 15 (defineBot lễ tân thành pack MCP và skill): tool MCP check_required_fields",
   ),
   // ── mcp/shared/tools/own-tickets-confirm.test.ts (6) ──
   row(
@@ -2124,7 +2169,7 @@ const ROWS: Row[] = [
     "mcp/shared/tools/validate-fields.parity.test.ts",
     "SQLite persistence: đọc reporting_dept đã lưu & ghi nhận khi có reporting_dept hợp lệ",
     "deferred",
-    "Chờ port ở PR 7 (hỏi bổ sung theo luật): ghi nhớ bộ phận đã lưu, bộ phận ngoài danh mục (A5)",
+    "Chờ port ở PR 15 (defineBot lễ tân thành pack MCP và skill): tool MCP validate_fields",
   ),
   row(
     "mcp/shared/tools/validate-fields.parity.test.ts",

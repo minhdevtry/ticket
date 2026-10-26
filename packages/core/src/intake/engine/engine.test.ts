@@ -156,7 +156,11 @@ describe("IntakeEngine.step — priority (floor/ceiling + requested)", () => {
         requestedPriorityReason: null,
       }),
     );
-    await h.engine.step({ chatId: CHAT, message: "make it urgent" });
+    const asked = await h.engine.step({ chatId: CHAT, message: "make it urgent" });
+    expect(asked.outcome).toBe("asked");
+    h.extractor.push({ userIntent: "provide_info", symptoms: [] });
+    const summary = await h.engine.step({ chatId: CHAT, message: "không có" });
+    expect(summary.outcome).toBe("summary");
     h.extractor.push({ userIntent: "confirm" });
     h.clock.advance(MIN_CONFIRM_DELAY_MS + 1);
     await h.engine.step({ chatId: CHAT, message: "yes" });

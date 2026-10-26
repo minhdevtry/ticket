@@ -107,7 +107,21 @@ export type CopyKey =
   | "draft.expired_new" // the previous draft expired; starting fresh
   | "draft.canceled" // the reporter canceled the draft on request
   | "draft.awaiting_confirmation" // a summary is shown; waiting for the reporter to press the button
-  | "ask.missing_info"; // still missing fields — ask the reporter to fill them in
+  | "ask.missing_info" // still missing fields — ask the reporter to fill them in
+  // ── PR 7: hỏi bổ sung theo luật (RFC 0002 §1.5 A1-A5) ─────────────────────
+  | "ask.system" // ask system once with buttons (A3)
+  | "ask.priority_reason" // ask priority reason once when urgent/high requested (A4); {level}
+  | "ask.unrecognized_dept" // department mentioned but not in catalog (A5); {dept}
+  | "clarify.greeting" // greeting when no description yet (A2)
+  | "ask.describe_incident" // acknowledge media/input and ask description (A2); {item}
+  | "ask.describe_incident_item" // default item description for ask.describe_incident ("ảnh anh/chị gửi")
+  | "field.unknown_value" // default label when a field value is unknown/unspecified ("Chưa xác định")
+  | "summary.priority_line" // priority line in summary when not in catalog recap fields; {priority}
+  | "ticket.fallback_title" // fallback title when title is invalid/empty (B3)
+  | "priority.level.low" // priority level label for Low
+  | "priority.level.medium" // priority level label for Medium
+  | "priority.level.high" // priority level label for High
+  | "priority.level.urgent"; // priority level label for Urgent
 
 /**
  * The chat↔ticket binding store, so a worker can report back to the reporter.

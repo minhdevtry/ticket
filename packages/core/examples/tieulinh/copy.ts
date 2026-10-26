@@ -60,4 +60,22 @@ export const tieuLinhCopy: Record<CopyKey, string> = {
   "draft.awaiting_confirmation":
     "Dạ em đang chờ anh/chị bấm nút xác nhận ở tin tóm tắt phía trên ạ.",
   "ask.missing_info": "Anh/chị bổ sung giúp em thông tin còn thiếu nhé ạ.",
+  // ── PR 7: hỏi bổ sung theo luật (RFC 0002 §1.5 A1-A5) ─────────────────────
+  "ask.system":
+    'Dạ lỗi này xảy ra trên hệ thống nào ạ? Anh/chị chọn giúp em nhé (không rõ thì nhắn "không biết").',
+  "ask.priority_reason":
+    'Dạ anh/chị cho em biết lý do cần xử lý gấp (vd phụ huynh đang khiếu nại, học sinh sắp vào học…) để em đặt mức {level} nhé ạ. Không có lý do cụ thể thì nhắn "không có".',
+  "ask.unrecognized_dept":
+    'Bộ phận "{dept}" của anh/chị không có trong danh mục của em. Anh/chị chọn giúp em một trong các bộ phận sau nhé ạ.',
+  "clarify.greeting": "Dạ em chào anh/chị! Anh/chị đang gặp sự cố gì, mô tả giúp em nhé ạ.",
+  "ask.describe_incident":
+    "Dạ em đã nhận {item} rồi ạ. Anh/chị mô tả giúp em sự cố đang gặp (lỗi gì, ở màn hình/chức năng nào) nhé.",
+  "ask.describe_incident_item": "ảnh anh/chị gửi",
+  "field.unknown_value": "Chưa xác định",
+  "summary.priority_line": "- Mức ưu tiên: {priority}",
+  "ticket.fallback_title": "Sự cố kỹ thuật",
+  "priority.level.low": "Thấp",
+  "priority.level.medium": "Trung bình",
+  "priority.level.high": "Cao",
+  "priority.level.urgent": "Khẩn cấp",
 };

@@ -10,7 +10,7 @@
  * it survives `bun build --compile`.
  */
 import { MAX_CALLBACK_DATA_BYTES, REQUIRED_IF_RULE } from "./types";
-import type { FieldCatalog, FieldSpec, VariantKey, VariantSpec } from "./types";
+import type { FieldCatalog, FieldRole, FieldSpec, VariantKey, VariantSpec } from "./types";
 
 /** Shape of the authored JSON. Deliberately loose — validation happens on normalize. */
 export interface RawFieldTable {
@@ -109,7 +109,16 @@ function normalizeField(name: string, raw: RawField): FieldSpec {
     label: raw.nhan,
     prompt: raw.hoi,
     followUpPrompts: Array.isArray(raw.hoi_lai) ? raw.hoi_lai : undefined,
+    maxRetries:
+      typeof raw.toi_da_hoi_lai === "number"
+        ? raw.toi_da_hoi_lai
+        : typeof raw.toi_da_hoi === "number"
+          ? raw.toi_da_hoi
+          : typeof raw.maxRetries === "number"
+            ? raw.maxRetries
+            : undefined,
     exhaustedDefault: raw.het_luot,
+    role: (raw.vai_tro ?? raw.role) as FieldRole | undefined,
     isMultiValue: raw.nhieu_gia_tri === true,
     inferFromContext: raw.suy_duoc_tu_boi_canh === true,
     pattern,
@@ -323,5 +332,11 @@ export function getVocabulary(catalog: FieldCatalog, field: FieldSpec): string[]
 }
 
 export function retryBudget(catalog: FieldCatalog, field: FieldSpec): number {
-  return 1 + (field.followUpPrompts?.length ?? 0);
+  if (field.followUpPrompts && field.followUpPrompts.length > 0) {
+    return 1 + field.followUpPrompts.length;
+  }
+  if (field.maxRetries !== undefined) {
+    return field.maxRetries;
+  }
+  return 1;
 }

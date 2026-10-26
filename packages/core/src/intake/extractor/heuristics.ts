@@ -676,7 +676,7 @@ export function deriveFallbackTitle(
     return `Sự cố học sinh ${studentNames[0]}`;
   }
 
-  return "Sự cố kỹ thuật";
+  return "";
 }
 
 const CUSTOMER_CODE_RE =

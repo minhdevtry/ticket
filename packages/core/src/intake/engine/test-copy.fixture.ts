@@ -42,4 +42,19 @@ export const TEST_COPY: Record<CopyKey, string> = {
   "draft.canceled": "Canceled. Tell me whenever you need to report an issue.",
   "draft.awaiting_confirmation": "Press the confirm button in the summary above.",
   "ask.missing_info": "Please add the missing details.",
+  // PR 7
+  "ask.system": "Which system does this happen on?",
+  "ask.priority_reason": "Please provide a reason to prioritize as {level}:",
+  "ask.unrecognized_dept":
+    'Department "{dept}" is not in the catalog. Please choose one of the following:',
+  "clarify.greeting": "Hello! What problem are you experiencing?",
+  "ask.describe_incident": "Received {item}. Please describe the incident you are experiencing:",
+  "ask.describe_incident_item": "the image/media you sent",
+  "field.unknown_value": "Unknown",
+  "summary.priority_line": "- Priority: {priority}",
+  "ticket.fallback_title": "Technical incident",
+  "priority.level.low": "Low",
+  "priority.level.medium": "Medium",
+  "priority.level.high": "High",
+  "priority.level.urgent": "Urgent",
 };

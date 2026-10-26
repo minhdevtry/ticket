@@ -65,14 +65,14 @@ export interface LegacyDraftDocument {
   unrecognizedDept?: string;
 }
 
-const SCOPE_RANK: Record<string, number> = {
+export const SCOPE_RANK: Record<string, number> = {
   none: 0,
   single_user: 1,
   group: 2,
   entire_system: 3,
 };
 
-const EVIDENCE_FLAGS = [
+export const EVIDENCE_FLAGS = [
   "blocksPayment",
   "reconciliationMismatch",
   "blocksLearning",
