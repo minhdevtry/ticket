@@ -13,55 +13,58 @@
  */
 
 export const VALID_PRODUCTS = [
-  "Tutor",
+  "Tự học",
   "Duo",
-  "Vuihoc247",
-  "Care",
-  "Tiểu học",
-  "THCS",
-  "THPT",
+  "Pas",
+  "Tutor",
+  "Exam",
+  "VNESchool",
+  "K12 Viettel",
+  "Smart Media",
   "Khác",
 ] as const;
 export type ValidProduct = (typeof VALID_PRODUCTS)[number];
 
 export const VALID_SYSTEMS = [
   "CRM_Vuihoc",
-  "LMS_Vuihoc",
-  "VH_Tự học",
   "DUO_Vuihoc",
   "TUTOR_Vuihoc",
-  "ClassIn",
+  "VH_Tự học",
+  "LMS_Vuihoc",
   "CARE_Vuihoc",
+  "ClassIn",
   "VNESCHOOL",
   "Khác_Hạ tầng_IT",
 ] as const;
 export type ValidSystem = (typeof VALID_SYSTEMS)[number];
 
 export const VALID_ERROR_CATEGORIES = [
-  "Lỗi đăng nhập",
-  "Lỗi nạp bài",
-  "Lỗi phòng học",
-  "Lỗi âm thanh/hình ảnh",
-  "Lỗi hiển thị",
-  "Lỗi thanh toán",
-  "Lỗi đồng bộ",
+  "Lỗi hệ thống",
+  "Lỗi kỹ thuật",
+  "Lỗi dữ liệu",
+  "Lỗi bên thứ 3",
+  "Lỗi chưa xác định",
+  "Hỗ trợ",
   "Khác",
+  "Lỗi cấu hình máy",
+  "Cải tiến sản phẩm",
+  "ND bị nhầm hoặc hiểu sai",
+  "Lỗi nhập liệu",
 ] as const;
 export type ValidErrorCategory = (typeof VALID_ERROR_CATEGORIES)[number];
 
 export const VALID_REPORTING_DEPTS = [
   "Vận hành",
+  "Vận đơn",
   "CSKH",
   "CSHV",
   "Chuyên môn",
   "Sale",
   "Quản lý lớp",
-  "Vận đơn",
 ] as const;
 export type ValidReportingDept = (typeof VALID_REPORTING_DEPTS)[number];
 
-export const VALID_DEVICE_TYPES = ["PC", "Laptop", "Điện thoại", "Máy tính bảng", "Khác"] as const;
-export type ValidDeviceType = (typeof VALID_DEVICE_TYPES)[number];
+export const VALID_DEVICE_TYPES = ["Điện thoại", "Máy tính bảng", "PC", "Laptop"] as const;
 
 export const SYSTEM_SYNONYMS: Record<string, string> = {
   crm: "CRM_Vuihoc",

@@ -11,11 +11,11 @@
  * - Verbatim rawText appended and capped
  */
 
+import { isInternalCallbackToken } from "../../core";
 import type { ExtractedFields } from "../ports";
 import { IDENTIFIER_KEYS, type IdentifierKey } from "../ports";
 import { isInvalidTitle } from "./heuristics";
 import { MAX_RAW_TEXT_CHARS, MAX_RAW_TEXT_TOTAL_CHARS } from "../raw-text";
-
 export const MAX_SYMPTOM_CHARS = 1500;
 export const MAX_SYMPTOMS = 30;
 
@@ -132,7 +132,7 @@ export function mergeExtractedFields(
   const carriesText =
     (!structuredOnly && (hasNewContent || givesIdentifier)) || options.appendRawText === true;
   const message = cappedMessage.trim();
-  if (carriesText && message) {
+  if (carriesText && message && !isInternalCallbackToken(message)) {
     const prev = nextFields.rawText?.value ? String(nextFields.rawText.value) : "";
     if (!prev) {
       setField("rawText", cappedMessage);
@@ -168,21 +168,12 @@ export function mergeExtractedFields(
   const incomingSymptoms = structuredOnly
     ? []
     : (extracted.symptoms ?? [])
-        .filter((s) => !removals.some((r) => s.toLowerCase().includes(r)))
-        .map((s) => cap(s, MAX_SYMPTOM_CHARS));
+        .map((s) => cap(s.trim(), MAX_SYMPTOM_CHARS))
+        .filter((s) => !isInternalCallbackToken(s));
 
-  const mergedSymptoms: string[] = [];
-  const seenSymptoms = new Set<string>();
-
-  for (const s of [...keptPrev, ...incomingSymptoms]) {
-    const normalized = s.trim().toLowerCase();
-    if (!seenSymptoms.has(normalized)) {
-      seenSymptoms.add(normalized);
-      mergedSymptoms.push(s);
-    }
-    if (mergedSymptoms.length >= MAX_SYMPTOMS) break;
-  }
-
+  const mergedSymptoms = Array.from(
+    new Set([...keptPrev, ...incomingSymptoms].filter(Boolean)),
+  ).slice(-MAX_SYMPTOMS);
   const symptomsChanged =
     mergedSymptoms.length !== prevSymptoms.length ||
     mergedSymptoms.some((s, i) => s !== prevSymptoms[i]);
@@ -217,12 +208,23 @@ export function mergeExtractedFields(
     }
   }
 
+  let unrecognizedDept = doc.unrecognizedDept;
+  const unrecognizedCandidate =
+    extracted.reportingDeptUnrecognized ??
+    (extracted.values?.reportingDeptUnrecognized as string | undefined);
+  if (unrecognizedCandidate && unrecognizedCandidate.trim() !== "") {
+    unrecognizedDept = unrecognizedCandidate.trim();
+  } else if (nextFields.reportingDept?.value) {
+    unrecognizedDept = undefined;
+  }
+
   return {
     ...doc,
     revision: doc.revision + 1,
     currentTurn: turn,
     fields: nextFields,
     evidence: nextEvidence,
+    unrecognizedDept,
     updatedAt: now,
   };
 }

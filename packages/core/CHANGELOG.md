@@ -16,9 +16,9 @@ All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded
     - Lược đồ trích xuất Zod (`buildExtractorSchema`, `describeExtractedKeys`): sinh từ taxonomy và cấu hình miền, danh mục đóng tách biệt giữa core và app.
     - `ExtractInput`: thêm trường tuỳ chọn `context` và `createdTicket` để truyền ngữ cảnh hội thoại vào LLM.
     - `ExtractedFields`: thêm các trường tiện ích định danh, danh mục và bằng chứng phẳng cho domain parity.
-  - Port 45 ca kiểm thử từ legacy (`extractor.test.ts`, `extractor-rules.test.ts`, `extractor-dept-system-title.test.ts`, `extractor-evidence.test.ts`), giữ nguyên tên ca và kiểm thử tích hợp với `FakeLlm`.
+  - Port 44 ca kiểm thử từ legacy (`extractor.test.ts`, `extractor-rules.test.ts`, `extractor-dept-system-title.test.ts`, `extractor-evidence.test.ts`), giữ nguyên tên ca và kiểm thử tích hợp với `FakeLlm`.
+  - Sửa sau review (issue #19): mã CRM lấy mã đầu tiên; gộp triệu chứng giữ 30 triệu chứng cuối, dedup không gộp phân biệt hoa thường, lọc token nội bộ `noop`; chuỗi model dự phòng phân loại theo HTTP status và gọi đúng endpoint theo `api`; danh mục mặc định đồng bộ legacy; bộ gộp ghi `unrecognizedDept`; ngữ cảnh LLM ghép lại câu báo vừa hỏi; bổ sung tài liệu `docs/reference/intake-extractor.md`.
   - Hoãn: Kịch bản flow `lib/intake-step/pipeline.flow.test.ts` (1 ca) và phát sinh câu hỏi cho bộ phận ngoài danh mục trong luồng engine tiếp tục hoãn sang PR 7 (hỏi bổ sung theo luật).
-
 
 - **Draft v2 và chuẩn hoá đầu vào (RFC 0002 PR 4)**: tờ khai có phiên bản, đọc được tờ khai cũ; đầu vào được chuẩn hoá bằng luật; bảng ánh xạ `action` của hợp đồng cũ.
   - `@vuihoc/bot-core/intake`: `IntakeDraft` có `version` (hiện hành là 2) và các trường hội thoại mà bản cũ thiếu — `lastAskedFields`, `requestedPriority`, `techReviewDone`, `techQuestion`, `unrecognizedDept`, `pendingSplit` (kèm `extraText`, `clarifyCount`), `pendingSplitQueue`, `mediaAmbiguous`, `pendingNewIncident`, `backgroundWork`. Mới: `DRAFT_VERSION`, `migrateDraft` (nâng tờ khai cũ **lúc đọc**, không viết lại kho; tờ khai mới hơn thì không hạ cấp), `isCurrentDraft`, các kiểu `SplitBlock`, `PendingSplit`, `PendingNewIncident`.

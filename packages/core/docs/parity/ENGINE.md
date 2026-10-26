@@ -60,7 +60,7 @@ không còn tồn tại, hoặc khi các con số dưới đây lệch khỏi s�
 | Trạng thái | Số test legacy | Nghĩa |
 |---|---|---|
 | `core` | 61 | Engine hoặc thư viện core hiện có đã có test tương ứng (mỗi dòng trỏ tới test đó) |
-| `ported` | 59 | Đã port sang engine của core (`packages/core/src/intake/**`) — PR 4 port 15 dòng (5 dòng `noop-guard`, 4 dòng `repository` của tài liệu, 6 flow); PR 5 port thêm 45 dòng (bộ trích xuất và heuristic tiếng Việt); PR 6 đến 14 chuyển dòng `deferred` sang đây |
+| `ported` | 59 | Đã port sang engine của core (`packages/core/src/intake/**`) — PR 4 port 15 dòng (5 dòng `noop-guard`, 4 dòng `repository` của tài liệu, 6 flow); PR 5 port thêm 44 dòng (bộ trích xuất và heuristic tiếng Việt); PR 6 đến 14 chuyển dòng `deferred` sang đây |
 | `deferred` | 319 | Chưa có; dòng nêu PR của RFC 0002 sẽ port, hoặc lý do nằm ngoài chuỗi di trú (KG, Onyx, nạp tri thức) |
 | `by-design` | 11 | Cố ý không có ở bản mới, có lý do (tool ghi trực tiếp của legacy, đường tạo ticket thứ hai, bot khác) |
 | Tổng | 450 | Test của lễ tân và phần dùng chung |

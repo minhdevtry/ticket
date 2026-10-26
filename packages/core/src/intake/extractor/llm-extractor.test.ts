@@ -4,6 +4,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { FakeLlm } from "../../llm/fake-llm";
 import { FieldExtractor } from "./llm-extractor";
+import { VALID_ERROR_CATEGORIES, VALID_PRODUCTS, VALID_SYSTEMS } from "./taxonomy";
 
 describe("FieldExtractor với FakeLlm", () => {
   let fake: FakeLlm;
@@ -137,5 +138,68 @@ describe("FieldExtractor với FakeLlm", () => {
     expect(r4.userIntent).toBe("report_issue");
     expect(r4.system).toBe("DUO_Vuihoc");
     expect(r4.blocksLearning).toBe(true);
+  });
+
+  it("chuỗi model dự phòng: lỗi 4xx client dừng ngay không thử model tiếp theo", async () => {
+    fake.script({ status: 400, text: "Bad Request" });
+
+    const ex = makeExtractor("bad-model,fallback-model");
+    const res = await ex.extract("Lỗi không vào được phòng học");
+    expect(res.userIntent).toBe("report_issue");
+    expect(res.blocksLearning).toBe(true);
+  });
+
+  it("hỏi lại đúng một lần khi JSON đầu tiên không hợp lệ", async () => {
+    fake.script({ text: "đây không phải json" });
+    fake.script({
+      text: JSON.stringify({
+        userIntent: "report_issue",
+        title: "Lỗi thanh toán",
+        symptoms: ["Không thanh toán được"],
+      }),
+    });
+
+    const ex = makeExtractor();
+    const res = await ex.extract("Không thanh toán được");
+    expect(res.userIntent).toBe("report_issue");
+    expect(res.title).toBe("Lỗi thanh toán");
+  });
+
+  it("ngữ cảnh LLM: câu hỏi kỹ thuật vừa hỏi được đưa vào ngữ cảnh kèm câu báo provide_info", async () => {
+    let capturedUserPrompt = "";
+    const ex = new FieldExtractor(
+      { baseUrl: fake.baseUrl("openai-chat"), apiKey: "key", model: "test" },
+      async (_cfg, _sys, user) => {
+        capturedUserPrompt = user;
+        return JSON.stringify({ userIntent: "provide_info" });
+      },
+    );
+
+    await ex.extract({
+      text: "Học sinh dùng iPad",
+      attachments: 0,
+      draftTitle: "Lỗi không nghe thấy tiếng",
+      context: {
+        draftTitle: "Lỗi không nghe thấy tiếng",
+        draftDescription: "Học sinh báo vào phòng không có âm thanh",
+        techQuestion: "Học sinh đang dùng thiết bị gì vậy ạ?",
+      },
+    });
+
+    expect(capturedUserPrompt).toContain("Lỗi không nghe thấy tiếng");
+    expect(capturedUserPrompt).toContain("Học sinh báo vào phòng không có âm thanh");
+    expect(capturedUserPrompt).toContain(
+      '(Trợ lý vừa hỏi người báo: "Học sinh đang dùng thiết bị gì vậy ạ?" — tin mới là câu trả lời, tức "provide_info".)',
+    );
+  });
+
+  it("danh mục mặc định khớp legacy", () => {
+    expect(VALID_PRODUCTS).toContain("Tự học");
+    expect(VALID_PRODUCTS).toContain("Duo");
+    expect(VALID_SYSTEMS[0]).toBe("CRM_Vuihoc");
+    expect(VALID_SYSTEMS[1]).toBe("DUO_Vuihoc");
+    expect(VALID_SYSTEMS[2]).toBe("TUTOR_Vuihoc");
+    expect(VALID_ERROR_CATEGORIES).toContain("Lỗi hệ thống");
+    expect(VALID_ERROR_CATEGORIES).toContain("Lỗi kỹ thuật");
   });
 });

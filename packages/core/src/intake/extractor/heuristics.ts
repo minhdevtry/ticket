@@ -712,6 +712,7 @@ export function extractLabelledIdentifiers(
       const m = STANDALONE_CRM_LINE_RE.exec(line);
       if (m?.[1] && !m[1].startsWith("0")) {
         out.customer = m[1];
+        break;
       }
     }
   }

@@ -13,6 +13,7 @@
  * - Explicit edit command wins over LLM (A14)
  */
 
+import { existsSync } from "node:fs";
 import { parseJsonLoose } from "../../llm/extract";
 import type {
   ExtractedFields,
@@ -41,7 +42,7 @@ import {
   PROBLEM_WORDS,
   stripGreeting,
 } from "./heuristics";
-import { describeExtractedKeys } from "./schema";
+import { buildExtractorSchema, describeExtractedKeys } from "./schema";
 import {
   DEPT_SYNONYMS,
   MAX_LLM_CONTEXT_CHARS,
@@ -129,7 +130,10 @@ function pickBool(value: unknown): boolean | undefined {
   return typeof value === "boolean" ? value : undefined;
 }
 
-async function completeOnce(
+export class LlmClientError extends Error {}
+export class LlmContentFilterError extends Error {}
+
+async function completeOpenAi(
   config: LlmConfig,
   systemPrompt: string,
   userPrompt: string,
@@ -157,10 +161,110 @@ async function completeOnce(
   if (!res.ok) {
     const text = await res.text();
     const msg = `LLM trả HTTP ${res.status}: ${text.slice(0, 200)}`;
-    throw new Error(msg);
+    throw res.status >= 400 && res.status < 500 && res.status !== 429
+      ? new LlmClientError(msg)
+      : new Error(msg);
   }
-  const body = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  return body.choices?.[0]?.message?.content ?? "";
+  const body = (await res.json()) as {
+    choices?: Array<{
+      message?: { content?: string; refusal?: string };
+      finish_reason?: string;
+    }>;
+  };
+  const choice = body.choices?.[0];
+  if (choice?.finish_reason === "content_filter" || choice?.message?.refusal) {
+    throw new LlmContentFilterError("Model refused to answer");
+  }
+  return choice?.message?.content ?? "";
+}
+
+async function completeAnthropic(
+  config: LlmConfig,
+  systemPrompt: string,
+  userPrompt: string,
+): Promise<string> {
+  const baseUrl = config.baseUrl?.replace(/\/+$/, "") ?? "";
+  const url = `${baseUrl}/v1/messages`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "anthropic-version": "2023-06-01",
+      ...(config.apiKey ? { "x-api-key": config.apiKey } : {}),
+    },
+    body: JSON.stringify({
+      model: config.model,
+      max_tokens: 4096,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
+      stream: false,
+    }),
+    signal: AbortSignal.timeout(60_000),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    const msg = `LLM trả HTTP ${res.status}: ${text.slice(0, 200)}`;
+    throw res.status >= 400 && res.status < 500 && res.status !== 429
+      ? new LlmClientError(msg)
+      : new Error(msg);
+  }
+  const body = (await res.json()) as {
+    content?: Array<{ type?: string; text?: string }>;
+    stop_reason?: string;
+  };
+  if (body.stop_reason === "refusal") {
+    throw new LlmContentFilterError("Model refused to answer");
+  }
+  return body.content?.find((c) => c.type === "text")?.text ?? "";
+}
+
+async function completeOpenclaw(
+  config: LlmConfig,
+  systemPrompt: string,
+  userPrompt: string,
+): Promise<string> {
+  const legacyBin = "/usr/local/bin/openclaw";
+  const bin = process.env.OPENCLAW_BIN || (existsSync(legacyBin) ? legacyBin : "openclaw");
+  const proc = Bun.spawn(
+    [
+      bin,
+      "infer",
+      "model",
+      "run",
+      "--model",
+      config.model ?? "",
+      "--prompt",
+      `${systemPrompt}\n\n${userPrompt}`,
+      "--json",
+    ],
+    { stdout: "pipe", stderr: "pipe" },
+  );
+  const timer = setTimeout(() => proc.kill(), 60_000);
+  const [stdout, exitCode] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
+  clearTimeout(timer);
+
+  if (exitCode !== 0) {
+    const stderr = await new Response(proc.stderr).text();
+    throw new Error(`openclaw infer model run thoát mã ${exitCode}: ${stderr.slice(0, 200)}`);
+  }
+  const body = JSON.parse(stdout) as { ok?: boolean; outputs?: Array<{ text?: string }> };
+  if (!body.ok) throw new Error(`openclaw infer model run báo lỗi: ${stdout.slice(0, 200)}`);
+  return body.outputs?.[0]?.text ?? "";
+}
+
+async function completeOnce(
+  config: LlmConfig,
+  systemPrompt: string,
+  userPrompt: string,
+): Promise<string> {
+  if (config.api === "anthropic") {
+    return completeAnthropic(config, systemPrompt, userPrompt);
+  }
+  if (config.api === "openclaw") {
+    return completeOpenclaw(config, systemPrompt, userPrompt);
+  }
+  return completeOpenAi(config, systemPrompt, userPrompt);
 }
 
 /**
@@ -182,9 +286,11 @@ export async function defaultComplete(
       return await completeOnce({ ...config, model: currentModel }, systemPrompt, userPrompt);
     } catch (err: unknown) {
       lastError = err instanceof Error ? err : new Error(String(err));
-      const msg = lastError.message;
-      const isClientError = /4\d\d/.test(msg) && !msg.includes("429");
-      if (isClientError || i === models.length - 1) {
+      if (
+        lastError instanceof LlmClientError ||
+        lastError instanceof LlmContentFilterError ||
+        i === models.length - 1
+      ) {
         break;
       }
     }
@@ -199,11 +305,18 @@ export class FieldExtractor implements FieldExtractorPort {
   private readonly systemPrompt: string;
 
   constructor(configOrOptions?: LlmConfig | FieldExtractorOptions, completeFn?: CompleteFn) {
-    if (configOrOptions && "completeFn" in configOrOptions) {
-      this.llmConfig = configOrOptions.llmConfig;
-      this.completeFn = configOrOptions.completeFn ?? defaultComplete;
-      this.domain = configOrOptions.domain ?? {};
-      this.systemPrompt = configOrOptions.systemPrompt ?? DEFAULT_EXTRACTOR_SYSTEM_PROMPT;
+    if (
+      configOrOptions &&
+      ("domain" in configOrOptions ||
+        "systemPrompt" in configOrOptions ||
+        "completeFn" in configOrOptions ||
+        "llmConfig" in configOrOptions)
+    ) {
+      const opts = configOrOptions as FieldExtractorOptions;
+      this.llmConfig = opts.llmConfig;
+      this.completeFn = opts.completeFn ?? defaultComplete;
+      this.domain = opts.domain ?? {};
+      this.systemPrompt = opts.systemPrompt ?? DEFAULT_EXTRACTOR_SYSTEM_PROMPT;
     } else {
       this.llmConfig = configOrOptions as LlmConfig | undefined;
       this.completeFn = completeFn ?? defaultComplete;
@@ -221,10 +334,16 @@ export class FieldExtractor implements FieldExtractorPort {
     // Ngữ cảnh do engine đưa vào (PR 4): mô tả tờ khai, câu hỏi kỹ thuật vừa hỏi,
     // ticket vừa tạo. Engine đã cắt sẵn theo trần của legacy.
     const ctx = typeof inputOrText === "string" ? undefined : inputOrText.context;
-    const context =
-      typeof inputOrText === "string"
-        ? contextDescription
-        : (ctx?.draftDescription ?? ctx?.techQuestion ?? inputOrText.draftTitle);
+    let context = typeof inputOrText === "string" ? contextDescription : undefined;
+    if (typeof inputOrText !== "string") {
+      const asked = ctx?.techQuestion
+        ? `(Trợ lý vừa hỏi người báo: "${ctx.techQuestion.trim()}" — tin mới là câu trả lời, tức "provide_info".)`
+        : undefined;
+      const title = ctx?.draftTitle ?? inputOrText.draftTitle;
+      const desc = ctx?.draftDescription;
+      const parts = [title, desc && desc !== title ? desc : undefined, asked].filter(Boolean);
+      context = parts.length > 0 ? parts.join("\n") : undefined;
+    }
     const createdTicket = typeof inputOrText === "string" ? opts.createdTicket : ctx?.createdTicket;
 
     if (!text) {
@@ -280,13 +399,51 @@ ${context ? capText(context, MAX_LLM_CONTEXT_CHARS) : "(Chưa có)"}${ticketNote
 Tin nhắn mới của người dùng:
 "${capText(text, MAX_LLM_MESSAGE_CHARS)}"`;
 
+      const schema = buildExtractorSchema({
+        products,
+        systems,
+        errorCategories,
+        reportingDepts,
+        deviceTypes,
+      });
+
       try {
         const raw = await this.completeFn(this.llmConfig, systemPrompt, userPrompt);
-        const parsed = parseJsonLoose(raw);
-        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-          parsedResult = parsed as Record<string, unknown>;
+        let parsed = parseJsonLoose(raw);
+        let validObj: Record<string, unknown> | null =
+          parsed && typeof parsed === "object" && !Array.isArray(parsed)
+            ? (parsed as Record<string, unknown>)
+            : null;
+
+        let issues: string[] = [];
+        if (!validObj) {
+          issues = ["(root): the reply is not valid JSON"];
+        } else {
+          const check = schema.safeParse(validObj);
+          if (!check.success) {
+            issues = check.error.issues
+              .slice(0, 10)
+              .map((it) => `${it.path.length > 0 ? it.path.join(".") : "(root)"}: ${it.message}`);
+          }
         }
-      } catch {
+
+        if (issues.length > 0) {
+          try {
+            const retryUserPrompt = `${userPrompt}\n\nThe previous JSON did not validate against the schema:\n${issues.map((it) => `- ${it}`).join("\n")}\n\nFix the issues and return ONLY the corrected JSON value.`;
+            const retryRaw = await this.completeFn(this.llmConfig, systemPrompt, retryUserPrompt);
+            const retryParsed = parseJsonLoose(retryRaw);
+            if (retryParsed && typeof retryParsed === "object" && !Array.isArray(retryParsed)) {
+              validObj = retryParsed as Record<string, unknown>;
+            }
+          } catch (retryErr: unknown) {
+            if (retryErr instanceof LlmContentFilterError) {
+              llmExhausted = true;
+              validObj = null;
+            }
+          }
+        }
+        parsedResult = validObj;
+      } catch (err: unknown) {
         llmExhausted = true;
       }
     }
