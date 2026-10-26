@@ -20,6 +20,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Cần lịch sử đầy đủ: chế độ `--base` của lint baseline đọc nội dung file ở
+          # nhánh nền bằng `git show`, nên phải có commit của base trong clone.
+          fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json
@@ -27,6 +31,11 @@ jobs:
       # Gọi đúng `bun run verify` để CI và lệnh cục bộ không trôi lệch nhau.
       - name: Verify (lint + typecheck + test + scan + docs checks)
         run: bun run verify
+      # PR xếp chồng (base là nhánh khác main): ngưỡng chung của repo chưa tính phần
+      # của PR nền, nên so SỐ LỖI MỚI so với nhánh nền.
+      - name: Lint baseline theo nhánh nền
+        if: github.event_name == 'pull_request'
+        run: bun run scripts/lint-baseline.ts --base "${{ github.event.pull_request.base.sha }}"
 
   # Docs không được phép cũ đi: build site (link chết = lỗi), TypeDoc (cảnh báo = lỗi),
   # typecheck mọi mẫu `ts check`, đối chiếu docs với code. Xem CONTRIBUTING.md, mục Tài liệu.
