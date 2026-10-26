@@ -3113,12 +3113,6 @@ const FILE_ROWS: FileRow[] = [
   ),
   fileRow("worker/llm.test.ts", "core", "client LLM đã ở core", "llm/client.test.ts"),
   fileRow(
-    "scripts/golden/record.test.ts",
-    "core",
-    "script ghi bản ghi vàng của lễ tân legacy đã có bản tương đương ở core (PR 2)",
-    "testing/golden.test.ts",
-  ),
-  fileRow(
     "lib/telegram/alert.test.ts",
     "deferred",
     "báo động quản trị qua Telegram và file nút chờ; chưa có tương đương, xem xét ở PR 16 cùng adapter OpenClaw",
