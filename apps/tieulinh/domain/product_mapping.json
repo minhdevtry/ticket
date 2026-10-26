@@ -1,0 +1,19 @@
+{
+  "_comment": "Mapping giữa product VALUE (enum 9 giá trị trong validation_patterns.json, lưu vào DB cột `product`) ↔ product KEY (4 giá trị trong required_fields.json, dùng để load required field list). Khi agent suy ra product_key từ product value mà user chọn, dùng bảng này. Round 7 fix: trước đây comment trong required_fields.json tham chiếu file này nhưng file chưa tồn tại → bug logic (Tutor không có app_version/brower/transaction_id → default sai).",
+  "mapping": [
+    {"product": "Tự học",     "product_key": "vuihoc-mobile-app", "rationale": "Mobile app là primary product cho Tự học (T01-T07 audit: 70%+ ticket liên quan mobile app)."},
+    {"product": "Duo",         "product_key": "vuihoc-mobile-app", "rationale": "Duo = Tự học song ngữ, same app."},
+    {"product": "Pas",         "product_key": "vuihoc-mobile-app", "rationale": "Pas = luyện thi, same app."},
+    {"product": "Tutor",       "product_key": "tutor",              "rationale": "Tutor có bộ trường riêng: thiết bị, tài khoản học sinh, ID bài tập và ảnh chụp màn hình."},
+    {"product": "Exam",        "product_key": "vuihoc-mobile-app", "rationale": "Thi thử = mobile app."},
+    {"product": "VNESchool",   "product_key": "vuihoc-web",        "rationale": "VNESchool = web-based platform."},
+    {"product": "K12 Viettel", "product_key": "vuihoc-web",        "rationale": "K12 Viettel = web-based platform."},
+    {"product": "Smart Media", "product_key": "vuihoc-web",        "rationale": "Smart Media = web-based platform."},
+    {"product": "Khác",        "product_key": "default",           "rationale": "Catch-all. Refine sau khi có data."}
+  ],
+  "fallback_priority": [
+    {"if_has": "transaction_id", "product_key": "vuihoc-payment"},
+    {"if_has": "app_version",    "product_key": "vuihoc-mobile-app"},
+    {"if_has": "browser",        "product_key": "vuihoc-web"}
+  ]
+}

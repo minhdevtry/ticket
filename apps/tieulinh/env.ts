@@ -35,6 +35,10 @@ export const tieulinhEnv = defineEnv({
    */
   TIEULINH_BINDING_DB: z.string().min(1).optional(),
   TIEULINH_SLA_CRON: z.string().min(1).default("*/5 * * * *"),
+  /** Công tắc chính sách soát thông tin trước khi tạo ticket (F4). */
+  TECH_INFO_REVIEW: z.enum(["off", "checklist", "llm"]).default("checklist"),
+  /** Đường dẫn file SQLite chứa dữ liệu tự học cho reviewer dạng checklist (F3). */
+  ASK_LEARN_DB: z.string().min(1).optional(),
 });
 
 /**

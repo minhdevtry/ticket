@@ -226,8 +226,13 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "tin chỉ có ảnh không làm sập, ảnh được gắn vào tài liệu rồi tải lên ticket",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket): gắn ảnh vào ticket (J1)",
+    "ported",
+    [
+      C(
+        "intake/engine/pr14-flow-media.test.ts",
+        "tin chỉ có ảnh không làm sập, ảnh được gắn vào tài liệu rồi tải lên ticket",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
@@ -2673,14 +2678,24 @@ const ROWS: Row[] = [
   row(
     "mcp/shared/tools/validate-fields.parity.test.ts",
     "heuristic student_account: phụ huynh/học sinh không có sđt",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/validate-fields.parity.test.ts",
+        "heuristic student_account: phụ huynh/học sinh không có sđt",
+      ),
+    ],
   ),
   row(
     "mcp/shared/tools/validate-fields.parity.test.ts",
     "bẫy #5: inferProductKey xét fallback_priority TRƯỚC mapping",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/validate-fields.parity.test.ts",
+        "bẫy #5: inferProductKey xét fallback_priority TRƯỚC mapping",
+      ),
+    ],
   ),
   row(
     "mcp/shared/tools/validate-fields.parity.test.ts",
@@ -2691,26 +2706,46 @@ const ROWS: Row[] = [
   row(
     "mcp/shared/tools/validate-fields.parity.test.ts",
     "mọi VALID_SYSTEMS đều hợp lệ qua validateOne('system', v)",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/validate-fields.parity.test.ts",
+        "mọi VALID_SYSTEMS đều hợp lệ qua validateOne('system', v)",
+      ),
+    ],
   ),
   row(
     "mcp/shared/tools/validate-fields.parity.test.ts",
     "mọi VALID_PRODUCTS đều hợp lệ qua validateOne('product', v)",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/validate-fields.parity.test.ts",
+        "mọi VALID_PRODUCTS đều hợp lệ qua validateOne('product', v)",
+      ),
+    ],
   ),
   row(
     "mcp/shared/tools/validate-fields.parity.test.ts",
     "mọi VALID_REPORTING_DEPTS đều hợp lệ qua validateOne('reporting_dept', v)",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/validate-fields.parity.test.ts",
+        "mọi VALID_REPORTING_DEPTS đều hợp lệ qua validateOne('reporting_dept', v)",
+      ),
+    ],
   ),
   row(
     "mcp/shared/tools/validate-fields.parity.test.ts",
     "mọi VALID_ERROR_CATEGORIES đều hợp lệ qua validateOne('error_category', v)",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/validate-fields.parity.test.ts",
+        "mọi VALID_ERROR_CATEGORIES đều hợp lệ qua validateOne('error_category', v)",
+      ),
+    ],
   ),
   // ── mcp/shared/tools/input-defaults.test.ts (2) ──
   row(
@@ -2729,14 +2764,19 @@ const ROWS: Row[] = [
   row(
     "mcp/shared/tools/issues.vocabulary.test.ts",
     "ví dụ mã suy từ projectKey, không hard-code TECH",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket): từ vựng và ví dụ mã theo projectKey đi vào CopyCatalog",
+    "ported",
+    [APP("domain/issues.vocabulary.test.ts", "ví dụ mã suy từ projectKey, không hard-code TECH")],
   ),
   row(
     "mcp/shared/tools/issues.vocabulary.test.ts",
     "Tiểu Linh giữ nguyên chữ cũ khi không truyền từ vựng",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket): từ vựng và ví dụ mã theo projectKey đi vào CopyCatalog",
+    "ported",
+    [
+      APP(
+        "domain/issues.vocabulary.test.ts",
+        "Tiểu Linh giữ nguyên chữ cũ khi không truyền từ vựng",
+      ),
+    ],
   ),
   row(
     "mcp/shared/tools/issues.vocabulary.test.ts",
@@ -2744,17 +2784,14 @@ const ROWS: Row[] = [
     "by-design",
     "xưng hô riêng của IRIS (bot PO); Tiểu Linh mới chỉ phục vụ nghiệp vụ của mình, từ vựng bot khác khai trong CopyCatalog của bot đó",
   ),
-  row(
-    "mcp/shared/tools/issues.vocabulary.test.ts",
-    "ví dụ mã suy từ projectKey",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket): từ vựng và ví dụ mã theo projectKey đi vào CopyCatalog",
-  ),
+  row("mcp/shared/tools/issues.vocabulary.test.ts", "ví dụ mã suy từ projectKey", "ported", [
+    APP("domain/issues.vocabulary.test.ts", "ví dụ mã suy từ projectKey"),
+  ]),
   row(
     "mcp/shared/tools/issues.vocabulary.test.ts",
     "mặc định vẫn là TECH cho Tiểu Linh",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket): từ vựng và ví dụ mã theo projectKey đi vào CopyCatalog",
+    "ported",
+    [APP("domain/issues.vocabulary.test.ts", "mặc định vẫn là TECH cho Tiểu Linh")],
   ),
   // ── mcp/tieulinh/priority.test.ts (7) ──
   row("mcp/tieulinh/priority.test.ts", "hạ mức khi chỉ một người và có cách làm tạm", "core", [
@@ -2786,8 +2823,8 @@ const ROWS: Row[] = [
   row(
     "mcp/tieulinh/priority.test.ts",
     "thiếu bằng chứng thì nói rõ thiếu gì, không đoán bừa",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket): luật ưu tiên của Tiểu Linh",
+    "ported",
+    [APP("domain/priority.test.ts", "thiếu bằng chứng thì nói rõ thiếu gì, không đoán bừa")],
   ),
   row(
     "mcp/tieulinh/priority.test.ts",
@@ -2804,15 +2841,12 @@ const ROWS: Row[] = [
   row(
     "mcp/tieulinh/completeness.test.ts",
     "thiếu reporting_dept thì chưa đủ và đính nút bộ phận",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [APP("domain/completeness.test.ts", "thiếu reporting_dept thì chưa đủ và đính nút bộ phận")],
   ),
-  row(
-    "mcp/tieulinh/completeness.test.ts",
-    "có đủ reporting_dept thì hoàn tất",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
-  ),
+  row("mcp/tieulinh/completeness.test.ts", "có đủ reporting_dept thì hoàn tất", "ported", [
+    APP("domain/completeness.test.ts", "có đủ reporting_dept thì hoàn tất"),
+  ]),
   row(
     "mcp/tieulinh/completeness.test.ts",
     "hỏi reporting_dept quá 2 lần mà vẫn trống thì dùng mặc định, không hỏi mãi",
@@ -2833,20 +2867,35 @@ const ROWS: Row[] = [
   row(
     "mcp/tieulinh/completeness.test.ts",
     "sự cố liên quan tài khoản/phụ huynh mà không có số điện thoại hay mã thì đòi thêm student_account",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/completeness.test.ts",
+        "sự cố liên quan tài khoản/phụ huynh mà không có số điện thoại hay mã thì đòi thêm student_account",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/completeness.test.ts",
     "có số điện thoại trong lời kể thì không đòi thêm student_account nữa",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/completeness.test.ts",
+        "có số điện thoại trong lời kể thì không đòi thêm student_account nữa",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/completeness.test.ts",
     "suy đúng product_key từ tên sản phẩm để chọn bộ trường nen_hoi phù hợp",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/completeness.test.ts",
+        "suy đúng product_key từ tên sản phẩm để chọn bộ trường nen_hoi phù hợp",
+      ),
+    ],
   ),
   // ── mcp/tieulinh/intake-step.test.ts (1) ──
   row(
@@ -2859,8 +2908,8 @@ const ROWS: Row[] = [
   row(
     "mcp/tieulinh/validate.test.ts",
     "mã người liên quan để chung chung, không gán là mã KH",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [APP("domain/validate.test.ts", "mã người liên quan để chung chung, không gán là mã KH")],
   ),
   row(
     "mcp/tieulinh/validate.test.ts",
@@ -2874,12 +2923,9 @@ const ROWS: Row[] = [
       "enum: chuẩn hoá đúng chính tả và hỗ trợ synonyms, unit prefix, NFC",
     ),
   ]),
-  row(
-    "mcp/tieulinh/validate.test.ts",
-    "enum sai thì trả kèm danh sách cho phép",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
-  ),
+  row("mcp/tieulinh/validate.test.ts", "enum sai thì trả kèm danh sách cho phép", "ported", [
+    APP("domain/validate.test.ts", "enum sai thì trả kèm danh sách cho phép"),
+  ]),
   row("mcp/tieulinh/validate.test.ts", "chặn giá trị rác", "core", [
     C("intake/gate/validate.test.ts", "semantic: chặn blacklist và yêu cầu whitelist pattern"),
   ]),
@@ -2893,105 +2939,146 @@ const ROWS: Row[] = [
   row(
     "mcp/tieulinh/domain.test.ts",
     "danh tính người báo đi vào mô tả, không phải do model bịa",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [APP("domain/domain.test.ts", "danh tính người báo đi vào mô tả, không phải do model bịa")],
   ),
   row(
     "mcp/tieulinh/domain.test.ts",
     "sự cố của một người mà chưa có định danh thì hỏi thêm",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [APP("domain/domain.test.ts", "sự cố của một người mà chưa có định danh thì hỏi thêm")],
   ),
-  row(
-    "mcp/tieulinh/domain.test.ts",
-    "sự cố toàn hệ thống thì không hỏi định danh",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
-  ),
+  row("mcp/tieulinh/domain.test.ts", "sự cố toàn hệ thống thì không hỏi định danh", "ported", [
+    APP("domain/domain.test.ts", "sự cố toàn hệ thống thì không hỏi định danh"),
+  ]),
   row(
     "mcp/tieulinh/domain.test.ts",
     "số điện thoại nằm trong câu chữ thì tự moi ra, khỏi hỏi lại",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [APP("domain/domain.test.ts", "số điện thoại nằm trong câu chữ thì tự moi ra, khỏi hỏi lại")],
   ),
   row(
     "mcp/tieulinh/domain.test.ts",
     "chuỗi giữ chỗ để tool thay sau khi tracker cấp mã",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [APP("domain/domain.test.ts", "chuỗi giữ chỗ để tool thay sau khi tracker cấp mã")],
   ),
   row(
     "mcp/tieulinh/domain.test.ts",
     'model điền "null" vào trường tuỳ chọn thì bỏ, không in ra cho người đọc',
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/domain.test.ts",
+        'model điền "null" vào trường tuỳ chọn thì bỏ, không in ra cho người đọc',
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain.test.ts",
     "SĐT lẫn trong diagnosis thì vớt về Thông tin sự cố, không để lại trong mô tả",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/domain.test.ts",
+        "SĐT lẫn trong diagnosis thì vớt về Thông tin sự cố, không để lại trong mô tả",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain.test.ts",
     "rawText nguyên văn thắng description do model viết lại (TECH-1084)",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/domain.test.ts",
+        "rawText nguyên văn thắng description do model viết lại (TECH-1084)",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain.test.ts",
     "diagnosis của model không lọt vào mô tả ticket, mà được trả ra để ghi comment (TECH-1084)",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/domain.test.ts",
+        "diagnosis của model không lọt vào mô tả ticket, mà được trả ra để ghi comment (TECH-1084)",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain.test.ts",
     "SĐT truyền vào customerId thì chuyển thành SĐT, không in ra Mã khách hàng",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/domain.test.ts",
+        "SĐT truyền vào customerId thì chuyển thành SĐT, không in ra Mã khách hàng",
+      ),
+    ],
   ),
-  row(
-    "mcp/tieulinh/domain.test.ts",
-    "moi số điện thoại, mỗi số một lần",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
-  ),
-  row(
-    "mcp/tieulinh/domain.test.ts",
-    "mã phòng không phải tài khoản",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
-  ),
+  row("mcp/tieulinh/domain.test.ts", "moi số điện thoại, mỗi số một lần", "ported", [
+    APP("domain/domain.test.ts", "moi số điện thoại, mỗi số một lần"),
+  ]),
+  row("mcp/tieulinh/domain.test.ts", "mã phòng không phải tài khoản", "ported", [
+    APP("domain/domain.test.ts", "mã phòng không phải tài khoản"),
+  ]),
   // ── mcp/tieulinh/rawtext-regression.test.ts (5) ──
   row(
     "mcp/tieulinh/rawtext-regression.test.ts",
     "SĐT người báo nói ở lượt trước không bị xoá vì tin vừa gửi không nhắc lại",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/rawtext-regression.test.ts",
+        "SĐT người báo nói ở lượt trước không bị xoá vì tin vừa gửi không nhắc lại",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/rawtext-regression.test.ts",
     "văn bản tra cứu lấy từ lời nguyên văn, không phải từ tóm tắt của model",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/rawtext-regression.test.ts",
+        "văn bản tra cứu lấy từ lời nguyên văn, không phải từ tóm tắt của model",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/rawtext-regression.test.ts",
     "khi không có rawText thì đối chiếu vẫn dùng description làm chuẩn",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/rawtext-regression.test.ts",
+        "khi không có rawText thì đối chiếu vẫn dùng description làm chuẩn",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/rawtext-regression.test.ts",
     "đoán hệ thống / phân loại lỗi đọc cả rawText, không chỉ description",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/rawtext-regression.test.ts",
+        "đoán hệ thống / phân loại lỗi đọc cả rawText, không chỉ description",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/rawtext-regression.test.ts",
     "moi SĐT từ tin nguyên văn khi tóm tắt của model không có số",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/rawtext-regression.test.ts",
+        "moi SĐT từ tin nguyên văn khi tóm tắt của model không có số",
+      ),
+    ],
   ),
   // ── mcp/tieulinh/create-issue-description.test.ts (7) ──
   row(
@@ -3019,20 +3106,35 @@ const ROWS: Row[] = [
   row(
     "mcp/tieulinh/create-issue-description.test.ts",
     "bản xem trước hiện đúng lời sẽ ghi vào mô tả (ADR-0008)",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/create-issue-description.test.ts",
+        "bản xem trước hiện đúng lời sẽ ghi vào mô tả (ADR-0008)",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/create-issue-description.test.ts",
     "khi model không đưa rawText, bản xem trước nói rõ đó là lời tóm tắt",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/create-issue-description.test.ts",
+        "khi model không đưa rawText, bản xem trước nói rõ đó là lời tóm tắt",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/create-issue-description.test.ts",
     "lời người gõ có Markdown không làm vỡ bản xem trước",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/create-issue-description.test.ts",
+        "lời người gõ có Markdown không làm vỡ bản xem trước",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/create-issue-description.test.ts",
@@ -3048,231 +3150,393 @@ const ROWS: Row[] = [
   row(
     "mcp/tieulinh/create-issue-description.test.ts",
     "không tạo comment rác khi không có diagnosis",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/create-issue-description.test.ts",
+        "không tạo comment rác khi không có diagnosis",
+      ),
+    ],
   ),
   // ── mcp/tieulinh/domain/ticket-formatter.test.ts (37) ──
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "removes the attachment marker the channel leaves behind",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "removes the attachment marker the channel leaves behind",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "removes the angle-bracket form too",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [APP("domain/ticket-formatter.test.ts", "removes the angle-bracket form too")],
   ),
-  row(
-    "mcp/tieulinh/domain/ticket-formatter.test.ts",
-    "survives a missing description",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
-  ),
+  row("mcp/tieulinh/domain/ticket-formatter.test.ts", "survives a missing description", "ported", [
+    APP("domain/ticket-formatter.test.ts", "survives a missing description"),
+  ]),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "reports the hour people in the office would recognise",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "reports the hour people in the office would recognise",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "rolls the date over when UTC evening is the next Vietnamese day",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "rolls the date over when UTC evening is the next Vietnamese day",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "turns a bulleted runbook answer into points",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [APP("domain/ticket-formatter.test.ts", "turns a bulleted runbook answer into points")],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "drops the headings a RAG answer wraps its points in",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [APP("domain/ticket-formatter.test.ts", "drops the headings a RAG answer wraps its points in")],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "keeps a substantial plain sentence but not a fragment",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "keeps a substantial plain sentence but not a fragment",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "caps the ticket at six points so the description stays readable",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "caps the ticket at six points so the description stays readable",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "falls back to the raw text rather than returning nothing",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "falls back to the raw text rather than returning nothing",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "gộp nguyên nhân đã biết + gợi ý runbook thành một comment của bot",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "gộp nguyên nhân đã biết + gợi ý runbook thành một comment của bot",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "giữ câu hỏi phân biệt khi sự cố mơ hồ (CONTEXT.md, ADR-0007)",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "giữ câu hỏi phân biệt khi sự cố mơ hồ (CONTEXT.md, ADR-0007)",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "trả null khi rỗng hoặc chỉ là câu 'không tìm thấy' — không tạo comment rác",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "trả null khi rỗng hoặc chỉ là câu 'không tìm thấy' — không tạo comment rác",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "never writes null or undefined into a field a human will read",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "never writes null or undefined into a field a human will read",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "does not repeat the username when the display name already carries it",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "does not repeat the username when the display name already carries it",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "shows the priority only when the bot overrode what the reporter asked for",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "shows the priority only when the bot overrode what the reporter asked for",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "never plainly restates category or priority — both already sit on the properties bar",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "never plainly restates category or priority — both already sit on the properties bar",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "never lets the bot's own reasoning reach the description (TECH-1084)",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "never lets the bot's own reasoning reach the description (TECH-1084)",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "mô tả là NGUYÊN VĂN lời kể, không phải bản LLM viết lại",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "mô tả là NGUYÊN VĂN lời kể, không phải bản LLM viết lại",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "carries a machine-readable copy of the metadata for later updates",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "carries a machine-readable copy of the metadata for later updates",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "does not duplicate similar tickets in description text",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "does not duplicate similar tickets in description text",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "model/extractor bịa SĐT không ai cho thì không ghi lên ticket — dùng lại SĐT thật moi từ lời kể",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "model/extractor bịa SĐT không ai cho thì không ghi lên ticket — dùng lại SĐT thật moi từ lời kể",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "không moi lại được số nào thật thì để trống, không để lại số bịa",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "không moi lại được số nào thật thì để trống, không để lại số bịa",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "mã khách hàng model bịa cũng bị bỏ (không phải SĐT nên không moi lại được)",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "mã khách hàng model bịa cũng bị bỏ (không phải SĐT nên không moi lại được)",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "SĐT người báo thật sự cho vẫn giữ nguyên — không chặn nhầm giá trị grounded",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "SĐT người báo thật sự cho vẫn giữ nguyên — không chặn nhầm giá trị grounded",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "so khớp bất kể người báo gõ SĐT có khoảng trắng hoặc dấu chấm",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "so khớp bất kể người báo gõ SĐT có khoảng trắng hoặc dấu chấm",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "formatConfirmationMessage (câu xác nhận sau khi tạo ticket) cũng được chặn giống hệt",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "formatConfirmationMessage (câu xác nhận sau khi tạo ticket) cũng được chặn giống hệt",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "keeps every update in one section rather than stacking headings",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "keeps every update in one section rather than stacking headings",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "lời kể đầy đủ sống sót qua mọi lần bổ sung ticket",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [APP("domain/ticket-formatter.test.ts", "lời kể đầy đủ sống sót qua mọi lần bổ sung ticket")],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "leaves the source footer at the bottom where it belongs",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "leaves the source footer at the bottom where it belongs",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "promotes a phone number from the note into the metadata block",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "promotes a phone number from the note into the metadata block",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "corrects the metadata in place instead of appending a second copy",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "corrects the metadata in place instead of appending a second copy",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "keeps the hidden metadata in step with the visible block",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "keeps the hidden metadata in step with the visible block",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "cleans up a null line an earlier version left in the description",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "cleans up a null line an earlier version left in the description",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "cleans up false customerId when note clarifies it is phone number",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "cleans up false customerId when note clarifies it is phone number",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "reads back what was recorded without the internal layout",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "reads back what was recorded without the internal layout",
+      ),
+    ],
   ),
   row(
     "mcp/tieulinh/domain/ticket-formatter.test.ts",
     "asks for what is still missing at the end, after the ticket exists",
-    "deferred",
-    "Chờ port ở PR 14 (dữ liệu domain, chữ và định dạng ticket)",
+    "ported",
+    [
+      APP(
+        "domain/ticket-formatter.test.ts",
+        "asks for what is still missing at the end, after the ticket exists",
+      ),
+    ],
   ),
   // ── lib/itsaplan/supplement-notifier.test.ts (19) ──
   row(
