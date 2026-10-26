@@ -6,6 +6,10 @@
  * Dấu "đã làm rồi" (đã chuyển comment, đã nhắc SLA) KHÔNG nằm đây mà ở `ctx.keys(...)` của bot kit
  * (bền trong kho của kit khi có `BOT_DATA_DIR`); `app_kv` chỉ còn giữ mốc `sla:since`.
  *
+ * Tuỳ chọn `TIEULINH_BINDING_DB` trỏ riêng hai bảng `ticket_bindings` và `message_routes` sang một file dạng legacy
+ * (file của Tiểu Linh 1, RFC 0002 mục 6.2) để TL1 hậu cần vẫn báo người báo cho ticket do lễ tân TL2 tạo. Chỉ hai bảng
+ * đó đi theo; trạng thái vòng đời, `app_kv` và mọi thứ khác vẫn ở `tieulinh-app.sqlite`. Mặc định (không đặt) không đổi.
+ *
  * File này tách khỏi kho của bộ kit (`<BOT_DATA_DIR>/<bot.id>.sqlite`: ledger run, cron, hẹn giờ) vì
  * binding và route là dữ liệu NGHIỆP VỤ mà lễ tân (sau này) cũng ghi vào.
  */
@@ -24,6 +28,7 @@ import {
   SqliteTicketStateStore,
   intakeApplySchema,
   notifyApplySchema,
+  openLegacyBindingDb,
   systemClock,
 } from "@vuihoc/bot-core/intake";
 import {
@@ -68,6 +73,11 @@ function appSchema(db: Database, opts: { wal: boolean }): void {
 
 export class TieulinhServices {
   readonly db: Database;
+  /**
+   * Kho của binding và tuyến tin: chính `db` (mặc định) hoặc file dạng legacy khi đặt `TIEULINH_BINDING_DB`.
+   * File legacy do TL1 sở hữu nên chỉ được đọc/ghi hai bảng đó, không bao giờ áp schema core lên đó.
+   */
+  readonly bindingDb: Database;
   readonly clock: Clock;
   readonly channel: ChannelPort;
   readonly bindingStore: SqliteChannelBindingStore;
@@ -85,10 +95,21 @@ export class TieulinhServices {
     this.clock = options.clock ?? systemClock;
     const dir = resolve(config.BOT_DATA_DIR);
     this.db = openPrivateDb(join(dir, APP_DB_FILE), appSchema);
-    this.bindingStore = new SqliteChannelBindingStore(this.db);
-    this.bindings = new SqliteNotifyBindingReader(this.db);
-    this.routes = new SqliteMessageRouteStore(this.db);
     assertTieulinhConfig(config);
+    try {
+      this.bindingDb = config.TIEULINH_BINDING_DB
+        ? openLegacyBindingDb(config.TIEULINH_BINDING_DB)
+        : this.db;
+    } catch (err) {
+      this.db.close(); // file binding sai dạng/không mở được: dừng to, không để lộ nửa chừng
+      throw err;
+    }
+    this.bindingStore = new SqliteChannelBindingStore(
+      this.bindingDb,
+      config.TIEULINH_BINDING_DB ? { schema: "legacy" } : undefined,
+    );
+    this.bindings = new SqliteNotifyBindingReader(this.bindingDb);
+    this.routes = new SqliteMessageRouteStore(this.bindingDb);
     this.transport =
       !options.channel && config.TELEGRAM_BOT_TOKEN
         ? new TelegramTransport({ botToken: config.TELEGRAM_BOT_TOKEN, ...options.telegram })
@@ -162,10 +183,12 @@ export class TieulinhServices {
   }
 
   close(): void {
-    try {
-      this.db.close();
-    } catch {
-      // đã đóng
+    for (const db of new Set([this.db, this.bindingDb])) {
+      try {
+        db.close();
+      } catch {
+        // đã đóng
+      }
     }
   }
 }

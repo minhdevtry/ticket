@@ -29,6 +29,11 @@ export const tieulinhEnv = defineEnv({
   TIEULINH_COMMENT_FORWARD: z.enum(["all", "mention"]).default("all"),
   TIEULINH_DUPLICATE_MERGE: z.stringbool().default(false),
   TIEULINH_SANDBOX_CHAT: z.string().min(1).optional(),
+  /**
+   * Đường dẫn file SQLite dạng legacy (của Tiểu Linh 1) để dùng chung binding và tuyến tin với TL1 trong lúc canary
+   * (RFC 0002 mục 6.2). Không đặt: binding nằm trong `tieulinh-app.sqlite` như mọi khi.
+   */
+  TIEULINH_BINDING_DB: z.string().min(1).optional(),
   TIEULINH_SLA_CRON: z.string().min(1).default("*/5 * * * *"),
 });
 

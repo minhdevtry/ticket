@@ -44,6 +44,7 @@ export default defineConfig({
             { text: "Viết catalog tiếp nhận", link: "/how-to/write-catalog" },
             { text: "Thêm kênh chat", link: "/how-to/add-channel" },
             { text: "Dựng worker báo ngược", link: "/how-to/notify-worker" },
+            { text: "Dùng chung binding với Tiểu Linh 1", link: "/how-to/share-bindings-with-tl1" },
             { text: "Chạy shadow", link: "/how-to/run-shadow" },
             { text: "Chạy bóng Tiểu Linh 2", link: "/how-to/shadow-tl2" },
             { text: "Deploy và đẩy secret qua SSH", link: "/how-to/deploy" },

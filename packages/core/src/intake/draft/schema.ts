@@ -13,6 +13,7 @@
  * the bot; they are not part of this engine.
  */
 import type { Database } from "bun:sqlite";
+import { assertNotLegacyFile } from "../create/binding-schema";
 
 export const INTAKE_SCHEMA = [
   // Revisioned draft aggregate. (doc_id, revision) is the atomic key: a
@@ -60,6 +61,8 @@ const BINDINGS_USER_INDEX = `CREATE INDEX IF NOT EXISTS idx_bindings_user ON tic
  * WAL only means something on disk, never for `:memory:`.
  */
 export function intakeApplySchema(db: Database, opts: { wal: boolean } = { wal: false }): void {
+  // Không bao giờ áp lên file của Tiểu Linh 1: ALTER bảng của TL1 và tờ khai hai hình dạng chung `intake_documents`.
+  assertNotLegacyFile(db, "intakeApplySchema");
   if (opts.wal) {
     db.run("PRAGMA journal_mode = WAL;");
     db.run("PRAGMA synchronous = NORMAL;");

@@ -210,3 +210,7 @@ Gửi lại tối đa `maxAttempts` lần với backoff, hết lượt thì đá
 Binding mang thêm `reporterUserId` (user id của kênh, Telegram là `from.id`), bền hơn username hay tên hiển thị vì không đổi được. Truyền khi lưu binding; có thể tra ticket theo người độc lập với chat bằng `getLatestBindingByUserId`. Cột này nullable và DB cũ được thêm cột tự động khi áp schema, không cần migration tay.
 
 Khi người dùng đổi tài khoản Telegram, `relinkIdentityAndBindings` (trong `@vuihoc/bot-core/identity`) đổi định danh sang id mới (có chặn chiếm danh) và chuyển các binding cũ sang id mới trong một thao tác, nên lịch sử ticket đi theo người.
+
+## Dùng chung file với Tiểu Linh 1
+
+`SqliteChannelBindingStore`, `SqliteNotifyBindingReader` và `SqliteMessageRouteStore` cũng đọc/ghi được file SQLite dạng legacy của Tiểu Linh 1 (có `channel_type` và `message_id` bắt buộc), nhưng file đó không được áp `intakeApplySchema` hay `notifyApplySchema`: xem [Dùng chung binding với Tiểu Linh 1](/how-to/share-bindings-with-tl1).
