@@ -113,6 +113,7 @@ interface PipelineResult {
     mediaAmbiguous?: boolean;
     pendingSplit?: unknown;
     pendingSplitQueue?: unknown[];
+    reporter?: { name?: string; username?: string; nameCode?: string };
     fields: PipelineDocFields;
   };
   voiceText: string;
@@ -124,7 +125,12 @@ interface PipelineResult {
 }
 
 interface PipelineTester {
-  run(input: { chatId: string; message: string; mediaPaths?: string[] }): Promise<PipelineResult>;
+  run(input: {
+    chatId: string;
+    message: string;
+    mediaPaths?: string[];
+    reporter?: { name?: string; username?: string; nameCode?: string };
+  }): Promise<PipelineResult>;
 }
 
 function buildPipeline(
@@ -162,7 +168,12 @@ function buildPipeline(
   });
 
   return {
-    async run(input: { chatId: string; message: string; mediaPaths?: string[] }) {
+    async run(input: {
+      chatId: string;
+      message: string;
+      mediaPaths?: string[];
+      reporter?: { name?: string; username?: string; nameCode?: string };
+    }) {
       const out = await engine.step(input);
       const activeDocId = out.docId ?? repo.getLatestByChatId(input.chatId)?.docId ?? "";
       const latestDraft =
@@ -180,6 +191,7 @@ function buildPipeline(
           mediaAmbiguous: latestDraft?.mediaAmbiguous,
           pendingSplit: latestDraft?.pendingSplit,
           pendingSplitQueue: latestDraft?.pendingSplitQueue,
+          reporter: latestDraft?.reporter,
           fields: {
             customerId: { value: latestDraft?.record?.values?.customerId },
             studentAccount: { value: latestDraft?.record?.values?.studentAccount },
@@ -751,5 +763,30 @@ lỗi tài khoản nè bạn ơi`;
     });
     expect(res.action).toBe("ask_split_or_merge");
     expect(res.voiceText).toContain("(sự cố, sự cố)");
+  });
+
+  it("định danh người báo KHÔNG rơi khi gác câu hỏi tách (khớp legacy pipeline.ts:737-741)", async () => {
+    // Legacy gộp `input.reporter` vào tờ khai ở ĐẦU `collect()` — tức là trước cả
+    // nhánh gác câu hỏi tách. Core gộp muộn (ở `mergeIntoDraft`) nên tờ khai đang
+    // gác mất người báo, và ticket sinh ra từ tờ khai đó không biết báo lại ai.
+    const res = await pipeline.run({
+      chatId: "chat-reporter-split",
+      message: MULTI_STUDENT_MSG,
+      reporter: { username: "anh_te", name: "Anh Tè" },
+    });
+    expect(res.action).toBe("ask_split_or_merge");
+    expect(res.document.reporter?.username).toBe("anh_te");
+    expect(res.document.reporter?.name).toBe("Anh Tè");
+
+    // Đầu-cuối: sau khi tách và tạo ticket, binding phải còn người báo.
+    await pipeline.run({ chatId: "chat-reporter-split", message: "Tách 2 ticket" });
+    clockRef.now += MIN_CONFIRM_DELAY_MS + 1000;
+    const created = await pipeline.run({ chatId: "chat-reporter-split", message: "đúng rồi" });
+    expect(created.action).toBe("ticket_created");
+    const rows = db.query("SELECT reporter_username FROM ticket_bindings").all() as Array<{
+      reporter_username: string | null;
+    }>;
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows[0]?.reporter_username).toBe("anh_te");
   });
 });

@@ -222,3 +222,42 @@ Chi tiết 6 việc đã hoàn thiện theo đặc tả `orchestration/specs/iss
    - Thêm assert rõ ràng cho `extraText` trong test D của `split-adversarial.test.ts:376`.
    - Sửa `docs/rfc/0002-receptionist.md` dòng 166 bỏ B7 và B3 khỏi danh sách `Chưa`; chuẩn hoá tham chiếu hàng B7 là mục 1.2 (thay vì 1.5).
    - Xoá bỏ hoàn toàn các `!` non-null assertion trong `create-ticket.ts` và `engine.ts`, bảo đảm `lint-baseline.ts --base=origin/main` đạt HEAD=0 lỗi mới.
+
+## 7. Sửa sau vòng review thứ hai (workflow soi sâu)
+
+Vòng soi bằng workflow độc lập phát hiện thêm 4 nhóm vấn đề về mất dữ liệu. Tất cả đã được tái hiện bằng probe trước khi kết luận — 1 là lỗi parity thật (đã sửa), 3 là hành vi legacy sẵn có (không sửa, ghi ở mục 8).
+
+### 7.1. Định danh người báo rơi mất khi gác câu hỏi tách — ĐÃ SỬA
+
+- *Hiện tượng*: `parkForSplitDecision()` chỉ set `pendingSplit` trên bản sao của `draft`, **không** copy `reporter` của lượt gửi tin. `reporter` chỉ được gộp trong `mergeIntoDraft()` — mà `mergeIntoDraft` chỉ chạy **sau** khi đã rời nhánh gác. Nên ở lượt gác, `reporter` chưa từng được ghi vào tờ khai.
+- *Hệ quả đầu-cuối*: `create-ticket.ts:228-229` ghi `reporterUserId`/`reporterUsername` từ `req.reporter`, mà `req.reporter` lấy từ `draft.reporter`. Probe đo được: binding của **cả 2 ticket** có `reporter_username: null`, trong khi legacy cho `"anh_te"`. Worker không tìm được người báo để báo khi ticket xong.
+- *Legacy làm gì*: `collect()` gộp `input.reporter` vào `doc` ở **ĐẦU hàm** (`pipeline.ts:737-741`), **trước** khi kiểm tra tách. Nhánh gác của legacy vì thế giữ được người báo.
+- *Đã sửa*:
+  - `engine.ts` (`collect`): gộp `reporter` ngay đầu hàm, trước mọi nhánh gác và trước nhánh huỷ — đúng vị trí legacy.
+  - Hàm thuần `mergeReporter()` bỏ field rỗng rồi tràn đè lên `reporter` đang có (không xoá `name` cũ khi lượt sau chỉ gửi `username`).
+  - `mergeIntoDraft()` dùng chung hàm này thay vì `input.reporter ?? base.reporter` (bản cũ **thay thế** trọn vẹn, xoá mất field của lượt trước).
+- *Test*: `pr9-split.test.ts` — "định danh người báo KHÔNG rơi khi gác câu hỏi tách (khớp legacy pipeline.ts:737-741)". Test khẳng định cả hai đầu-cuối: `draft.reporter` sau khi gác, và `ticket_bindings.reporter_username` sau khi tách và tạo ticket. Đã thử revert cả hai chỗ sửa để xác nhận test **đỏ** đúng lý do.
+
+### 7.2. Ba vấn đề mất chữ còn lại — GIỮ NGUYÊN PARITY, GHI Ở MỤC 8
+
+Đã tái hiện từng cái bằng probe trên **cả core lẫn legacy**:
+
+| Vấn đề | Core | Legacy | Kết luận |
+|---|---|---|---|
+| Chữ viết thêm trong câu trả lời quyết định ("Tách 2 ticket, HS C báo thêm lỗi đăng nhập") bị nuốt | mất | **mất** (đo trên `pipeline.ts` cùng input) | parity — không sửa |
+| Chữ ngoài các khối (phần mở đầu / phần cuối tin) bị rơi vĩnh viễn | mất | **mất** (probe `legacy_preamble.test.ts`: "preamble còn? false", "đuôi còn? false") | parity — không sửa |
+| Ảnh đi kèm lệnh huỷ ở câu hỏi tách bị mất | đã sửa ở Mục 4 (`mediaPaths.length === 0` + tách-trước-huỷ) | legacy giữ ảnh, không huỷ | đã xử lý |
+
+Cả ba đều là hành vi **có sẵn ở legacy**. Sửa ở core một mình sẽ tạo lệch parity — thứ mà RFC 0002 đặt làm chuẩn đối chiếu. Ghi ở mục 8 để chủ quyết.
+
+## 8. Còn dở (vòng 2) — cần chủ quyết, không tự sửa
+
+Các vấn đề sau là **mất nội dung theo tiêu chí B7 "không bao giờ rơi nội dung"**, nhưng đã kiểm chứng là hành vi có sẵn ở legacy. Không tự sửa trong PR này vì sẽ lệch bản tham chiếu. Đề xuất: mở PR riêng sửa **cả core lẫn legacy** cùng lúc, hoặc chấp nhận giữ parity và ghi vào tài liệu.
+
+1. **Chữ viết thêm trong câu trả lời quyết định bị nuốt** (`engine.ts` — `resolvePendingSplit`, nhánh `"split"`):
+   - Người báo gõ "Tách 2 ticket, HS C báo thêm lỗi đăng nhập" → phần "lỗi đăng nhập" không vào `rawText`, không vào `extraText`, không có trong DB.
+   - Legacy nuốt y hệt (đo trên `pipeline.ts` cùng input).
+2. **Chữ ngoài các khối bị rơi vĩnh viễn** (`split/split.ts` — các nhánh `continue` bỏ khối):
+   - Phần mở đầu ("Em gửi 2 sự cố sau ạ"), phần cuối ("Đề nghị kỹ thuật xem giúp cả hai em"), và khối không đủ điều kiện (chỉ có tên, không có `Code`/`Mã HS`) đều không vào bất kỳ ticket nào.
+   - Legacy mất y hệt.
+3. **Chữ lặp khi dán lại toàn bộ báo cáo nhiều khối** (mục 5.1, đã nêu từ vòng trước) — vẫn còn, không tự sửa.

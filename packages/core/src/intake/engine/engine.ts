@@ -264,7 +264,13 @@ export class IntakeEngine {
     options?: { skipConflictCheck?: boolean; preExtracted?: ExtractedFields },
   ): Promise<StepOutput> {
     const { deps } = this;
-    const open = existing && !CLOSED_STATUSES.has(existing.status) ? existing : null;
+    let open = existing && !CLOSED_STATUSES.has(existing.status) ? existing : null;
+    // Legacy parity: gộp định danh người báo vào tờ khai NGAY ĐẦU collect()
+    // (pipeline.ts:737-741) — tức là TRƯỚC mọi nhánh gác (park tách, park sự cố
+    // mới) và trước nhánh huỷ. Không thì tờ khai đang gác mất người báo, và
+    // ticket sinh ra từ tờ khai đó không biết báo lại cho ai.
+    const reporter = mergeReporter(open?.reporter, input.reporter);
+    if (open && reporter !== open.reporter) open = { ...open, reporter };
     // "không biết" / "không có" — người báo nói rõ là không trả lời được câu
     // vừa hỏi (A13). Luật tất định, không nhờ LLM.
     const declined = isDeclineAnswer(text);
@@ -286,8 +292,9 @@ export class IntakeEngine {
         fallbackTitle: deps.copy.text("ticket.fallback_title"),
       });
       if (splitBlocks && splitBlocks.length >= 2) {
+        const base = open ?? this.openFresh(input.chatId, nowIso);
         return this.parkForSplitDecision(
-          open ?? this.openFresh(input.chatId, nowIso),
+          base.reporter ? base : { ...base, reporter },
           splitBlocks,
           mediaPaths,
           nowIso,
@@ -2237,7 +2244,7 @@ export class IntakeEngine {
       ...base,
       status: "collecting",
       ticket,
-      reporter: input.reporter ?? base.reporter,
+      reporter: mergeReporter(base.reporter, input.reporter),
       record: {
         ...record,
         variant: this.resolveVariant(base, { ...record, values }),
@@ -2385,6 +2392,22 @@ export class IntakeEngine {
 function hasIdentifier(e: ExtractedFields): boolean {
   const ids = e.identifiers ?? {};
   return IDENTIFIER_KEYS.some((k) => (ids[k] ?? "").trim() !== "");
+}
+
+/**
+ * Gộp định danh người báo vào tờ khai (legacy parity: `pipeline.ts:737-741`).
+ *
+ * Legacy bỏ mọi field rỗng rồi TRÀN đè lên `doc.reporter` đang có — nên
+ * `username` của lượt này không xoá `name` của lượt trước.
+ */
+function mergeReporter(
+  base: IntakeDraft["reporter"],
+  incoming: StepInput["reporter"],
+): IntakeDraft["reporter"] {
+  if (!incoming) return base;
+  const fields = Object.entries(incoming).filter(([, v]) => v !== undefined && v !== "");
+  if (fields.length === 0) return base;
+  return { ...base, ...Object.fromEntries(fields) };
 }
 
 function cap(text: string | undefined, max: number): string {

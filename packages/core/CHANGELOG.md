@@ -39,6 +39,8 @@ All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded
     - 10 ca kiểm chứng đối kháng từ `lib/intake-step/split-adversarial.test.ts` (trạng thái chuẩn A, phủ định/huỷ/gộp B, trả lời không rõ C, dán lại D, báo cáo mới thứ 3 E, các dạng không tách F, gói tin P3 G, tin chỉ có ảnh/noop H, TTL quá hạn I, nhãn trần không làm tiêu đề J; port sang `packages/core/src/intake/engine/split-adversarial.test.ts`).
   - Cập nhật sổ đối chiếu (`apps/tieulinh/receptionist-gap-register.test.ts`) và bảng parity `ENGINE.md`: 22 dòng `deferred` chuyển sang `ported` (tổng `ported` tăng từ 87 lên 109; `deferred` giảm từ 291 xuống 269; PR 9 còn 0 dòng).
   - Cập nhật dòng B7 bảng khoảng trống RFC 0002 mục 1.2 (`docs/rfc/0002-receptionist.md`).
+  - Sửa sau vòng review:
+    - Định danh người báo (`reporter`) gộp vào tờ khai ngay đầu `collect()` (khớp legacy `pipeline.ts:737-741`), **trước** các nhánh gác. Trước đây chỉ gộp trong `mergeIntoDraft()` — chạy sau khi đã rời nhánh gác — nên tờ khai đang gác mất người báo, và binding của ticket sinh ra từ tờ khai đó có `reporter_username` rỗng. `mergeIntoDraft` nay dùng chung hàm thuần `mergeReporter()` (bỏ field rỗng rồi tràn đè, không xoá field của lượt trước) thay vì thay thế trọn vẹn.
 
 - **Gác tờ khai khi có sự cố mới** (RFC 0002 PR 8, issue #22). Additive; hoàn thiện các kịch bản gác B5, B6, A12:
   - `@vuihoc/bot-core/intake`:
