@@ -340,6 +340,9 @@ describe.each(APIS)("createLlm (%s)", (api) => {
       api,
       retryBaseDelayMs: 10_000,
       retryMaxDelayMs: 10_000,
+      // Jitter tất định: backoff luôn dài (10 giây) để lần huỷ 50 ms luôn thắng.
+      // Không nạp thì jitter có thể rơi gần 0 và lần thử lại chạy trước lúc huỷ.
+      random: () => 1,
     });
     const started = Date.now();
     const pending = llm.complete({ ...ask, signal: controller.signal }).catch((e) => e);
