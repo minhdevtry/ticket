@@ -28,12 +28,24 @@ gh pr view <số> --json mergeable,mergeStateStatus,statusCheckRollup
 ## 3. Merge
 
 ```bash
+gh pr merge <số> --squash --subject "..." --body "..."
+```
+
+Repo bật required status checks ở chế độ strict, nên lệnh merge có thể bị từ chối dù PR
+đã `CLEAN` và 4/4 job xanh. Khi đó chạy lại với `--auto`:
+
+```bash
 gh pr merge <số> --squash --auto --subject "..." --body "..."
 ```
 
-**Luôn kèm `--auto`.** Repo bật required status checks ở chế độ strict, nên lệnh merge
-không kèm `--auto` có thể bị từ chối dù PR đã `CLEAN` và 4/4 job xanh. Với `--auto`, GitHub
-tự merge khi mọi điều kiện đã đạt; lệnh trả về ngay thay vì chặn.
+**Nhưng repo này đang TẮT auto-merge** (`enablePullRequestAutoMerge` false), nên `--auto`
+trả lỗi `Auto merge is not allowed for this repository`. Khi gặp lỗi đó:
+
+1. Kiểm tra PR đã đủ điều kiện chưa: `gh pr view <số> --json mergeable,mergeStateStatus,statusCheckRollup`.
+2. Nếu `mergeable=MERGEABLE` và `mergeStateStatus=CLEAN` và mọi job xanh: merge bằng
+   lệnh KHÔNG kèm `--auto` (như lệnh ở trên) là được.
+3. Nếu chưa đủ: thường là nhánh chưa có `main` mới nhất. Merge nền vào nhánh mình, push
+   lại, đợi CI xanh rồi merge.
 
 - `--squash`: repo chỉ nhận squash merge, nên đây là cách duy nhất.
 - `--subject` / `--body`: nội dung commit merge. Ghi lý do thay đổi, không ghi "wip".
