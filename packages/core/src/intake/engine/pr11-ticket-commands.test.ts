@@ -878,6 +878,15 @@ describe("PR 11 — Lệnh nhắm vào ticket đã có", () => {
 
   it("checkIssueClosed fallback: tracker chỉ có getIssue + listProjectColumns (cột Done) → trả về closed_refusal", async () => {
     const customTracker: TrackerPort = {
+      async createIssue() {
+        throw new Error("not used");
+      },
+      async addComment() {
+        throw new Error("not used");
+      },
+      async attach() {
+        throw new Error("not used");
+      },
       async getIssue(id: number) {
         return {
           id,
@@ -903,7 +912,7 @@ describe("PR 11 — Lệnh nhắm vào ticket đã có", () => {
             description: `## Thông tin sự cố\n\n- Người báo: A - telegram:${CHAT}\n\n### Mô tả\n\nLỗi cũ`,
           };
         }
-        return undefined;
+        return null;
       },
     };
 
@@ -940,7 +949,7 @@ describe("PR 11 — Lệnh nhắm vào ticket đã có", () => {
     );
     await interpCustom.interpret({
       message: "check TECHTEST-795",
-      candidates: [{ identifier: "TECHTEST-795", ownTicket: true, mentioned: true }],
+      candidates: [{ identifier: "TECHTEST-795", issueId: 795, ownTicket: true, mentioned: true }],
       attachments: 0,
     });
     expect(capturedPrompt).toBe("Custom system prompt for ticket commands");
