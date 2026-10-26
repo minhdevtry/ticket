@@ -1,0 +1,93 @@
+{
+  "_comment": "Priority rules defining floors and ceilings based on structured evidence. Tool assess_priority reads this table.",
+  "_nguoi_bao_xin_gap": "User chốt 29/09: người báo XIN gấp/khẩn cấp KÈM LÝ DO thì đặt đúng mức xin (không hạ mức bằng chứng cao hơn), lý do ghi vào ticket; xin mà không có lý do thì hỏi một lần, vẫn không có thì giữ mức theo bảng này. Xem lib/intake-step/pipeline.ts (requestedPriority).",
+  "levels": ["Low", "Medium", "High", "Urgent"],
+
+  "evidence": {
+    "scope": {
+      "type": "enum",
+      "values": ["single_user", "group", "entire_system"],
+      "question": "Lỗi này đang ảnh hưởng một người, một nhóm, hay cả hệ thống?"
+    },
+    "blocksPayment": {
+      "type": "bool",
+      "question": "Có ai đang KHÔNG hoàn tất được một giao dịch ngay lúc này không? (bấm thanh toán ra lỗi, không lên được đơn)"
+    },
+    "reconciliationMismatch": {
+      "type": "bool",
+      "question": "Tiền đã chạy rồi nhưng số liệu sai? (doanh thu không khớp, đơn huỷ không trừ doanh thu)"
+    },
+    "blocksLearning": {
+      "type": "bool",
+      "question": "Có học sinh không vào học được, không có khoá Active, hay chưa được xếp lớp không?"
+    },
+    "dataLoss": {
+      "type": "bool",
+      "question": "Có dữ liệu đã mất hoặc sai lệch không khôi phục được không?"
+    },
+    "hasWorkaround": {
+      "type": "bool",
+      "question": "Có cách làm tạm để đi tiếp không? (tạo tay, đợi đồng bộ, thao tác vòng)"
+    },
+    "singleDeviceOnly": {
+      "type": "bool",
+      "question": "Thử trên máy khác hoặc mạng khác thì hết lỗi phải không?"
+    }
+  },
+
+  "floors": [
+    {
+      "when": { "blocksPayment": true },
+      "minLevel": "Urgent",
+      "reason": "Dòng tiền đang bị chặn ngay lúc này. Trong mẫu: lỗi 404 khi phụ huynh bấm thanh toán."
+    },
+    {
+      "when": { "blocksLearning": true, "scope": "entire_system" },
+      "minLevel": "Urgent",
+      "reason": "Học sinh toàn hệ thống không vào học được."
+    },
+    {
+      "when": { "blocksLearning": true, "scope": "group" },
+      "minLevel": "Urgent",
+      "reason": "Nhiều học sinh / cả lớp không vào học được."
+    },
+    {
+      "when": { "blocksLearning": true, "scope": "single_user" },
+      "minLevel": "High",
+      "reason": "Học sinh đơn lẻ gặp gián đoạn học tập / chưa xếp lớp — cần ưu tiên xử lý trong ngày (High), không phát còi báo động khẩn cấp (Urgent)."
+    },
+    {
+      "when": { "blocksLearning": true },
+      "minLevel": "High",
+      "reason": "Học sinh gặp gián đoạn học tập."
+    },
+    {
+      "when": { "dataLoss": true },
+      "minLevel": "Urgent",
+      "reason": "Mất dữ liệu không lùi lại được, khác hẳn mọi lỗi chờ được."
+    },
+    {
+      "when": { "scope": "entire_system" },
+      "minLevel": "Urgent",
+      "reason": "Cả hệ thống thì không còn là việc của một người."
+    },
+    {
+      "when": { "reconciliationMismatch": true },
+      "minLevel": "High",
+      "reason": "Tiền đã chạy, sổ sách sai — phải xử trong ngày nhưng không chặn ai ngay lúc này. Trong mẫu, nhóm này bị người dùng đánh giá THẤP hơn thực tế: 6/10 ticket Medium đáng lẽ High."
+    }
+  ],
+
+  "ceilings": [
+    {
+      "when": { "singleDeviceOnly": true, "hasWorkaround": true },
+      "maxLevel": "Low",
+      "reason": "Máy khác chạy được và có cách đi vòng thì đây là chuyện của một thiết bị."
+    },
+    {
+      "when": { "scope": "single_user", "hasWorkaround": true },
+      "maxLevel": "High",
+      "reason": "Nhóm sai lớn nhất trong mẫu: 19/30 ticket người dùng chọn Urgent rơi vào đây, chấm lại chỉ đáng High."
+    }
+  ]
+}

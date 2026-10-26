@@ -3,6 +3,11 @@
 All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded here.
 
 ## Unreleased
+- **Hàm generic chuyển đổi luật sang catalog** (RFC 0002 PR 14, issue #28). Additive:
+  - `@vuihoc/bot-core/intake`:
+    - `catalogFromValidationRules`: hàm generic trong `packages/core/src/intake/gate/from-validation-rules.ts` nhận `ValidationRules` và `FieldRequirementsTable`, trả về `FieldCatalog` chuẩn theo `gate/types.ts`.
+    - Không hardcode dữ liệu của app trong core; nhãn, prompt, từ đồng nghĩa, giá trị mặc định khi hết ngân sách nhận qua `CatalogFromValidationRulesOptions`.
+
 - **Soát thông tin trước khi tạo ticket** (RFC 0002 PR 13, issue #27). Additive; hoàn thiện cơ chế soát thông tin (F1-F4):
   - `@vuihoc/bot-core/intake`:
     - `F1`: Soát bằng LLM `LlmTechReviewer` (`packages/core/src/intake/review/llm-review.ts`): nhận `LlmConfig`, `guide`, `CompleteFn`, và timeout; gửi prompt kỹ thuật viên soát lời báo, trần 3 dữ kiện quan trọng nhất; lỗi/quá hạn ném ra được `safeReview` bắt để không chặn tạo ticket.

@@ -250,11 +250,15 @@ describe("Alerter — 14/09 silent-failure incident", () => {
   });
 
   test("buttonDropAlert routes a drop reason into the Alerter", async () => {
-    const { transport, calls } = transportAgainst(() => ok());
+    const { promise, resolve } = Promise.withResolvers<void>();
+    const { transport, calls } = transportAgainst(() => {
+      resolve();
+      return ok();
+    });
     const alerter = new Alerter({ transport, adminChatIds: ["1"], now: () => 0 });
     const sink = buttonDropAlert(alerter);
     sink("Đã loại 1 nút");
-    await Bun.sleep(5); // let the fire-and-forget send settle
+    await promise;
     expect(calls.filter((c) => c.method === "sendMessage")).toHaveLength(1);
   });
 });

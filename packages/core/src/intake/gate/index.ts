@@ -6,3 +6,4 @@ export * from "./recap";
 export * from "./schema";
 export * from "./buttons";
 export * from "./validate";
+export * from "./from-validation-rules";

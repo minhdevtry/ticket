@@ -1,0 +1,67 @@
+{
+  "_comment": "Trường theo product_key, chia HAI mức. `bat_buoc` = cột NOT NULL của db/schema.sql, thiếu là CSDL từ chối. `nen_hoi` = hỏi một lượt cho đủ hồ sơ, NHƯNG không có thì vẫn tạo ticket.",
+  "_sua_2026_08_10": "Trước đây chỉ có một danh sách phẳng và tất cả đều chặn. Đo được trên Telegram thật: `tutor` đòi `screenshot_url`, người báo nói học sinh không gửi ảnh, bot từ chối bốn lượt liên tiếp cho tới khi họ chụp bừa một tấm cho xong. Ticket có ảnh rác, và chính bot ghi trong chẩn đoán 'ảnh không phản ánh đúng sự cố'. Luật chặn đó không lấy được thông tin, nó chỉ dạy người ta gửi ảnh rác. Người dùng chốt: cứ hỏi, nhưng không có thì thôi.",
+  "_giu_ten_cu": "`os` đã đổi thành `device_os` từ 2026-08-01 cho khớp validation_patterns.json, redaction_patterns.json và cột CSDL.",
+  "vuihoc-mobile-app": {
+    "bat_buoc": [
+      "product",
+      "system",
+      "short_description",
+      "urgency",
+      "reporting_dept"
+    ],
+    "nen_hoi": [
+      "device_os",
+      "app_version"
+    ]
+  },
+  "vuihoc-web": {
+    "bat_buoc": [
+      "product",
+      "system",
+      "short_description",
+      "urgency",
+      "reporting_dept"
+    ],
+    "nen_hoi": [
+      "browser"
+    ]
+  },
+  "vuihoc-payment": {
+    "bat_buoc": [
+      "product",
+      "system",
+      "short_description",
+      "urgency",
+      "reporting_dept"
+    ],
+    "nen_hoi": [
+      "transaction_id"
+    ]
+  },
+  "tutor": {
+    "bat_buoc": [
+      "product",
+      "system",
+      "short_description",
+      "urgency",
+      "reporting_dept"
+    ],
+    "nen_hoi": [
+      "device_type",
+      "student_account",
+      "assignment_id",
+      "screenshot_url"
+    ]
+  },
+  "default": {
+    "bat_buoc": [
+      "product",
+      "system",
+      "short_description",
+      "urgency",
+      "reporting_dept"
+    ],
+    "nen_hoi": []
+  }
+}
