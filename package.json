@@ -19,7 +19,7 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "scan": "bun run scripts/scan-public.ts",
-    "test:scripts": "bun test scripts/docs-tools.test.ts scripts/scan-public.test.ts scripts/lint-baseline.test.ts",
+    "test:scripts": "bun test scripts/docs-tools.test.ts scripts/scan-public.test.ts scripts/lint-baseline.test.ts scripts/scan-transcript.test.ts",
     "docs:gen": "bun run scripts/gen-docs.ts",
     "docs:dev": "bun run docs:gen && bun run --cwd docs dev",
     "docs:build": "bun run docs:gen && bun run --cwd docs build",
@@ -27,7 +27,9 @@
     "docs:refs": "bun run scripts/check-docs-refs.ts",
     "docs:check": "bun run docs:build && bun run docs:snippets && bun run docs:refs",
     "verify": "bun run lint && bun run lint:baseline && bun run check && bun run test && bun run test:scripts && bun run scan && bun run docs:snippets && bun run docs:refs",
-    "lint:baseline": "bun run scripts/lint-baseline.ts"
+    "lint:baseline": "bun run scripts/lint-baseline.ts",
+    "setup:hooks": "git config core.hooksPath .githooks && echo \"Đã cài hook: .githooks/pre-commit\"",
+    "scan:transcript": "bun run scripts/scan-transcript.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
