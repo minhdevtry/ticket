@@ -4,7 +4,7 @@
 
 Repo: `minhdevtry/ticket`. Đây là PR 12 của chuỗi di trú lễ tân (`docs/rfc/0002-receptionist.md` mục 5), issue #26.
 
-PR 1-10 đã merge vào `main`; PR 9 còn một vòng sửa review (PR #57, issue #59). PR 11 (issue #25, lệnh nhắm vào ticket đã có) đang được làm song song.
+PR 1-10 đã merge vào `main`; PR 9 còn một vòng sửa review (PR #57, issue #59). PR 11 (issue #25, lệnh nhắm vào ticket đã có) đã merge vào `main` (`7723dec`).
 
 Mục tiêu của PR 12 là port **D8** — cơ chế người báo yêu cầu **huỷ** (Canceled) hoặc **đóng** (Done) ticket của chính mình, theo ADR-0006 bản 10/10.
 
@@ -100,10 +100,18 @@ Số bình luận chuyên viên: `n` (ngưỡng đóng = 3).
 - Không đụng `.github/workflows/**`, `scripts/**`, `biome.lint-baseline.json`, `bun.lock`.
 - Không tự tạo/sửa/đóng issue. Không commit, không push (coordinator làm).
 
-## Cần chủ quyết (ghi vào báo cáo, không tự quyết)
+## Chốt kỹ thuật (sau khi PR 11 merge)
 
-- **Chuyển cột Canceled/Done cần cổng cập nhật cột nào?** Legacy tra cột theo `classifyColumn(c)` trong
-  `listProjectColumns(projectKey)`. Core cần cùng cách — nhưng nếu ứng dụng khác dùng tên cột khác
-  thì phải qua cấu hình, không hardcode.
-- **Ngưỡng 3 bình luận chuyên viên** có để cấu hình được không (legacy có `minSpecialistCommentsForDone`)?
-  Nếu có thì đưa vào `IntakeEngineDeps` với mặc định 3.
+- **Tái dùng, không chép lại:** PR 11 đã port `classifyCancelOrCloseIntent` /
+  `isCancelOrCloseTicketRequest` trong `packages/core/src/intake/engine/text.ts`. D8 dùng lại các hàm
+  này; chỉ bổ sung phần đếm bình luận chuyên viên và luồng quyết định Canceled/Done.
+- **Chuyển cột:** dùng `TrackerPort.listProjectColumns(projectKey)` + `classifyColumn` để tìm cột
+  `canceled` / `done`; không hardcode `columnId` 4/5. Nếu thiếu cột thì từ chối an toàn, không đoán.
+- **Ngưỡng:** đưa `minSpecialistCommentsForDone` vào `IntakeEngineDeps` (mặc định 3), không hardcode
+  trong logic.
+- **Sổ đối chiếu:** có đúng **12 dòng** `Chờ port ở PR 12` (7 flow + 5 router). TECH-1218 đã port ở
+  PR 11 — không port lại.
+- **Copy:** mọi câu gửi người báo và nhãn nút qua `CopyCatalog`; core không hardcode tiếng Việt.
+  Regex phân loại ý định là luật tất định, được phép ở core.
+- **Kiểm lại lúc thực thi:** bấm nút xác nhận phải đọc lại trạng thái + đếm lại bình luận chuyên viên;
+  ticket đổi giữa lúc đề xuất và lúc bấm thì áp bảng quyết định mới, không dùng kết quả cũ.
