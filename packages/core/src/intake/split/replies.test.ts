@@ -90,4 +90,22 @@ describe("classifySplitReply — phân loại phản hồi tách/gộp (W29-SPLI
       expect(classifySplitReply(reply)).toBe("unknown");
     }
   });
+  it("nhận diện nhãn nút tùy chỉnh qua options (kể cả tiếng Anh) bất kể ngôn ngữ copy", () => {
+    const englishOpts = {
+      splitLabel: "Split 2 tickets",
+      mergeLabel: "Keep 1 ticket",
+    };
+    expect(classifySplitReply("Split 2 tickets", englishOpts)).toBe("split");
+    expect(classifySplitReply("split 2 tickets", englishOpts)).toBe("split");
+    expect(classifySplitReply("Keep 1 ticket", englishOpts)).toBe("merge");
+    expect(classifySplitReply("keep 1 ticket", englishOpts)).toBe("merge");
+
+    // Nhãn nút không khớp thì fallback đường gõ tay tiếng Việt
+    expect(classifySplitReply("tách", englishOpts)).toBe("split");
+    expect(classifySplitReply("không tách", englishOpts)).toBe("merge");
+    expect(classifySplitReply("thôi", englishOpts)).toBe("merge");
+    expect(classifySplitReply("khỏi", englishOpts)).toBe("merge");
+    expect(classifySplitReply("đúng rồi", englishOpts)).toBe("split");
+    expect(classifySplitReply("sao cũng được em", englishOpts)).toBe("unknown");
+  });
 });

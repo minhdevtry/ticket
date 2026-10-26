@@ -163,7 +163,7 @@ Tình trạng "core" dựa trên đọc `engine.ts`, `ports.ts` và danh sách t
 | K5 | Lệnh và tin tĩnh: `/start` chào, `/help` hướng dẫn, `/reset` làm mới phiên; quy tắc persona (một lượt một tin, không nghĩ thành tiếng, không `NO_REPLY`, thuần Việt) | `apps/tieulinh-legacy/skills/tieulinh/messages`, `apps/tieulinh-legacy/skills/tieulinh/AGENTS.md` | Chưa | Persona và tin tĩnh là gói skill (`skills/`) do adapter đồng bộ vào workspace; khai báo thành dữ liệu của pack | S | 16 | |
 | K6 | Chữ gửi người báo: khoảng 70 dòng chuỗi trong `pipeline.ts`, cộng `supplement-notifier.ts`, 14 dòng hỏi của `checklist-review.ts` (`ask-learning/items.ts`), hàng chục mục mẫu trong `domain/` | nhiều nơi | Một phần: `CopyKey` có 25 khoá (`ports.ts`), chữ mẫu ở `packages/core/examples/tieulinh/copy.ts` | Mở rộng `CopyKey` hoặc nhóm chữ có tham số; **kiểm bằng bản ghi vàng** (mục 5) | L | 14 | |
 
-Tổng kết khoảng trống: các mục nặng nhất (cỡ `L` hoặc `M` mà core còn `Chưa`) là tách báo cáo B7, huỷ/đóng D8, chốt tiêu đề B3, soát danh sách F2/F3, trích xuất E1-E5, chữ K6 và KG I2; còn lại chủ yếu là bổ sung nhánh vào engine. Hầu hết nhánh của `pipeline.ts` bám vào **một sự cố có mã**, nên mỗi PR port đúng các test mang mã đó (mục 5).
+Tổng kết khoảng trống: các mục nặng nhất (cỡ `L` hoặc `M` mà core còn `Chưa`) là huỷ/đóng D8, soát danh sách F2/F3, trích xuất E1-E5, chữ K6 và KG I2; còn lại chủ yếu là bổ sung nhánh vào engine. Hầu hết nhánh của `pipeline.ts` bám vào **một sự cố có mã**, nên mỗi PR port đúng các test mang mã đó (mục 5).
 
 ## 2. Kiến trúc đích
 
