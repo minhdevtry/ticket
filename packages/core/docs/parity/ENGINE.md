@@ -55,7 +55,7 @@ nó; hãy chép lại cả mục này). Nó mở rộng bức tranh ra toàn b�
 legacy bị đổi tên, xoá hoặc thêm mà sổ không đổi theo, khi một dòng `core`/`ported` trỏ tới test
 không còn tồn tại, hoặc khi các con số dưới đây lệch khỏi sổ.
 
-<!-- gap-register: total=450 core=61 ported=232 deferred=146 by-design=11 -->
+<!-- gap-register: total=450 core=61 ported=241 deferred=137 by-design=11 -->
 
 | Trạng thái | Số test legacy | Nghĩa |
 |---|---|---|
