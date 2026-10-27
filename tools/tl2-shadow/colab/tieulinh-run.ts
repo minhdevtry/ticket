@@ -23,6 +23,8 @@ import { join, resolve } from "node:path";
 /** Giá trị giả điền vào biến bắt buộc của bot; proxy trên dev gỡ nó và gắn khoá thật. */
 export const PROXY_INJECTS_KEY = "proxy-injects-the-real-key";
 
+export type BotRole = "all" | "backoffice" | "receptionist";
+
 export interface RunOpts {
   home: string;
   model: string;
@@ -40,6 +42,9 @@ export interface RunOpts {
    * không có gì để ghi. Rỗng thì không đặt.
    */
   sandboxChat: string;
+  role?: BotRole;
+  receptionistHome?: string;
+  receptionistPort?: number;
 }
 
 /** Env của app: tuyệt đối không có secret thật và không có token Telegram. */
@@ -79,7 +84,7 @@ export function readPid(pidFile: string): number | null {
   }
 }
 
-async function health(port: number): Promise<{ ok: boolean; body: any }> {
+async function health(port: number): Promise<{ ok: boolean; body: unknown }> {
   try {
     const r = await fetch(`http://127.0.0.1:${port}/healthz`, {
       signal: AbortSignal.timeout(3000),
@@ -90,7 +95,19 @@ async function health(port: number): Promise<{ ok: boolean; body: any }> {
   }
 }
 
-async function stopApp(pidFile: string): Promise<boolean> {
+export async function healthyGateway(port: number, token: string): Promise<boolean> {
+  try {
+    const r = await fetch(`http://127.0.0.1:${port}/v1/models`, {
+      headers: { authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(3000),
+    });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function stopProcess(pidFile: string): Promise<boolean> {
   const pid = readPid(pidFile);
   if (!pid) return false;
   process.kill(pid, "SIGTERM");
@@ -106,7 +123,11 @@ async function stopApp(pidFile: string): Promise<boolean> {
   return true;
 }
 
-function opts(args: string[]): RunOpts {
+function opts(args: string[]): Required<RunOpts> {
+  const rawRole = argValue(args, "--role", "backoffice");
+  if (!["all", "backoffice", "receptionist"].includes(rawRole)) {
+    throw new Error(`--role không hợp lệ: ${rawRole} (chỉ nhận: all, backoffice, receptionist)`);
+  }
   return {
     home: resolve(argValue(args, "--home", join(process.env.HOME ?? "/root", "tl2", "tieulinh"))),
     model: argValue(args, "--model", "MiniMax-M3.1-Flash"),
@@ -118,6 +139,11 @@ function opts(args: string[]): RunOpts {
     agent: argValue(args, "--agent", "tieulinh2"),
     team: argValue(args, "--team", "tech"),
     sandboxChat: argValue(args, "--sandbox-chat", "-1000000000001"),
+    role: rawRole as BotRole,
+    receptionistHome: resolve(
+      argValue(args, "--receptionist-home", join(process.env.HOME ?? "/root", "tl2", "home")),
+    ),
+    receptionistPort: Number(argValue(args, "--receptionist-port", "18796")),
   };
 }
 
@@ -128,21 +154,61 @@ async function main() {
   chmodSync(o.home, 0o700);
   const pidFile = join(o.home, "tieulinh.pid");
 
+  const receptionistPidFile = join(o.receptionistHome, "gateway.pid");
+
   if (args[0] === "stop") {
-    console.log((await stopApp(pidFile)) ? "tieulinh: đã dừng" : "tieulinh: không chạy");
+    if (o.role === "backoffice" || o.role === "all") {
+      const bStopped = await stopProcess(pidFile);
+      console.log(
+        bStopped ? "tieulinh (backoffice): đã dừng" : "tieulinh (backoffice): không chạy",
+      );
+    }
+    if (o.role === "receptionist" || o.role === "all") {
+      const rStopped = await stopProcess(receptionistPidFile);
+      console.log(
+        rStopped ? "openclaw (receptionist): đã dừng" : "openclaw (receptionist): không chạy",
+      );
+    }
     return;
   }
   if (args[0] === "status") {
-    const h = await health(o.healthPort);
-    console.log(
-      `tieulinh: ${readPid(pidFile) ? "chạy" : "dừng"}; health ${h.ok ? "ok" : "không ổn"} ${JSON.stringify(h.body)}`,
-    );
-    process.exit(h.ok ? 0 : 1);
+    let allOk = true;
+    if (o.role === "backoffice" || o.role === "all") {
+      const h = await health(o.healthPort);
+      const bAlive = readPid(pidFile) !== null;
+      console.log(
+        `tieulinh (backoffice): ${bAlive ? "chạy" : "dừng"}; health ${h.ok ? "ok" : "không ổn"} ${JSON.stringify(h.body)}`,
+      );
+      if (!bAlive || !h.ok) allOk = false;
+    }
+    if (o.role === "receptionist" || o.role === "all") {
+      const tokenFile = join(o.receptionistHome, "gateway.token");
+      const token = existsSync(tokenFile) ? readFileSync(tokenFile, "utf8").trim() : "";
+      const rHealth = await healthyGateway(o.receptionistPort, token);
+      const rAlive = readPid(receptionistPidFile) !== null;
+      console.log(
+        `openclaw (receptionist): ${rAlive ? "chạy" : "dừng"}; health ${rHealth ? "ok" : "không ổn"}`,
+      );
+      if (!rAlive || !rHealth) allOk = false;
+    }
+    process.exit(allOk ? 0 : 1);
   }
 
   const releaseDir = resolve(argValue(args, "--release", ""));
-  if (!args.includes("--release") || !existsSync(join(releaseDir, "apps/tieulinh/main.ts"))) {
-    throw new Error("Cần --release <thư mục bản phát hành> chứa apps/tieulinh/main.ts");
+  if (!args.includes("--release")) {
+    throw new Error("Cần --release <thư mục bản phát hành>");
+  }
+  if (
+    (o.role === "backoffice" || o.role === "all") &&
+    !existsSync(join(releaseDir, "apps/tieulinh/main.ts"))
+  ) {
+    throw new Error("Cần --release chứa apps/tieulinh/main.ts cho role backoffice");
+  }
+  if (
+    (o.role === "receptionist" || o.role === "all") &&
+    !existsSync(join(releaseDir, "tools/tl2-shadow/colab/bootstrap.ts"))
+  ) {
+    throw new Error("Cần --release chứa tools/tl2-shadow/colab/bootstrap.ts cho role receptionist");
   }
   mkdirSync(join(o.home, "data"), { recursive: true, mode: 0o700 });
   chmodSync(join(o.home, "data"), 0o700);
@@ -158,39 +224,80 @@ async function main() {
     return;
   }
 
-  const running = readPid(pidFile) !== null && (await health(o.healthPort)).ok;
-  if (running && previous === stamp) {
-    console.log(`tieulinh: không đổi, đang chạy tốt (webhook :${o.port}, health :${o.healthPort})`);
-    return;
-  }
-
-  await stopApp(pidFile);
-  const out = join(o.home, "tieulinh.out");
-  const cmd = `echo $$ > '${pidFile}'; cd '${releaseDir}' && exec bun run apps/tieulinh/main.ts >> '${out}' 2>&1`;
-  Bun.spawn(["setsid", "-f", "bash", "-c", cmd], {
-    stdin: "ignore",
-    stdout: "ignore",
-    stderr: "ignore",
-    // Env sạch: không kế thừa biến nào khác của phiên ssh.
-    env: {
-      PATH: process.env.PATH ?? "/usr/local/bin:/usr/bin:/bin",
-      HOME: process.env.HOME ?? "/root",
-      ...env,
-    },
-  });
-  console.log("tieulinh: đã khởi động, chờ sẵn sàng...");
-  for (let i = 0; i < 40; i++) {
-    await Bun.sleep(1500);
-    const h = await health(o.healthPort);
-    if (h.ok && h.body?.status === "ok") {
-      writeFileSync(stampPath, `${stamp}\n`, { mode: 0o600 });
+  if (o.role === "backoffice" || o.role === "all") {
+    const running = readPid(pidFile) !== null && (await health(o.healthPort)).ok;
+    if (running && previous === stamp) {
       console.log(
-        `tieulinh: sẵn sàng sau ~${Math.round((i + 1) * 1.5)}s (webhook :${o.port}, health :${o.healthPort})`,
+        `tieulinh (backoffice): không đổi, đang chạy tốt (webhook :${o.port}, health :${o.healthPort})`,
       );
-      return;
+    } else {
+      await stopProcess(pidFile);
+      const out = join(o.home, "tieulinh.out");
+      const cmd = `echo $$ > '${pidFile}'; cd '${releaseDir}' && exec bun run apps/tieulinh/main.ts >> '${out}' 2>&1`;
+      Bun.spawn(["setsid", "-f", "bash", "-c", cmd], {
+        stdin: "ignore",
+        stdout: "ignore",
+        stderr: "ignore",
+        // Env sạch: không kế thừa biến nào khác của phiên ssh.
+        env: {
+          PATH: process.env.PATH ?? "/usr/local/bin:/usr/bin:/bin",
+          HOME: process.env.HOME ?? "/root",
+          ...env,
+        },
+      });
+      console.log("tieulinh (backoffice): đã khởi động, chờ sẵn sàng...");
+      let backofficeReady = false;
+      for (let i = 0; i < 40; i++) {
+        await Bun.sleep(1500);
+        const h = await health(o.healthPort);
+        const isOk =
+          h.ok &&
+          typeof h.body === "object" &&
+          h.body !== null &&
+          "status" in h.body &&
+          h.body.status === "ok";
+        if (isOk) {
+          writeFileSync(stampPath, `${stamp}\n`, { mode: 0o600 });
+          console.log(
+            `tieulinh (backoffice): sẵn sàng sau ~${Math.round((i + 1) * 1.5)}s (webhook :${o.port}, health :${o.healthPort})`,
+          );
+          backofficeReady = true;
+          break;
+        }
+      }
+      if (!backofficeReady) {
+        throw new Error(`tieulinh (backoffice) không sẵn sàng sau 60s; xem ${out}`);
+      }
     }
   }
-  throw new Error(`tieulinh không sẵn sàng sau 60s; xem ${out}`);
+
+  if (o.role === "receptionist" || o.role === "all") {
+    const bootstrapScript = join(releaseDir, "tools/tl2-shadow/colab/bootstrap.ts");
+    console.log("openclaw (receptionist): khởi chạy qua bootstrap...");
+    const bootstrapArgs = [
+      "bun",
+      "run",
+      bootstrapScript,
+      "--release",
+      releaseDir,
+      "--model",
+      o.model,
+      "--project",
+      o.project,
+      ...(args.includes("--no-start") ? ["--no-start"] : []),
+    ];
+    const res = Bun.spawnSync(bootstrapArgs, {
+      env: {
+        ...process.env,
+        PATH: process.env.PATH ?? "/usr/local/bin:/usr/bin:/bin",
+      },
+      stdio: ["inherit", "inherit", "inherit"],
+    });
+    if (res.exitCode !== 0) {
+      throw new Error(`openclaw (receptionist) khởi chạy thất bại (mã thoát: ${res.exitCode})`);
+    }
+  }
+  return;
 }
 
 if (import.meta.main) {

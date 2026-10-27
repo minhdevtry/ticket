@@ -3,6 +3,23 @@
 All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded here.
 
 ## Unreleased
+- **Runbook shadow, canary và hoàn nguyên lễ tân** (RFC 0002 PR 17, issue #31). Hoàn tất toàn bộ chuỗi 17 PR di trú lễ tân của RFC 0002. Docs & Ops:
+  - Script deploy Colab `deploy/colab/cup-tieulinh.sh`:
+    - Thêm tuỳ chọn `--role <all|backoffice|receptionist>` (mặc định `backoffice` để tương thích ngược).
+    - Hỗ trợ triển khai vai lễ tân (OpenClaw gateway & MCP server) hoặc cả hai vai song song trên cùng host Colab.
+    - Bổ sung lệnh kiểm tra trạng thái (`status`), dừng an toàn (`stop`) và theo dõi log (`logs`) theo từng role độc lập.
+    - Đảm bảo an toàn bảo mật: kiểm tra bộ lọc archive không chứa secret, SSH proxy an toàn qua máy dev.
+  - Runner Colab `tools/tl2-shadow/colab/tieulinh-run.ts`:
+    - Bổ sung điều phối vai trò (`all`, `backoffice`, `receptionist`), quản lý vòng đời tiến trình hậu cần (`apps/tieulinh/main.ts`) và lễ tân (`tools/tl2-shadow/colab/bootstrap.ts`).
+    - Xuất các hàm kiểm tra và dừng tiến trình an toàn: `stopProcess`, `healthyGateway`.
+  - Tài liệu vận hành `docs/how-to/receptionist-canary-rollback.md`:
+    - Thiết lập runbook chuẩn cho giai đoạn shadow, thử nghiệm canary theo danh sách chat và hoàn nguyên khẩn cấp.
+    - Quy định nguyên tắc an toàn: TL1 phục vụ 100% production, TL2 chạy shadow/canary không gửi tin ra ngoài trừ khi nằm trong `CANARY_CHATS`.
+    - Hướng dẫn cấu hình định tuyến 2 chiều vs 1 chiều trên gateway OpenClaw prod.
+    - Kịch bản hoàn nguyên khẩn cấp 3 bước dưới 1 phút (hạ cờ tức thì, dừng dịch vụ Colab, kiểm tra xác nhận).
+    - Hướng dẫn xử lý sự cố thường gặp: rớt SSH tunnel/thu hồi Colab, rate limit LLM và lệch dữ liệu binding SQLite chia sẻ.
+  - Sổ đối chiếu: PR 17 không port thêm test legacy (`total=450 core=61 ported=326 deferred=52 by-design=11`, toàn bộ chuỗi di trú RFC 0002 hoàn tất).
+
 - **Adapter OpenClaw cho pack lễ tân** (RFC 0002 PR 16, issue #30). Additive:
   - `@vuihoc/bot-core/openclaw`:
     - `packages/core/src/openclaw/receptionist-adapter.ts`:

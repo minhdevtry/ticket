@@ -50,9 +50,18 @@ describe("cup-tieulinh.sh", () => {
     });
   }
 
-  it("từ chối --model chứa ký tự lạ, ref không tồn tại và tham số lạ", () => {
+  it("từ chối --model chứa ký tự lạ, ref không tồn tại, role không hợp lệ và tham số lạ", () => {
     expect(run([], ["--model", "a;rm -rf /"]).code).toBe(2);
     expect(run([], ["-r", "khong-co-ref"]).code).toBe(2);
+    expect(run([], ["--role", "khong-hop-le"]).code).toBe(2);
     expect(run([], ["--khac"]).code).toBe(2);
+  });
+
+  it("hỗ trợ --role <all|backoffice|receptionist> trong dry-run", () => {
+    for (const role of ["backoffice", "receptionist", "all"]) {
+      const r = run([".env.example"], ["--role", role]);
+      expect(r.code).toBe(0);
+      expect(r.out).toContain(`--role ${role}`);
+    }
   });
 });
