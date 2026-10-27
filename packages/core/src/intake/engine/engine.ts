@@ -91,6 +91,7 @@ import { classifyColumn } from "../../itsaplan";
 import { isSystemActor } from "../notify/supplement-notifier";
 import { isDeclineAnswer, isMeaninglessInput, TECH_INFO_FIELD } from "./normalize";
 import { ChecklistTechReviewer } from "../review/checklist-review";
+import { LlmTechReviewer } from "../review/llm-review";
 import type { LlmConfig, CompleteFn } from "../extractor/llm-extractor";
 import { MAX_RAW_TEXT_CHARS, MAX_RAW_TEXT_TOTAL_CHARS } from "../raw-text";
 import type { StepInput, StepOutput } from "./types";
@@ -152,6 +153,16 @@ export interface IntakeEngineDeps {
    * ngoài sở hữu — core chỉ ĐỌC qua cổng này.
    */
   learned?: LearnedItemsPort;
+  /**
+   * Cấu hình LLM cho soát bằng LLM (F1). Core không đọc biến môi trường — app
+   * truyền vào. Chỉ dùng khi `techReviewPolicy === "llm"`.
+   */
+  techReviewLlm?: LlmConfig;
+  /**
+   * Hướng dẫn cho LLM soát (F1) — văn bản của APP (diễn đạt), app truyền vào;
+   * core không chứa nội dung này.
+   */
+  techReviewGuide?: string;
   /** Ownership predicate (ADR-0008 §6). Defaults to binding-based. */
   ownership?: OwnershipPort;
   /** Executes a confirmed write to an existing ticket (append/edit/move). */
@@ -540,7 +551,20 @@ export class IntakeEngine {
           case "checklist":
             return new ChecklistTechReviewer(deps.learned, deps.copy);
           case "llm":
-            return deps.techReviewer;
+            // Đường chạy thật của F1: app truyền cấu hình LLM + hướng dẫn (văn bản
+            // của app) qua deps; core tự dựng reviewer. Nếu app chỉ truyền
+            // `techReviewer` thì dùng reviewer đó (app tự dựng).
+            if (deps.techReviewer) return deps.techReviewer;
+            if (deps.techReviewLlm && deps.techReviewGuide) {
+              return new LlmTechReviewer(
+                deps.techReviewLlm,
+                deps.techReviewGuide,
+                undefined,
+                undefined,
+                deps.identifierPrefix ?? "",
+              );
+            }
+            return undefined;
           default:
             // Không khai công tắc → giữ hành vi cũ: chỉ soát khi app nối
             // reviewer. Muốn soát theo danh sách thì khai "checklist" tường minh.
@@ -557,7 +581,9 @@ export class IntakeEngine {
           ...(orderCodes ? { "Mã đơn hàng": orderCodes } : {}),
           ...(links ? { Link: links } : {}),
         };
-        const studentAccount = record.values.studentAccount || record.values.phone;
+        // Legacy parity (pipeline.ts:3256): chỉ `studentAccount` — không suy ra từ
+        // `phone`, vì SĐT không phải tài khoản và sẽ khiến soát bỏ sót mục cần hỏi.
+        const studentAccount = record.values.studentAccount;
         if (studentAccount) {
           known["Tài khoản HS / SĐT"] = studentAccount;
         }
@@ -598,17 +624,22 @@ export class IntakeEngine {
           known,
         });
         if (review.missing.length > 0 && review.question) {
+          // Lấy nhãn nút TRƯỚC khi ghi trạng thái: `copy.text` NÉM khi thiếu khoá —
+          // nếu lấy sau `saveRevision` thì câu hỏi soát đã bị đánh dấu "đã hỏi" mà
+          // người báo không nhận được câu hỏi nào (lượt chat mất trắng).
+          const noneLabel = safeCopyText(deps.copy, "button.none");
           draft.techReviewDone = true; // ask once, any answer proceeds
           draft.techQuestion = review.question;
           draft.lastAskedFields = [TECH_INFO_FIELD];
           deps.drafts.saveRevision(draft);
-          const noneLabel = deps.copy.text("button.none");
           return {
             outcome: "asked",
             messages: [
               {
                 text: review.question,
-                buttons: layoutButtons([{ text: noneLabel, callbackData: noneLabel }]),
+                buttons: noneLabel
+                  ? layoutButtons([{ text: noneLabel, callbackData: noneLabel }])
+                  : undefined,
               },
             ],
             missingFields: [],
@@ -3615,6 +3646,20 @@ function targetId(command: TicketCommand): string {
 
 function command_chatId(_command: TicketCommand, draft: IntakeDraft | null): string {
   return draft?.chatId ?? "";
+}
+
+/**
+ * Đọc một chuỗi trong `CopyCatalog` mà không ném lỗi.
+ *
+ * `CopyCatalog.text` NÉM khi khoá không tồn tại — dùng ở đường ghi sẽ làm hỏng cả lượt
+ * chat (app thiếu khoá copy ⇒ mất trắng lượt). Trả `undefined` để chỗ gọi bỏ qua.
+ */
+function safeCopyText(copy: CopyCatalog, khoa: CopyKey): string | undefined {
+  try {
+    return copy.text(khoa);
+  } catch {
+    return undefined;
+  }
 }
 
 async function safeReview(

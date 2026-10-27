@@ -3873,59 +3873,65 @@ const ROWS: Row[] = [
     "Nạp tri thức ask-learning (chọn ứng viên từ bình luận kỹ thuật viên), ngoài chuỗi di trú (RFC 0002 mục 7)",
   ),
   // ── lib/ask-learning/classify.test.ts (9) ──
-  row(
-    "lib/ask-learning/classify.test.ts",
-    "JSON tốt → needs_info, mục chuẩn",
-    "deferred",
-    "Nạp tri thức ask-learning (phân loại bằng LLM), ngoài chuỗi di trú (RFC 0002 mục 7)",
-  ),
+  row("lib/ask-learning/classify.test.ts", "JSON tốt → needs_info, mục chuẩn", "ported", [
+    C("intake/review/classify.test.ts", "JSON tốt → needs_info, mục chuẩn"),
+  ]),
   row(
     "lib/ask-learning/classify.test.ts",
     "mục lạ bị bỏ, OTHER bị bỏ, kind không cần bổ sung → không có mục",
-    "deferred",
-    "Nạp tri thức ask-learning (phân loại bằng LLM), ngoài chuỗi di trú (RFC 0002 mục 7)",
+    "ported",
+    [
+      C(
+        "intake/review/classify.test.ts",
+        "mục lạ bị bỏ, OTHER bị bỏ, kind không cần bổ sung → không có mục",
+      ),
+    ],
   ),
   row(
     "lib/ask-learning/classify.test.ts",
     "kind lạ → other, không tính là cần bổ sung dù needs_info=true",
-    "deferred",
-    "Nạp tri thức ask-learning (phân loại bằng LLM), ngoài chuỗi di trú (RFC 0002 mục 7)",
+    "ported",
+    [
+      C(
+        "intake/review/classify.test.ts",
+        "kind lạ → other, không tính là cần bổ sung dù needs_info=true",
+      ),
+    ],
   ),
   row(
     "lib/ask-learning/classify.test.ts",
     "các kind cần bổ sung đều tính là needs_info",
-    "deferred",
-    "Nạp tri thức ask-learning (phân loại bằng LLM), ngoài chuỗi di trú (RFC 0002 mục 7)",
+    "ported",
+    [C("intake/review/classify.test.ts", "các kind cần bổ sung đều tính là needs_info")],
   ),
   row(
     "lib/ask-learning/classify.test.ts",
     "đầu ra không phải JSON → ném lỗi (không ghi, thử lại lần sau)",
-    "deferred",
-    "Nạp tri thức ask-learning (phân loại bằng LLM), ngoài chuỗi di trú (RFC 0002 mục 7)",
+    "ported",
+    [
+      C(
+        "intake/review/classify.test.ts",
+        "đầu ra không phải JSON → ném lỗi (không ghi, thử lại lần sau)",
+      ),
+    ],
   ),
-  row(
-    "lib/ask-learning/classify.test.ts",
-    "LLM lỗi → ném lỗi",
-    "deferred",
-    "Nạp tri thức ask-learning (phân loại bằng LLM), ngoài chuỗi di trú (RFC 0002 mục 7)",
-  ),
-  row(
-    "lib/ask-learning/classify.test.ts",
-    "quá giờ → ném lỗi",
-    "deferred",
-    "Nạp tri thức ask-learning (phân loại bằng LLM), ngoài chuỗi di trú (RFC 0002 mục 7)",
-  ),
+  row("lib/ask-learning/classify.test.ts", "LLM lỗi → ném lỗi", "ported", [
+    C("intake/review/classify.test.ts", "LLM lỗi → ném lỗi"),
+  ]),
+  row("lib/ask-learning/classify.test.ts", "quá giờ → ném lỗi", "ported", [
+    C("intake/review/classify.test.ts", "quá giờ → ném lỗi"),
+  ]),
   row(
     "lib/ask-learning/classify.test.ts",
     "prompt dùng bộ mục chuẩn, không có mã info_need cũ",
-    "deferred",
-    "Nạp tri thức ask-learning (phân loại bằng LLM), ngoài chuỗi di trú (RFC 0002 mục 7)",
+    "ported",
+    [C("intake/review/classify.test.ts", "prompt dùng bộ mục chuẩn, không có mã info_need cũ")],
   ),
   row(
     "lib/ask-learning/classify.test.ts",
     "bỏ khối chẩn đoán và Bổ sung trở đi, bỏ comment HTML",
-    "deferred",
-    "Nạp tri thức ask-learning (phân loại bằng LLM), ngoài chuỗi di trú (RFC 0002 mục 7)",
+    "ported",
+    [C("intake/review/classify.test.ts", "bỏ khối chẩn đoán và Bổ sung trở đi, bỏ comment HTML")],
   ),
   // ── lib/ask-learning/ingest.test.ts (4) ──
   row(
