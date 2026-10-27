@@ -15,9 +15,24 @@ dữ liệu miền của app.**
 
 - `packages/core/src/intake/extractor/heuristics.ts` — bản PARITY tạm, có tên hệ thống của app.
 - `packages/core/src/intake/review/system-taxonomy.ts` — tên hệ thống/URL của app (se-care, se-crm, se-lms).
-- `packages/core/src/intake/review/items.ts` — nhãn đối chiếu tiếng Việt.
-- `packages/core/src/intake/review/classify.ts` — nhận diện chuyên viên theo tên app.
+  **Trùng nguồn** với `VALID_SYSTEMS` đã có sẵn trong core ⇒ phải chọn một nguồn.
+- `packages/core/src/intake/review/items.ts` — nhãn đối chiếu tiếng Việt; `CHECKLIST_KEY_ITEMS`
+  nối bằng **10 nhãn tiếng Việt so khớp tay** với `checklist-review.ts` — cần kiểu hoặc test
+  chặn lệch.
+- `packages/core/src/intake/review/classify.ts` — hardcode "Vuihoc" và URL nội bộ se-care/se-crm/se-lms.
+- `packages/core/src/intake/review/checklist-review.ts` + `engine.ts` — hardcode host `se-care.`/
+  `se-crm.`/`se-lms.`, tiền tố mã đơn `DH`, tên phòng ban/sản phẩm của app (`amis`, `lương`,
+  `nhân sự`, `c&b`); `engine.ts` còn nối bằng **nhãn trường tiếng Việt của app** (`Mã đơn
+  hàng`, `Tài khoản HS / SĐT`, `Thiết bị`…).
+- `packages/core/src/intake/review/learned.ts` — nhúng thẳng `"DUO_Vuihoc"`, `"VH_Tự học"`.
+- `packages/core/src/intake/ports.ts` — `CopyKey` có khoá mang tên hệ thống app
+  (`checklist.ask.CARE_STUDENT_LINK`, `CRM_CONTACT_LINK`, `LMS_UID_LINK`) ⇒ ép tên hệ thống
+  Vuihoc vào API công khai của core; mọi bot khác buộc phải có copy cho 3 hệ thống đó.
 - `packages/core/examples/tieulinh/` — bản mẫu chứa dữ liệu app.
+
+**Ghi chú.** Vòng soi sâu của PR 13 đã tìm ra các mục trên; chúng **chưa** sửa ở PR 13 vì
+sửa ở đó sẽ vỡ parity với legacy trong khuôn khổ PR 13. Xem
+`orchestration/report-27.md` mục 7.
 
 **Tài liệu đọc trước (bắt buộc):**
 - `orchestration/WORKER-CONTRACT.md`, `AGENTS.md`, `CODING_STANDARDS.md`.

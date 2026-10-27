@@ -134,3 +134,47 @@ nối reviewer). Đã tái chạy test PR 8 → 15 pass.
 đổi tên ca `không có mục học được → kết quả y như buildChecklist(input)` thành
 `... buildChecklist(input, [], undefined, { copy })` ⇒ sổ đối chiếu báo "dòng trong sổ mà test
 legacy không còn". Đã **đặt lại tên ca** về đúng tên legacy.
+
+---
+
+## 7. Vòng soi sâu (workflow, 3 chiều × 3 lens kiểm chứng)
+
+Workflow soi PR 13 theo 3 chiều (ranh giới miền, bất biến soát, parity legacy), mỗi phát
+hiện được 3 lens độc lập cố bác bỏ. Tổng cộng **18 phát hiện** từ 2 agent đã xong.
+
+**Đã sửa trong vòng này (8):**
+
+| # | Mức độ | Vấn đề |
+|---|---|---|
+| 1 | trung-bình | `deps.copy.text("button.none")` **ném lỗi** khi thiếu khoá, mà `saveRevision` (đặt `techReviewDone`) đã chạy trước ⇒ câu hỏi soát **mất vĩnh viễn**, lượt chat mất trắng. Nay lấy nhãn nút **trước** khi ghi trạng thái, bọc try/catch, thiếu khoá thì bỏ nút (vẫn hỏi được) |
+| 2 | nặng | **F1 không có đường chạy thật** — core không có cách nối LLM + hướng dẫn `tech-info-needs.md` (văn bản của app). Nay `IntakeEngineDeps` nhận `techReviewLlm` + `techReviewGuide`; công tắc `"llm"` tự dựng `LlmTechReviewer` |
+| 3 | trung-bình | **F3 chưa được nối** — `IntakeEngineDeps.learned` không ai truyền, nên mục tự học luôn rỗng và không bao giờ xuất hiện |
+| 4 | nhẹ | Prompt LLM hardcode mã dự án `"TECH"` của app — nay lấy từ `identifierPrefix` |
+| 5 | nhẹ | `known["Tài khoản HS / SĐT"]` dùng `studentAccount \|\| phone` — legacy chỉ dùng `studentAccount` (`pipeline.ts:3256`); SĐT không phải tài khoản nên có thể bỏ sót mục cần hỏi |
+| 6 | trung-bình | 9 dòng sổ đối chiếu `lib/ask-learning/classify.test.ts` còn để `deferred` dù đã port đúng 9 ca vào core |
+| 7 | trung-bình | CHANGELOG + RFC trỏ file **không tồn tại** (`review/lookup.ts`, `review/store.ts`) — kho `ASK_LEARN_DB` đã tách sang app nhưng tài liệu chưa cập nhật |
+| 8 | trung-bình | `LearnedItemsPort` có cả `learned` lẫn `getLearnedItems` (trùng lặp) |
+
+**Ghi nhận, không sửa ở PR 13 — thuộc PR 14 (dữ liệu domain của app):**
+
+Các phát hiện còn lại đều là **dữ liệu miền của app nằm trong core** — đúng việc PR 14 đã
+đặc tả (`orchestration/specs/issue-28-pr-14-domain-data.md`):
+
+- `CopyKey` có khoá mang tên hệ thống app (`checklist.ask.CARE_STUDENT_LINK`,
+  `CRM_CONTACT_LINK`, `LMS_UID_LINK`) ⇒ ép tên hệ thống Vuihoc vào API công khai của core.
+- `review/system-taxonomy.ts` — bản sao danh mục 9 hệ thống của app, trùng nguồn với
+  `VALID_SYSTEMS` đã có sẵn trong core ⇒ hai nguồn sự thật sẽ trôi.
+- `review/classify.ts` — hardcode "Vuihoc" và URL nội bộ `se-care`/`se-crm`/`se-lms`.
+- `review/checklist-review.ts` + `engine.ts` — hardcode host `se-care.`/`se-crm.`/`se-lms.`,
+  tiền tố mã đơn `DH`, tên phòng ban/sản phẩm của app (`amis`, `lương`, `nhân sự`, `c&b`).
+- `engine.ts` nối với core bằng **nhãn trường tiếng Việt của app** (`Mã đơn hàng`,
+  `Tài khoản HS / SĐT`, `Thiết bị`…).
+- `review/items.ts` — `CHECKLIST_KEY_ITEMS` nối bằng 10 nhãn tiếng Việt so khớp tay, không
+  có kiểu hay test nào chặn lệch.
+- `review/learned.ts` — nhúng thẳng `"DUO_Vuihoc"`, `"VH_Tự học"`.
+- Ép kiểu `as CopyKey` ở `checklist-review.ts:134` làm union đóng mất tác dụng.
+
+**Ghi chú về độ tin cậy của reviewer.** Cả 2 agent đều **bỏ sót** lỗi `button.none` ném lỗi
+(lỗi làm mất lượt chat) — vì chỉ đọc code, không dựng probe với catalog thiếu khoá. Ngược lại,
+chúng tìm được lỗi mà một vòng review thường bỏ sót (dữ liệu miền trong core). Xem
+[[reviewer-catches-only-some-bugs]].
