@@ -53,6 +53,7 @@ export ITSAPLAN_WEBHOOK_SECRET="${ITSAPLAN_WEBHOOK_SECRET:-$(cfg_get ITSAPLAN_WE
 export TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-$(cfg_get TELEGRAM_BOT_TOKEN "$telegram_cfg_file")}"
 export TIEULINH_ONCALL_CHAT_ID="${TIEULINH_ONCALL_CHAT_ID:-$(cfg_get TIEULINH_ONCALL_CHAT_ID)}"
 export TIEULINH_ONCALL_CHAT_ID="${TIEULINH_ONCALL_CHAT_ID:--1000000000001}"
+export ADMIN_IDS="${ADMIN_IDS:-$(cfg_get ADMIN_IDS)}"
 
 export MINIMAX_API_KEY="${MINIMAX_API_KEY:-$(cfg_get MINIMAX_API_KEY "$minimax_cfg_file")}"
 export MINIMAX_BASE_URL="${MINIMAX_BASE_URL:-$(cfg_get MINIMAX_BASE_URL "$minimax_cfg_file")}"
@@ -197,7 +198,7 @@ setup_receptionist_config() {
   "$bun_bin" -e '
     import { writeFileSync } from "node:fs";
     import { join } from "node:path";
-    const [recDir, repoDir, portStr, token, itsaUrl, itsaKey, pkey, mmUrl, mmKey, reqApproval, tgToken] = process.argv.slice(1);
+    const [recDir, repoDir, portStr, token, itsaUrl, itsaKey, pkey, mmUrl, mmKey, reqApproval, tgToken, adminIds] = process.argv.slice(1);
     const port = Number(portStr) || 18796;
     const workspace = join(recDir, "workspace-ticket-intake-2");
     const deniedTools = [
@@ -256,23 +257,73 @@ setup_receptionist_config() {
                 OPENAI_MODEL: "MiniMax-M3.1-Flash",
                 OPENAI_API_STYLE: "anthropic"
               } : {}),
-              ADMIN_IDS: "",
+              ADMIN_IDS: adminIds || "",
               ALERT_CHAT_ID: "",
               REQUIRE_APPROVAL: reqApproval || "false"
             }
           }
         }
       },
+      bindings: [
+        {
+          type: "route",
+          agentId: "ticket-intake-agent-2",
+          match: {
+            channel: "telegram",
+            accountId: "*"
+          }
+        }
+      ],
+      session: {
+        dmScope: "per-account-channel-peer",
+        resetByType: {
+          direct: {
+            mode: "idle",
+            idleMinutes: 5
+          }
+        },
+        resetTriggers: [
+          "/new",
+          "/reset"
+        ]
+      },
       tools: { deny: deniedTools },
       channels: tgToken ? {
         telegram: {
-          botToken: tgToken
+          enabled: true,
+          defaultAccount: "ticket",
+          accounts: {
+            ticket: {
+              botToken: tgToken,
+              dmPolicy: "open",
+              allowFrom: ["*"],
+              groupAllowFrom: ["*"],
+              streaming: { mode: "off" },
+              capabilities: { inlineButtons: "dm" }
+            }
+          }
         }
       } : {},
-      plugins: { entries: {} }
-    };
-    writeFileSync(join(recDir, "openclaw.json"), JSON.stringify(config, null, 2) + "\n", { mode: 0o600 });
-  ' "$rec_data" "$repo" "$RECEPTIONIST_PORT" "$token" "$ITSAPLAN_BASE_URL" "$ITSAPLAN_API_KEY" "$ITSAPLAN_PROJECT_KEY" "$MINIMAX_BASE_URL" "$MINIMAX_API_KEY" "$REQUIRE_APPROVAL" "$TELEGRAM_BOT_TOKEN" 2>/dev/null || true
+      plugins: {
+        load: {
+          paths: [
+            join(repoDir, "apps/tieulinh-legacy/openclaw-plugin/iris-tuong-tac"),
+            join(repoDir, "apps/tieulinh-legacy/openclaw-plugin/xac-nhan-xong")
+          ]
+        },
+        entries: {
+          "iris-tuong-tac": {
+            enabled: true,
+            hooks: { allowConversationAccess: true }
+          },
+          "xac-nhan-xong": {
+            enabled: true,
+            hooks: { allowConversationAccess: true }
+          }
+        }
+      };
+      writeFileSync(join(recDir, "openclaw.json"), JSON.stringify(config, null, 2) + "\n", { mode: 0o600 });
+  ' "$rec_data" "$repo" "$RECEPTIONIST_PORT" "$token" "$ITSAPLAN_BASE_URL" "$ITSAPLAN_API_KEY" "$ITSAPLAN_PROJECT_KEY" "$MINIMAX_BASE_URL" "$MINIMAX_API_KEY" "$REQUIRE_APPROVAL" "$TELEGRAM_BOT_TOKEN" "$ADMIN_IDS" 2>/dev/null || true
 }
 
 start_receptionist() {
