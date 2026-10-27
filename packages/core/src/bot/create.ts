@@ -111,7 +111,6 @@ export interface BotHealth {
     };
     /** Kho bền: `durable` là `true` khi có `BOT_DATA_DIR`/`dataDir` (sống qua restart). */
     store?: { durable: boolean };
-    receptionist?: { state: "declared-not-running"; note: string };
   };
   /** Lý do khi `degraded`/`down`. */
   reasons: string[];
@@ -626,12 +625,6 @@ export function createBot<E extends EnvShape = Record<never, never>>(
       }
     }
     if (store) components.store = { durable };
-    if (def.receptionist) {
-      components.receptionist = {
-        state: "declared-not-running",
-        note: "runtime lễ tân thuộc milestone 2",
-      };
-    }
 
     if (state === "created" || state === "starting") status = "starting";
     else if (state === "stopped" || state === "stopping") status = "stopped";

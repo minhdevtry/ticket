@@ -252,7 +252,10 @@ export type CopyKey =
   | "checklist.ask.ORDER_CODE"
   | "checklist.ask.COURSE_CLASS_SCOPE"
   | "checklist.ask.OTHER_LINK"
-  | "checklist.ask.EXTENT";
+  | "checklist.ask.EXTENT"
+  // ── PR 15: agent instruction cho tool MCP ─────────────────────────────────
+  | "agent_instruction.wait_for_user"
+  | "agent_instruction.forward";
 
 /**
  * The chat↔ticket binding store, so a worker can report back to the reporter.

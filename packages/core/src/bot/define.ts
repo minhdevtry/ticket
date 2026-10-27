@@ -10,7 +10,11 @@
  * module được nạp, nên một khai báo sai không bao giờ chạy được.
  */
 import type { EnvSchema, EnvShape, InferEnv } from "../core/config";
-import type { CopyCatalog } from "../intake/ports";
+import type { FieldCatalog } from "../intake/gate/types";
+import type { UrgencyRules } from "../intake/priority/priority";
+import type { CopyCatalog, FieldExtractorPort } from "../intake/ports";
+import { assertCatalogIntegrity } from "../intake/gate/catalog";
+import { validateCopyCatalog } from "../intake/copy-catalog";
 import type { BackofficeDefinition } from "../backoffice";
 import { DEFAULT_TIMEZONE, assertTimezone, parseCron } from "../backoffice/cron";
 
@@ -26,23 +30,26 @@ export interface TrackerRef {
   project: string;
 }
 
-/** Một kênh chat (Telegram…). Cụ thể hoá ở milestone 2 cùng với adapter kênh. */
-export interface ChannelSpec {
-  kind: string;
-  [option: string]: unknown;
-}
-
 /**
  * Vai lễ tân. Milestone 1 CHỈ khai báo và kiểm tra hình dạng; runtime lễ tân
  * (engine hội thoại, kênh, extractor) được nối vào `createBot` ở milestone 2.
  * Các trường `catalog`, `priorityRules`, `extractor` hiện để `unknown`, kiểu chặt đi kèm
  * adapter ở milestone 2.
  */
+export interface SkillPackDefinition {
+  agentsMd?: string;
+  identityMd?: string;
+  soulMd?: string;
+  botJson?: Record<string, unknown>;
+  staticMessages?: Record<string, string>;
+}
+
 export interface ReceptionistDefinition {
-  channels?: readonly ChannelSpec[];
-  catalog?: unknown;
-  priorityRules?: unknown;
-  extractor?: unknown;
+  catalog: FieldCatalog;
+  priorityRules: UrgencyRules;
+  extractor: FieldExtractorPort;
+  instructions?: string;
+  skill?: SkillPackDefinition;
 }
 
 /** Khai báo đầy đủ của một bot. `E` là hình dạng env, suy ra từ `env`. */
@@ -292,6 +299,81 @@ export function validateBotDefinition(def: BotDefinition<any>): BotDefinitionIss
         !(Number.isInteger(runs.maxAttempts) && runs.maxAttempts >= 1)
       ) {
         bad("backoffice.runs.maxAttempts", "phải là số nguyên >= 1");
+      }
+    }
+  }
+
+  const rec = def?.receptionist;
+  if (rec) {
+    if (!rec.catalog) {
+      bad("receptionist.catalog", "bắt buộc");
+    } else {
+      try {
+        assertCatalogIntegrity(rec.catalog);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        bad("receptionist.catalog", msg);
+      }
+    }
+
+    if (!rec.priorityRules || typeof rec.priorityRules !== "object") {
+      bad("receptionist.priorityRules", "bắt buộc");
+    }
+
+    if (
+      !rec.extractor ||
+      typeof rec.extractor !== "object" ||
+      !("extract" in rec.extractor) ||
+      typeof rec.extractor.extract !== "function"
+    ) {
+      bad("receptionist.extractor", "bắt buộc và phải có hàm extract");
+    }
+
+    if (rec.instructions !== undefined && typeof rec.instructions !== "string") {
+      bad("receptionist.instructions", "phải là chuỗi markdown");
+    }
+
+    if (rec.skill !== undefined) {
+      if (typeof rec.skill !== "object" || rec.skill === null || Array.isArray(rec.skill)) {
+        bad("receptionist.skill", "phải là đối tượng");
+      } else {
+        if (rec.skill.agentsMd !== undefined && typeof rec.skill.agentsMd !== "string") {
+          bad("receptionist.skill.agentsMd", "phải là chuỗi");
+        }
+        if (rec.skill.identityMd !== undefined && typeof rec.skill.identityMd !== "string") {
+          bad("receptionist.skill.identityMd", "phải là chuỗi");
+        }
+        if (rec.skill.soulMd !== undefined && typeof rec.skill.soulMd !== "string") {
+          bad("receptionist.skill.soulMd", "phải là chuỗi");
+        }
+        if (
+          rec.skill.botJson !== undefined &&
+          (typeof rec.skill.botJson !== "object" ||
+            rec.skill.botJson === null ||
+            Array.isArray(rec.skill.botJson))
+        ) {
+          bad("receptionist.skill.botJson", "phải là đối tượng");
+        }
+        if (
+          rec.skill.staticMessages !== undefined &&
+          (typeof rec.skill.staticMessages !== "object" ||
+            rec.skill.staticMessages === null ||
+            Array.isArray(rec.skill.staticMessages))
+        ) {
+          bad("receptionist.skill.staticMessages", "phải là đối tượng");
+        }
+      }
+    }
+
+    if (!def.persona || typeof def.persona.text !== "function") {
+      bad("persona", "bắt buộc khi khai báo receptionist");
+    } else {
+      const copyCheck = validateCopyCatalog(def.persona);
+      if (!copyCheck.valid) {
+        bad(
+          "persona",
+          `thiếu ${copyCheck.missingKeys.length} khoá copy: ${copyCheck.missingKeys.slice(0, 3).join(", ")}${copyCheck.missingKeys.length > 3 ? "..." : ""}`,
+        );
       }
     }
   }

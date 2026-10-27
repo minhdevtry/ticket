@@ -16,8 +16,11 @@
 import { type BotDefinition, defineBot } from "@vuihoc/bot-core/bot";
 import { whenCommentCreated, whenEvent } from "@vuihoc/bot-core/backoffice";
 import { loadConfig } from "@vuihoc/bot-core/core";
+import { FieldExtractor, makeCopyCatalog, type FieldExtractorPort } from "@vuihoc/bot-core/intake";
 import { createReporterInbound } from "@vuihoc/bot-core/telegram";
-import { inboundErrorCopy } from "./copy";
+import { inboundErrorCopy, tieulinhReceptionistCopy } from "./copy";
+import { tieulinhCatalog, tieulinhUrgency } from "./engine-config";
+import { tieulinhInstructions, tieulinhSkillPack } from "./skill";
 import { type TieulinhConfig, assertTieulinhConfig, tieulinhEnv } from "./env";
 import { detectDuplicate, siblingIdentifiers } from "./duplicates";
 import { relayComment } from "./forward";
@@ -29,6 +32,8 @@ import { slaSweep } from "./sla";
 export interface TieulinhBotOptions extends ServiceOptions {
   /** File `.env` bổ sung biến còn thiếu (biến trong `env` thắng). */
   envFile?: string;
+  /** Tùy chọn bộ trích xuất dữ liệu của lễ tân. */
+  extractor?: FieldExtractorPort;
 }
 
 export interface TieulinhBot {
@@ -68,6 +73,14 @@ export function tieulinhBot(
     id: "tieulinh",
     tracker: { team: config.TIEULINH_TEAM, project: config.TIEULINH_PROJECT },
     env: tieulinhEnv,
+    persona: makeCopyCatalog(tieulinhReceptionistCopy),
+    receptionist: {
+      catalog: tieulinhCatalog,
+      priorityRules: tieulinhUrgency,
+      extractor: options.extractor ?? new FieldExtractor(),
+      instructions: tieulinhInstructions,
+      skill: tieulinhSkillPack,
+    },
     backoffice: {
       agent: config.TIEULINH_AGENT,
       on: {

@@ -2458,8 +2458,13 @@ const ROWS: Row[] = [
   row(
     "mcp/shared/tools/confirmation-and-binding.test.ts",
     "check_identity: trả về pendingDraft khi có bản nháp ticket đang gom dở",
-    "deferred",
-    "Chờ port ở PR 15 (pack MCP và skill lễ tân): `check_identity` trả `pendingDraft` đọc từ draft v2",
+    "ported",
+    [
+      C(
+        "bot/intake-step.test.ts",
+        "check_identity: trả về pendingDraft khi có bản nháp ticket đang gom dở",
+      ),
+    ],
   ),
   row(
     "mcp/shared/tools/confirmation-and-binding.test.ts",
@@ -2901,8 +2906,8 @@ const ROWS: Row[] = [
   row(
     "mcp/tieulinh/intake-step.test.ts",
     "gọi intake_step và kiểm tra inspect_tools qua các lượt",
-    "deferred",
-    "Chờ port ở PR 15 (defineBot lễ tân thành pack MCP và skill)",
+    "ported",
+    [C("bot/intake-step.test.ts", "gọi intake_step và kiểm tra inspect_tools qua các lượt")],
   ),
   // ── mcp/tieulinh/validate.test.ts (7) ──
   row(

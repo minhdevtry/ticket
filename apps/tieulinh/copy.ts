@@ -287,6 +287,9 @@ export const tieulinhReceptionistCopy: Record<CopyKey, string> = {
     "Học sinh nào, khoá học/lớp/buổi học nào bị ảnh hưởng (nhiều học sinh thì ghi rõ từng em)",
   "checklist.ask.OTHER_LINK": "Link trang/bài/đề đang bị lỗi",
   "checklist.ask.EXTENT": "Một người bị hay nhiều người/tất cả đều bị",
+  "agent_instruction.wait_for_user":
+    "Gửi nguyên văn voiceText rồi KẾT THÚC LƯỢT. Chờ người dùng tự trả lời hoặc bấm nút — không tự chọn đáp án, không gọi lại intake_step trong lượt này.",
+  "agent_instruction.forward": "Gửi nguyên văn voiceText cho người dùng.",
 };
 
 export const tieuLinhCopy = tieulinhReceptionistCopy;

@@ -6,6 +6,12 @@ import { actions, skip, whenColumn } from "../backoffice";
 import { FakeItsaplan } from "../testing/fake-itsaplan";
 import { type CreateBotOptions, createBot } from "./create";
 import { type BotDefinition, BotDefinitionError, defineBot } from "./define";
+import { fixtureCatalog } from "../intake/gate/catalog.fixture";
+import { FieldExtractor } from "../intake/extractor/llm-extractor";
+import { makeCopyCatalog } from "../intake/copy-catalog";
+import { TEST_COPY } from "../intake/engine/test-copy.fixture";
+import fixtureUrgency from "../intake/priority/urgency-rules.fixture.json" with { type: "json" };
+import type { UrgencyRules } from "../intake/priority/priority";
 import { runBot } from "./run";
 
 const logs: string[] = [];
@@ -341,6 +347,26 @@ describe("createBot", () => {
     );
     await bad.start();
     await until(() => bad.health().status === "down");
+  });
+
+  it("khai báo receptionist: health không còn component receptionist: declared-not-running", () => {
+    const bot = make(
+      defineBot({
+        id: "recep-bot",
+        tracker: { team: "tech", project: "TECH" },
+        persona: makeCopyCatalog(TEST_COPY),
+        receptionist: {
+          catalog: fixtureCatalog,
+          priorityRules: fixtureUrgency as unknown as UrgencyRules,
+          extractor: new FieldExtractor(),
+        },
+        backoffice: { on: { mention: async () => "ok" } },
+      }),
+      { env: envFor() },
+    );
+    const health = bot.health();
+    expect(health.components).not.toHaveProperty("receptionist");
+    expect(JSON.stringify(health)).not.toContain("declared-not-running");
   });
 });
 

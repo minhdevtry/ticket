@@ -20,6 +20,7 @@ import type {
 } from "./service";
 import { relinkIdentity, type RelinkResult, type RelinkOptions } from "./relink";
 import type { IdentityRepository } from "./repository";
+import type { DraftRepository } from "../intake/draft/repository";
 
 /**
  * Renders user-facing copy from the structured results of each lifecycle step.
@@ -41,6 +42,8 @@ export interface IdentityToolsConfig {
   copy: IdentityCopyRenderer;
   /** Guard + protected ids for relink; wired by the bot. */
   relink: RelinkOptions;
+  /** Optional draft repository để tra cứu pendingDraft (RFC 0002 PR 15). */
+  drafts?: DraftRepository;
 }
 
 /** Check whether the current user is approved. */
@@ -50,11 +53,38 @@ export function checkIdentityTool(config: IdentityToolsConfig): AnyMcpTool {
     description:
       "Kiểm tra người đang nhắn đã được duyệt name code chưa. Gọi trước khi ghi bản ghi mới.",
     inputSchema: {
-      userId: z.string().describe("Id người dùng trên kênh chat, do host cung cấp"),
+      userId: z.string().optional().describe("Id người dùng trên kênh chat, do host cung cấp"),
+      telegramUserId: z.string().optional().describe("Telegram user ID"),
+      chatId: z.string().optional().describe("Chat ID phòng chat"),
     },
-    handler: ({ userId }) => {
-      const result = config.service.checkUserApproval(userId);
-      return { ...result, message: config.copy.check(result) };
+    handler: ({ userId, telegramUserId, chatId }) => {
+      const effectiveId = userId ?? telegramUserId ?? chatId ?? "";
+      const result = config.service.checkUserApproval(effectiveId);
+      let pendingDraft: Record<string, unknown> | null = null;
+      if (config.drafts && effectiveId) {
+        const draft = config.drafts.getLatestByChatId(effectiveId);
+        if (
+          draft &&
+          draft.status !== "created" &&
+          draft.status !== "canceled" &&
+          draft.status !== "expired"
+        ) {
+          pendingDraft = {
+            docId: draft.docId,
+            revision: draft.revision,
+            status: draft.status,
+            state: {
+              title: draft.ticket?.title,
+              ...draft.record?.values,
+            },
+          };
+        }
+      }
+      return {
+        ...result,
+        message: config.copy.check(result),
+        ...(config.drafts !== undefined ? { pendingDraft } : {}),
+      };
     },
   });
 }

@@ -3,6 +3,23 @@
 All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded here.
 
 ## Unreleased
+- **Kiểu hoá `ReceptionistDefinition`, pack MCP lễ tân và skill pack** (RFC 0002 PR 15, issue #29):
+  - `@vuihoc/bot-core/bot`:
+    - `ReceptionistDefinition`: kiểu hoá chặt chẽ các trường `catalog: FieldCatalog`, `priorityRules: UrgencyRules`, `extractor: FieldExtractorPort`, `instructions?: string`, `skill?: SkillPackDefinition`. Bỏ `channels` (breaking nội bộ; kênh thuộc harness/PR 16).
+    - `defineBot`: kiểm tra khai báo lễ tân một chỗ, gom lỗi vào `BotDefinitionError` (`receptionist.catalog`, `receptionist.priorityRules`, `receptionist.extractor`, `receptionist.instructions`, `receptionist.skill`, `persona`). Kiểm tra toàn vẹn danh mục qua `assertCatalogIntegrity` và kiểm tra đủ khoá copy qua `validateCopyCatalog`.
+    - `createReceptionistMcpServer`: dựng MCP server lễ tân (`intake_step`, `get_intake_doc`, `get_similar_tickets`, tool định danh) chạy được qua stdio và Streamable HTTP (`runOnStdio`, `runOnHttp`). Tool không trả `callbackData` hay nút thô cho model; câu `agentInstruction` lấy từ `CopyCatalog`.
+    - `buildSkillPack`: hàm thuần sinh file map gói skill (`AGENTS.md`, `IDENTITY.md`, `SOUL.md`, `bot.json`, `messages/*.md`) từ khai báo bot, không hardcode tiếng Việt.
+    - `createBot`: bỏ component `receptionist: declared-not-running`; `createBot` giữ vai trò worker hậu cần.
+  - `@vuihoc/bot-core/intake`:
+    - `CopyKey`: thêm 2 khoá `agent_instruction.wait_for_user` và `agent_instruction.forward`.
+    - `DraftRepository`: thêm phương thức `getRevisions(docId: string): IntakeDraft[]` và triển khai trong `SqliteDraftRepository`.
+    - `checkIdentityTool`: hỗ trợ trả `pendingDraft` khi cấu hình `drafts: DraftRepository`.
+    - `engine.ts`: tự động tăng `revision` qua các lượt hội thoại của tờ khai.
+  - Port 2 bài kiểm thử từ legacy sang core:
+    - 1 ca flow MCP 3 lượt từ `mcp/tieulinh/intake-step.test.ts` sang `packages/core/src/bot/intake-step.test.ts` ("gọi intake_step và kiểm tra inspect_tools qua các lượt").
+    - 1 ca `check_identity` trả `pendingDraft` từ `mcp/shared/tools/confirmation-and-binding.test.ts` sang `packages/core/src/bot/intake-step.test.ts` ("check_identity: trả về pendingDraft khi có bản nháp ticket đang gom dở").
+  - Cập nhật sổ đối chiếu (`apps/tieulinh/receptionist-gap-register.test.ts`) và `packages/core/docs/parity/ENGINE.md`: 2 dòng chuyển sang `ported` (`ported` tăng lên 311, `deferred` giảm xuống 67).
+
 - **Hàm generic chuyển đổi luật sang catalog** (RFC 0002 PR 14, issue #28). Additive:
   - `@vuihoc/bot-core/intake`:
     - `catalogFromValidationRules`: hàm generic trong `packages/core/src/intake/gate/from-validation-rules.ts` nhận `ValidationRules` và `FieldRequirementsTable`, trả về `FieldCatalog` chuẩn theo `gate/types.ts`.

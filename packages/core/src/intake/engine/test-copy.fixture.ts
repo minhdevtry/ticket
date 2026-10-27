@@ -157,4 +157,7 @@ export const TEST_COPY: Record<CopyKey, string> = {
   "checklist.ask.COURSE_CLASS_SCOPE": "Affected course or class",
   "checklist.ask.OTHER_LINK": "Page/exercise link",
   "checklist.ask.EXTENT": "Scope of impact",
+  "agent_instruction.wait_for_user":
+    "Send voiceText verbatim and END TURN. Wait for reporter reply or button click — do not pick answer or call intake_step again this turn.",
+  "agent_instruction.forward": "Send voiceText verbatim to the reporter.",
 };

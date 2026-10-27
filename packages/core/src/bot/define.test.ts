@@ -2,7 +2,20 @@ import { describe, expect, it } from "bun:test";
 import { z } from "zod";
 import { defineEnv } from "../core/config";
 import { actions, whenColumn } from "../backoffice";
-import { BotDefinitionError, defineBot, validateBotDefinition } from "./define";
+import { fixtureCatalog } from "../intake/gate/catalog.fixture";
+import { FieldExtractor } from "../intake/extractor/llm-extractor";
+import { makeCopyCatalog } from "../intake/copy-catalog";
+import { TEST_COPY } from "../intake/engine/test-copy.fixture";
+import type { CopyKey } from "../intake/ports";
+import type { FieldCatalog } from "../intake/gate/types";
+import fixtureUrgency from "../intake/priority/urgency-rules.fixture.json" with { type: "json" };
+import type { UrgencyRules } from "../intake/priority/priority";
+import {
+  BotDefinitionError,
+  defineBot,
+  validateBotDefinition,
+  type ReceptionistDefinition,
+} from "./define";
 
 const handler = async () => "ok";
 
@@ -190,13 +203,109 @@ describe("defineBot", () => {
     expect(issues.map((i) => i.path)).toEqual(["backoffice.rules[1]", "backoffice.rules[2]"]);
   });
 
-  it("chỉ lễ tân cũng hợp lệ (chạy ở milestone 2)", () => {
-    expect(() =>
-      defineBot({
-        id: "recep",
-        tracker: { team: "tech", project: "TECH" },
-        receptionist: { channels: [{ kind: "telegram" }] },
-      }),
-    ).not.toThrow();
+  it("lễ tân hợp lệ được đóng băng", () => {
+    const def = defineBot({
+      id: "recep",
+      tracker: { team: "tech", project: "TECH" },
+      persona: makeCopyCatalog(TEST_COPY),
+      receptionist: {
+        catalog: fixtureCatalog,
+        priorityRules: fixtureUrgency as unknown as UrgencyRules,
+        extractor: new FieldExtractor(),
+        instructions: "Hỗ trợ sự cố",
+        skill: {
+          agentsMd: "Quy trình",
+          staticMessages: { greeting: "Xin chào" },
+        },
+      },
+    });
+    expect(Object.isFrozen(def)).toBe(true);
+    expect(def.id).toBe("recep");
+  });
+
+  it("lễ tân sai: gom đủ lỗi thiếu catalog, priorityRules, extractor, persona", () => {
+    const issues = validateBotDefinition({
+      id: "bad-recep",
+      tracker: { team: "tech", project: "TECH" },
+      receptionist: {} as unknown as ReceptionistDefinition,
+    });
+    const paths = issues.map((i) => i.path);
+    expect(paths).toContain("receptionist.catalog");
+    expect(paths).toContain("receptionist.priorityRules");
+    expect(paths).toContain("receptionist.extractor");
+    expect(paths).toContain("persona");
+  });
+
+  it("lễ tân: bắt catalog không toàn vẹn", () => {
+    const brokenCatalog = {
+      ...fixtureCatalog,
+      variants: {
+        "1": {
+          ...fixtureCatalog.variants["1"],
+          fields: {
+            ...fixtureCatalog.variants["1"].fields,
+            bad_enum: {
+              name: "bad_enum",
+              type: "enum:khong_ton_tai",
+              label: "Lỗi",
+              askable: true,
+              required: false,
+            },
+          },
+        },
+      },
+    };
+    const issues = validateBotDefinition({
+      id: "recep",
+      tracker: { team: "tech", project: "TECH" },
+      persona: makeCopyCatalog(TEST_COPY),
+      receptionist: {
+        catalog: brokenCatalog as unknown as FieldCatalog,
+        priorityRules: { defaultPriority: "medium" } as unknown as UrgencyRules,
+        extractor: new FieldExtractor(),
+      },
+    });
+    const catalogIssue = issues.find((i) => i.path === "receptionist.catalog");
+    expect(catalogIssue).toBeDefined();
+    expect(catalogIssue?.message).toContain("no such vocabulary");
+  });
+
+  it("lễ tân: persona thiếu khoá copy bị bắt lỗi", () => {
+    const partialCopy = { "ask.opening": "Hello" } as Record<CopyKey, string>;
+    const issues = validateBotDefinition({
+      id: "recep",
+      tracker: { team: "tech", project: "TECH" },
+      persona: makeCopyCatalog(partialCopy),
+      receptionist: {
+        catalog: fixtureCatalog,
+        priorityRules: fixtureUrgency as unknown as UrgencyRules,
+        extractor: new FieldExtractor(),
+      },
+    });
+    const personaIssue = issues.find((i) => i.path === "persona");
+    expect(personaIssue).toBeDefined();
+    expect(personaIssue?.message).toContain("thiếu");
+  });
+
+  it("lễ tân: instructions và skill sai kiểu dữ liệu bị bắt lỗi", () => {
+    const issues = validateBotDefinition({
+      id: "recep",
+      tracker: { team: "tech", project: "TECH" },
+      persona: makeCopyCatalog(TEST_COPY),
+      receptionist: {
+        catalog: fixtureCatalog,
+        priorityRules: fixtureUrgency as unknown as UrgencyRules,
+        extractor: new FieldExtractor(),
+        instructions: 123 as unknown as string,
+        skill: {
+          agentsMd: 456 as unknown as string,
+          botJson: "invalid" as unknown as Record<string, unknown>,
+        },
+      },
+    });
+    const paths = issues.map((i) => i.path);
+    expect(paths).toContain("receptionist.instructions");
+    expect(paths).toContain("receptionist.skill.agentsMd");
+    expect(paths).toContain("receptionist.skill.botJson");
   });
 });
