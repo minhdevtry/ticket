@@ -32,11 +32,12 @@ chmod 700 "$data" "$logs" "$run" "$apps_data" "$rec_data" 2>/dev/null || true
 # --- Cấu hình môi trường ---
 cfg_file="${TL2_ENV_FILE:-$HOME/.config/ticket/tieulinh2.env}"
 minimax_cfg_file="${TL2_MINIMAX_ENV_FILE:-$HOME/.config/ticket/minimax.env}"
+telegram_cfg_file="${TL2_TELEGRAM_ENV_FILE:-$HOME/.config/ticket/telegram.env}"
 
 cfg_get() {
   local var="$1"
   local file="${2:-$cfg_file}"
-  grep -E "^${var}=" "$file" 2>/dev/null | head -1 | cut -d= -f2- || true
+  grep -E "^${var}=" "$file" 2>/dev/null | head -1 | cut -d= -f2- | sed -e 's/^["'\'' ]*//' -e 's/["'\'' ]*$//' || true
 }
 
 export ITSAPLAN_BASE_URL="${ITSAPLAN_BASE_URL:-$(cfg_get ITSAPLAN_BASE_URL)}"
@@ -49,6 +50,9 @@ export ITSAPLAN_AGENT_KEY="${ITSAPLAN_AGENT_KEY:-$(cfg_get ITSAPLAN_AGENT_KEY)}"
 [ -n "$ITSAPLAN_AGENT_KEY" ] || export ITSAPLAN_AGENT_KEY="$ITSAPLAN_API_KEY"
 export ITSAPLAN_WEB_URL="${ITSAPLAN_WEB_URL:-$(cfg_get ITSAPLAN_WEB_URL)}"
 export ITSAPLAN_WEBHOOK_SECRET="${ITSAPLAN_WEBHOOK_SECRET:-$(cfg_get ITSAPLAN_WEBHOOK_SECRET)}"
+export TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-$(cfg_get TELEGRAM_BOT_TOKEN "$telegram_cfg_file")}"
+export TIEULINH_ONCALL_CHAT_ID="${TIEULINH_ONCALL_CHAT_ID:-$(cfg_get TIEULINH_ONCALL_CHAT_ID)}"
+export TIEULINH_ONCALL_CHAT_ID="${TIEULINH_ONCALL_CHAT_ID:--1000000000001}"
 
 export MINIMAX_API_KEY="${MINIMAX_API_KEY:-$(cfg_get MINIMAX_API_KEY "$minimax_cfg_file")}"
 export MINIMAX_BASE_URL="${MINIMAX_BASE_URL:-$(cfg_get MINIMAX_BASE_URL "$minimax_cfg_file")}"
@@ -193,7 +197,7 @@ setup_receptionist_config() {
   "$bun_bin" -e '
     import { writeFileSync } from "node:fs";
     import { join } from "node:path";
-    const [recDir, repoDir, portStr, token, itsaUrl, itsaKey, pkey, mmUrl, mmKey, reqApproval] = process.argv.slice(1);
+    const [recDir, repoDir, portStr, token, itsaUrl, itsaKey, pkey, mmUrl, mmKey, reqApproval, tgToken] = process.argv.slice(1);
     const port = Number(portStr) || 18796;
     const workspace = join(recDir, "workspace-ticket-intake-2");
     const deniedTools = [
@@ -260,11 +264,15 @@ setup_receptionist_config() {
         }
       },
       tools: { deny: deniedTools },
-      channels: {},
+      channels: tgToken ? {
+        telegram: {
+          botToken: tgToken
+        }
+      } : {},
       plugins: { entries: {} }
     };
     writeFileSync(join(recDir, "openclaw.json"), JSON.stringify(config, null, 2) + "\n", { mode: 0o600 });
-  ' "$rec_data" "$repo" "$RECEPTIONIST_PORT" "$token" "$ITSAPLAN_BASE_URL" "$ITSAPLAN_API_KEY" "$ITSAPLAN_PROJECT_KEY" "$MINIMAX_BASE_URL" "$MINIMAX_API_KEY" "$REQUIRE_APPROVAL" 2>/dev/null || true
+  ' "$rec_data" "$repo" "$RECEPTIONIST_PORT" "$token" "$ITSAPLAN_BASE_URL" "$ITSAPLAN_API_KEY" "$ITSAPLAN_PROJECT_KEY" "$MINIMAX_BASE_URL" "$MINIMAX_API_KEY" "$REQUIRE_APPROVAL" "$TELEGRAM_BOT_TOKEN" 2>/dev/null || true
 }
 
 start_receptionist() {
@@ -357,25 +365,29 @@ start_backoffice() {
   chmod 700 "$bot_data" 2>/dev/null || true
 
   echo "$svc: đang khởi động apps/tieulinh..."
-  BOT_DATA_DIR="$bot_data" \
-  BOT_WEBHOOK_HOST="127.0.0.1" \
-  BOT_WEBHOOK_PORT="$BOT_WEBHOOK_PORT" \
-  BOT_HEALTH_HOST="127.0.0.1" \
-  BOT_HEALTH_PORT="$BOT_HEALTH_PORT" \
-  ITSAPLAN_BASE_URL="$ITSAPLAN_BASE_URL" \
-  ITSAPLAN_AGENT_KEY="$ITSAPLAN_AGENT_KEY" \
-  ITSAPLAN_PROJECT_KEY="$ITSAPLAN_PROJECT_KEY" \
-  TIEULINH_PROJECT="$ITSAPLAN_PROJECT_KEY" \
-  TIEULINH_TEAM="$ITSAPLAN_TEAM" \
-  TIEULINH_AGENT="tieulinh2" \
-  TIEULINH_SANDBOX_CHAT="-1000000000001" \
-  REQUIRE_APPROVAL="$REQUIRE_APPROVAL" \
-  ${ITSAPLAN_WEB_URL:+ITSAPLAN_WEB_URL="$ITSAPLAN_WEB_URL"} \
-  ${ITSAPLAN_WEBHOOK_SECRET:+ITSAPLAN_WEBHOOK_SECRET="$ITSAPLAN_WEBHOOK_SECRET"} \
-  ${MINIMAX_API_KEY:+LLM_API_KEY="$MINIMAX_API_KEY"} \
-  ${MINIMAX_BASE_URL:+LLM_BASE_URL="$MINIMAX_BASE_URL"} \
-  ${MINIMAX_API_KEY:+LLM_MODEL="MiniMax-M3.1-Flash"} \
-  ${MINIMAX_API_KEY:+LLM_API="anthropic-messages"} \
+  export BOT_DATA_DIR="$bot_data"
+  export BOT_WEBHOOK_HOST="127.0.0.1"
+  export BOT_WEBHOOK_PORT="$BOT_WEBHOOK_PORT"
+  export BOT_HEALTH_HOST="127.0.0.1"
+  export BOT_HEALTH_PORT="$BOT_HEALTH_PORT"
+  export ITSAPLAN_BASE_URL="$ITSAPLAN_BASE_URL"
+  export ITSAPLAN_AGENT_KEY="$ITSAPLAN_AGENT_KEY"
+  export ITSAPLAN_PROJECT_KEY="$ITSAPLAN_PROJECT_KEY"
+  export TIEULINH_PROJECT="$ITSAPLAN_PROJECT_KEY"
+  export TIEULINH_TEAM="$ITSAPLAN_TEAM"
+  export TIEULINH_AGENT="tieulinh2"
+  export TIEULINH_SANDBOX_CHAT="-1000000000001"
+  export TIEULINH_ONCALL_CHAT_ID="$TIEULINH_ONCALL_CHAT_ID"
+  export REQUIRE_APPROVAL="$REQUIRE_APPROVAL"
+  [ -n "${ITSAPLAN_WEB_URL:-}" ] && export ITSAPLAN_WEB_URL="$ITSAPLAN_WEB_URL"
+  [ -n "${ITSAPLAN_WEBHOOK_SECRET:-}" ] && export ITSAPLAN_WEBHOOK_SECRET="$ITSAPLAN_WEBHOOK_SECRET"
+  [ -n "${TELEGRAM_BOT_TOKEN:-}" ] && export TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN"
+  if [ -n "${MINIMAX_API_KEY:-}" ]; then
+    export LLM_API_KEY="$MINIMAX_API_KEY"
+    export LLM_BASE_URL="${MINIMAX_BASE_URL:-https://api.minimaxi.chat/v1}"
+    export LLM_MODEL="MiniMax-M3.1-Flash"
+    export LLM_API="anthropic-messages"
+  fi
   nohup "$bun_bin" run "$repo/apps/tieulinh/main.ts" >> "$logs/$svc.log" 2>&1 &
   echo $! > "$run/$svc.pid"
 

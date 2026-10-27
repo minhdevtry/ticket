@@ -185,4 +185,16 @@ describe("deploy/dev/tl2-local.sh", () => {
       expect(backRes.stdout).toContain("backoffice: chưa có log");
     });
   });
+
+  describe("Nạp cấu hình môi trường và bóc tách ngoặc kép", () => {
+    it("cfg_get bóc tách dấu ngoặc kép và nháy đơn thừa", () => {
+      const customEnv = join(testDir, "quoted.env");
+      writeFileSync(
+        customEnv,
+        'ITSAPLAN_PROJECT_KEY="TECH2"\nITSAPLAN_TEAM=\'tech\'\nTIEULINH_ONCALL_CHAT_ID=" -100999888 "\n',
+      );
+      const res = run(["status"], { TL2_ENV_FILE: customEnv });
+      expect(res.code).toBe(0);
+    });
+  });
 });
