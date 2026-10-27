@@ -3,6 +3,28 @@
 All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded here.
 
 ## Unreleased
+- **defineBot lễ tân thành pack MCP và skill** (RFC 0002 PR 15, issue #29). Additive & Refactor:
+  - `@vuihoc/bot-core/bot`:
+    - Thay `unknown` bằng kiểu cụ thể trong `ReceptionistDefinition`: `catalog?: FieldCatalog`, `priorityRules?: UrgencyRules`, `extractor?: FieldExtractorPort`, `variant?`, `techReviewPolicy?`, `techReviewer?`, `techReviewGuide?`, `learned?`, `policy?`, `ownership?`.
+    - `ReceptionistDefinition.channels`: giữ để tương thích cấu hình cũ; runtime pack không sử dụng (kênh thuộc harness agent).
+    - `defineBot` kiểm tra khai báo lễ tân: catalog hợp lệ (variants, fields, enum, requiredIf, regex pattern, oneOf, recapFields, budgetGroups), luật ưu tiên hợp lệ (levels >= 2, minLevel/maxLevel, reason), chính sách soát hợp lệ, extractor có hàm `extract`; gom mọi lỗi vào `BotDefinitionError` kèm `BotDefinitionIssue[]`.
+    - `createBot` giữ vai trò worker hậu cần (phục vụ `agent-runs` native của itsaplan, webhook, lịch cron, hẹn giờ và `/healthz`), không chạy lễ tân. Bỏ cảnh báo `"declared-not-running"` và bỏ trạng thái `declared-not-running` trong `BotHealth.components`.
+    - Xuất `createReceptionistMcpServer`, `exportSkillPack`, `intakeStepTool`, `inspectTools`, `lookupTools`, `receptionistIdentityTools` từ `@vuihoc/bot-core/bot`.
+  - `@vuihoc/bot-core/intake`:
+    - Bộ tool MCP lễ tân (`packages/core/src/intake/mcp/`):
+      - `intake_step`: chạy một lượt của engine, ánh xạ `StepOutcome` sang `LegacyIntakeAction`, trả `action`, `status`, `voiceText`, `displayMarkdown`, `missingFields`, `buttonsShown`, `agentInstruction`, `issue`, `docId`, `revision`; không lộ `buttons` trong kết quả cho model.
+      - Tra cứu: `get_issue` (tra cứu ticket theo mã hoặc tự động lấy ticket gần nhất qua `chatId`), `get_intake_doc` (tra cứu tờ khai và lịch sử revision), `get_similar_tickets`.
+      - Định danh: `check_identity` (hỗ trợ đọc `pendingDraft` khi có tờ khai đang gom dở), `register_identity`.
+      - Factory `createReceptionistMcpServer`: lắp ráp các tool trên bằng `createIntakeMcpServer`, chạy được qua cả stdio (in-memory) và HTTP streamable.
+      - Mọi lỗi tool MCP trả về kết quả thường kèm cờ `loi: true` (qua `describeToolFailure`), không ném ngoại lệ lên host.
+    - Xuất gói skill `exportSkillPack`: sinh cấu trúc thư mục đầy đủ (`bot.json`, `AGENTS.md`, `IDENTITY.md`, `SOUL.md`, `messages/greeting.md`, `messages/help.md`, `messages/after-reset.md`, `skills/incident-intake/SKILL.md`, `skills/check-status/SKILL.md`, `references/priority-matrix.md`, `references/incident-taxonomy.md`) tương thích `apps/tieulinh-legacy/skills/tieulinh/`; câu chữ lấy từ `CopyCatalog`.
+    - `DraftRepository` / `SqliteDraftRepository`: thêm phương thức `getRevisions(docId: string): IntakeDraft[]`.
+    - `Catalog`: bí danh cho `FieldCatalog`.
+    - `CopyKey`: thêm các khoá tin tĩnh của gói skill `skill.message.greeting`, `skill.message.help`, `skill.message.after_reset`.
+  - Port 1 test từ legacy: `apps/tieulinh-legacy/mcp/tieulinh/intake-step.test.ts` ("gọi intake_step và kiểm tra inspect_tools qua các lượt") sang `packages/core/src/intake/mcp/intake-step.test.ts`.
+  - Mở rộng test cho `defineBot` (`define.test.ts`), `createBot` (`create.test.ts`), client MCP (stdio & HTTP).
+  - Cập nhật sổ đối chiếu (`apps/tieulinh/receptionist-gap-register.test.ts`) và `ENGINE.md`: 1 dòng `deferred` chuyển sang `ported` (tổng `ported`: 319, `deferred`: 59, PR 15 còn 10 dòng deferred).
+
 - **Hàm generic chuyển đổi luật sang catalog** (RFC 0002 PR 14, issue #28). Additive:
   - `@vuihoc/bot-core/intake`:
     - `catalogFromValidationRules`: hàm generic trong `packages/core/src/intake/gate/from-validation-rules.ts` nhận `ValidationRules` và `FieldRequirementsTable`, trả về `FieldCatalog` chuẩn theo `gate/types.ts`.

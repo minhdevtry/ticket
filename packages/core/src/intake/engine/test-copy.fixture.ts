@@ -157,4 +157,7 @@ export const TEST_COPY: Record<CopyKey, string> = {
   "checklist.ask.COURSE_CLASS_SCOPE": "Affected course or class",
   "checklist.ask.OTHER_LINK": "Page/exercise link",
   "checklist.ask.EXTENT": "Scope of impact",
+  "skill.message.greeting": "Hello! Please describe the technical issue you are experiencing.",
+  "skill.message.help": "I help report technical issues to the support team.",
+  "skill.message.after_reset": "Session has been reset. Please describe the issue.",
 };

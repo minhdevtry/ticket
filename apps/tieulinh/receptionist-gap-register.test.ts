@@ -2901,8 +2901,8 @@ const ROWS: Row[] = [
   row(
     "mcp/tieulinh/intake-step.test.ts",
     "gọi intake_step và kiểm tra inspect_tools qua các lượt",
-    "deferred",
-    "Chờ port ở PR 15 (defineBot lễ tân thành pack MCP và skill)",
+    "ported",
+    [C("intake/mcp/intake-step.test.ts", "gọi intake_step và kiểm tra inspect_tools qua các lượt")],
   ),
   // ── mcp/tieulinh/validate.test.ts (7) ──
   row(

@@ -252,7 +252,11 @@ export type CopyKey =
   | "checklist.ask.ORDER_CODE"
   | "checklist.ask.COURSE_CLASS_SCOPE"
   | "checklist.ask.OTHER_LINK"
-  | "checklist.ask.EXTENT";
+  | "checklist.ask.EXTENT"
+  // ── PR 15: gói skill (RFC 0002 §7) ─────────────────────────────────────────
+  | "skill.message.greeting"
+  | "skill.message.help"
+  | "skill.message.after_reset";
 
 /**
  * The chat↔ticket binding store, so a worker can report back to the reporter.

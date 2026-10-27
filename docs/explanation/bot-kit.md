@@ -165,6 +165,6 @@ Khi bot đặt `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `createBot` dựng cl
 
 ## Chưa có
 
-- **Pack lễ tân**: `defineBot` nhận `receptionist` để khai báo trước nhưng mới chỉ kiểm hình dạng; `createBot` ghi cảnh báo "declared-not-running" vì `createBot` là worker hậu cần chứ không chạy lễ tân. Việc dựng bộ tool MCP, gói skill và adapter OpenClaw từ khai báo nằm trong chuỗi PR của [RFC 0002](/rfc/0002-receptionist).
+- **Pack lễ tân**: `defineBot` gom khai báo lễ tân (catalog, luật ưu tiên, chính sách, extractor) và kiểm tra hình dạng; dựng thành bộ tool MCP bằng `createReceptionistMcpServer` và xuất gói skill bằng `exportSkillPack`. `createBot` là worker hậu cần chứ không chạy lễ tân. Adapter OpenClaw cho pack lễ tân nằm trong chuỗi PR tiếp theo của [RFC 0002](/rfc/0002-receptionist).
 - Adapter cho harness thứ hai ngoài OpenClaw: chỉ làm khi chủ yêu cầu.
 - Liên kết người báo với ticket: `closeAfter` bắt buộc có `backoffice.reporter` vì itsaplan không trả người báo (xem trang hẹn giờ).

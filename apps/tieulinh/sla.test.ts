@@ -101,7 +101,13 @@ describe("nhắc quá hạn tiếp nhận (SLA)", () => {
       release = r;
     });
     const real = h.tracker();
-    const slow = { ...real, columns: async () => (await gate, real.columns()) };
+    const slow = {
+      ...real,
+      columns: async () => {
+        await gate;
+        return real.columns();
+      },
+    };
     const warns: string[] = [];
     const ctx = {
       tracker: slow,

@@ -2,8 +2,9 @@ import { describe, expect, it } from "bun:test";
 import { z } from "zod";
 import { defineEnv } from "../core/config";
 import { actions, whenColumn } from "../backoffice";
+import type { FieldCatalog, FieldExtractorPort, FieldSpec, TechReviewPolicy } from "../intake";
+import { createCatalog } from "../intake/gate/catalog";
 import { BotDefinitionError, defineBot, validateBotDefinition } from "./define";
-
 const handler = async () => "ok";
 
 describe("defineBot", () => {
@@ -190,13 +191,126 @@ describe("defineBot", () => {
     expect(issues.map((i) => i.path)).toEqual(["backoffice.rules[1]", "backoffice.rules[2]"]);
   });
 
-  it("chỉ lễ tân cũng hợp lệ (chạy ở milestone 2)", () => {
+  it("chỉ lễ tân cũng hợp lệ (pack MCP và skill)", () => {
     expect(() =>
       defineBot({
         id: "recep",
         tracker: { team: "tech", project: "TECH" },
-        receptionist: { channels: [{ kind: "telegram" }] },
+        receptionist: {
+          catalog: createCatalog({
+            fields: {
+              nhanh: {
+                default: {
+                  truong: { desc: { bat_buoc: true, kieu: "text" } },
+                },
+              },
+            },
+          }),
+          priorityRules: {
+            levels: ["low", "high"],
+            floors: [{ when: { urgent: true }, minLevel: "high", reason: "Khẩn" }],
+            ceilings: [],
+          },
+          extractor: {
+            extract: async () => ({ userIntent: "report_issue", title: "t", rawText: "" }),
+          },
+          techReviewPolicy: "checklist",
+        },
       }),
     ).not.toThrow();
+  });
+
+  it("gom mọi lỗi catalog, luật ưu tiên, chính sách soát vào BotDefinitionError", () => {
+    let error: unknown;
+    try {
+      defineBot({
+        id: "recep-bad",
+        tracker: { team: "tech", project: "TECH" },
+        receptionist: {
+          catalog: {
+            maxRetries: 2,
+            maxQuestionsPerTurn: 1,
+            variants: {
+              default: {
+                key: "default",
+                name: "Default",
+                fields: {
+                  enumField: {
+                    name: "enumField",
+                    type: "enum:missing_enum",
+                    required: false,
+                    canAsk: true,
+                    askOptional: false,
+                    isMultiValue: false,
+                    inferFromContext: false,
+                  },
+                  patternField: {
+                    name: "patternField",
+                    type: "text",
+                    pattern: "(unclosed",
+                    required: false,
+                    canAsk: true,
+                    askOptional: false,
+                    isMultiValue: false,
+                    inferFromContext: false,
+                  },
+                  reqIfField: {
+                    name: "reqIfField",
+                    type: "text",
+                    requiredIf: "invalid syntax",
+                    required: false,
+                    canAsk: true,
+                    askOptional: false,
+                    isMultiValue: false,
+                    inferFromContext: false,
+                  },
+                },
+                oneOf: ["unknown_field"],
+                recapFields: ["unknown_recap"],
+                budgetGroups: [{ countFields: ["unknown_budget"], exhaustFields: [], max: 1 }],
+                status: { complete: "OK", incomplete: "Need info" },
+              },
+            },
+            enums: {},
+            autoLabels: {},
+            recapBlocklist: [],
+            icons: {},
+            synonyms: {},
+            buttonLabels: {},
+            enforceValueRules: false,
+          },
+          priorityRules: {
+            levels: ["low"],
+            floors: [{ when: {}, minLevel: "unknown_level", reason: "" }],
+            ceilings: [{ when: {}, maxLevel: "unknown_level", reason: "" }],
+          },
+          techReviewPolicy: "invalid_policy" as unknown as TechReviewPolicy,
+          extractor: {} as unknown as FieldExtractorPort,
+        },
+      });
+    } catch (e) {
+      error = e;
+    }
+
+    expect(error).toBeInstanceOf(BotDefinitionError);
+    const paths = (error as BotDefinitionError).issues.map((i) => i.path);
+    expect(paths).toContain("receptionist.catalog.variants.default.fields.enumField.type");
+    expect(paths).toContain("receptionist.catalog.variants.default.fields.patternField.pattern");
+    expect(paths).toContain("receptionist.catalog.variants.default.fields.reqIfField.requiredIf");
+    expect(paths).toContain("receptionist.catalog.variants.default.oneOf");
+    expect(paths).toContain("receptionist.catalog.variants.default.recapFields");
+    expect(paths).toContain("receptionist.catalog.variants.default.budgetGroups");
+    expect(paths).toContain("receptionist.priorityRules.levels");
+    expect(paths).toContain("receptionist.techReviewPolicy");
+    expect(paths).toContain("receptionist.extractor");
+  });
+
+  it("receptionist rỗng không có cấu hình bị chặn", () => {
+    const issues = validateBotDefinition({
+      id: "recep-empty",
+      tracker: { team: "tech", project: "TECH" },
+      receptionist: {},
+    });
+    expect(issues.map((i) => i.path)).toContain("receptionist");
   });
 });

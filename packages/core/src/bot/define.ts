@@ -10,7 +10,19 @@
  * module được nạp, nên một khai báo sai không bao giờ chạy được.
  */
 import type { EnvSchema, EnvShape, InferEnv } from "../core/config";
-import type { CopyCatalog } from "../intake/ports";
+import type {
+  CopyCatalog,
+  FieldCatalog,
+  UrgencyRules,
+  FieldExtractorPort,
+  TechReviewPolicy,
+  TechReviewerPort,
+  LearnedItemsPort,
+  OwnershipPort,
+  IntakeDraft,
+  IntakeRecord,
+} from "../intake";
+import { REQUIRED_IF_RULE } from "../intake/gate/types";
 import type { BackofficeDefinition } from "../backoffice";
 import { DEFAULT_TIMEZONE, assertTimezone, parseCron } from "../backoffice/cron";
 
@@ -33,16 +45,40 @@ export interface ChannelSpec {
 }
 
 /**
- * Vai lễ tân. Milestone 1 CHỈ khai báo và kiểm tra hình dạng; runtime lễ tân
- * (engine hội thoại, kênh, extractor) được nối vào `createBot` ở milestone 2.
- * Các trường `catalog`, `priorityRules`, `extractor` hiện để `unknown`, kiểu chặt đi kèm
- * adapter ở milestone 2.
+ * Vai lễ tân. Lễ tân là pack MCP và skill (RFC 0002): engine tiếp nhận hội thoại
+ * bọc thành tool MCP (`intake_step`, tra cứu, định danh), persona và quy trình
+ * nằm trong skill. Kênh thuộc harness (OpenClaw), bot không giữ kênh.
  */
 export interface ReceptionistDefinition {
+  /**
+   * Kênh thuộc harness (OpenClaw...), không thuộc bot (RFC 0002 mục 3.3).
+   * Giữ để tương thích cấu hình cũ; runtime pack không sử dụng trường này.
+   */
   channels?: readonly ChannelSpec[];
-  catalog?: unknown;
-  priorityRules?: unknown;
-  extractor?: unknown;
+  /** Danh mục trường (nhánh, trường, enum, câu hỏi). */
+  catalog?: FieldCatalog;
+  /** Luật ưu tiên (sàn/trần theo bằng chứng). */
+  priorityRules?: UrgencyRules;
+  /** Bộ trích xuất trường từ tin nhắn người dùng. */
+  extractor?: FieldExtractorPort;
+  /** Nhánh mặc định hoặc hàm suy ra nhánh từ draft & record. */
+  variant?: string | ((draft: IntakeDraft, record: IntakeRecord) => string);
+  /** Chính sách soát thông tin trước khi xác nhận: "off" | "checklist" | "llm". */
+  techReviewPolicy?: TechReviewPolicy;
+  /** Bộ soát kỹ thuật (checklist hoặc custom). */
+  techReviewer?: TechReviewerPort;
+  /** Hướng dẫn cho LLM soát kỹ thuật. */
+  techReviewGuide?: string;
+  /** Cổng đọc mục tự học (ask-learning). */
+  learned?: LearnedItemsPort;
+  /** Chính sách tiếp nhận (thời gian chờ, TTL...). */
+  policy?: {
+    draftTtlMs?: number;
+    minConfirmDelayMs?: number;
+    followUpMaxChars?: number;
+  };
+  /** Cổng xác định quyền sở hữu ticket (ADR-0008). */
+  ownership?: OwnershipPort;
 }
 
 /** Khai báo đầy đủ của một bot. `E` là hình dạng env, suy ra từ `env`. */
@@ -157,6 +193,223 @@ function validateSchedule(
   }
 }
 
+function validateCatalogDefinition(
+  catalog: unknown,
+  bad: (path: string, message: string) => void,
+): void {
+  if (!catalog || typeof catalog !== "object") {
+    bad("receptionist.catalog", "catalog phải là một đối tượng FieldCatalog");
+    return;
+  }
+  const cat = catalog as FieldCatalog;
+  if (!cat.variants || typeof cat.variants !== "object" || Object.keys(cat.variants).length === 0) {
+    bad("receptionist.catalog.variants", "catalog phải khai báo ít nhất một nhánh trong variants");
+    return;
+  }
+
+  const enums = cat.enums ?? {};
+
+  for (const [vKey, variant] of Object.entries(cat.variants)) {
+    const vPath = `receptionist.catalog.variants.${vKey}`;
+    if (!variant || typeof variant !== "object") {
+      bad(vPath, "nhánh phải là một đối tượng VariantSpec");
+      continue;
+    }
+    const fields = variant.fields ?? {};
+    if (Object.keys(fields).length === 0) {
+      bad(`${vPath}.fields`, "nhánh phải có ít nhất một trường trong fields");
+    }
+
+    for (const [fName, field] of Object.entries(fields)) {
+      const fPath = `${vPath}.fields.${fName}`;
+      if (!field || typeof field !== "object") {
+        bad(fPath, "trường phải là một đối tượng FieldSpec");
+        continue;
+      }
+
+      if (typeof field.type === "string" && field.type.startsWith("enum:")) {
+        const enumKey = field.type.slice("enum:".length);
+        if (!enums[enumKey]) {
+          bad(`${fPath}.type`, `kiểu "enum:${enumKey}" tham chiếu danh mục enum không tồn tại`);
+        }
+      }
+
+      if (typeof field.requiredIf === "string") {
+        const match = REQUIRED_IF_RULE.exec(field.requiredIf.trim());
+        if (!match) {
+          bad(`${fPath}.requiredIf`, `cú pháp requiredIf không hợp lệ: "${field.requiredIf}"`);
+        } else if (!enums[match[3]]) {
+          bad(
+            `${fPath}.requiredIf`,
+            `requiredIf tham chiếu danh mục enum không tồn tại: "${match[3]}"`,
+          );
+        }
+      }
+
+      if (typeof field.pattern === "string") {
+        try {
+          new RegExp(field.pattern);
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          bad(`${fPath}.pattern`, `mẫu regex không hợp lệ: ${msg}`);
+        }
+      }
+    }
+
+    if (variant.oneOf) {
+      if (!Array.isArray(variant.oneOf)) {
+        bad(`${vPath}.oneOf`, "oneOf phải là mảng tên trường");
+      } else {
+        for (const name of variant.oneOf) {
+          if (!fields[name]) {
+            bad(
+              `${vPath}.oneOf`,
+              `trường "${name}" trong oneOf không tồn tại trong danh sách trường của nhánh`,
+            );
+          }
+        }
+      }
+    }
+
+    if (variant.recapFields && Array.isArray(variant.recapFields)) {
+      const autoLabels = cat.autoLabels ?? {};
+      for (const name of variant.recapFields) {
+        if (!fields[name] && !autoLabels[name]) {
+          bad(
+            `${vPath}.recapFields`,
+            `trường "${name}" trong recapFields không tồn tại trong fields và không phải autoLabel`,
+          );
+        }
+      }
+    }
+
+    if (variant.budgetGroups && Array.isArray(variant.budgetGroups)) {
+      for (const group of variant.budgetGroups) {
+        for (const name of [...(group.countFields ?? []), ...(group.exhaustFields ?? [])]) {
+          if (!fields[name]) {
+            bad(
+              `${vPath}.budgetGroups`,
+              `trường "${name}" trong budgetGroups không tồn tại trong fields`,
+            );
+          }
+        }
+      }
+    }
+  }
+}
+
+function validatePriorityRulesDefinition(
+  rules: unknown,
+  bad: (path: string, message: string) => void,
+): void {
+  if (!rules || typeof rules !== "object") {
+    bad("receptionist.priorityRules", "priorityRules phải là một đối tượng UrgencyRules");
+    return;
+  }
+  const r = rules as UrgencyRules;
+  if (
+    !Array.isArray(r.levels) ||
+    r.levels.length < 2 ||
+    !r.levels.every((l) => typeof l === "string")
+  ) {
+    bad("receptionist.priorityRules.levels", "phải là mảng chứa ít nhất 2 mức ưu tiên dạng chuỗi");
+    return;
+  }
+
+  const levelSet = new Set(r.levels);
+
+  if (r.floors !== undefined) {
+    if (!Array.isArray(r.floors)) {
+      bad("receptionist.priorityRules.floors", "floors phải là một mảng");
+    } else {
+      r.floors.forEach((floor, i) => {
+        const at = `receptionist.priorityRules.floors[${i}]`;
+        if (!floor || typeof floor !== "object") {
+          bad(at, "luật sàn phải là đối tượng");
+          return;
+        }
+        if (!floor.when || typeof floor.when !== "object") {
+          bad(`${at}.when`, "điều kiện `when` phải là đối tượng");
+        }
+        if (typeof floor.minLevel !== "string" || !levelSet.has(floor.minLevel)) {
+          bad(
+            `${at}.minLevel`,
+            `mức "${floor?.minLevel}" không nằm trong danh sách levels (${r.levels.join(", ")})`,
+          );
+        }
+        if (typeof floor.reason !== "string" || !floor.reason.trim()) {
+          bad(`${at}.reason`, "phải có lý do dạng chuỗi không rỗng");
+        }
+      });
+    }
+  }
+
+  if (r.ceilings !== undefined) {
+    if (!Array.isArray(r.ceilings)) {
+      bad("receptionist.priorityRules.ceilings", "ceilings phải là một mảng");
+    } else {
+      r.ceilings.forEach((ceiling, i) => {
+        const at = `receptionist.priorityRules.ceilings[${i}]`;
+        if (!ceiling || typeof ceiling !== "object") {
+          bad(at, "luật trần phải là đối tượng");
+          return;
+        }
+        if (!ceiling.when || typeof ceiling.when !== "object") {
+          bad(`${at}.when`, "điều kiện `when` phải là đối tượng");
+        }
+        if (typeof ceiling.maxLevel !== "string" || !levelSet.has(ceiling.maxLevel)) {
+          bad(
+            `${at}.maxLevel`,
+            `mức "${ceiling?.maxLevel}" không nằm trong danh sách levels (${r.levels.join(", ")})`,
+          );
+        }
+        if (typeof ceiling.reason !== "string" || !ceiling.reason.trim()) {
+          bad(`${at}.reason`, "phải có lý do dạng chuỗi không rỗng");
+        }
+      });
+    }
+  }
+}
+
+function validateReceptionist(
+  rec: ReceptionistDefinition,
+  bad: (path: string, message: string) => void,
+): void {
+  const hasFields =
+    rec.catalog !== undefined ||
+    rec.priorityRules !== undefined ||
+    rec.extractor !== undefined ||
+    rec.channels !== undefined ||
+    rec.techReviewPolicy !== undefined ||
+    rec.techReviewer !== undefined;
+
+  if (!hasFields) {
+    bad("receptionist", "lễ tân cần ít nhất catalog hoặc cấu hình hợp lệ");
+    return;
+  }
+
+  if (rec.catalog !== undefined) {
+    validateCatalogDefinition(rec.catalog, bad);
+  }
+
+  if (rec.priorityRules !== undefined) {
+    validatePriorityRulesDefinition(rec.priorityRules, bad);
+  }
+
+  if (rec.techReviewPolicy !== undefined) {
+    if (!["off", "checklist", "llm"].includes(rec.techReviewPolicy)) {
+      bad("receptionist.techReviewPolicy", 'chính sách soát phải là "off", "checklist" hoặc "llm"');
+    }
+  }
+
+  if (rec.extractor !== undefined) {
+    const ext = rec.extractor as { extract?: unknown } | undefined;
+    if (typeof ext?.extract !== "function") {
+      bad("receptionist.extractor", "extractor phải có phương thức `extract(input)`");
+    }
+  }
+}
+
 /** Kiểm tra khai báo; trả danh sách lỗi (rỗng = hợp lệ). Không ném. */
 export function validateBotDefinition(def: BotDefinition<any>): BotDefinitionIssue[] {
   const issues: BotDefinitionIssue[] = [];
@@ -176,6 +429,10 @@ export function validateBotDefinition(def: BotDefinition<any>): BotDefinitionIss
   }
   if (!def?.receptionist && !def?.backoffice) {
     bad("receptionist | backoffice", "cần ít nhất một vai");
+  }
+  const rec = def?.receptionist;
+  if (rec) {
+    validateReceptionist(rec, bad);
   }
 
   const back = def?.backoffice;

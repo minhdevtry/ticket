@@ -7,3 +7,15 @@ export * from "./create";
 export * from "./run";
 export * from "./health-server";
 export * from "./logging";
+export {
+  createReceptionistMcpServer,
+  exportSkillPack,
+  intakeStepTool,
+  inspectTools,
+  lookupTools,
+  receptionistIdentityTools,
+  type ReceptionistServerOptions,
+  type SkillPack,
+  type SkillPackFile,
+  type SkillPackOptions,
+} from "../intake/mcp";

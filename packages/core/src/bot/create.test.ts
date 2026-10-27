@@ -7,6 +7,7 @@ import { FakeItsaplan } from "../testing/fake-itsaplan";
 import { type CreateBotOptions, createBot } from "./create";
 import { type BotDefinition, BotDefinitionError, defineBot } from "./define";
 import { runBot } from "./run";
+import { createCatalog } from "../intake/gate/catalog";
 
 const logs: string[] = [];
 const logger: IntakeLogger = {
@@ -341,6 +342,30 @@ describe("createBot", () => {
     );
     await bad.start();
     await until(() => bad.health().status === "down");
+  });
+  it("khai báo receptionist: createBot không cảnh báo declared-not-running, health không mang receptionist", async () => {
+    const bot = make(
+      defineBot({
+        id: "recep-bot",
+        tracker: { team: "tech", project: "TECH" },
+        receptionist: {
+          catalog: createCatalog({
+            fields: {
+              nhanh: {
+                default: {
+                  truong: { desc: { kieu: "text" } },
+                },
+              },
+            },
+          }),
+        },
+      }),
+      { env: envFor() },
+    );
+    expect(logs.some((l) => l.includes("declared-not-running"))).toBe(false);
+    expect(logs.some((l) => l.includes("CHƯA chạy"))).toBe(false);
+    const h = bot.health();
+    expect((h.components as Record<string, unknown>).receptionist).toBeUndefined();
   });
 });
 
