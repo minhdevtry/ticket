@@ -203,7 +203,10 @@ setup_receptionist_config() {
     const workspace = join(recDir, "workspace-ticket-intake-2");
     const deniedTools = [
       "group:runtime",
-      "group:fs",
+      "write",
+      "edit",
+      "apply_patch",
+      "exec",
       "group:web",
       "group:ui",
       "group:automation",
@@ -291,8 +294,20 @@ setup_receptionist_config() {
       channels: tgToken ? {
         telegram: {
           enabled: true,
-          defaultAccount: "ticket",
+          defaultAccount: "default",
+          dmPolicy: "open",
+          allowFrom: ["*"],
+          groupAllowFrom: ["*"],
+          capabilities: { inlineButtons: "dm" },
           accounts: {
+            default: {
+              botToken: tgToken,
+              dmPolicy: "open",
+              allowFrom: ["*"],
+              groupAllowFrom: ["*"],
+              streaming: { mode: "off" },
+              capabilities: { inlineButtons: "dm" }
+            },
             ticket: {
               botToken: tgToken,
               dmPolicy: "open",
