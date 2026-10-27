@@ -98,6 +98,9 @@ export const MAX_CALLBACK_DATA_BYTES = 64;
  */
 export const REQUIRED_IF_RULE = /^(\w+) (in|matches|not matches) (\w+)$/;
 
+/** Bí danh cho `FieldCatalog` — danh mục các trường và luật tiếp nhận. */
+export type Catalog = FieldCatalog;
+
 export interface FieldCatalog {
   /** Retry budget when a field declares no explicit follow-ups. */
   maxRetries: number;

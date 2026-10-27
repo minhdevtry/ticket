@@ -3341,6 +3341,7 @@ export class IntakeEngine {
 
     return {
       ...base,
+      revision: open ? open.revision + 1 : base.revision,
       status: "collecting",
       ticket,
       reporter: mergeReporter(base.reporter, input.reporter),

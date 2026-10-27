@@ -59,14 +59,14 @@ không còn tồn tại, hoặc khi các con số dưới đây lệch khỏi s�
 | Trạng thái | Số test legacy | Nghĩa |
 |---|---|---|
 | `core` | 61 | Engine hoặc thư viện core hiện có đã có test tương ứng (mỗi dòng trỏ tới test đó) |
-| `ported` | 318 | Đã port sang engine của core và app `apps/tieulinh` — PR 4 port 15 dòng; PR 5 port thêm 44 dòng; PR 7 port thêm 10 dòng (hỏi bổ sung theo luật, chốt tiêu đề); PR 8 port thêm 18 dòng (gác tờ khai khi có sự cố mới, định danh); PR 9 port thêm 22 dòng (tách báo cáo nhiều sự cố, đối kháng); PR 10 port thêm 37 dòng (tin sau khi tạo ticket); PR 11 port thêm 28 dòng (lệnh nhắm vào ticket đã có); PR 12 port thêm 12 dòng (huỷ và đóng ticket theo yêu cầu người báo); PR 13 port thêm 55 dòng (soát thông tin: checklist, LLM, ask-learning, lookup, learned, classify); PR 14 port thêm 77 dòng (dữ liệu domain, chữ, định dạng ticket) |
-| `deferred` | 60 | Chưa có; dòng nêu PR của RFC 0002 sẽ port, hoặc lý do nằm ngoài chuỗi di trú (KG, Onyx, nạp tri thức) |
+| `ported` | 319 | Đã port sang engine của core và app `apps/tieulinh` — PR 4 port 15 dòng; PR 5 port thêm 44 dòng; PR 7 port thêm 10 dòng (hỏi bổ sung theo luật, chốt tiêu đề); PR 8 port thêm 18 dòng (gác tờ khai khi có sự cố mới, định danh); PR 9 port thêm 22 dòng (tách báo cáo nhiều sự cố, đối kháng); PR 10 port thêm 37 dòng (tin sau khi tạo ticket); PR 11 port thêm 28 dòng (lệnh nhắm vào ticket đã có); PR 12 port thêm 12 dòng (huỷ và đóng ticket theo yêu cầu người báo); PR 13 port thêm 55 dòng (soát thông tin: checklist, LLM, ask-learning, lookup, learned, classify); PR 14 port thêm 77 dòng (dữ liệu domain, chữ, định dạng ticket); PR 15 port thêm 1 dòng (`intake-step.test.ts`) |
+| `deferred` | 59 | Chưa có; dòng nêu PR của RFC 0002 sẽ port, hoặc lý do nằm ngoài chuỗi di trú (KG, Onyx, nạp tri thức) |
 | `by-design` | 11 | Cố ý không có ở bản mới, có lý do (tool ghi trực tiếp của legacy, đường tạo ticket thứ hai, bot khác) |
 | Tổng | 450 | Test của lễ tân và phần dùng chung |
 
 Số test `deferred` theo PR sẽ port (RFC 0002, mục 5):
 
-<!-- gap-register: total=450 core=61 ported=318 deferred=60 by-design=11 -->
+<!-- gap-register: total=450 core=61 ported=319 deferred=59 by-design=11 -->
 
 <!-- gap-register-deferred-by-pr -->
 | PR | Số test | Chủ đề |
@@ -82,7 +82,7 @@ Số test `deferred` theo PR sẽ port (RFC 0002, mục 5):
 | 12 | 0 | Huỷ và đóng ticket theo yêu cầu người báo (ADR-0006) |
 | 13 | 0 | Đã port ở PR 13 (soát thông tin, `learned`) |
 | 14 | 0 | Đã port ở PR 14 (dữ liệu domain, chữ, định dạng ticket) |
-| 15 | 11 | Pack MCP và skill (tool MCP create_issue, check_required_fields, validate_fields) |
+| 15 | 10 | Pack MCP và skill (tool MCP create_issue, check_required_fields, validate_fields) |
 | 16 | 7 | Adapter OpenClaw |
 <!-- /gap-register-deferred-by-pr -->
 

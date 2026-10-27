@@ -1,10 +1,15 @@
 /**
- * `createBot` — dựng runtime của một bot từ khai báo `defineBot`.
+ * `createBot` — dựng runtime WORKER HẬU CẦN của một bot từ khai báo `defineBot`.
+ *
+ * Lưu ý vai trò (RFC 0001, RFC 0002):
+ * `createBot` CHỈ phụ trách vai hậu cần (backoffice): poll `agent-runs` native của
+ * itsaplan, nhận webhook, chạy lịch cron, hẹn giờ và `/healthz`. Nó KHÔNG chạy lễ tân:
+ * vai lễ tân là một pack MCP + skill cắm vào harness agent (OpenClaw), dựng bằng
+ * `createReceptionistMcpServer` và `exportSkillPack`.
  *
  * Vòng đời: `createBot` (đồng bộ: kiểm khai báo, nạp + kiểm env, dựng đối tượng, KHÔNG
  * mạng, KHÔNG nghe cổng) → `start()` (kiểm tra kết nối dự án, bật worker run, webhook,
  * `/healthz`) → `health()` bất cứ lúc nào → `stop()` (êm, idempotent).
- *
  * Env luôn truyền tường minh qua `options.env`; `.env` chỉ đọc khi truyền `envFile`.
  * Biến chuẩn của kit (đọc bởi `createBot`):
  *
@@ -111,7 +116,6 @@ export interface BotHealth {
     };
     /** Kho bền: `durable` là `true` khi có `BOT_DATA_DIR`/`dataDir` (sống qua restart). */
     store?: { durable: boolean };
-    receptionist?: { state: "declared-not-running"; note: string };
   };
   /** Lý do khi `degraded`/`down`. */
   reasons: string[];
@@ -552,12 +556,6 @@ export function createBot<E extends EnvShape = Record<never, never>>(
     }
   }
 
-  if (def.receptionist) {
-    logger.warn(
-      "receptionist đã khai báo nhưng CHƯA chạy (runtime lễ tân thuộc milestone 2); chỉ backoffice hoạt động",
-    );
-  }
-
   function health(): BotHealth {
     const now = clock.now();
     const reasons: string[] = [];
@@ -626,12 +624,6 @@ export function createBot<E extends EnvShape = Record<never, never>>(
       }
     }
     if (store) components.store = { durable };
-    if (def.receptionist) {
-      components.receptionist = {
-        state: "declared-not-running",
-        note: "runtime lễ tân thuộc milestone 2",
-      };
-    }
 
     if (state === "created" || state === "starting") status = "starting";
     else if (state === "stopped" || state === "stopping") status = "stopped";

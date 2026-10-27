@@ -20,3 +20,6 @@ export * from "./notify";
 
 // ── ticket 13: technical review & ask-learning (RFC 0002 §1.4 F1-F4) ────────
 export * from "./review";
+
+// ── PR 15: receptionist MCP pack & skill (RFC 0002 §5 issue #29) ──────────────
+export * from "./mcp";

@@ -51,6 +51,8 @@ export interface DraftRepository {
   /** Most recently WRITTEN revision for a chat (ordered by updated_at, then rowid). */
   getLatestByChatId(chatId: string): IntakeDraft | null;
   getByDocId(docId: string, revision?: number): IntakeDraft | null;
+  /** Lấy toàn bộ các revision của một tờ khai (sắp xếp tăng dần theo revision). */
+  getRevisions(docId: string): IntakeDraft[];
 }
 
 export class SqliteDraftRepository implements DraftRepository {
@@ -105,6 +107,13 @@ export class SqliteDraftRepository implements DraftRepository {
             .get(docId)
     ) as { state_json: string } | null;
     return row ? safeParse(row.state_json) : null;
+  }
+
+  getRevisions(docId: string): IntakeDraft[] {
+    const rows = this.db
+      .prepare(`SELECT state_json FROM intake_documents WHERE doc_id = ? ORDER BY revision ASC`)
+      .all(docId) as { state_json: string }[];
+    return rows.map((r) => safeParse(r.state_json)).filter((d): d is IntakeDraft => d !== null);
   }
 }
 

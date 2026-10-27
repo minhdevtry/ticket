@@ -287,6 +287,12 @@ export const tieulinhReceptionistCopy: Record<CopyKey, string> = {
     "Học sinh nào, khoá học/lớp/buổi học nào bị ảnh hưởng (nhiều học sinh thì ghi rõ từng em)",
   "checklist.ask.OTHER_LINK": "Link trang/bài/đề đang bị lỗi",
   "checklist.ask.EXTENT": "Một người bị hay nhiều người/tất cả đều bị",
+  "skill.message.greeting":
+    "Dạ em Tiểu Linh nghe ạ anh/chị ơi! Bên mình đang gặp sự cố gì thì gửi em thông tin hoặc ảnh chụp màn hình để em hỗ trợ xử lý ngay nhé ạ.",
+  "skill.message.help":
+    '**Em là Tiểu Linh — Hỗ trợ kỹ thuật VUIHOC.**\n\nEm giúp anh/chị gửi sự cố trực tiếp tới đội Kỹ thuật:\n- **Báo sự cố:** Gửi mô tả lỗi (ví dụ *"Phòng 5511 học sinh không nghe thấy tiếng"*), kèm ảnh chụp màn hình nếu có.\n- **Tra cứu tiến độ:** Nhắn *"tiến độ sao rồi em"* hoặc kèm mã ticket (ví dụ *"TECH-27 sao rồi"*).\n- **Giục xử lý khẩn cấp:** Nhắn *"gấp lắm em ơi"* để ưu tiên xử lý ngay cho lớp học.\n- **Bổ sung thông tin:** Gửi thêm số điện thoại, tài khoản hoặc ảnh lỗi để em cập nhật vào ticket đang xử lý.\n\n*Gõ /reset nếu muốn hủy phiên trao đổi dở để bắt đầu lại.*',
+  "skill.message.after_reset":
+    "Đã làm mới phiên làm việc! Anh/chị gửi mô tả sự cố kèm ảnh (nếu có) để em hỗ trợ nhé ạ.",
 };
 
 export const tieuLinhCopy = tieulinhReceptionistCopy;
