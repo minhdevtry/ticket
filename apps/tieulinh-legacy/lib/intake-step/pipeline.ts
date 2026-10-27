@@ -19,7 +19,7 @@ import {
   buildAdviceComment,
   formatTicketDescription,
 } from "../../mcp/tieulinh/domain/ticket-formatter";
-import { VALID_SYSTEMS } from "../../mcp/tieulinh/domain/taxonomy";
+import { VALID_SYSTEMS, VALID_REPORTING_DEPTS } from "../../mcp/tieulinh/domain/taxonomy";
 import { markBotComment } from "@vuihoc/bot-core/core";
 import { escapeItsaplanMarkdown } from "../html-entities";
 import { fieldButtons, layoutButtons } from "@vuihoc/bot-core/intake";
@@ -56,7 +56,14 @@ import {
 import type { IntakePacket, IntakeNextAction } from "../intake-document/packet";
 import type { TicketBindingRepository } from "../storage/binding-repository";
 import type { DraftSessionRepository } from "../storage/session-repository";
-import { type FieldExtractor, isChitchat, isDeclineAnswer } from "./extractor";
+import type { IdentityRepository } from "../storage/identity-repository";
+import {
+  type FieldExtractor,
+  isChitchat,
+  isDeclineAnswer,
+  normalizeWithSynonyms,
+  DEPT_SYNONYMS,
+} from "./extractor";
 import type { ExtractedFields } from "./extractor-schema";
 import { mergeExtractedFields } from "./merger";
 import type { OnyxRestSearchClient } from "../onyx/rest-search";
@@ -201,6 +208,7 @@ export interface IntakePipelineOptions {
   bindingRepo?: TicketBindingRepository;
   /** Bản nháp của create_issue — dọn khi intake_step tạo xong. */
   draftRepo?: DraftSessionRepository;
+  identityRepo?: IdentityRepository;
   buttons?: PendingButtonsSink;
   draftTtlMs?: number;
   /** Mặc định MIN_CONFIRM_DELAY_MS — xem chú thích ở đó. */
@@ -860,6 +868,38 @@ export class IntakeStepPipeline {
     if (extracted.reportingDeptUnrecognized)
       doc.unrecognizedDept = extracted.reportingDeptUnrecognized;
     else if (doc.fields.reportingDept?.value) doc.unrecognizedDept = undefined;
+
+    // Smart Identity Memory: Nếu người dùng không tự khai phòng ban trong tin nhắn,
+    // tự động nạp phòng ban đã lưu trong IdentityRepository (ví dụ: TE_MinhDN3 thuộc Vận hành).
+    if (!doc.fields.reportingDept?.value) {
+      const targetChat = input.reporter?.telegramId || input.chatId;
+      const repo = this.options.identityRepo;
+      if (repo && targetChat) {
+        try {
+          let ident = repo.getUserIdentity(String(targetChat));
+          if (!ident && input.reporter?.nameCode) {
+            ident = repo.getUserIdentityByNameCode(input.reporter.nameCode);
+          }
+          if (ident?.department) {
+            const matched = normalizeWithSynonyms(
+              ident.department,
+              VALID_REPORTING_DEPTS,
+              DEPT_SYNONYMS,
+            );
+            if (matched) {
+              doc.fields.reportingDept = {
+                value: matched,
+                source: "system_inferred",
+                turn: nextTurn,
+                updatedAt: doc.updatedAt,
+              };
+            }
+          }
+        } catch {
+          // Lỗi đọc danh tính không chặn luồng chính
+        }
+      }
+    }
     doc.updatedAt = new Date(this.now()).toISOString();
     if (media.length > 0) {
       doc.fields.mediaPaths = {

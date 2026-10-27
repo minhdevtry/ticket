@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach } from "bun:test";
 import { Database } from "bun:sqlite";
 import { applySchema } from "../storage/schema";
 import { IntakeDocumentRepository } from "../intake-document/repository";
+import { IdentityRepository } from "../storage/identity-repository";
 import { FieldExtractor } from "./extractor";
 import { IntakeStepPipeline } from "./pipeline";
 import type { ItsaplanClient, ItsaplanIssue } from "@vuihoc/bot-core/itsaplan";
@@ -9,6 +10,12 @@ import validationRules from "../../mcp/tieulinh/domain/validation-rules.json";
 import fieldRequirements from "../../mcp/tieulinh/domain/required_fields.json";
 import productMapping from "../../mcp/tieulinh/domain/product_mapping.json";
 import urgencyRules from "../../mcp/tieulinh/domain/urgency-rules.json";
+import type {
+  ValidationRules,
+  FieldRequirementsTable,
+  ProductMappingConfig,
+  UrgencyRules,
+} from "../../mcp/shared/index";
 
 describe("IntakeStepPipeline", () => {
   let db: Database;
@@ -90,6 +97,69 @@ describe("IntakeStepPipeline", () => {
     expect(res.missingFields).toContain("reporting_dept");
     expect(res.status).toBe("collecting");
     expect(res.document.fields.studentAccount?.value).toBe("0900000005");
+  });
+
+  it("Turn 1: Có identityRepo với department đã lưu -> tự động nhận diện reporting_dept, không hỏi lại phòng ban", async () => {
+    const identRepo = new IdentityRepository(db);
+    identRepo.saveUserIdentity({
+      telegramUserId: "chat_identity_1",
+      nameCode: "TE_MinhDN3",
+      department: "Vận hành",
+      status: "approved",
+    });
+
+    const pipelineWithIdentity = new IntakeStepPipeline({
+      repo,
+      extractor: new FieldExtractor({ baseUrl: "http://fake", apiKey: "fake", model: "fake" }),
+      itsaplan: it$.client,
+      projectKey: "TECHTEST",
+      validationRules: validationRules as unknown as ValidationRules,
+      fieldRequirements: fieldRequirements as unknown as FieldRequirementsTable,
+      productMapping: productMapping as unknown as ProductMappingConfig,
+      urgencyRules: urgencyRules as unknown as UrgencyRules,
+      buttons: { save: () => {}, clear: () => {} },
+      identityRepo: identRepo,
+    });
+
+    const res = await pipelineWithIdentity.run({
+      chatId: "chat_identity_1",
+      message: "Lỗi app Duo hệ thống Vuihoc học sinh 0900000005 không làm bài được",
+    });
+
+    expect(res.missingFields).not.toContain("reporting_dept");
+    expect(res.document.fields.reportingDept?.value).toBe("Vận hành");
+  });
+
+  it("Turn 1: Có identityRepo nhưng người dùng tự khai phòng ban khác (báo hộ) -> ưu tiên phòng ban tự khai", async () => {
+    const identRepo = new IdentityRepository(db);
+    identRepo.saveUserIdentity({
+      telegramUserId: "chat_identity_2",
+      nameCode: "TE_MinhDN3",
+      department: "Vận hành",
+      status: "approved",
+    });
+
+    const pipelineWithIdentity = new IntakeStepPipeline({
+      repo,
+      extractor: new FieldExtractor({ baseUrl: "http://fake", apiKey: "fake", model: "fake" }),
+      itsaplan: it$.client,
+      projectKey: "TECHTEST",
+      validationRules: validationRules as unknown as ValidationRules,
+      fieldRequirements: fieldRequirements as unknown as FieldRequirementsTable,
+      productMapping: productMapping as unknown as ProductMappingConfig,
+      urgencyRules: urgencyRules as unknown as UrgencyRules,
+      buttons: { save: () => {}, clear: () => {} },
+      identityRepo: identRepo,
+    });
+
+    const res = await pipelineWithIdentity.run({
+      chatId: "chat_identity_2",
+      message:
+        "Lỗi app Duo hệ thống Vuihoc học sinh 0900000005 không làm bài được, em báo hộ bên Sale nhé",
+    });
+
+    expect(res.missingFields).not.toContain("reporting_dept");
+    expect(res.document.fields.reportingDept?.value).toBe("Sale");
   });
 
   it("Turn 2: Điền đủ thông tin -> confirm_summary, Turn 3: Xác nhận -> ticket_created", async () => {

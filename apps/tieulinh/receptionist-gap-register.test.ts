@@ -1813,12 +1813,24 @@ const ROWS: Row[] = [
       ),
     ],
   ),
-  // ── lib/intake-step/pipeline.test.ts (7) ──
+  // ── lib/intake-step/pipeline.test.ts (9) ──
   row(
     "lib/intake-step/pipeline.test.ts",
     "Turn 1: Thiếu reporting_dept -> Action ask_missing_field",
     "core",
     [C("intake/engine/engine.test.ts", "incomplete report asks the next question (gate ask-back)")],
+  ),
+  row(
+    "lib/intake-step/pipeline.test.ts",
+    "Turn 1: Có identityRepo với department đã lưu -> tự động nhận diện reporting_dept, không hỏi lại phòng ban",
+    "deferred",
+    "Hành vi nhớ danh tính lễ tân đang được đồng bộ ở PR 15",
+  ),
+  row(
+    "lib/intake-step/pipeline.test.ts",
+    "Turn 1: Có identityRepo nhưng người dùng tự khai phòng ban khác (báo hộ) -> ưu tiên phòng ban tự khai",
+    "deferred",
+    "Hành vi nhớ danh tính lễ tân đang được đồng bộ ở PR 15",
   ),
   row(
     "lib/intake-step/pipeline.test.ts",

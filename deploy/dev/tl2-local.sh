@@ -377,6 +377,7 @@ start_receptionist() {
   PATH="${node_path_prefix}${PATH}" \
   OPENCLAW_STATE_DIR="$rec_data" \
   OPENCLAW_CONFIG_PATH="$config_path" \
+  XAC_NHAN_XONG_WORKERS="ticket-intake-agent-2=http://127.0.0.1:$BOT_WEBHOOK_PORT,ticket-intake-agent=http://127.0.0.1:$BOT_WEBHOOK_PORT" \
   nohup "$openclaw_bin" gateway run --port "$RECEPTIONIST_PORT" --bind loopback >> "$logs/$svc.log" 2>&1 &
   echo $! > "$run/$svc.pid"
 
@@ -445,6 +446,7 @@ start_backoffice() {
   export TIEULINH_SANDBOX_CHAT="-1000000000001"
   export TIEULINH_ONCALL_CHAT_ID="$TIEULINH_ONCALL_CHAT_ID"
   export REQUIRE_APPROVAL="$REQUIRE_APPROVAL"
+  export TIEULINH_BINDING_DB="${TIEULINH_BINDING_DB:-$rec_data/tieulinh.db}"
   [ -n "${ITSAPLAN_WEB_URL:-}" ] && export ITSAPLAN_WEB_URL="$ITSAPLAN_WEB_URL"
   [ -n "${ITSAPLAN_WEBHOOK_SECRET:-}" ] && export ITSAPLAN_WEBHOOK_SECRET="$ITSAPLAN_WEBHOOK_SECRET"
   [ -n "${TELEGRAM_BOT_TOKEN:-}" ] && export TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN"

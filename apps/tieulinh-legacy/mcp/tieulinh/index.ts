@@ -41,6 +41,8 @@ import { LlmSimilarTickets } from "../../lib/kg/similar-ticket-source";
 import type { JudgeMode } from "../../lib/kg/similar-judge";
 import { getSharedBindingRepo } from "../../lib/storage/binding-repository";
 import { getSharedDraftSessionRepo } from "../../lib/storage/session-repository";
+import { IdentityRepository } from "../../lib/storage/identity-repository";
+import { openLazyDb } from "../../lib/storage/lazy-db";
 import { isLlmConfigured, llmConfigFromEnv } from "../../worker/llm";
 import { ChecklistTechReviewer } from "../../lib/intake-step/checklist-review";
 import { createAskLearnedLookup } from "../../lib/ask-learning/lookup";
@@ -129,6 +131,7 @@ const intakeStepTool = intakeStep({
   // Dùng chung kho với create_issue: binding cho worker báo ngược, bản nháp để dọn khi tạo xong
   bindingRepo: getSharedBindingRepo(identity.dbPath),
   draftRepo: getSharedDraftSessionRepo(identity.dbPath),
+  identityRepo: new IdentityRepository(openLazyDb(identity.dbPath)),
   validationRules: validationRules as ValidationRules,
   fieldRequirements: fieldRequirements as FieldRequirementsTable,
   productMapping: productMapping as ProductMappingConfig,
