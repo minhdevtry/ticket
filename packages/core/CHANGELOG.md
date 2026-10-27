@@ -3,6 +3,12 @@
 All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded here.
 
 ## Unreleased
+- **Bật/tắt duyệt name code qua cấu hình và .env, mặc định không duyệt** (issue #73). Changed:
+  - `@vuihoc/bot-core/identity`:
+    - `IdentityService`: đổi mặc định của `requireApproval` sang `false` (`options.requireApproval ?? false`). Khi không cấu hình tường minh, đăng ký người dùng mới được tự động duyệt (`autoApproved: true, reason: "auto_approved_open"`), `checkUserApproval` trả về `isApproved: true, isPending: false`. Bật duyệt name code khi truyền `{ requireApproval: true }`.
+  - `@vuihoc/bot-core/bot`:
+    - `ReceptionistDefinition`: bổ sung trường tuỳ chọn `requireApproval?: boolean` (mặc định `false`). `validateBotDefinition` kiểm tra kiểu boolean nếu được khai báo.
+
 - **Runbook shadow, canary và hoàn nguyên lễ tân** (RFC 0002 PR 17, issue #31). Hoàn tất toàn bộ chuỗi 17 PR di trú lễ tân của RFC 0002. Docs & Ops:
   - Script deploy Colab `deploy/colab/cup-tieulinh.sh`:
     - Thêm tuỳ chọn `--role <all|backoffice|receptionist>` (mặc định `backoffice` để tương thích ngược).

@@ -52,6 +52,8 @@ export ITSAPLAN_WEBHOOK_SECRET="${ITSAPLAN_WEBHOOK_SECRET:-$(cfg_get ITSAPLAN_WE
 
 export MINIMAX_API_KEY="${MINIMAX_API_KEY:-$(cfg_get MINIMAX_API_KEY "$minimax_cfg_file")}"
 export MINIMAX_BASE_URL="${MINIMAX_BASE_URL:-$(cfg_get MINIMAX_BASE_URL "$minimax_cfg_file")}"
+export REQUIRE_APPROVAL="${REQUIRE_APPROVAL:-$(cfg_get REQUIRE_APPROVAL)}"
+export REQUIRE_APPROVAL="${REQUIRE_APPROVAL:-false}"
 
 export RECEPTIONIST_PORT="${RECEPTIONIST_PORT:-18796}"
 export BOT_WEBHOOK_PORT="${BOT_WEBHOOK_PORT:-3120}"
@@ -83,6 +85,7 @@ Tùy chọn:
 Biến môi trường:
   ITSAPLAN_PROJECT_KEY   Bắt buộc là TECH2 (chặn an toàn nếu là TECH)
   ITSAPLAN_BASE_URL      URL server Itsaplan (mặc định đọc ~/.config/ticket/tieulinh2.env)
+  REQUIRE_APPROVAL       Bật duyệt name code người báo (mặc định false)
   TL2_LOCAL_DIR          Thư mục dữ liệu runtime (mặc định ~/.local/share/tl2-local)
 EOF
 }
@@ -190,7 +193,7 @@ setup_receptionist_config() {
   "$bun_bin" -e '
     import { writeFileSync } from "node:fs";
     import { join } from "node:path";
-    const [recDir, repoDir, portStr, token, itsaUrl, itsaKey, pkey, mmUrl, mmKey] = process.argv.slice(1);
+    const [recDir, repoDir, portStr, token, itsaUrl, itsaKey, pkey, mmUrl, mmKey, reqApproval] = process.argv.slice(1);
     const port = Number(portStr) || 18796;
     const workspace = join(recDir, "workspace-ticket-intake-2");
     const deniedTools = [
@@ -251,7 +254,7 @@ setup_receptionist_config() {
               } : {}),
               ADMIN_IDS: "",
               ALERT_CHAT_ID: "",
-              REQUIRE_APPROVAL: "true"
+              REQUIRE_APPROVAL: reqApproval || "false"
             }
           }
         }
@@ -261,7 +264,7 @@ setup_receptionist_config() {
       plugins: { entries: {} }
     };
     writeFileSync(join(recDir, "openclaw.json"), JSON.stringify(config, null, 2) + "\n", { mode: 0o600 });
-  ' "$rec_data" "$repo" "$RECEPTIONIST_PORT" "$token" "$ITSAPLAN_BASE_URL" "$ITSAPLAN_API_KEY" "$ITSAPLAN_PROJECT_KEY" "$MINIMAX_BASE_URL" "$MINIMAX_API_KEY" 2>/dev/null || true
+  ' "$rec_data" "$repo" "$RECEPTIONIST_PORT" "$token" "$ITSAPLAN_BASE_URL" "$ITSAPLAN_API_KEY" "$ITSAPLAN_PROJECT_KEY" "$MINIMAX_BASE_URL" "$MINIMAX_API_KEY" "$REQUIRE_APPROVAL" 2>/dev/null || true
 }
 
 start_receptionist() {
@@ -366,6 +369,7 @@ start_backoffice() {
   TIEULINH_TEAM="$ITSAPLAN_TEAM" \
   TIEULINH_AGENT="tieulinh2" \
   TIEULINH_SANDBOX_CHAT="-1000000000001" \
+  REQUIRE_APPROVAL="$REQUIRE_APPROVAL" \
   ${ITSAPLAN_WEB_URL:+ITSAPLAN_WEB_URL="$ITSAPLAN_WEB_URL"} \
   ${ITSAPLAN_WEBHOOK_SECRET:+ITSAPLAN_WEBHOOK_SECRET="$ITSAPLAN_WEBHOOK_SECRET"} \
   ${MINIMAX_API_KEY:+LLM_API_KEY="$MINIMAX_API_KEY"} \

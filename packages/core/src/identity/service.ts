@@ -73,7 +73,7 @@ export class IdentityService {
   constructor(repo: IdentityRepository, options: IdentityServiceOptions = {}) {
     this.repo = repo;
     this.adminIds = new Set((options.adminIds ?? []).map((id) => id.trim()));
-    this.requireApproval = options.requireApproval ?? true;
+    this.requireApproval = options.requireApproval ?? false;
     this.nameCodePattern = options.nameCodePattern ?? NAME_CODE_REGEX;
   }
 
