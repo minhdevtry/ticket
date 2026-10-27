@@ -6,7 +6,7 @@ import {
   formatSupplementComment,
   notifyOnCallSupplement,
 } from "./supplement-notifier";
-import type { ItsaplanIssue, ProjectColumn, ProjectAssignee } from "@vuihoc/bot-core/itsaplan";
+import type { ItsaplanIssue, ProjectColumn } from "@vuihoc/bot-core/itsaplan";
 
 describe("supplement-notifier", () => {
   const columns: ProjectColumn[] = [

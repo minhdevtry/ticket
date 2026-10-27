@@ -54,6 +54,7 @@ export default defineConfig({
           items: [
             { text: "Giới thiệu", link: "/guide/" },
             { text: "Dựng bot đầu tiên", link: "/guide/first-bot" },
+            { text: "Kiểm thử & Kịch bản Bot", link: "/guide/testing-bots" },
           ],
         },
       ],
@@ -118,6 +119,10 @@ export default defineConfig({
             { text: "Tiểu Linh mới: hậu cần", link: "/explanation/tieulinh-hau-can" },
             { text: "Bảo mật repo công khai", link: "/explanation/public-repo-security" },
             { text: "Chỉ mục ADR", link: "/explanation/adr-index" },
+            {
+              text: "Nghiên cứu bộ dữ liệu vàng (50 ca Done)",
+              link: "/research/golden-dataset-analysis",
+            },
           ],
         },
       ],
@@ -150,6 +155,17 @@ export default defineConfig({
             { text: "0002 Repo công khai", link: "/adr/0002-public-repo" },
             { text: "0003 Secret qua SSH", link: "/adr/0003-secrets-over-ssh" },
             { text: "0004 Site docs do CI giữ", link: "/adr/0004-docs-site-enforced-by-ci" },
+          ],
+        },
+      ],
+      "/research/": [
+        {
+          text: "Nghiên cứu",
+          items: [
+            {
+              text: "Phân tích bộ dữ liệu vàng (50 ca Done)",
+              link: "/research/golden-dataset-analysis",
+            },
           ],
         },
       ],

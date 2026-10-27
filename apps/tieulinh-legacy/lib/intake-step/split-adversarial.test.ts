@@ -12,8 +12,6 @@ import { DraftSessionRepository } from "../storage/session-repository";
 import { FieldExtractor } from "./extractor";
 import { IntakeStepPipeline, type IntakePipelineOptions } from "./pipeline";
 import type { ItsaplanClient, ItsaplanIssue } from "@vuihoc/bot-core/itsaplan";
-import type { IntakeDocument } from "../intake-document/types";
-import type { IntakePacket } from "../intake-document/packet";
 import { isInvalidTitle, deriveFallbackTitle, splitMultiIncidentReport } from "./multi-incident";
 import validationRules from "../../mcp/tieulinh/domain/validation-rules.json";
 import fieldRequirements from "../../mcp/tieulinh/domain/required_fields.json";
@@ -167,9 +165,9 @@ describe("W29-SPLIT pipeline đối kháng (Vòng 3)", () => {
     expect(r2.document.pendingSplitQueue?.length).toBe(1);
 
     // xác nhận ticket 1
-    let r3 = await confirmTo_ticket(r2.document);
+    let _r3 = await confirmTo_ticket(r2.document);
     for (let i = 0; i < 5 && it$.calls.createIssue.length < 1; i++)
-      r3 = await pipeline.run({ chatId: String(chat), message: "đúng rồi" });
+      _r3 = await pipeline.run({ chatId: String(chat), message: "đúng rồi" });
     expect(it$.calls.createIssue.length).toBe(1);
 
     // xác nhận ticket 2 (doc mới đang chờ xác nhận)

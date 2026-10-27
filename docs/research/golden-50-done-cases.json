@@ -1,0 +1,3115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": 1,
+  "description": "Bộ 50 kịch bản kiểm thử vàng (Golden Dataset) ngoại tuyến trích xuất từ các ca sự cố kỹ thuật DONE thực tế của VuiHoc, phục vụ đối soát và đánh giá độ thông minh của bot tiếp nhận sự cố thế hệ mới.",
+  "sanitization_notice": "Dữ liệu đã được khử định danh (PII Redaction) 100% tuân thủ tuyệt đối SECURITY.md: SĐT thật -> synthetic range 0900000001–0900000050, Chat ID -> synthetic range -1000000000001–-1000000000050, tên nhân sự -> format chuẩn role code (SA_xxx, CS_xxx, OP_xxx, TE_xxx, QLL_xxx), URL nội bộ -> domain trung lập example.com, IP nội bộ -> synthetic 10.0.0.x.",
+  "total_cases": 50,
+  "category_distribution": {
+    "multi_turn_clarification": 10,
+    "slang_and_abbreviations": 10,
+    "multi_incident_cancellation_revision": 10,
+    "cross_department_reporting": 10,
+    "urgent_sla_high_impact": 10
+  },
+  "cases": [
+    {
+      "id": "GOLDEN-01",
+      "category": "multi_turn_clarification",
+      "category_name": "Thiếu trường và bổ sung qua nhiều lượt (Multi-turn clarification)",
+      "source_ticket": "TECH-917",
+      "title": "Học sinh KH147861 không vào làm bài tập Toán gia sư",
+      "complexity_type": "missing_device_and_assignment_context",
+      "scenario_context": "Người báo gửi tin vắn tắt về việc học sinh không làm được bài tập gia sư, thiếu hoàn toàn thông tin thiết bị, hệ điều hành và mã bài tập cụ thể.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Em báo lỗi học sinh mã KH147861 không vào làm bài tập Toán gia sư được ạ",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Học sinh KH147861 không vào làm bài tập Toán gia sư",
+            "identifiers": {
+              "customerId": "KH147861"
+            },
+            "product": "Tutor",
+            "system": "TUTOR_Vuihoc"
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị cho em xin thêm thông tin thiết bị (máy tính hay điện thoại) và mã bài tập học sinh đang gặp lỗi với ạ."
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Bé dùng iPad iOS 17 nhé, bài tập BTVN tuần 3 môn Toán hình",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "device_type": "Máy tính bảng",
+            "device_os": "iOS",
+            "symptoms": [
+              "bài tập BTVN tuần 3 môn Toán hình không mở được"
+            ]
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị thuộc bộ phận nào để em ghi nhận chính xác ạ?"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Chị bên Quản lý lớp nhé",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "reporting_dept": "Quản lý lớp"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại sự cố nhé: Học sinh KH147861 không vào làm BTVN tuần 3 Toán gia sư trên iPad iOS 17, hệ thống TUTOR_Vuihoc, bộ phận Quản lý lớp. Anh/chị kiểm tra chuẩn rồi thì bấm xác nhận giúp em nhé!"
+        },
+        {
+          "turn": 4,
+          "role": "user",
+          "message": "Đúng rồi em",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier} cho anh/chị rồi ạ."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Học sinh KH147861 không vào làm bài tập Toán gia sư trên iPad",
+        "system": "TUTOR_Vuihoc",
+        "product": "Tutor",
+        "reporting_dept": "Quản lý lớp",
+        "urgency": "High",
+        "error_category": "Lỗi kỹ thuật",
+        "device_type": "Máy tính bảng",
+        "device_os": "iOS",
+        "identifiers": {
+          "customerId": "KH147861"
+        }
+      },
+      "edge_case_challenge": "Người dùng không cung cấp đủ thông tin kỹ thuật ngay lượt đầu. Bot phải gom dần các trường còn thiếu qua từng lượt mà không bị mất ngữ cảnh đã trích xuất ở lượt trước.",
+      "legacy_bot_flaw": "Bot cũ hay hỏi lặp lại các câu hỏi mặc định hoặc bỏ quên trường customerId đã trích xuất ở lượt 1 khi người dùng gửi tin bổ sung ở lượt 2.",
+      "acceptance_criteria": "State tracking qua 3 lượt hỏi đáp giữ nguyên customerId=KH147861, cập nhật device_type='Máy tính bảng', device_os='iOS', reporting_dept='Quản lý lớp'."
+    },
+    {
+      "id": "GOLDEN-02",
+      "category": "multi_turn_clarification",
+      "category_name": "Thiếu trường và bổ sung qua nhiều lượt (Multi-turn clarification)",
+      "source_ticket": "TECH-868",
+      "title": "CRM không tạo được đơn do thiếu tài khoản phụ huynh",
+      "complexity_type": "missing_parent_account_and_order_id",
+      "scenario_context": "Nhân viên Sale báo lỗi không tạo được đơn hàng trên CRM nhưng quên cung cấp số điện thoại phụ huynh và mã đơn hàng dự kiến.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "CRM bị lỗi không lên đơn được cho khách hàng, hệ thống cứ xoay tròn",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "CRM lỗi không lên đơn được",
+            "system": "CRM_Vuihoc"
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị cho em xin số điện thoại phụ huynh hoặc mã đơn hàng đang gặp lỗi để IT tra cứu nhé ạ."
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "SĐT phụ huynh là 0900000012, đơn hàng DH981275 bên gói Duo nhé",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "identifiers": {
+              "studentAccount": "0900000012",
+              "orderId": "DH981275"
+            },
+            "product": "Duo"
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị xác nhận giúp em bộ phận của mình nhé (Sale hay CSKH)?"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Sale em ơi",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "reporting_dept": "Sale"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại sự cố: Lỗi không lên được đơn DH981275 cho SĐT 0900000012 gói Duo trên CRM_Vuihoc, bộ phận Sale. Anh/chị bấm xác nhận để em gửi IT nhé!"
+        },
+        {
+          "turn": 4,
+          "role": "user",
+          "message": "Xác nhận tạo đơn",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo ticket {identifier} thành công ạ."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "CRM không tạo được đơn DH981275 cho SĐT 0900000012",
+        "system": "CRM_Vuihoc",
+        "product": "Duo",
+        "reporting_dept": "Sale",
+        "urgency": "High",
+        "error_category": "Lỗi kỹ thuật",
+        "identifiers": {
+          "studentAccount": "0900000012",
+          "orderId": "DH981275"
+        }
+      },
+      "edge_case_challenge": "Thông tin ban đầu rất mơ hồ ('bị lỗi không lên đơn được'). Cần gặng hỏi định danh chính xác (SĐT và mã đơn).",
+      "legacy_bot_flaw": "Nếu không có SĐT ngay ở turn 1, bot cũ thường tạo ticket thiếu trường NOT NULL hoặc rơi vào fallback 'Lỗi chưa xác định'.",
+      "acceptance_criteria": "Moi đủ SĐT 0900000012 và orderId DH981275, gán đúng system CRM_Vuihoc và product Duo."
+    },
+    {
+      "id": "GOLDEN-03",
+      "category": "multi_turn_clarification",
+      "category_name": "Thiếu trường và bổ sung qua nhiều lượt (Multi-turn clarification)",
+      "source_ticket": "TECH-912",
+      "title": "Quản lý lớp không kiểm tra được hồ sơ học sinh trên CARE",
+      "complexity_type": "missing_student_uid_and_role_confirmation",
+      "scenario_context": "Điều phối viên Quản lý lớp báo không xem được hồ sơ trên hệ thống CARE, cần hỏi mã học sinh và phạm vi lỗi.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "CARE bị lỗi không load được hồ sơ học sinh để xếp lớp",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "CARE không load được hồ sơ học sinh để xếp lớp",
+            "system": "CARE_Vuihoc",
+            "product": "Tutor"
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị cho em xin mã học sinh (hoặc SĐT) và lỗi này bị trên một bạn hay nhiều bạn ạ?"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Bị riêng bạn học sinh mã 1904421 nhé, SĐT 0900000013",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "identifiers": {
+              "studentAccount": "0900000013",
+              "studentId": "1904421"
+            },
+            "scope": "single_user"
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị bên bộ phận Quản lý lớp hay Chuyên môn ạ?"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Quản lý lớp em nhé",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "reporting_dept": "Quản lý lớp"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại sự cố: CARE_Vuihoc không tải được hồ sơ học sinh 1904421 (0900000013) để xếp lớp, bộ phận Quản lý lớp. Anh/chị xác nhận giúp em nhé!"
+        },
+        {
+          "turn": 4,
+          "role": "user",
+          "message": "ok em",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier} cho anh/chị rồi ạ."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "CARE không tải được hồ sơ học sinh 1904421 (0900000013)",
+        "system": "CARE_Vuihoc",
+        "product": "Tutor",
+        "reporting_dept": "Quản lý lớp",
+        "urgency": "Medium",
+        "error_category": "Lỗi kỹ thuật",
+        "identifiers": {
+          "studentAccount": "0900000013",
+          "studentId": "1904421"
+        }
+      },
+      "edge_case_challenge": "Phân biệt phạm vi lỗi (đơn lẻ vs toàn bộ) để hiệu chỉnh mức ưu tiên từ Medium sang High/Urgent theo urgency-rules.json.",
+      "legacy_bot_flaw": "Bot cũ mặc định set Urgent cho mọi lỗi có chữ 'không xếp lớp được' dù phạm vi chỉ là 1 học sinh đơn lẻ có workaround.",
+      "acceptance_criteria": "Xác định đúng scope=single_user, không thổi phồng mức ưu tiên lên Urgent mà giữ Medium/High hợp lý."
+    },
+    {
+      "id": "GOLDEN-04",
+      "category": "multi_turn_clarification",
+      "category_name": "Thiếu trường và bổ sung qua nhiều lượt (Multi-turn clarification)",
+      "source_ticket": "TECH-848",
+      "title": "CRM báo trùng tên và không tìm thấy tài khoản bố mẹ khi lên đơn",
+      "complexity_type": "duplicate_student_name_disambiguation",
+      "scenario_context": "Học sinh trùng tên với tài khoản đã có, nhân viên Sale không rõ cần điền thêm thông tin gì để CRM phân biệt được.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Em lên đơn cho học sinh Nguyễn Bảo Nam bị báo trùng tên, CRM không cho lưu",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Lên đơn học sinh Nguyễn Bảo Nam báo trùng tên",
+            "system": "CRM_Vuihoc",
+            "reporting_dept": "Sale"
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị cho em xin số điện thoại phụ huynh và mã khách hàng cũ (nếu có) để IT kiểm tra tách tài khoản nhé."
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "SĐT mẹ là 0900000014, chưa có mã khách hàng cũ, đây là khách mới tinh",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "identifiers": {
+              "studentAccount": "0900000014"
+            },
+            "symptoms": [
+              "khách mới tinh bị trùng tên học sinh có sẵn"
+            ]
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Khách hàng đăng ký gói sản phẩm nào ạ (Duo, Tutor hay Tự học)?"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Gói Duo Toán 1 năm nhé",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "product": "Duo"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: CRM báo trùng tên khi lên đơn Duo Toán cho học sinh mới Nguyễn Bảo Nam (SĐT mẹ 0900000014), bộ phận Sale. Anh/chị xác nhận giúp em nhé!"
+        },
+        {
+          "turn": 4,
+          "role": "user",
+          "message": "Đúng thông tin rồi",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "CRM báo trùng tên khi lên đơn Duo Toán cho SĐT 0900000014",
+        "system": "CRM_Vuihoc",
+        "product": "Duo",
+        "reporting_dept": "Sale",
+        "urgency": "High",
+        "error_category": "Lỗi dữ liệu",
+        "identifiers": {
+          "studentAccount": "0900000014"
+        }
+      },
+      "edge_case_challenge": "Phân biệt lỗi dữ liệu trùng tên (Lỗi dữ liệu) với lỗi sập phần mềm (Lỗi hệ thống).",
+      "legacy_bot_flaw": "Bot cũ hay gán nhầm sang 'Lỗi hệ thống' và hỏi lặp lại hệ điều hành dù đây là web CRM.",
+      "acceptance_criteria": "Xác định đúng error_category='Lỗi dữ liệu', product='Duo', system='CRM_Vuihoc'."
+    },
+    {
+      "id": "GOLDEN-05",
+      "category": "multi_turn_clarification",
+      "category_name": "Thiếu trường và bổ sung qua nhiều lượt (Multi-turn clarification)",
+      "source_ticket": "TECH-608",
+      "title": "Không tạo được đơn do trùng tài khoản học sinh con",
+      "complexity_type": "child_account_conflict_clarification",
+      "scenario_context": "Tài khoản học sinh con bị gắn trùng với một học sinh khác có cùng tên, cần đối soát ID cũ và mới.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Lên đơn con Trần Trà My nhưng ở phần điền thông tin báo trùng tài khoản học sinh",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Không tạo được đơn do trùng tài khoản học sinh",
+            "system": "CRM_Vuihoc"
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị cho em xin mã khách hàng và số điện thoại liên hệ của phụ huynh với ạ."
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Mã KH 1509248, SĐT phụ huynh 0900000015 nhé",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "identifiers": {
+              "customerId": "1509248",
+              "studentAccount": "0900000015"
+            }
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Sự cố này ở sản phẩm Duo hay Tutor, và anh/chị bên bộ phận nào ạ?"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Bên Sale, gói Duo nhé em",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "product": "Duo",
+            "reporting_dept": "Sale"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại sự cố: Không tạo được đơn Duo do trùng tài khoản học sinh con (Mã KH 1509248, SĐT 0900000015), bộ phận Sale. Anh/chị xác nhận giúp em nhé!"
+        },
+        {
+          "turn": 4,
+          "role": "user",
+          "message": "Chuẩn rồi em",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Không tạo được đơn Duo do trùng tài khoản học sinh (KH 1509248)",
+        "system": "CRM_Vuihoc",
+        "product": "Duo",
+        "reporting_dept": "Sale",
+        "urgency": "High",
+        "error_category": "Lỗi dữ liệu",
+        "identifiers": {
+          "customerId": "1509248",
+          "studentAccount": "0900000015"
+        }
+      },
+      "edge_case_challenge": "Thu thập cả 2 định danh: mã khách hàng (customerId) và số điện thoại (studentAccount).",
+      "legacy_bot_flaw": "Chỉ lấy được 1 trong 2 mã, bỏ quên mã khách hàng khi người dùng gửi SĐT.",
+      "acceptance_criteria": "Giữ cả customerId '1509248' và studentAccount '0900000015' trong trường định danh."
+    },
+    {
+      "id": "GOLDEN-06",
+      "category": "multi_turn_clarification",
+      "category_name": "Thiếu trường và bổ sung qua nhiều lượt (Multi-turn clarification)",
+      "source_ticket": "TECH-659",
+      "title": "Không tạo được đơn Tutor do trùng tài khoản",
+      "complexity_type": "tutor_package_and_device_clarification",
+      "scenario_context": "Sale lên đơn Gia sư Tutor nhưng hệ thống chặn do tài khoản đã tồn tại trong nhánh Tự học.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Không lên đơn Tutor được, báo tài khoản đã có trên hệ thống",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Không lên đơn Tutor được do trùng tài khoản",
+            "product": "Tutor",
+            "system": "CRM_Vuihoc"
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị cho em xin SĐT phụ huynh và bộ phận của mình với ạ."
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "SĐT 0900000016, chị bên Sale nhé",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "identifiers": {
+              "studentAccount": "0900000016"
+            },
+            "reporting_dept": "Sale"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: Không tạo được đơn Tutor do trùng tài khoản (SĐT 0900000016), hệ thống CRM_Vuihoc, bộ phận Sale. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Xác nhận tạo ticket",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Ticket {identifier} đã được tạo thành công!"
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Không lên được đơn Tutor do trùng tài khoản (SĐT 0900000016)",
+        "system": "CRM_Vuihoc",
+        "product": "Tutor",
+        "reporting_dept": "Sale",
+        "urgency": "High",
+        "error_category": "Lỗi dữ liệu",
+        "identifiers": {
+          "studentAccount": "0900000016"
+        }
+      },
+      "edge_case_challenge": "Phân định sản phẩm là Tutor nhưng hệ thống thực hiện thao tác là CRM_Vuihoc.",
+      "legacy_bot_flaw": "Bot cũ hay nhầm lẫn giữa product='Tutor' thì system bắt buộc phải là 'TUTOR_Vuihoc', gây lệch catalog.",
+      "acceptance_criteria": "Mapping chính xác product='Tutor', system='CRM_Vuihoc', reporting_dept='Sale'."
+    },
+    {
+      "id": "GOLDEN-07",
+      "category": "multi_turn_clarification",
+      "category_name": "Thiếu trường và bổ sung qua nhiều lượt (Multi-turn clarification)",
+      "source_ticket": "TECH-775",
+      "title": "Không tạo được đơn hàng do trùng tài khoản Vuihoc",
+      "complexity_type": "vuihoc_account_merge_conflict",
+      "scenario_context": "Học sinh từng có tài khoản Vuihoc cũ từ 2 năm trước, giờ đăng ký mới bị xung đột dữ liệu.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Khách hàng cũ đăng ký lại mà CRM báo tài khoản Vuihoc đã tồn tại không cho tạo đơn",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "CRM báo tài khoản Vuihoc đã tồn tại không tạo được đơn",
+            "system": "CRM_Vuihoc"
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị cho em xin SĐT phụ huynh và gói đăng ký (Duo hay Tự học) ạ?"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "SĐT 0900000017, gói Tự học lớp 5 nhé",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "identifiers": {
+              "studentAccount": "0900000017"
+            },
+            "product": "Tự học"
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị thuộc bộ phận Sale đúng không ạ?"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Đúng rồi, anh bên Sale",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "reporting_dept": "Sale"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: Không tạo được đơn Tự học do trùng tài khoản Vuihoc cũ (SĐT 0900000017), bộ phận Sale. Anh/chị xác nhận giúp em nhé!"
+        },
+        {
+          "turn": 4,
+          "role": "user",
+          "message": "Tạo ticket giúp anh",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Không tạo được đơn Tự học do trùng tài khoản Vuihoc cũ (0900000017)",
+        "system": "CRM_Vuihoc",
+        "product": "Tự học",
+        "reporting_dept": "Sale",
+        "urgency": "High",
+        "error_category": "Lỗi dữ liệu",
+        "identifiers": {
+          "studentAccount": "0900000017"
+        }
+      },
+      "edge_case_challenge": "Phát hiện đúng product là 'Tự học' dựa trên lời kể 'gói Tự học lớp 5'.",
+      "legacy_bot_flaw": "Bỏ qua trường 'Tự học', default về 'Khác'.",
+      "acceptance_criteria": "Gán product='Tự học', system='CRM_Vuihoc'."
+    },
+    {
+      "id": "GOLDEN-08",
+      "category": "multi_turn_clarification",
+      "category_name": "Thiếu trường và bổ sung qua nhiều lượt (Multi-turn clarification)",
+      "source_ticket": "TECH-835",
+      "title": "Tài khoản Gia sư hiển thị trùng tên học sinh",
+      "complexity_type": "tutor_multi_profile_disambiguation",
+      "scenario_context": "Phụ huynh có 2 con cùng học gia sư nhưng app Tutor chỉ hiển thị 1 tên, khiến học sinh vào nhầm lớp của nhau.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "App gia sư hiển thị trùng tên học sinh, hai bé nhà phụ huynh bị nhập vào làm 1",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "App gia sư hiển thị trùng tên học sinh",
+            "system": "TUTOR_Vuihoc",
+            "product": "Tutor"
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị cho em xin số điện thoại đăng nhập và tên của 2 bé với ạ."
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "SĐT 0900000018, bé lớn tên An lớp 4, bé nhỏ tên Bình lớp 2",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "identifiers": {
+              "studentAccount": "0900000018"
+            },
+            "symptoms": [
+              "hai học sinh An lớp 4 và Bình lớp 2 bị gộp chung 1 hồ sơ"
+            ]
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị cho em xin tên bộ phận của mình nhé?"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Chị bên CSKH",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "reporting_dept": "CSKH"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: App gia sư hiển thị trùng tên, gộp hồ sơ 2 bé An (lớp 4) và Bình (lớp 2) cùng SĐT 0900000018, bộ phận CSKH. Anh/chị xác nhận giúp em nhé!"
+        },
+        {
+          "turn": 4,
+          "role": "user",
+          "message": "Xác nhận em ơi",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "App Gia sư gộp nhầm 2 học sinh cùng SĐT 0900000018",
+        "system": "TUTOR_Vuihoc",
+        "product": "Tutor",
+        "reporting_dept": "CSKH",
+        "urgency": "High",
+        "error_category": "Lỗi dữ liệu",
+        "identifiers": {
+          "studentAccount": "0900000018"
+        }
+      },
+      "edge_case_challenge": "Trích xuất mô tả chi tiết về việc 2 học sinh bị nhập làm một mà không làm mất thông tin lớp học của từng bé.",
+      "legacy_bot_flaw": "Tóm tắt bị cắt cụt chỉ còn 'Lỗi tài khoản', mất chi tiết hai bé lớp 4 và lớp 2.",
+      "acceptance_criteria": "Giữ nguyên vẹn triệu chứng phân biệt hai học sinh trong mô tả rawText."
+    },
+    {
+      "id": "GOLDEN-09",
+      "category": "multi_turn_clarification",
+      "category_name": "Thiếu trường và bổ sung qua nhiều lượt (Multi-turn clarification)",
+      "source_ticket": "TECH-542",
+      "title": "Gia sư Tutor chưa hiển thị kết quả bài kiểm tra của học sinh",
+      "complexity_type": "missing_test_id_and_date",
+      "scenario_context": "Học sinh đã hoàn thành bài kiểm tra đánh giá năng lực gia sư nhưng trên hệ thống quản lý chưa thấy điểm số.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Học sinh làm xong bài test gia sư rồi mà trên hệ thống chưa nhảy điểm",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Bài test gia sư chưa hiển thị kết quả",
+            "system": "CRM_Vuihoc",
+            "product": "Tutor"
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị cho em xin SĐT học sinh và thời điểm bạn làm bài với ạ."
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "SĐT 0900000019, làm bài test đầu vào Toán tối hôm qua lúc 20h nhé",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "identifiers": {
+              "studentAccount": "0900000019"
+            },
+            "symptoms": [
+              "test đầu vào Toán tối qua 20h chưa có điểm"
+            ]
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị bên bộ phận nào ạ?"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Sale nhé em",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "reporting_dept": "Sale"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: Học sinh 0900000019 làm test đầu vào Toán gia sư tối qua chưa hiển thị điểm trên hệ thống, bộ phận Sale. Anh/chị kiểm tra chuẩn rồi xác nhận nhé!"
+        },
+        {
+          "turn": 4,
+          "role": "user",
+          "message": "Đúng rồi",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Test đầu vào Toán gia sư chưa hiển thị điểm cho SĐT 0900000019",
+        "system": "CRM_Vuihoc",
+        "product": "Tutor",
+        "reporting_dept": "Sale",
+        "urgency": "Medium",
+        "error_category": "Lỗi dữ liệu",
+        "identifiers": {
+          "studentAccount": "0900000019"
+        }
+      },
+      "edge_case_challenge": "Phân biệt bài test đầu vào (làm trên web/CRM) với bài kiểm tra định kỳ trong lớp.",
+      "legacy_bot_flaw": "Bot cũ hay hỏi link LMS hoặc roomId ClassIn trong khi đây là test đầu vào trên CRM.",
+      "acceptance_criteria": "Hỏi đúng thông tin liên quan tới bài test, không đòi hỏi roomId hay app_version."
+    },
+    {
+      "id": "GOLDEN-10",
+      "category": "multi_turn_clarification",
+      "category_name": "Thiếu trường và bổ sung qua nhiều lượt (Multi-turn clarification)",
+      "source_ticket": "TECH-402",
+      "title": "DuyenLT2 không lên được đơn để xếp lớp cho học sinh",
+      "complexity_type": "reporter_name_code_and_incomplete_info",
+      "scenario_context": "Tin nhắn ngắn gọn có kèm username nhân sự trong câu mở đầu, thiếu toàn bộ định danh học sinh.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "DuyenLT2 không lên được đơn để xếp lớp cho học sinh",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Không lên được đơn để xếp lớp cho học sinh",
+            "system": "CRM_Vuihoc",
+            "reporting_dept": "Sale"
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị cho em xin số điện thoại học sinh và gói học cần xếp lớp ạ."
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "SĐT 0900000020, gói gia sư Toán 1 kèm 1 nhé",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "identifiers": {
+              "studentAccount": "0900000020"
+            },
+            "product": "Tutor"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: Nhân viên DuyenLT2 (Sale) không lên được đơn xếp lớp gia sư Toán 1 kèm 1 cho SĐT 0900000020 trên CRM_Vuihoc. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Tạo ticket nhé",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Không lên được đơn xếp lớp gia sư Toán 1:1 cho SĐT 0900000020",
+        "system": "CRM_Vuihoc",
+        "product": "Tutor",
+        "reporting_dept": "Sale",
+        "urgency": "High",
+        "error_category": "Lỗi kỹ thuật",
+        "identifiers": {
+          "studentAccount": "0900000020"
+        }
+      },
+      "edge_case_challenge": "Nhận diện name_code 'DuyenLT2' là người báo thuộc Sale, không nhầm thành tên học sinh.",
+      "legacy_bot_flaw": "Trích xuất 'DuyenLT2' làm tên học sinh bị lỗi thay vì gán vào người báo.",
+      "acceptance_criteria": "Nhận diện 'DuyenLT2' là nhân viên Sale, studentAccount='0900000020'."
+    },
+    {
+      "id": "GOLDEN-11",
+      "category": "slang_and_abbreviations",
+      "category_name": "Tiếng lóng và tên viết tắt của giáo viên / CS (Slang & Abbreviations)",
+      "source_ticket": "TECH-578",
+      "title": "Chuyển CTS học KHTN cuốn chiếu sang song song tách 3 môn",
+      "complexity_type": "edtech_academic_slang_mapping",
+      "scenario_context": "Điều phối viên dùng hàng loạt từ lóng học vụ: 'CTS' (Ca tiếp sóng / Chuyển trạng thái), 'KHTN' (Khoa học tự nhiên), 'cuốn chiếu' (học hết môn này sang môn khác), 'song song' (học đồng thời 3 môn).",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Nhờ IT chuyển CTS học KHTN cuốn chiếu sang song song tách 3 môn giúp học sinh 0900000021 với ạ",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Chuyển CTS KHTN cuốn chiếu sang song song 3 môn",
+            "product": "Tutor",
+            "system": "TUTOR_Vuihoc",
+            "identifiers": {
+              "studentAccount": "0900000021"
+            }
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị thuộc bộ phận Quản lý lớp hay Sale ạ?"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Quản lý lớp em nhé",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "reporting_dept": "Quản lý lớp"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: Chuyển CTS gói gia sư KHTN từ hình thức cuốn chiếu sang học song song 3 môn cho học sinh 0900000021 trên hệ thống TUTOR_Vuihoc, bộ phận Quản lý lớp. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Xác nhận tạo đơn",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Chuyển CTS KHTN cuốn chiếu sang song song tách 3 môn (0900000021)",
+        "system": "TUTOR_Vuihoc",
+        "product": "Tutor",
+        "reporting_dept": "Quản lý lớp",
+        "urgency": "Medium",
+        "error_category": "Hỗ trợ",
+        "identifiers": {
+          "studentAccount": "0900000021"
+        }
+      },
+      "edge_case_challenge": "Hiểu đúng các khái niệm nghiệp vụ 'CTS', 'cuốn chiếu', 'song song' mà không biến thành chuỗi rác vô nghĩa.",
+      "legacy_bot_flaw": "Bot cũ không hiểu 'CTS' nên phân loại thành 'Lỗi chưa xác định' và set system thành 'Khác'.",
+      "acceptance_criteria": "Map chuẩn CTS sang Tutor/Gia sư, phân loại thành Hỗ trợ nghiệp vụ học vụ."
+    },
+    {
+      "id": "GOLDEN-12",
+      "category": "slang_and_abbreviations",
+      "category_name": "Tiếng lóng và tên viết tắt của giáo viên / CS (Slang & Abbreviations)",
+      "source_ticket": "TECH-461",
+      "title": "CTS tặng 4B CLC không nhảy kho QLL CLC trên CARE",
+      "complexity_type": "abbreviation_heavy_operational_slang",
+      "scenario_context": "Nhân viên dùng viết tắt dồn dập: '4B' (4 buổi), 'CLC' (Chất lượng cao), 'QLL' (Quản lý lớp), 'kho' (hàng đợi phân bổ trên CARE).",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "CTS tặng 4B CLC của con 0900000022 không nhảy về kho QLL CLC trên CARE để điều phối",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "CTS tặng 4B CLC không nhảy kho QLL CLC trên CARE",
+            "system": "CARE_Vuihoc",
+            "product": "Tutor",
+            "identifiers": {
+              "studentAccount": "0900000022"
+            }
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị xác nhận giúp em bộ phận của mình là Quản lý lớp hay CSKH ạ?"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Quản lý lớp CLC em nhé",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "reporting_dept": "Quản lý lớp"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: CTS tặng 4 buổi chất lượng cao của SĐT 0900000022 không hiển thị trong kho Quản lý lớp trên CARE_Vuihoc, bộ phận Quản lý lớp. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "ok chuẩn em",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "CTS tặng 4B CLC không nhảy kho QLL trên CARE (0900000022)",
+        "system": "CARE_Vuihoc",
+        "product": "Tutor",
+        "reporting_dept": "Quản lý lớp",
+        "urgency": "High",
+        "error_category": "Lỗi kỹ thuật",
+        "identifiers": {
+          "studentAccount": "0900000022"
+        }
+      },
+      "edge_case_challenge": "Giải mã các từ viết tắt chuyên biệt '4B CLC' = 4 buổi chất lượng cao, 'QLL' = Quản lý lớp.",
+      "legacy_bot_flaw": "Hỏi lại '4B là gì' hoặc parse nhầm '4B' thành mã phòng học.",
+      "acceptance_criteria": "Giữ đúng ngữ nghĩa 4 buổi học CLC và gán đúng hệ thống CARE_Vuihoc."
+    },
+    {
+      "id": "GOLDEN-13",
+      "category": "slang_and_abbreviations",
+      "category_name": "Tiếng lóng và tên viết tắt của giáo viên / CS (Slang & Abbreviations)",
+      "source_ticket": "TECH-686",
+      "title": "Không ghi nhận lịch sử CC sau buổi học thứ 3 trên Duo",
+      "complexity_type": "customer_care_attendance_slang",
+      "scenario_context": "Từ lóng 'CC' trong ngữ cảnh này là Chuyên cần (điểm danh/tham gia học) hoặc Customer Care.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Học sinh 0900000023 học xong buổi 3 trên Duo mà không thấy ghi nhận lịch sử CC",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Không ghi nhận lịch sử CC buổi 3 trên Duo",
+            "system": "Vuihoc (App/Web_Vuihoc + ERP_DUO)",
+            "product": "Duo",
+            "identifiers": {
+              "studentAccount": "0900000023"
+            }
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Học sinh học trên điện thoại hay máy tính, và anh/chị thuộc bộ phận nào ạ?"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Học trên điện thoại Android, chị bên CSKH nhé",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "device_type": "Điện thoại",
+            "device_os": "Android",
+            "reporting_dept": "CSKH"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: Không ghi nhận lịch sử chuyên cần (CC) sau buổi học 3 gói Duo cho SĐT 0900000023 trên điện thoại Android, bộ phận CSKH. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Đúng rồi em",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Duo không ghi nhận lịch sử chuyên cần (CC) cho SĐT 0900000023",
+        "system": "Vuihoc (App/Web_Vuihoc + ERP_DUO)",
+        "product": "Duo",
+        "reporting_dept": "CSKH",
+        "urgency": "Medium",
+        "error_category": "Lỗi dữ liệu",
+        "device_type": "Điện thoại",
+        "device_os": "Android",
+        "identifiers": {
+          "studentAccount": "0900000023"
+        }
+      },
+      "edge_case_challenge": "Phân biệt từ viết tắt 'CC' là chuyên cần (attendance record) trong hệ thống Duo.",
+      "legacy_bot_flaw": "Tưởng 'CC' là email carbon copy hoặc viết tắt linh tinh, bỏ qua trường triệu chứng.",
+      "acceptance_criteria": "Diễn giải đúng 'CC' = chuyên cần, gắn đúng product 'Duo'."
+    },
+    {
+      "id": "GOLDEN-14",
+      "category": "slang_and_abbreviations",
+      "category_name": "Tiếng lóng và tên viết tắt của giáo viên / CS (Slang & Abbreviations)",
+      "source_ticket": "TECH-871",
+      "title": "CRM và CC không ghi nhận kết quả học tập trên Duo",
+      "complexity_type": "dual_system_attendance_sync_slang",
+      "scenario_context": "Nhân viên dùng kết hợp 'CRM' và 'CC' để chỉ 2 cổng dữ liệu chăm sóc khách hàng và chuyên cần.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "CRM và CC không đồng bộ được kết quả học tập Duo của bạn 0900000024",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "CRM và CC không ghi nhận kết quả học tập Duo",
+            "system": "CRM_Vuihoc",
+            "product": "Duo",
+            "identifiers": {
+              "studentAccount": "0900000024"
+            }
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị cho em xin tên bộ phận của mình với ạ."
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "CSKH em ơi",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "reporting_dept": "CSKH"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: Dữ liệu kết quả học tập Duo của SĐT 0900000024 không đồng bộ giữa CRM và hệ thống Chăm sóc/Chuyên cần (CC), bộ phận CSKH. Anh/chị bấm xác nhận giúp em nhé!"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Xác nhận tạo ticket",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Lỗi đồng bộ kết quả học tập Duo lên CRM và CC (0900000024)",
+        "system": "CRM_Vuihoc",
+        "product": "Duo",
+        "reporting_dept": "CSKH",
+        "urgency": "Medium",
+        "error_category": "Lỗi dữ liệu",
+        "identifiers": {
+          "studentAccount": "0900000024"
+        }
+      },
+      "edge_case_challenge": "Xác định hệ thống chủ quản chính giữa CRM và Duo khi có sự cố đồng bộ chéo.",
+      "legacy_bot_flaw": "Gán bừa sang hệ thống 'Khác' do phân vân giữa CRM và Duo.",
+      "acceptance_criteria": "Chọn system chính là CRM_Vuihoc, product là Duo, error_category='Lỗi dữ liệu'."
+    },
+    {
+      "id": "GOLDEN-15",
+      "category": "slang_and_abbreviations",
+      "category_name": "Tiếng lóng và tên viết tắt của giáo viên / CS (Slang & Abbreviations)",
+      "source_ticket": "TECH-867",
+      "title": "Không tìm thấy gói chuyển phí PCM",
+      "complexity_type": "subject_combo_abbreviation",
+      "scenario_context": "Viết tắt học vụ môn học: 'PCM' = Physics, Chemistry, Math (Khối Tự nhiên Lý - Hóa - Toán).",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Màn hình chuyển phí của học sinh mã 19044211 không thấy hiển thị gói combo PCM",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Không tìm thấy gói chuyển phí PCM",
+            "system": "CRM_Vuihoc",
+            "product": "Tutor",
+            "identifiers": {
+              "studentId": "19044211"
+            }
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị cho em xin số điện thoại học sinh và xác nhận bộ phận Sale đúng không ạ?"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "SĐT 0900000025, đúng rồi anh bên Sale",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "identifiers": {
+              "studentAccount": "0900000025"
+            },
+            "reporting_dept": "Sale"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: Không tìm thấy gói chuyển phí combo Lý - Hóa - Toán (PCM) cho học sinh 19044211 (0900000025) trên CRM_Vuihoc, bộ phận Sale. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Đúng rồi",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Thiếu gói chuyển phí PCM trên CRM cho học sinh 19044211",
+        "system": "CRM_Vuihoc",
+        "product": "Tutor",
+        "reporting_dept": "Sale",
+        "urgency": "High",
+        "error_category": "Lỗi dữ liệu",
+        "identifiers": {
+          "studentId": "19044211",
+          "studentAccount": "0900000025"
+        }
+      },
+      "edge_case_challenge": "Hiểu từ lóng viết tắt 'PCM' là tổ hợp 3 môn Lý - Hóa - Toán trong luồng chuyển phí gia sư.",
+      "legacy_bot_flaw": "Tưởng 'PCM' là mã lỗi kỹ thuật hoặc thiết bị phần cứng.",
+      "acceptance_criteria": "Nhận diện gói combo chuyển phí PCM thuộc sản phẩm Tutor."
+    },
+    {
+      "id": "GOLDEN-16",
+      "category": "slang_and_abbreviations",
+      "category_name": "Tiếng lóng và tên viết tắt của giáo viên / CS (Slang & Abbreviations)",
+      "source_ticket": "TECH-691",
+      "title": "UID là 900015 &lt; 900016 VIP Duo vs Tự học logic cũ/mới",
+      "complexity_type": "html_entities_and_legacy_entitlement_slang",
+      "scenario_context": "Vừa có HTML entity `&lt;` từ Itsaplan, vừa có thuật ngữ nghiệp vụ 'UID', 'VIP Duo', 'Tự học logic cũ'.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "HS 0900000026 có UID 900015 &lt; 900016 mua Tự học nhưng hệ thống vẫn nhận là VIP Duo theo logic cũ",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "UID 900015 áp nhầm logic cũ VIP Duo cho khóa Tự học",
+            "system": "LMS_Vuihoc",
+            "product": "Tự học",
+            "identifiers": {
+              "studentAccount": "0900000026",
+              "uid": "900015"
+            }
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị thuộc bộ phận nào để em ghi nhận chính xác ạ?"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Chị bên CSKH nhé",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "reporting_dept": "CSKH"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: Học sinh 0900000026 (UID 900015 < 900016) đăng ký Tự học nhưng bị gán nhầm quyền VIP Duo trên LMS_Vuihoc, bộ phận CSKH. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Tạo đơn giúp chị",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "LMS áp nhầm quyền VIP Duo cho học sinh Tự học (UID 900015)",
+        "system": "LMS_Vuihoc",
+        "product": "Tự học",
+        "reporting_dept": "CSKH",
+        "urgency": "High",
+        "error_category": "ND bị nhầm hoặc hiểu sai",
+        "identifiers": {
+          "studentAccount": "0900000026",
+          "uid": "900015"
+        }
+      },
+      "edge_case_challenge": "Decode chuẩn HTML entity `&lt;` thành `<` và phân biệt giữa quyền 'VIP Duo' vs 'Tự học'.",
+      "legacy_bot_flaw": "Gửi ra màn hình Telegram nguyên văn chuỗi thô `&lt;` làm người dùng khó đọc (đã dẫn đến fix decodeHtmlEntities).",
+      "acceptance_criteria": "Chuẩn hoá `&lt;` thành `<` trong text hiển thị, gán đúng system LMS_Vuihoc."
+    },
+    {
+      "id": "GOLDEN-17",
+      "category": "slang_and_abbreviations",
+      "category_name": "Tiếng lóng và tên viết tắt của giáo viên / CS (Slang & Abbreviations)",
+      "source_ticket": "TECH-561",
+      "title": "Lớp KHTN đổi ca, hầu hết BTVN trên App/Web Gia sư không vào làm được",
+      "complexity_type": "teacher_slang_shift_change_btvn",
+      "scenario_context": "Giáo viên báo 'đổi ca' (thay đổi khung giờ dạy/học) làm BTVN (bài tập về nhà) bị lỗi phân quyền.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Lớp KHTN đổi ca tối qua xong giờ học sinh kêu toàn bộ BTVN trên app gia sư không vào làm được",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Đổi ca KHTN làm BTVN trên app gia sư không vào được",
+            "system": "TUTOR_Vuihoc",
+            "product": "Tutor",
+            "scope": "group"
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị cho em xin mã lớp học hoặc SĐT một học sinh đại diện và bộ phận của mình với ạ."
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Mã lớp GS-KHTN-701, SĐT đại diện 0900000027, chị bên Quản lý lớp",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "identifiers": {
+              "classCode": "GS-KHTN-701",
+              "studentAccount": "0900000027"
+            },
+            "reporting_dept": "Quản lý lớp"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: Sau khi đổi ca, cả lớp GS-KHTN-701 (SĐT đại diện 0900000027) không vào được BTVN trên TUTOR_Vuihoc, bộ phận Quản lý lớp. Mức ưu tiên: Urgent (ảnh hưởng cả nhóm học sinh). Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Xác nhận tạo ticket gấp",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Lớp GS-KHTN-701 đổi ca không mở được BTVN gia sư",
+        "system": "TUTOR_Vuihoc",
+        "product": "Tutor",
+        "reporting_dept": "Quản lý lớp",
+        "urgency": "Urgent",
+        "error_category": "Lỗi kỹ thuật",
+        "identifiers": {
+          "classCode": "GS-KHTN-701",
+          "studentAccount": "0900000027"
+        }
+      },
+      "edge_case_challenge": "Phát hiện 'đổi ca' ảnh hưởng cả lớp (scope=group) để nâng mức ưu tiên lên Urgent theo urgency-rules.json.",
+      "legacy_bot_flaw": "Đánh giá lỗi thành Low hoặc Medium vì chỉ nhìn thấy 1 tin nhắn báo BTVN thông thường.",
+      "acceptance_criteria": "Gán scope=group, kích hoạt floor rule nâng urgency='Urgent'."
+    },
+    {
+      "id": "GOLDEN-18",
+      "category": "slang_and_abbreviations",
+      "category_name": "Tiếng lóng và tên viết tắt của giáo viên / CS (Slang & Abbreviations)",
+      "source_ticket": "TECH-746",
+      "title": "CTS chuyển cuốn chiếu sang song song không hiển thị trên CARE",
+      "complexity_type": "care_system_and_cts_mapping",
+      "scenario_context": "Dữ liệu chuyển đổi phương thức học không đồng bộ sang giao diện quản trị CARE của điều phối viên.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "CTS của bạn mã KH49277 chuyển từ cuốn chiếu sang song song không hiển thị trên CARE",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "CTS chuyển cuốn chiếu sang song song không hiển thị trên CARE",
+            "system": "CARE_Vuihoc",
+            "product": "Tutor",
+            "identifiers": {
+              "customerId": "KH49277"
+            }
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị cho em xin SĐT phụ huynh và bộ phận của mình nhé ạ."
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "SĐT 0900000028, bên Quản lý lớp em nhé",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "identifiers": {
+              "studentAccount": "0900000028"
+            },
+            "reporting_dept": "Quản lý lớp"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: CTS chuyển cuốn chiếu sang song song của học sinh KH49277 (0900000028) không hiển thị trên CARE_Vuihoc, bộ phận Quản lý lớp. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "ok em",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "CTS chuyển cuốn chiếu sang song song không hiển thị trên CARE (KH49277)",
+        "system": "CARE_Vuihoc",
+        "product": "Tutor",
+        "reporting_dept": "Quản lý lớp",
+        "urgency": "High",
+        "error_category": "Lỗi dữ liệu",
+        "identifiers": {
+          "customerId": "KH49277",
+          "studentAccount": "0900000028"
+        }
+      },
+      "edge_case_challenge": "Phân biệt hệ thống CARE_Vuihoc (công cụ vận hành) với CRM_Vuihoc.",
+      "legacy_bot_flaw": "Tự động gán system thành CRM_Vuihoc dù người dùng nói rõ 'trên CARE'.",
+      "acceptance_criteria": "Gán đúng system='CARE_Vuihoc', product='Tutor'."
+    },
+    {
+      "id": "GOLDEN-19",
+      "category": "slang_and_abbreviations",
+      "category_name": "Tiếng lóng và tên viết tắt của giáo viên / CS (Slang & Abbreviations)",
+      "source_ticket": "TECH-804",
+      "title": "Không tồn tại khi chuyển phí Toán sang KHTN 3 tháng",
+      "complexity_type": "fee_transfer_terminology",
+      "scenario_context": "Thao tác 'chuyển phí' (quy đổi số tiền hoặc buổi học giữa các môn học) bị lỗi thiếu mã đích.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Chuyển phí từ gói Toán sang KHTN 3 tháng báo lỗi gói không tồn tại",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Báo không tồn tại gói khi chuyển phí Toán sang KHTN 3 tháng",
+            "system": "CRM_Vuihoc",
+            "product": "Tutor"
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị cho em xin mã học sinh hoặc SĐT và bộ phận của mình với ạ."
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Mã HS 205052, SĐT 0900000029, Sale em nhé",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "identifiers": {
+              "studentId": "205052",
+              "studentAccount": "0900000029"
+            },
+            "reporting_dept": "Sale"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: CRM_Vuihoc báo gói không tồn tại khi chuyển phí Toán sang KHTN 3 tháng cho học sinh 205052 (0900000029), bộ phận Sale. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Xác nhận tạo ticket",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Lỗi thiếu gói khi chuyển phí Toán sang KHTN cho học sinh 205052",
+        "system": "CRM_Vuihoc",
+        "product": "Tutor",
+        "reporting_dept": "Sale",
+        "urgency": "High",
+        "error_category": "Lỗi dữ liệu",
+        "identifiers": {
+          "studentId": "205052",
+          "studentAccount": "0900000029"
+        }
+      },
+      "edge_case_challenge": "Nhận diện nghiệp vụ 'chuyển phí' là luồng thao tác trên CRM, không phải lỗi cổng thanh toán trực tuyến.",
+      "legacy_bot_flaw": "Nhìn thấy từ 'phí' nên tự động gán sang product_key 'vuihoc-payment' và đòi mã transaction_id.",
+      "acceptance_criteria": "Không nhầm sang luồng payment trực tuyến, giữ đúng catalog CRM/Tutor."
+    },
+    {
+      "id": "GOLDEN-20",
+      "category": "slang_and_abbreviations",
+      "category_name": "Tiếng lóng và tên viết tắt của giáo viên / CS (Slang & Abbreviations)",
+      "source_ticket": "TECH-856",
+      "title": "Đơn DH997899 GTC nhưng chưa cập nhật tiền",
+      "complexity_type": "logistics_cod_slang_gtc_t5",
+      "scenario_context": "Thuật ngữ ngành vận đơn/kế toán: 'GTC' = Giao thành công (đơn COD đã phát tới tay khách hàng).",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Đơn DH997899 bưu tá báo GTC rồi mà trên CRM chưa cập nhật đối soát tiền",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Đơn DH997899 GTC nhưng chưa cập nhật tiền",
+            "system": "CRM_Vuihoc",
+            "product": "Duo",
+            "identifiers": {
+              "orderId": "DH997899"
+            }
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị cho em xin số điện thoại người nhận và bộ phận của mình nhé."
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "SĐT 0900000030, bên Vận đơn báo nhé",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "identifiers": {
+              "studentAccount": "0900000030"
+            },
+            "reporting_dept": "Vận đơn"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: Đơn hàng DH997899 (SĐT 0900000030) đã giao thành công (GTC) nhưng CRM_Vuihoc chưa cập nhật tiền đối soát, bộ phận Vận đơn. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Tạo ticket giúp mình",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Đơn DH997899 giao thành công (GTC) chưa cập nhật tiền trên CRM",
+        "system": "CRM_Vuihoc",
+        "product": "Duo",
+        "reporting_dept": "Vận đơn",
+        "urgency": "High",
+        "error_category": "Lỗi dữ liệu",
+        "identifiers": {
+          "orderId": "DH997899",
+          "studentAccount": "0900000030"
+        }
+      },
+      "edge_case_challenge": "Hiểu thuật ngữ viết tắt logistics 'GTC' là Giao thành công, và nhận diện đúng reporting_dept là 'Vận đơn'.",
+      "legacy_bot_flaw": "Hỏi 'GTC là gì' hoặc gán nhầm reporting_dept sang Sale.",
+      "acceptance_criteria": "Nhận diện GTC = Giao thành công, reporting_dept='Vận đơn'."
+    },
+    {
+      "id": "GOLDEN-21",
+      "category": "multi_incident_cancellation_revision",
+      "category_name": "Báo nhiều lỗi cùng lúc hoặc đổi ý giữa chừng (Multi-incident & Revision)",
+      "source_ticket": "TECH-438",
+      "title": "Issue 1: Cần đối soát giao dịch chuyển khoản + Issue 2: Ko tạo được đơn do trùng tài khoản",
+      "complexity_type": "explicit_multi_incident_split",
+      "scenario_context": "Người dùng đánh số rõ ràng 2 vấn đề hoàn toàn khác nhau trong cùng một tin nhắn (một lỗi thanh toán, một lỗi tạo đơn trùng).",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Em có 2 việc: 1. Cần đối soát giao dịch chuyển khoản đơn DH901122 bị treo; 2. Không tạo được đơn mới cho SĐT 0900000031 do trùng tài khoản",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "multiIncident": true,
+            "incidents": [
+              {
+                "type": "payment_reconcile",
+                "orderId": "DH901122"
+              },
+              {
+                "type": "account_duplicate",
+                "studentAccount": "0900000031"
+              }
+            ]
+          },
+          "action": "ask_split_or_merge",
+          "bot_prompt": "Em thấy anh/chị đang báo 2 sự cố khác nhau (đối soát chuyển khoản đơn DH901122 và lỗi trùng tài khoản SĐT 0900000031). Anh/chị muốn tách làm 2 ticket để 2 đội xử lý song song hay gộp chung ạ?"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Tách làm 2 ticket cho nhanh em nhé",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "splitChoice": "split"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Vâng ạ, em sẽ xử lý ticket 1 trước: Đối soát giao dịch chuyển khoản đơn DH901122. Anh/chị xác nhận bộ phận Sale đúng không ạ?"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Đúng rồi em, tạo trước ticket 1 đi",
+          "extracted_fields": {
+            "userIntent": "confirm",
+            "reporting_dept": "Sale"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo ticket {identifier} cho việc đối soát đơn DH901122. Giờ em tạo tiếp ticket 2 cho lỗi trùng tài khoản 0900000031 nhé!"
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Đối soát giao dịch chuyển khoản đơn DH901122",
+        "system": "Khác_Hạ tầng_IT",
+        "product": "Khác",
+        "reporting_dept": "Sale",
+        "urgency": "High",
+        "error_category": "Lỗi dữ liệu",
+        "identifiers": {
+          "orderId": "DH901122"
+        }
+      },
+      "edge_case_challenge": "Phát hiện có 2 sự cố độc lập trong 1 tin nhắn và hỏi người dùng tách/gộp (W29-SPLIT).",
+      "legacy_bot_flaw": "Gộp cả 2 việc vào 1 ticket, tạo ra tiêu đề hỗn hợp 'Issue 1 + Issue 2' khiến KTV bối rối không biết ai xử lý.",
+      "acceptance_criteria": "Kích hoạt action 'ask_split_or_merge', không tự ý nuốt 1 trong 2 sự cố."
+    },
+    {
+      "id": "GOLDEN-22",
+      "category": "multi_incident_cancellation_revision",
+      "category_name": "Báo nhiều lỗi cùng lúc hoặc đổi ý giữa chừng (Multi-incident & Revision)",
+      "source_ticket": "TECH-546",
+      "title": "Hai học sinh trong cùng gia đình bị trùng tên, không tạo được đơn hàng",
+      "complexity_type": "multi_subject_ambiguity",
+      "scenario_context": "Tin nhắn liệt kê thông tin của 2 học sinh là anh em trong nhà, cần phân tách hồ sơ rõ ràng.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Khách có 2 bé sinh đôi cùng tên Nguyễn Minh Khang, bé anh học Toán 4, bé em học Tiếng Anh 2, SĐT 0900000032 không lên đơn được",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Trùng tên 2 bé sinh đôi không lên được đơn",
+            "system": "CRM_Vuihoc",
+            "product": "Duo",
+            "identifiers": {
+              "studentAccount": "0900000032"
+            }
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Dạ em hiểu là 2 bé sinh đôi bị trùng tên đăng nhập. Anh/chị cho em xin mã định danh hoặc năm sinh của từng bé để IT gắn đuôi phân biệt nhé."
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Bé anh học lớp 4 gắn Khang1, bé em lớp 2 gắn Khang2 nhé, bên Sale gửi",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "reporting_dept": "Sale",
+            "symptoms": [
+              "gắn hậu tố Khang1 và Khang2 để phân biệt"
+            ]
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: Xử lý trùng tài khoản cho 2 bé sinh đôi Nguyễn Minh Khang (Toán 4 / Tiếng Anh 2, SĐT 0900000032), đề xuất hậu tố Khang1 và Khang2 trên CRM_Vuihoc, bộ phận Sale. Anh/chị xác nhận nhé!"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Xác nhận tạo đơn",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Xử lý trùng tài khoản 2 bé sinh đôi cùng SĐT 0900000032",
+        "system": "CRM_Vuihoc",
+        "product": "Duo",
+        "reporting_dept": "Sale",
+        "urgency": "High",
+        "error_category": "Lỗi dữ liệu",
+        "identifiers": {
+          "studentAccount": "0900000032"
+        }
+      },
+      "edge_case_challenge": "Xử lý ca đa thực thể (multi-subject) có trùng lặp họ tên và số điện thoại.",
+      "legacy_bot_flaw": "Xem đây là 1 học sinh và ghi đè thông tin bé lớp 2 lên bé lớp 4.",
+      "acceptance_criteria": "Giữ đầy đủ thông tin phân biệt 2 bé trong mô tả rawText."
+    },
+    {
+      "id": "GOLDEN-23",
+      "category": "multi_incident_cancellation_revision",
+      "category_name": "Báo nhiều lỗi cùng lúc hoặc đổi ý giữa chừng (Multi-incident & Revision)",
+      "source_ticket": "TECH-928",
+      "title": "Báo đơn hàng DH900003 SĐT 0900000003, tin sau gửi đơn DH900004 SĐT 0900000004",
+      "complexity_type": "identifier_conflict_anti_collision",
+      "scenario_context": "Tờ khai đang chờ xác nhận cho sự cố A (SĐT 0900000003) nhận thêm tin của sự cố B (SĐT 0900000004). Pipeline phải phát hiện xung đột và hỏi rõ.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Em lên đơn DH900003 cho phụ huynh 0900000003 bị báo lỗi hệ thống",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Lỗi lên đơn DH900003",
+            "system": "CRM_Vuihoc",
+            "identifiers": {
+              "studentAccount": "0900000003",
+              "orderId": "DH900003"
+            }
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt sự cố: Lỗi lên đơn DH900003 cho SĐT 0900000003 trên CRM_Vuihoc. Anh/chị bấm xác nhận để tạo ticket nhé!"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "À kiểm tra thêm đơn DH900004 của phụ huynh 0900000004 nữa",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "identifiers": {
+              "studentAccount": "0900000004",
+              "orderId": "DH900004"
+            }
+          },
+          "action": "ask_new_or_continue",
+          "bot_prompt": "Em thấy tin nhắn mới có SĐT 0900000004 khác với SĐT 0900000003 đang chờ xác nhận. Anh/chị muốn tạo Sự cố mới cho 0900000004 hay bổ sung vào tờ khai hiện tại ạ?"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Tạo sự cố mới cho đơn sau nhé",
+          "extracted_fields": {
+            "userIntent": "choose_new_incident"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Dạ em đã gác lại đơn trước. Giờ em tạo ticket mới cho đơn DH900004 (SĐT 0900000004) nhé, anh/chị xác nhận giúp em!"
+        },
+        {
+          "turn": 4,
+          "role": "user",
+          "message": "Đúng rồi",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier} cho đơn DH900004."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Lỗi lên đơn DH900004 cho SĐT 0900000004",
+        "system": "CRM_Vuihoc",
+        "product": "Duo",
+        "reporting_dept": "Sale",
+        "urgency": "High",
+        "error_category": "Lỗi kỹ thuật",
+        "identifiers": {
+          "orderId": "DH900004",
+          "studentAccount": "0900000004"
+        }
+      },
+      "edge_case_challenge": "Phát hiện định danh xung đột cùng lớp (identifier collision) theo ADR-0008 và identifier-grounding.ts.",
+      "legacy_bot_flaw": "Gộp lặng lẽ sự cố B vào sự cố A, ghi đè SĐT của A thành B khiến A mất SĐT và B mất ticket (hồi quy TECH-928).",
+      "acceptance_criteria": "Kích hoạt action 'ask_new_or_continue', không ghi đè định danh khi chưa có xác nhận."
+    },
+    {
+      "id": "GOLDEN-24",
+      "category": "multi_incident_cancellation_revision",
+      "category_name": "Báo nhiều lỗi cùng lúc hoặc đổi ý giữa chừng (Multi-incident & Revision)",
+      "source_ticket": "TECH-951",
+      "title": "Người báo yêu cầu hủy TECH-951 vì phụ huynh đã tự vào được lớp",
+      "complexity_type": "user_cancellation_one_tap_confirmation",
+      "scenario_context": "Người báo nhắn yêu cầu hủy ticket sau khi phụ huynh tự khắc phục được lỗi. Phải hiện nút xác nhận rõ ràng, không dùng chữ 'Huỷ' gây mơ hồ (ADR-0006).",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Phụ huynh tự vào được lớp rồi em ơi, hủy giúp chị ticket TECH-951 nhé",
+          "extracted_fields": {
+            "userIntent": "cancel_or_close",
+            "targetTicket": "TECH-951",
+            "actionType": "cancel"
+          },
+          "action": "confirm_ticket_action",
+          "bot_prompt": "Chị muốn chuyển ticket TECH-951 sang trạng thái Đã hủy (Canceled)? Bấm nút xác nhận bên dưới nhé:",
+          "buttons": [
+            [
+              "✅ Hủy TECH-951",
+              "Giữ lại"
+            ]
+          ]
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "callback_data: ✅ Hủy TECH-951",
+          "extracted_fields": {
+            "userIntent": "confirm_cancel"
+          },
+          "action": "ticket_updated",
+          "bot_prompt": "Em đã chuyển ticket TECH-951 sang Đã hủy (Canceled) theo yêu cầu của chị rồi ạ."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Hủy ticket TECH-951 do phụ huynh tự vào được lớp",
+        "system": "Vuihoc (App/Web_Vuihoc + ERP_DUO)",
+        "product": "Duo",
+        "reporting_dept": "CSKH",
+        "urgency": "Low",
+        "error_category": "Khác",
+        "target_status": "Canceled"
+      },
+      "edge_case_challenge": "Xử lý huỷ ticket an toàn qua nút bấm một chạm chuẩn xác theo ADR-0006.",
+      "legacy_bot_flaw": "Dùng nhãn nút 'Huỷ' làm người dùng tưởng là huỷ thao tác bấm chứ không phải huỷ ticket, gây hiểu lầm.",
+      "acceptance_criteria": "Nhãn nút bắt buộc là '[✅ Hủy TECH-951]' và '[Giữ lại]'."
+    },
+    {
+      "id": "GOLDEN-25",
+      "category": "multi_incident_cancellation_revision",
+      "category_name": "Báo nhiều lỗi cùng lúc hoặc đổi ý giữa chừng (Multi-incident & Revision)",
+      "source_ticket": "TECH-999",
+      "title": "Người báo xác nhận đóng ticket TECH-999 vì KTV đã xử lý xong",
+      "complexity_type": "user_close_resolution_flow",
+      "scenario_context": "Kỹ thuật viên đã xử lý xong, người báo test lại thấy ổn và gửi yêu cầu đóng ticket (ADR-0006).",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Kỹ thuật báo sửa xong rồi, mình kiểm tra tài khoản đã ổn, đóng TECH-999 giúp mình",
+          "extracted_fields": {
+            "userIntent": "cancel_or_close",
+            "targetTicket": "TECH-999",
+            "actionType": "close"
+          },
+          "action": "confirm_ticket_action",
+          "bot_prompt": "Bạn muốn chuyển ticket TECH-999 sang trạng thái Hoàn tất (Done)? Bấm nút xác nhận bên dưới nhé:",
+          "buttons": [
+            [
+              "✅ Đóng TECH-999",
+              "Giữ lại"
+            ]
+          ]
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "callback_data: ✅ Đóng TECH-999",
+          "extracted_fields": {
+            "userIntent": "confirm_close"
+          },
+          "action": "ticket_updated",
+          "bot_prompt": "Em đã chuyển ticket TECH-999 sang Hoàn tất (Done). Cảm ơn bạn!"
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Đóng ticket TECH-999 sau khi kiểm tra đã ổn",
+        "system": "CRM_Vuihoc",
+        "product": "Tutor",
+        "reporting_dept": "Sale",
+        "urgency": "Low",
+        "error_category": "Hỗ trợ",
+        "target_status": "Done"
+      },
+      "edge_case_challenge": "Phân biệt giữa yêu cầu Đóng ticket (chuyển Done) và Hủy ticket (chuyển Canceled).",
+      "legacy_bot_flaw": "Tự động đóng thẳng vào database mà không hiện bản xem trước và nút xác nhận.",
+      "acceptance_criteria": "Yêu cầu người báo bấm '[✅ Đóng TECH-999]' trước khi gọi API updateIssue."
+    },
+    {
+      "id": "GOLDEN-26",
+      "category": "multi_incident_cancellation_revision",
+      "category_name": "Báo nhiều lỗi cùng lúc hoặc đổi ý giữa chừng (Multi-incident & Revision)",
+      "source_ticket": "TECH-626",
+      "title": "PH không nhận được OTP do tên đăng nhập gắn với SĐT cũ, đổi số mới",
+      "complexity_type": "inline_revision_of_account_identifier",
+      "scenario_context": "Người báo vừa gửi thông tin số điện thoại xong thì phát hiện nhầm và đính chính ngay số mới.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Phụ huynh không nhận được OTP đăng nhập, SĐT 0900000033",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Phụ huynh không nhận được OTP đăng nhập",
+            "system": "Vuihoc (App/Web_Vuihoc + ERP_DUO)",
+            "identifiers": {
+              "studentAccount": "0900000033"
+            }
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị cho em xin tên sản phẩm (Duo hay Tự học) và bộ phận của mình với ạ."
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "À em nhầm số rồi, số đúng của mẹ là 0900000034 nhé, gói Duo, bên CSKH",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "identifiers": {
+              "studentAccount": "0900000034"
+            },
+            "product": "Duo",
+            "reporting_dept": "CSKH",
+            "revision": true
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em đã cập nhật SĐT mới nhé: Phụ huynh không nhận OTP cho SĐT 0900000034 gói Duo, bộ phận CSKH. Anh/chị bấm xác nhận giúp em!"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Xác nhận tạo đơn",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Phụ huynh không nhận được OTP đăng nhập gói Duo (0900000034)",
+        "system": "Vuihoc (App/Web_Vuihoc + ERP_DUO)",
+        "product": "Duo",
+        "reporting_dept": "CSKH",
+        "urgency": "High",
+        "error_category": "Lỗi kỹ thuật",
+        "identifiers": {
+          "studentAccount": "0900000034"
+        }
+      },
+      "edge_case_challenge": "Nhận biết ý định sửa sai/đính chính ('À em nhầm số rồi') để thay thế SĐT cũ bằng SĐT mới.",
+      "legacy_bot_flaw": "Bot cũ giữ lại số cũ 0900000033 hoặc nối cả 2 số làm sai trường định danh.",
+      "acceptance_criteria": "Cập nhật studentAccount thành 0900000034 trong bản tóm tắt và ticket cuối cùng."
+    },
+    {
+      "id": "GOLDEN-27",
+      "category": "multi_incident_cancellation_revision",
+      "category_name": "Báo nhiều lỗi cùng lúc hoặc đổi ý giữa chừng (Multi-incident & Revision)",
+      "source_ticket": "TECH-753",
+      "title": "Sửa đơn gia hạn Duo Toán 4 năm tặng Tự học Tiếng Anh 5 năm",
+      "complexity_type": "draft_content_revision",
+      "scenario_context": "Người dùng thay đổi chi tiết gói tặng kèm ngay trước khi bấm xác nhận tạo ticket.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Nhờ IT sửa đơn gia hạn con 0900000035 từ Duo Toán 3 năm sang 4 năm",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Sửa đơn gia hạn Duo Toán sang 4 năm",
+            "system": "CRM_Vuihoc",
+            "product": "Duo",
+            "identifiers": {
+              "studentAccount": "0900000035"
+            }
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt: Sửa đơn gia hạn con 0900000035 thành Duo Toán 4 năm trên CRM_Vuihoc. Anh/chị xác nhận nhé!"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Khoan đã em, sửa thêm là có tặng kèm Tự học Tiếng Anh 5 năm nữa nhé, bên Sale",
+          "extracted_fields": {
+            "userIntent": "revise",
+            "reporting_dept": "Sale",
+            "symptoms": [
+              "tặng kèm Tự học Tiếng Anh 5 năm"
+            ]
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em đã bổ sung: Sửa đơn gia hạn con 0900000035 thành Duo Toán 4 năm tặng kèm Tự học Tiếng Anh 5 năm, bộ phận Sale. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Xác nhận chuẩn rồi",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Sửa đơn gia hạn con 0900000035: Duo Toán 4 năm tặng Tự học TA 5 năm",
+        "system": "CRM_Vuihoc",
+        "product": "Duo",
+        "reporting_dept": "Sale",
+        "urgency": "Medium",
+        "error_category": "Hỗ trợ",
+        "identifiers": {
+          "studentAccount": "0900000035"
+        }
+      },
+      "edge_case_challenge": "Người dùng ngắt luồng tóm tắt ('Khoan đã em') và đưa thêm yêu cầu bổ sung vào bản nháp.",
+      "legacy_bot_flaw": "Bỏ qua câu điều chỉnh và vẫn tạo ticket theo bản tóm tắt cũ ở turn 1.",
+      "acceptance_criteria": "Hấp thu thông tin sửa đổi và phát lại bản tóm tắt mới hoàn chỉnh trước khi tạo ticket."
+    },
+    {
+      "id": "GOLDEN-28",
+      "category": "multi_incident_cancellation_revision",
+      "category_name": "Báo nhiều lỗi cùng lúc hoặc đổi ý giữa chừng (Multi-incident & Revision)",
+      "source_ticket": "TECH-721",
+      "title": "Đơn V1 lên sai sản phẩm Duo, cần bổ sung khóa Toán 6-9",
+      "complexity_type": "post_creation_ticket_edit_command",
+      "scenario_context": "Sau khi ticket đã tạo, người báo dùng cú pháp 'sửa TECH-XXXX ...' để điều chỉnh nội dung (ADR-0008).",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "sửa TECH-721: bổ sung thêm khóa Toán 6-9 vào đơn V1 do sale lên thiếu",
+          "extracted_fields": {
+            "userIntent": "edit_ticket",
+            "targetTicket": "TECH-721",
+            "editContent": "bổ sung thêm khóa Toán 6-9 vào đơn V1 do sale lên thiếu"
+          },
+          "action": "preview_ticket_edit",
+          "bot_prompt": "Em đã ghi nhận nội dung sửa cho ticket TECH-721:\n- Cũ: Đơn V1 lên sai sản phẩm Duo\n- Sửa thành: Đơn V1 lên sai sản phẩm Duo, bổ sung khóa Toán 6-9\nAnh/chị bấm xác nhận để em ghi comment lưu vết nhé:",
+          "buttons": [
+            [
+              "✅ Xác nhận sửa TECH-721",
+              "Huỷ bỏ"
+            ]
+          ]
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "callback_data: ✅ Xác nhận sửa TECH-721",
+          "extracted_fields": {
+            "userIntent": "confirm_edit"
+          },
+          "action": "ticket_updated",
+          "bot_prompt": "Em đã cập nhật nội dung và ghi comment lưu vết trên TECH-721 rồi ạ."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Đơn V1 lên sai sản phẩm Duo, cần bổ sung khóa Toán 6-9",
+        "system": "Vuihoc (App/Web_Vuihoc + ERP_DUO)",
+        "product": "Duo",
+        "reporting_dept": "Vận hành",
+        "urgency": "High",
+        "error_category": "Lỗi dữ liệu",
+        "ticket_action": "edit"
+      },
+      "edge_case_challenge": "Thực hiện lệnh 'sửa TECH-X' an toàn có bản xem trước và comment lưu vết cũ -> mới theo ADR-0008.",
+      "legacy_bot_flaw": "Tự động ghi đè mô tả ticket mà không lưu vết comment giải thích cho người xử lý.",
+      "acceptance_criteria": "Hiển thị preview sửa đổi và yêu cầu người dùng bấm nút xác nhận."
+    },
+    {
+      "id": "GOLDEN-29",
+      "category": "multi_incident_cancellation_revision",
+      "category_name": "Báo nhiều lỗi cùng lúc hoặc đổi ý giữa chừng (Multi-incident & Revision)",
+      "source_ticket": "TECH-795",
+      "title": "Khóa gia hạn LMS cập nhật sai thời hạn học",
+      "complexity_type": "append_vs_new_disambiguation",
+      "scenario_context": "Kỹ thuật viên vừa hỏi bổ sung trên ticket cũ, người báo nhắn tin thường; bot phải gợi ý bổ sung chứ không tự gán (ADR-0008).",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Hạn học trên web vẫn báo hết hạn vào 2025, chưa nhảy sang 2027",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "symptoms": [
+              "hạn học web báo 2025 thay vì 2027"
+            ]
+          },
+          "action": "suggest_ticket_action",
+          "bot_prompt": "Kỹ thuật vừa trao đổi về ticket TECH-795 (Khóa gia hạn LMS cập nhật sai thời hạn). Tin nhắn này của anh/chị là:",
+          "buttons": [
+            [
+              "➕ Bổ sung vào TECH-795",
+              "Sự cố mới"
+            ]
+          ]
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "callback_data: ➕ Bổ sung vào TECH-795",
+          "extracted_fields": {
+            "userIntent": "confirm_append",
+            "targetTicket": "TECH-795"
+          },
+          "action": "ticket_updated",
+          "bot_prompt": "Em đã ghi bổ sung nội dung này vào ticket TECH-795 cho anh/chị rồi ạ."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Bổ sung thời hạn học 2025 vào TECH-795",
+        "system": "LMS_Vuihoc",
+        "product": "Tự học",
+        "reporting_dept": "Sale",
+        "urgency": "High",
+        "error_category": "Lỗi dữ liệu",
+        "ticket_action": "append"
+      },
+      "edge_case_challenge": "Không bao giờ tự ý gắn tin nhắn vào ticket cũ mà phải đưa nút gợi ý theo ADR-0008 (vụ TECH-795 -> TECH-975).",
+      "legacy_bot_flaw": "Hoặc là tự gán bừa làm sai lệch ticket, hoặc là mở nhầm ticket mới toanh gây trùng lặp.",
+      "acceptance_criteria": "Xuất hiện đúng 2 lựa chọn '➕ Bổ sung vào TECH-X' và 'Sự cố mới'."
+    },
+    {
+      "id": "GOLDEN-30",
+      "category": "multi_incident_cancellation_revision",
+      "category_name": "Báo nhiều lỗi cùng lúc hoặc đổi ý giữa chừng (Multi-incident & Revision)",
+      "source_ticket": "TECH-1013",
+      "title": "Gửi ảnh ngay sau khi tạo ticket và báo 'ticket mới ạ, không phải cái vừa xong'",
+      "complexity_type": "anti_append_new_incident_isolation",
+      "scenario_context": "Ngay sau khi vừa tạo ticket X, người dùng gửi ảnh lỗi mới và gõ chữ 'ticket mới ạ' (TECH-1013). Bot không được append bừa.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "ticket mới ạ, phụ huynh khác bị lỗi app không tải được bài tập",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "forceNew": true,
+            "title": "Phụ huynh khác lỗi app không tải được bài tập"
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Dạ em mở tờ khai sự cố mới nhé! Anh/chị cho em xin số điện thoại phụ huynh gặp lỗi với ạ."
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "SĐT 0900000036, app Duo trên iPad, bên CSKH",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "identifiers": {
+              "studentAccount": "0900000036"
+            },
+            "product": "Duo",
+            "device_type": "Máy tính bảng",
+            "device_os": "iPadOS",
+            "reporting_dept": "CSKH"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt sự cố mới: Học sinh 0900000036 lỗi app Duo không tải được bài tập trên iPad, bộ phận CSKH. Anh/chị xác nhận để em tạo ticket nhé!"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Tạo ticket nhé em",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket mới {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Lỗi app Duo không tải được bài tập trên iPad (0900000036)",
+        "system": "Vuihoc (App/Web_Vuihoc + ERP_DUO)",
+        "product": "Duo",
+        "reporting_dept": "CSKH",
+        "urgency": "High",
+        "error_category": "Lỗi kỹ thuật",
+        "identifiers": {
+          "studentAccount": "0900000036"
+        }
+      },
+      "edge_case_challenge": "Chặn đường appendFollowUp tự động khi người dùng nói rõ 'ticket mới ạ' theo ADR-0008 (sự cố TECH-1013).",
+      "legacy_bot_flaw": "Tự động ghi đè ảnh và tin nhắn mới vào ticket vừa tạo trước đó vài giây.",
+      "acceptance_criteria": "Mở tờ khai mới độc lập, không gắn vào ticket trước."
+    },
+    {
+      "id": "GOLDEN-31",
+      "category": "cross_department_reporting",
+      "category_name": "Báo hộ phòng ban khác (Cross-department reporting)",
+      "source_ticket": "TECH-508",
+      "title": "Sale báo đơn DH989389 đã duyệt SMS nhưng không nhảy về T5",
+      "complexity_type": "sales_reporting_logistics_issue",
+      "scenario_context": "Nhân viên thuộc bộ phận Sale báo lỗi liên quan tới trạng thái T5 (Vận đơn / Kế toán đối soát).",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Em bên Sale nhờ IT kiểm tra đơn DH989389 của khách 0900000037 đã duyệt SMS mà chưa thấy nhảy về trạng thái T5 bên kho vận đơn",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Đơn DH989389 đã duyệt SMS chưa nhảy về T5",
+            "system": "CRM_Vuihoc",
+            "reporting_dept": "Sale",
+            "identifiers": {
+              "orderId": "DH989389",
+              "studentAccount": "0900000037"
+            }
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Đơn hàng này thuộc sản phẩm nào ạ (Duo hay Tutor)?"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Gói Duo Plus 2 năm nhé",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "product": "Duo"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: Người báo (bộ phận Sale) báo sự cố đơn hàng DH989389 (SĐT 0900000037) gói Duo Plus đã duyệt SMS nhưng chưa chuyển trạng thái T5 trên CRM_Vuihoc. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Xác nhận tạo đơn",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Đơn DH989389 đã duyệt SMS chưa chuyển trạng thái T5 trên CRM",
+        "system": "CRM_Vuihoc",
+        "product": "Duo",
+        "reporting_dept": "Sale",
+        "urgency": "High",
+        "error_category": "Lỗi dữ liệu",
+        "identifiers": {
+          "orderId": "DH989389",
+          "studentAccount": "0900000037"
+        }
+      },
+      "edge_case_challenge": "Phân biệt giữa 'Người báo thuộc phòng ban nào' (Sale) và 'Nội dung sự cố thuộc về nghiệp vụ nào' (Vận đơn / Kế toán).",
+      "legacy_bot_flaw": "Bot cũ hay hỏi ngược lại: 'Anh/chị bên Vận đơn phải không?' làm người dùng bực mình vì đã khai 'Em bên Sale'.",
+      "acceptance_criteria": "Ghi nhận reporting_dept='Sale' ngay ở lượt 1 mà không hỏi lại phòng ban."
+    },
+    {
+      "id": "GOLDEN-32",
+      "category": "cross_department_reporting",
+      "category_name": "Báo hộ phòng ban khác (Cross-department reporting)",
+      "source_ticket": "TECH-555",
+      "title": "Đơn DH963632 không hiển thị nút biên nhận trên CRM",
+      "complexity_type": "sales_reporting_finance_receipt_ui",
+      "scenario_context": "Sale báo lỗi thiếu nút làm biên nhận (chức năng kế toán / thu ngân) trên màn hình CRM.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Sale lên đơn DH963632 cho phụ huynh 0900000038 xong mà vào xem không thấy nút làm biên nhận thu tiền đâu",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Đơn DH963632 không hiển thị nút làm biên nhận",
+            "system": "CRM_Vuihoc",
+            "reporting_dept": "Sale",
+            "identifiers": {
+              "orderId": "DH963632",
+              "studentAccount": "0900000038"
+            }
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Đơn hàng này thuộc gói học nào ạ (Tutor hay Duo)?"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Gói Gia sư Toán Tutor 1:6 nhé",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "product": "Tutor"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: Đơn DH963632 (SĐT 0900000038) gói Tutor không hiển thị nút làm biên nhận trên CRM_Vuihoc, bộ phận báo: Sale. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Đúng rồi",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Đơn DH963632 gói Tutor không hiển thị nút làm biên nhận trên CRM",
+        "system": "CRM_Vuihoc",
+        "product": "Tutor",
+        "reporting_dept": "Sale",
+        "urgency": "High",
+        "error_category": "Lỗi kỹ thuật",
+        "identifiers": {
+          "orderId": "DH963632",
+          "studentAccount": "0900000038"
+        }
+      },
+      "edge_case_challenge": "Nhận diện trường hợp nút bấm bị ẩn/mất tính năng (Lỗi kỹ thuật) trong phân hệ thanh toán kế toán do Sale báo.",
+      "legacy_bot_flaw": "Tự động phân loại nhầm thành 'Lỗi nhập liệu' do có từ 'làm biên nhận'.",
+      "acceptance_criteria": "Gán error_category='Lỗi kỹ thuật', reporting_dept='Sale'."
+    },
+    {
+      "id": "GOLDEN-33",
+      "category": "cross_department_reporting",
+      "category_name": "Báo hộ phòng ban khác (Cross-department reporting)",
+      "source_ticket": "TECH-729",
+      "title": "CTS tự chuyển sang CARE Duo, không kiểm tra được gia sư",
+      "complexity_type": "cross_system_workflow_leak",
+      "scenario_context": "Điều phối viên Quản lý lớp Tutor phát hiện hồ sơ học sinh gia sư bị nhảy nhầm sang hệ thống quản lý của bên Duo.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Hồ sơ học sinh 0900000039 bên gia sư bị nhảy nhầm sang CARE Duo, bên quản lý lớp không kiểm tra để xếp lịch được",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Hồ sơ gia sư bị nhảy nhầm sang CARE Duo",
+            "system": "CARE_Vuihoc",
+            "product": "Tutor",
+            "reporting_dept": "Quản lý lớp",
+            "identifiers": {
+              "studentAccount": "0900000039"
+            }
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại sự cố: Hồ sơ gia sư Tutor của SĐT 0900000039 bị nhảy nhầm sang CARE Duo, khiến bộ phận Quản lý lớp không điều phối được. Hệ thống: CARE_Vuihoc. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Tạo ticket giúp chị",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Hồ sơ học sinh 0900000039 gia sư bị nhảy nhầm sang CARE Duo",
+        "system": "CARE_Vuihoc",
+        "product": "Tutor",
+        "reporting_dept": "Quản lý lớp",
+        "urgency": "High",
+        "error_category": "Lỗi dữ liệu",
+        "identifiers": {
+          "studentAccount": "0900000039"
+        }
+      },
+      "edge_case_challenge": "Xử lý sự cố liên quan đến 2 sản phẩm chéo nhau (Tutor vs Duo) và gán đúng trách nhiệm.",
+      "legacy_bot_flaw": "Bot cũ bị loạn giữa product='Tutor' và product='Duo', hỏi đi hỏi lại 'Rốt cuộc là Duo hay Tutor?'.",
+      "acceptance_criteria": "Xác định đúng sản phẩm gốc của học sinh là Tutor, hệ thống gặp lỗi dữ liệu là CARE_Vuihoc."
+    },
+    {
+      "id": "GOLDEN-34",
+      "category": "cross_department_reporting",
+      "category_name": "Báo hộ phòng ban khác (Cross-department reporting)",
+      "source_ticket": "TECH-638",
+      "title": "Chuyên môn báo ERP DUO - Quản lý kịch bản báo lỗi 404",
+      "complexity_type": "curriculum_reporting_internal_erp_tool",
+      "scenario_context": "Chuyên viên Chuyên môn (Curriculum / Content) gặp lỗi 404 khi truy cập màn hình cấu hình bài học trên ERP.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Bên Chuyên môn vào ERP DUO mục Quản lý kịch bản bài học lớp 8 báo 404 Not Found",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "ERP DUO Quản lý kịch bản báo lỗi 404",
+            "system": "Vuihoc (App/Web_Vuihoc + ERP_DUO)",
+            "product": "Duo",
+            "reporting_dept": "Chuyên môn"
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị truy cập trên máy tính dùng trình duyệt Chrome hay Cốc Cốc ạ?"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Trình duyệt Chrome trên PC nhé",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "device_type": "PC",
+            "browser": "Chrome"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: ERP DUO mục Quản lý kịch bản báo lỗi 404 trên Chrome PC, bộ phận Chuyên môn. Mức ưu tiên: High. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Xác nhận tạo đơn",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "ERP DUO Quản lý kịch bản báo 404 trên Chrome PC",
+        "system": "Vuihoc (App/Web_Vuihoc + ERP_DUO)",
+        "product": "Duo",
+        "reporting_dept": "Chuyên môn",
+        "urgency": "High",
+        "error_category": "Lỗi kỹ thuật",
+        "device_type": "PC"
+      },
+      "edge_case_challenge": "Nhận diện người báo thuộc bộ phận 'Chuyên môn' và đối tượng lỗi là công cụ nội bộ ERP DUO.",
+      "legacy_bot_flaw": "Thường ép người báo phải là Sale hoặc CSKH, không hỗ trợ bộ phận Chuyên môn.",
+      "acceptance_criteria": "Gán reporting_dept='Chuyên môn', system='Vuihoc (App/Web_Vuihoc + ERP_DUO)'."
+    },
+    {
+      "id": "GOLDEN-35",
+      "category": "cross_department_reporting",
+      "category_name": "Báo hộ phòng ban khác (Cross-department reporting)",
+      "source_ticket": "TECH-647",
+      "title": "CSKH báo hộ Phụ huynh không thể làm bài test do báo quá số lượt",
+      "complexity_type": "cskh_reporting_for_parent_test_limit",
+      "scenario_context": "Nhân viên CSKH tiếp nhận phản ánh của phụ huynh và báo lên IT để reset số lượt làm bài kiểm tra.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "CSKH báo hộ phụ huynh bé Minh Khôi 0900000040 vào làm bài test đầu vào báo đã quá số lượt cho phép",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Phụ huynh không thể làm bài test do báo quá số lượt",
+            "system": "CRM_Vuihoc",
+            "reporting_dept": "CSKH",
+            "identifiers": {
+              "studentAccount": "0900000040"
+            }
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Bài test này của chương trình Duo hay Tutor ạ?"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Test năng lực bên Tutor gia sư nhé",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "product": "Tutor"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: Học sinh 0900000040 bị chặn làm bài test năng lực Tutor do báo quá số lượt, bộ phận CSKH báo hộ phụ huynh. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Tạo ticket giúp em",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Học sinh 0900000040 bị báo quá số lượt làm bài test năng lực Tutor",
+        "system": "CRM_Vuihoc",
+        "product": "Tutor",
+        "reporting_dept": "CSKH",
+        "urgency": "High",
+        "error_category": "Hỗ trợ",
+        "identifiers": {
+          "studentAccount": "0900000040"
+        }
+      },
+      "edge_case_challenge": "Phân loại chính xác ca yêu cầu mở thêm lượt làm test là 'Hỗ trợ' chứ không phải lỗi sập hệ thống.",
+      "legacy_bot_flaw": "Phân loại thành 'Lỗi hệ thống' và set sai bộ phận thành Phụ huynh (không nằm trong enum 7 bộ phận).",
+      "acceptance_criteria": "Gán error_category='Hỗ trợ', reporting_dept='CSKH'."
+    },
+    {
+      "id": "GOLDEN-36",
+      "category": "cross_department_reporting",
+      "category_name": "Báo hộ phòng ban khác (Cross-department reporting)",
+      "source_ticket": "TECH-446",
+      "title": "Quản lý lớp báo CTS chưa được đối soát do lỗi",
+      "complexity_type": "qll_reporting_oms_accounting_issue",
+      "scenario_context": "Quản lý lớp phát hiện đơn hàng đã chuyển trạng thái nhưng hệ thống quản lý đơn hàng OMS không đồng bộ sang đối soát kế toán.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Bên Quản lý lớp kiểm tra thấy CTS mã giao dịch 12589512 chưa được đẩy sang đối soát kế toán trên OMS",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "CTS 12589512 chưa đối soát trên OMS",
+            "system": "OMS_Vuihoc",
+            "reporting_dept": "Quản lý lớp",
+            "identifiers": {
+              "transactionId": "12589512"
+            }
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Giao dịch này của sản phẩm nào ạ (Duo hay Tutor)?"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Gói Tutor nhé em",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "product": "Tutor"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: Giao dịch CTS 12589512 gói Tutor chưa được đẩy sang đối soát kế toán trên OMS_Vuihoc, bộ phận Quản lý lớp. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Xác nhận tạo ticket",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Giao dịch CTS 12589512 chưa được đối soát trên OMS",
+        "system": "OMS_Vuihoc",
+        "product": "Tutor",
+        "reporting_dept": "Quản lý lớp",
+        "urgency": "High",
+        "error_category": "Lỗi dữ liệu",
+        "identifiers": {
+          "transactionId": "12589512"
+        }
+      },
+      "edge_case_challenge": "Nhận diện đúng hệ thống OMS_Vuihoc và gán lỗi dữ liệu đối soát.",
+      "legacy_bot_flaw": "Nhầm OMS thành CRM_Vuihoc do cùng liên quan tới đơn hàng.",
+      "acceptance_criteria": "Gán system='OMS_Vuihoc', reporting_dept='Quản lý lớp'."
+    },
+    {
+      "id": "GOLDEN-37",
+      "category": "cross_department_reporting",
+      "category_name": "Báo hộ phòng ban khác (Cross-department reporting)",
+      "source_ticket": "TECH-723",
+      "title": "Không thể chấm công tại cửa ra vào do bị xoá mã vân tay",
+      "complexity_type": "office_infra_fingerprint_attendance",
+      "scenario_context": "Nhân viên CSKH báo lỗi thiết bị phần cứng chấm công văn phòng, thuộc hạ tầng IT nội bộ.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Em bên CSKH đi làm quẹt vân tay máy chấm công cửa tầng 3 báo lỗi không nhận diện được mã nhân viên",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Máy chấm công cửa tầng 3 không nhận vân tay",
+            "system": "Khác_Hạ tầng_IT",
+            "product": "Khác",
+            "reporting_dept": "CSKH"
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị cho em xin mã nhân viên hoặc SĐT của mình để IT nội bộ nạp lại vân tay nhé."
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Mã NV là CS_chautm, SĐT 0900000041 nhé",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "identifiers": {
+              "studentAccount": "0900000041"
+            }
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: Máy chấm công cửa tầng 3 không nhận vân tay nhân viên CS_chautm (0900000041), hệ thống Khác_Hạ tầng_IT, bộ phận CSKH. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "ok tạo giúp em",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Máy chấm công cửa tầng 3 không nhận vân tay nhân viên CS_chautm",
+        "system": "Khác_Hạ tầng_IT",
+        "product": "Khác",
+        "reporting_dept": "CSKH",
+        "urgency": "Low",
+        "error_category": "Hỗ trợ",
+        "identifiers": {
+          "studentAccount": "0900000041"
+        }
+      },
+      "edge_case_challenge": "Phân loại sự cố hạ tầng văn phòng nội bộ (máy chấm công) vào nhóm 'Khác_Hạ tầng_IT' và mức ưu tiên 'Low'.",
+      "legacy_bot_flaw": "Cố gắng hỏi phụ huynh và học sinh là ai vì tưởng là học sinh quẹt thẻ.",
+      "acceptance_criteria": "Không đòi hỏi thông tin học sinh/phụ huynh, gán system='Khác_Hạ tầng_IT'."
+    },
+    {
+      "id": "GOLDEN-38",
+      "category": "cross_department_reporting",
+      "category_name": "Báo hộ phòng ban khác (Cross-department reporting)",
+      "source_ticket": "TECH-802",
+      "title": "Sale báo không đăng nhập được email công ty VUIHOC",
+      "complexity_type": "internal_it_email_support",
+      "scenario_context": "Nhân viên Sale quên mật khẩu hoặc bị khóa hòm thư nội bộ, cần IT cấp lại mật khẩu.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Sale TienLM bị khóa tài khoản email công ty không đăng nhập được hòm thư",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Khóa tài khoản email công ty",
+            "system": "Khác_Hạ tầng_IT",
+            "product": "Khác",
+            "reporting_dept": "Sale"
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Anh/chị cho em xin địa chỉ email cần mở khóa hoặc số điện thoại liên hệ ạ."
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Email tienlm@example.com, SĐT 0900000042 nhé",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "identifiers": {
+              "studentAccount": "0900000042"
+            }
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: Khóa tài khoản email công ty tienlm@example.com (SĐT 0900000042), hệ thống Khác_Hạ tầng_IT, bộ phận Sale. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Đúng rồi",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Khóa tài khoản email công ty nhân sự TienLM",
+        "system": "Khác_Hạ tầng_IT",
+        "product": "Khác",
+        "reporting_dept": "Sale",
+        "urgency": "Medium",
+        "error_category": "Hỗ trợ",
+        "identifiers": {
+          "studentAccount": "0900000042"
+        }
+      },
+      "edge_case_challenge": "Nhận diện sự cố tài khoản nội bộ (email công ty), không đòi hỏi trường học sinh/bài tập.",
+      "legacy_bot_flaw": "Hỏi mã học sinh hoặc mã đơn hàng do bot bị gò theo catalog tiếp nhận học viên.",
+      "acceptance_criteria": "Nhận diện đúng email nội bộ, gán system='Khác_Hạ tầng_IT', error_category='Hỗ trợ'."
+    },
+    {
+      "id": "GOLDEN-39",
+      "category": "cross_department_reporting",
+      "category_name": "Báo hộ phòng ban khác (Cross-department reporting)",
+      "source_ticket": "TECH-484",
+      "title": "Sale lên đơn báo số điện thoại người nhận đã tồn tại trên Tutor",
+      "complexity_type": "cross_brand_database_collision",
+      "scenario_context": "Sale bán khóa học Duo nhưng hệ thống CRM chặn vì số điện thoại đã thuộc quyền quản lý của đội Tutor gia sư.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Sale lên đơn Duo con 0900000043 thì CRM báo số điện thoại đã tồn tại ở nhánh Tutor, nhờ IT giải phóng giúp",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "CRM báo SĐT đã tồn tại ở nhánh Tutor khi lên đơn Duo",
+            "system": "CRM_Vuihoc",
+            "product": "Duo",
+            "reporting_dept": "Sale",
+            "identifiers": {
+              "studentAccount": "0900000043"
+            }
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: CRM báo SĐT 0900000043 đã tồn tại ở nhánh Tutor khi Sale lên đơn Duo, cần giải phóng quyền sở hữu dữ liệu. Bộ phận: Sale. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Tạo ticket giúp em",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "CRM báo SĐT 0900000043 đã tồn tại ở nhánh Tutor khi lên đơn Duo",
+        "system": "CRM_Vuihoc",
+        "product": "Duo",
+        "reporting_dept": "Sale",
+        "urgency": "High",
+        "error_category": "Lỗi dữ liệu",
+        "identifiers": {
+          "studentAccount": "0900000043"
+        }
+      },
+      "edge_case_challenge": "Hiểu sự cố phân quyền và xung đột dữ liệu giữa 2 nhánh Sale Duo và Tutor.",
+      "legacy_bot_flaw": "Gán nhầm sang Tutor và chuyển nhầm cho đội kỹ thuật gia sư.",
+      "acceptance_criteria": "Gán product='Duo', system='CRM_Vuihoc', reporting_dept='Sale'."
+    },
+    {
+      "id": "GOLDEN-40",
+      "category": "cross_department_reporting",
+      "category_name": "Báo hộ phòng ban khác (Cross-department reporting)",
+      "source_ticket": "TECH-490",
+      "title": "CSKH báo phụ huynh cần xếp lại lịch học gia sư gấp do giáo viên vắng",
+      "complexity_type": "cskh_urgent_request_to_qll",
+      "scenario_context": "CSKH tiếp nhận phụ huynh khiếu nại giáo viên vắng đột xuất, cần chuyển gấp sang đội Quản lý lớp Tutor xếp giáo viên thay thế.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "CSKH báo gấp phụ huynh bé Hải Đăng 0900000044 giáo viên vắng không vào dạy, cần xếp giáo viên thay thế ngay ca 19h tối nay",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Phụ huynh cần xếp giáo viên thay thế ca 19h tối nay",
+            "system": "TUTOR_Vuihoc",
+            "product": "Tutor",
+            "reporting_dept": "CSKH",
+            "urgency": "Urgent",
+            "identifiers": {
+              "studentAccount": "0900000044"
+            }
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: Giáo viên vắng ca 19h tối nay, phụ huynh bé Hải Đăng (0900000044) cần Quản lý lớp xếp giáo viên thay thế gấp trên TUTOR_Vuihoc. Bộ phận báo: CSKH. Mức ưu tiên: Urgent. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Xác nhận tạo đơn khẩn",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo ticket khẩn cấp {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Cần xếp giáo viên thay thế gấp ca 19h cho học sinh 0900000044",
+        "system": "TUTOR_Vuihoc",
+        "product": "Tutor",
+        "reporting_dept": "CSKH",
+        "urgency": "Urgent",
+        "error_category": "Hỗ trợ",
+        "identifiers": {
+          "studentAccount": "0900000044"
+        }
+      },
+      "edge_case_challenge": "Nhận biết thời hạn gấp (ca 19h tối nay, giáo viên vắng) để set Urgency='Urgent' cho ca chuyển giao giữa CSKH và Quản lý lớp.",
+      "legacy_bot_flaw": "Hạ mức xuống Low vì từ khóa 'Hỗ trợ' thay vì phát hiện gián đoạn học tập tức thời (blocksLearning).",
+      "acceptance_criteria": "Kích hoạt floor rule blocksLearning=true nâng mức urgency='Urgent'."
+    },
+    {
+      "id": "GOLDEN-41",
+      "category": "urgent_sla_high_impact",
+      "category_name": "Báo sự cố khẩn cấp (SLA gấp, đường truyền phòng học, server down)",
+      "source_ticket": "TECH-650",
+      "title": "CRM_Vuihoc chặn toàn bộ CTS lên đơn, báo 401 Authorization Required",
+      "complexity_type": "entire_system_auth_failure",
+      "scenario_context": "Lỗi sập xác thực toàn hệ thống khiến toàn bộ đội ngũ bán hàng không thể lên bất kỳ đơn hàng nào.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Khẩn cấp: CRM_Vuihoc sập rồi, tất cả sale lên đơn đều báo 401 Unauthorized không lưu được đơn nào",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "CRM_Vuihoc chặn toàn bộ lên đơn, báo 401",
+            "system": "CRM_Vuihoc",
+            "product": "Khác",
+            "scope": "entire_system",
+            "urgency": "Urgent",
+            "reporting_dept": "Sale"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em ghi nhận sự cố KHẨN CẤP: CRM_Vuihoc lỗi 401 chặn toàn bộ nhân viên Sale lên đơn trên toàn hệ thống. Mức ưu tiên: Urgent (Còi báo động IT). Anh/chị bấm xác nhận để em phát còi ngay!"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Xác nhận khẩn cấp em ơi",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo ticket khẩn cấp {identifier} và kích hoạt kênh báo động IT On-call."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "KHẨN CẤP: CRM_Vuihoc báo 401 chặn toàn bộ lên đơn toàn hệ thống",
+        "system": "CRM_Vuihoc",
+        "product": "Khác",
+        "reporting_dept": "Sale",
+        "urgency": "Urgent",
+        "error_category": "Lỗi hệ thống",
+        "scope": "entire_system"
+      },
+      "edge_case_challenge": "Nhận diện phạm vi entire_system và lỗi 401 ảnh hưởng toàn bộ người dùng, kích hoạt ngay mức Urgent không hỏi dây dưa.",
+      "legacy_bot_flaw": "Hỏi SĐT học sinh là gì trong khi lỗi là sập cả hệ thống CRM (vi phạm nguyên tắc 6 incident-taxonomy).",
+      "acceptance_criteria": "Không đòi hỏi tài khoản học sinh cá nhân, gán scope='entire_system', urgency='Urgent'."
+    },
+    {
+      "id": "GOLDEN-42",
+      "category": "urgent_sla_high_impact",
+      "category_name": "Báo sự cố khẩn cấp (SLA gấp, đường truyền phòng học, server down)",
+      "source_ticket": "TECH-703",
+      "title": "Không truy cập được website vuihoc.vn - Server lỗi kết nối",
+      "complexity_type": "portal_down_entire_system",
+      "scenario_context": "Trang web chính bị mất kết nối, học sinh và phụ huynh toàn quốc không thể truy cập tài liệu và làm bài.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Website chính vuihoc.vn đang sập hoàn toàn, máy chủ từ chối kết nối, phụ huynh đang phản ánh ầm ĩ",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Website vuihoc.vn không truy cập được toàn hệ thống",
+            "system": "Khác_Hạ tầng_IT",
+            "product": "Tự học",
+            "scope": "entire_system",
+            "urgency": "Urgent",
+            "reporting_dept": "CSKH"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em ghi nhận sự cố TOÀN HỆ THỐNG: Website vuihoc.vn không truy cập được (máy chủ từ chối kết nối), bộ phận CSKH báo. Mức ưu tiên: Urgent. Anh/chị bấm xác nhận để em kích hoạt đội hạ tầng!"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Tạo khẩn cấp giúp chị",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo ticket khẩn cấp {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "KHẨN CẤP: Website vuihoc.vn không truy cập được trên toàn hệ thống",
+        "system": "Khác_Hạ tầng_IT",
+        "product": "Tự học",
+        "reporting_dept": "CSKH",
+        "urgency": "Urgent",
+        "error_category": "Lỗi hệ thống",
+        "scope": "entire_system"
+      },
+      "edge_case_challenge": "Nhận biết cổng thông tin web chính sập là sự cố cấp cao nhất, không hạ mức.",
+      "legacy_bot_flaw": "Gán nhầm thành lỗi trình duyệt người dùng (Lỗi cấu hình máy) và yêu cầu xóa cache.",
+      "acceptance_criteria": "Gán error_category='Lỗi hệ thống', urgency='Urgent', scope='entire_system'."
+    },
+    {
+      "id": "GOLDEN-43",
+      "category": "urgent_sla_high_impact",
+      "category_name": "Báo sự cố khẩn cấp (SLA gấp, đường truyền phòng học, server down)",
+      "source_ticket": "TECH-705",
+      "title": "Học sinh vào Duo không có tiếng, phụ huynh báo lỗi 502",
+      "complexity_type": "peak_hour_gateway_audio_failure",
+      "scenario_context": "Đúng khung giờ học cao điểm 19h45, server trả 502 Bad Gateway và hệ thống âm thanh trực tiếp bị tê liệt.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Đang trong giờ học cao điểm mà học sinh vào Duo bị mất toàn bộ tiếng, app báo lỗi 502 Bad Gateway",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Duo báo lỗi 502 mất toàn bộ tiếng trong giờ học",
+            "system": "Vuihoc (App/Web_Vuihoc + ERP_DUO)",
+            "product": "Duo",
+            "scope": "group",
+            "urgency": "Urgent",
+            "reporting_dept": "CSKH"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt sự cố KHẨN CẤP: Ứng dụng Duo báo 502 Bad Gateway và mất tiếng trong giờ học cao điểm, ảnh hưởng diện rộng học sinh. Mức ưu tiên: Urgent. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Xác nhận khẩn cấp",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo ticket khẩn cấp {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "KHẨN CẤP: Duo báo lỗi 502 Bad Gateway và mất âm thanh trong giờ học",
+        "system": "Vuihoc (App/Web_Vuihoc + ERP_DUO)",
+        "product": "Duo",
+        "reporting_dept": "CSKH",
+        "urgency": "Urgent",
+        "error_category": "Lỗi hệ thống",
+        "scope": "group"
+      },
+      "edge_case_challenge": "Phát hiện lỗi 502 trong giờ học cao điểm trực tiếp (in-session disruption).",
+      "legacy_bot_flaw": "Hỏi thiết bị của từng phụ huynh thay vì nhận ra đây là lỗi cụm máy chủ âm thanh/gateway.",
+      "acceptance_criteria": "Kích hoạt blocksLearning=true + scope=group -> urgency='Urgent'."
+    },
+    {
+      "id": "GOLDEN-44",
+      "category": "urgent_sla_high_impact",
+      "category_name": "Báo sự cố khẩn cấp (SLA gấp, đường truyền phòng học, server down)",
+      "source_ticket": "TECH-710",
+      "title": "Lỗi 504 khi vào BTVN lớp Toán Gia Sư CLC",
+      "complexity_type": "assignment_gateway_timeout_deadline",
+      "scenario_context": "Cả lớp học chuẩn bị đến hạn chót nộp bài tập về nhà thì server bài tập báo 504 Gateway Timeout.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Gấp lắm: Lớp Toán Gia Sư CLC mã 10260774 sắp đến hạn nộp bài mà cả lớp vào đều dính lỗi 504 Gateway Timeout",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Lỗi 504 Gateway Timeout khi vào BTVN lớp Toán Gia Sư CLC",
+            "system": "TUTOR_Vuihoc",
+            "product": "Tutor",
+            "scope": "group",
+            "urgency": "Urgent",
+            "reporting_dept": "Quản lý lớp",
+            "identifiers": {
+              "classCode": "10260774"
+            }
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em ghi nhận sự cố KHẨN: Lớp Toán Gia Sư CLC (Mã 10260774) dính 504 Gateway Timeout không nộp được BTVN trước hạn chót. Hệ thống: TUTOR_Vuihoc, bộ phận Quản lý lớp. Mức: Urgent. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Tạo ticket gấp giúp em",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo ticket khẩn cấp {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "KHẨN CẤP: Lỗi 504 Gateway Timeout khi nộp BTVN lớp Toán CLC (10260774)",
+        "system": "TUTOR_Vuihoc",
+        "product": "Tutor",
+        "reporting_dept": "Quản lý lớp",
+        "urgency": "Urgent",
+        "error_category": "Lỗi hệ thống",
+        "scope": "group",
+        "identifiers": {
+          "classCode": "10260774"
+        }
+      },
+      "edge_case_challenge": "Nhận diện mã lỗi kỹ thuật 504 Gateway Timeout và tác động chặn nộp bài sát deadline.",
+      "legacy_bot_flaw": "Hỏi 'Học sinh có ảnh chụp màn hình không?' thay vì mở ticket khẩn ngay.",
+      "acceptance_criteria": "Gán error_category='Lỗi hệ thống', urgency='Urgent'."
+    },
+    {
+      "id": "GOLDEN-45",
+      "category": "urgent_sla_high_impact",
+      "category_name": "Báo sự cố khẩn cấp (SLA gấp, đường truyền phòng học, server down)",
+      "source_ticket": "TECH-514",
+      "title": "CRM báo lỗi đăng ký SIP server bị timeout",
+      "complexity_type": "callcenter_sip_outage",
+      "scenario_context": "Tổng đài thoại IP của CRM bị sập kết nối SIP server, toàn bộ nhân viên tư vấn và CSKH không thể gọi điện.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Gấp: Toàn bộ máy lẻ CRM đều báo Registering on SIP server failed: Request Timeout, cả phòng Sale không gọi được",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "CRM lỗi đăng ký SIP server failed Request Timeout",
+            "system": "CRM_Vuihoc",
+            "product": "Khác",
+            "scope": "entire_system",
+            "urgency": "Urgent",
+            "reporting_dept": "Sale"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em ghi nhận sự cố KHẨN: Toàn bộ máy lẻ CRM lỗi SIP timeout không thực hiện được cuộc gọi trên toàn bộ phận Sale. Hệ thống: CRM_Vuihoc. Mức: Urgent. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Xác nhận tạo đơn khẩn",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo ticket khẩn cấp {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "KHẨN CẤP: Tổng đài CRM sập kết nối SIP server Request Timeout",
+        "system": "CRM_Vuihoc",
+        "product": "Khác",
+        "reporting_dept": "Sale",
+        "urgency": "Urgent",
+        "error_category": "Lỗi bên thứ 3",
+        "scope": "entire_system"
+      },
+      "edge_case_challenge": "Phân loại chính xác lỗi tổng đài VoIP là 'Lỗi bên thứ 3' (nhà cung cấp viễn thông/SIP) và mức độ Urgent.",
+      "legacy_bot_flaw": "Yêu cầu cung cấp số điện thoại khách hàng cần gọi trong khi lỗi xảy ra ở máy chủ tổng đài.",
+      "acceptance_criteria": "Gán error_category='Lỗi bên thứ 3', urgency='Urgent'."
+    },
+    {
+      "id": "GOLDEN-46",
+      "category": "urgent_sla_high_impact",
+      "category_name": "Báo sự cố khẩn cấp (SLA gấp, đường truyền phòng học, server down)",
+      "source_ticket": "TECH-782",
+      "title": "Học trực tuyến bị màn hình đen, không thấy giáo viên",
+      "complexity_type": "liveclass_black_screen_in_session",
+      "scenario_context": "Lớp học trực tuyến trên ClassIn đang diễn ra thì phòng học bị đen màn hình toàn bộ, giáo viên và học sinh không thấy nhau.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Phòng học trực tuyến ClassIn mã ROOM-8891 đang học thì bị đen ngòm màn hình, học sinh không thấy giáo viên giảng bài",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Phòng học ClassIn ROOM-8891 bị màn hình đen",
+            "system": "ClassIn",
+            "product": "Khác",
+            "scope": "group",
+            "urgency": "Urgent",
+            "reporting_dept": "CSKH",
+            "identifiers": {
+              "roomId": "ROOM-8891"
+            }
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em ghi nhận sự cố KHẨN: Phòng học ClassIn ROOM-8891 bị màn hình đen khi đang trong giờ học trực tuyến. Hệ thống: ClassIn, bộ phận: CSKH. Mức: Urgent. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Tạo ticket ngay em ơi",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo ticket khẩn cấp {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "KHẨN CẤP: Phòng học ClassIn ROOM-8891 bị màn hình đen gián đoạn giờ học",
+        "system": "ClassIn",
+        "product": "Khác",
+        "reporting_dept": "CSKH",
+        "urgency": "Urgent",
+        "error_category": "Lỗi bên thứ 3",
+        "scope": "group",
+        "identifiers": {
+          "roomId": "ROOM-8891"
+        }
+      },
+      "edge_case_challenge": "Xử lý gián đoạn phòng học trực tiếp đang diễn ra với mã phòng học (roomId).",
+      "legacy_bot_flaw": "Bắt cung cấp số điện thoại phụ huynh từng học sinh trong phòng học.",
+      "acceptance_criteria": "Chấp nhận roomId 'ROOM-8891' làm định danh chính, không đòi SĐT cá nhân."
+    },
+    {
+      "id": "GOLDEN-47",
+      "category": "urgent_sla_high_impact",
+      "category_name": "Báo sự cố khẩn cấp (SLA gấp, đường truyền phòng học, server down)",
+      "source_ticket": "TECH-809",
+      "title": "Đơn DH550505 sai khóa học Duo, không vào được lớp sắp bắt đầu",
+      "complexity_type": "imminent_class_start_sla_rush",
+      "scenario_context": "Chỉ còn 15 phút nữa là lớp học bắt đầu, nhưng đơn hàng lên sai khóa học làm tài khoản học sinh không có link vào lớp.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Gấp cứu ca này với: Đơn DH550505 của bé 0900000045 bị gắn sai lớp Duo, 15 phút nữa con vào học ca 20h rồi mà chưa thấy link",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Đơn DH550505 sai khóa học Duo sát giờ vào lớp",
+            "system": "LMS_Vuihoc",
+            "product": "Duo",
+            "urgency": "Urgent",
+            "reporting_dept": "Sale",
+            "identifiers": {
+              "orderId": "DH550505",
+              "studentAccount": "0900000045"
+            }
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt ca GẤP: Đơn DH550505 (SĐT 0900000045) sai khóa học Duo, còn 15 phút nữa vào ca 20h. Hệ thống: LMS_Vuihoc, bộ phận Sale. Mức ưu tiên: Urgent. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Xác nhận tạo đơn gấp",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo ticket khẩn cấp {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "KHẨN CẤP: Đơn DH550505 sai khóa học Duo sát giờ học 20h (0900000045)",
+        "system": "LMS_Vuihoc",
+        "product": "Duo",
+        "reporting_dept": "Sale",
+        "urgency": "Urgent",
+        "error_category": "Lỗi dữ liệu",
+        "identifiers": {
+          "orderId": "DH550505",
+          "studentAccount": "0900000045"
+        }
+      },
+      "edge_case_challenge": "Áp dụng quy tắc người báo xin gấp kèm lý do chính đáng ('15 phút nữa con vào học') theo user rule 29/09.",
+      "legacy_bot_flaw": "Hạ mức xuống Medium vì đây là lỗi đơn hàng bình thường, không tính đến yếu tố thời gian sát giờ học.",
+      "acceptance_criteria": "Giữ đúng mức 'Urgent' theo yêu cầu có lý do sát giờ học."
+    },
+    {
+      "id": "GOLDEN-48",
+      "category": "urgent_sla_high_impact",
+      "category_name": "Báo sự cố khẩn cấp (SLA gấp, đường truyền phòng học, server down)",
+      "source_ticket": "TECH-366",
+      "title": "Phụ huynh bị đẩy ra liên tục khi vào học trên web và app",
+      "complexity_type": "concurrent_session_crash_loop",
+      "scenario_context": "Học sinh vừa vào lớp được vài giây thì bị văng ứng dụng ra màn hình chính liên tục (crash loop).",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Phụ huynh học sinh 0900000046 đang học thì bị văng ra liên tục, cứ bấm vào xem video là app tự sập",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Học sinh 0900000046 bị văng app liên tục khi xem video",
+            "system": "Vuihoc (App/Web_Vuihoc + ERP_DUO)",
+            "product": "Duo",
+            "identifiers": {
+              "studentAccount": "0900000046"
+            }
+          },
+          "action": "ask_missing_field",
+          "bot_prompt": "Học sinh dùng thiết bị gì (iPad hay Android) và anh/chị bên bộ phận nào ạ?"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Dùng iPad iOS 16, chị bên CSKH nhé, đang trong ca học gấp lắm",
+          "extracted_fields": {
+            "userIntent": "provide_info",
+            "device_type": "Máy tính bảng",
+            "device_os": "iOS",
+            "reporting_dept": "CSKH",
+            "urgency": "High"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em tóm tắt lại: Học sinh 0900000046 bị văng app Duo liên tục khi mở video trên iPad iOS 16, gián đoạn học tập trong ca học. Bộ phận: CSKH. Mức: High. Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 3,
+          "role": "user",
+          "message": "Xác nhận tạo đơn",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo thành công ticket {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "Học sinh 0900000046 bị sập app Duo liên tục khi xem video trên iPad",
+        "system": "Vuihoc (App/Web_Vuihoc + ERP_DUO)",
+        "product": "Duo",
+        "reporting_dept": "CSKH",
+        "urgency": "High",
+        "error_category": "Lỗi kỹ thuật",
+        "device_type": "Máy tính bảng",
+        "device_os": "iOS",
+        "identifiers": {
+          "studentAccount": "0900000046"
+        }
+      },
+      "edge_case_challenge": "Phân loại lỗi crash app trên thiết bị cụ thể và gắn mức High (blocksLearning cho học sinh đơn lẻ).",
+      "legacy_bot_flaw": "Bị nhầm thành 'Lỗi cấu hình máy' của phụ huynh và khuyên phụ huynh gỡ app cài lại thay vì báo IT kiểm tra log crash.",
+      "acceptance_criteria": "Gán error_category='Lỗi kỹ thuật', urgency='High'."
+    },
+    {
+      "id": "GOLDEN-49",
+      "category": "urgent_sla_high_impact",
+      "category_name": "Báo sự cố khẩn cấp (SLA gấp, đường truyền phòng học, server down)",
+      "source_ticket": "TECH-872",
+      "title": "Không thể hoàn tất phí đơn hàng DH976741 trên CRM, cổng thanh toán lỗi",
+      "complexity_type": "payment_gateway_revenue_blocker",
+      "scenario_context": "Khách hàng quét mã QR thanh toán học phí nhưng cổng thanh toán ngân hàng trả lỗi 500, dòng tiền bị chặn đứng.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "Khẩn cấp: Đơn DH976741 phụ huynh đang quét QR chuyển khoản thì cổng thanh toán báo lỗi kết nối ngân hàng, khách không trả tiền được",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "Cổng thanh toán báo lỗi khi phụ huynh quét QR đơn DH976741",
+            "system": "CRM_Vuihoc",
+            "product": "Khác",
+            "blocksPayment": true,
+            "urgency": "Urgent",
+            "reporting_dept": "Sale",
+            "identifiers": {
+              "orderId": "DH976741"
+            }
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em ghi nhận sự cố KHẨN CẤP (chặn dòng tiền): Cổng thanh toán lỗi kết nối khi khách quét QR đơn DH976741 trên CRM_Vuihoc. Bộ phận: Sale. Mức: Urgent (Floor rule blocksPayment=true). Anh/chị bấm xác nhận nhé!"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Tạo ticket gấp ngay",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo ticket khẩn cấp {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "KHẨN CẤP: Cổng thanh toán lỗi kết nối ngân hàng cho đơn DH976741",
+        "system": "CRM_Vuihoc",
+        "product": "Khác",
+        "reporting_dept": "Sale",
+        "urgency": "Urgent",
+        "error_category": "Lỗi bên thứ 3",
+        "identifiers": {
+          "orderId": "DH976741"
+        }
+      },
+      "edge_case_challenge": "Kích hoạt floor rule blocksPayment=true trong urgency-rules.json: dòng tiền đang bị chặn ngay lúc này phải là Urgent.",
+      "legacy_bot_flaw": "Hạ mức xuống High hoặc Medium vì chỉ là lỗi của 1 đơn hàng.",
+      "acceptance_criteria": "Kích hoạt minLevel='Urgent' theo floor rule blocksPayment."
+    },
+    {
+      "id": "GOLDEN-50",
+      "category": "urgent_sla_high_impact",
+      "category_name": "Báo sự cố khẩn cấp (SLA gấp, đường truyền phòng học, server down)",
+      "source_ticket": "TECH-634",
+      "title": "App vào học bị chậm và đơ đứng toàn bộ trong giờ cao điểm 19h30",
+      "complexity_type": "peak_hour_performance_degradation",
+      "scenario_context": "Vào khung giờ vàng 19h30 toàn bộ app học tập bị nghẽn mạng máy chủ, phụ huynh đồng loạt than phiền không tải được trang.",
+      "turns": [
+        {
+          "turn": 1,
+          "role": "user",
+          "message": "App Vuihoc đang bị đơ toàn bộ trong giờ học 19h30, hàng trăm phụ huynh đang nhắn tin bảo không bấm vào học được",
+          "extracted_fields": {
+            "userIntent": "report_issue",
+            "title": "App Vuihoc bị chậm và đơ đứng diện rộng giờ cao điểm 19h30",
+            "system": "Vuihoc (App/Web_Vuihoc + ERP_DUO)",
+            "product": "Tự học",
+            "scope": "entire_system",
+            "urgency": "Urgent",
+            "reporting_dept": "CSKH"
+          },
+          "action": "confirm_summary",
+          "bot_prompt": "Em ghi nhận sự cố KHẨN CẤP DIỆN RỘNG: App Vuihoc bị đơ và nghẽn mạng toàn hệ thống giờ cao điểm 19h30. Bộ phận: CSKH. Mức: Urgent. Anh/chị bấm xác nhận để em phát còi tới đội hạ tầng!"
+        },
+        {
+          "turn": 2,
+          "role": "user",
+          "message": "Xác nhận tạo đơn khẩn cấp",
+          "extracted_fields": {
+            "userIntent": "confirm"
+          },
+          "action": "ticket_created",
+          "bot_prompt": "Em đã tạo ticket khẩn cấp {identifier}."
+        }
+      ],
+      "final_ticket_fields": {
+        "title": "KHẨN CẤP: App Vuihoc bị nghẽn mạng diện rộng trong giờ cao điểm 19h30",
+        "system": "Vuihoc (App/Web_Vuihoc + ERP_DUO)",
+        "product": "Tự học",
+        "reporting_dept": "CSKH",
+        "urgency": "Urgent",
+        "error_category": "Lỗi hệ thống",
+        "scope": "entire_system"
+      },
+      "edge_case_challenge": "Nhận biết suy giảm hiệu năng trên diện rộng (high load degradation) trong giờ học cao điểm.",
+      "legacy_bot_flaw": "Hỏi thông tin phiên bản app của từng máy thay vì phát báo động nghẽn máy chủ.",
+      "acceptance_criteria": "Gán scope='entire_system', urgency='Urgent', error_category='Lỗi hệ thống'."
+    }
+  ]
+}
