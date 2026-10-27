@@ -38,6 +38,16 @@ Không đặt `TELEGRAM_BOT_TOKEN`: bot dùng kênh nhật ký, không có tin n
 bun run apps/tieulinh/main.ts
 ```
 
+Hoặc chạy trọn gói cả Lễ tân và Hậu cần trực tiếp trên máy dev bằng launcher `dev:tieulinh2`:
+
+```bash
+bun run dev:tieulinh2 start
+bun run dev:tieulinh2 status
+bun run dev:tieulinh2 stop
+```
+
+Script `deploy/dev/tl2-local.sh` quản lý đồng thời cả hai tiến trình, ghi file PID vào `~/.local/share/tl2-local/run/` và bảo vệ an toàn bằng cách chặn đứng nếu cấu hình trỏ vào `TECH` production.
+
 Bot đọc thêm file `.env` ở thư mục chạy (biến trong môi trường thắng file). Thư mục dữ liệu `BOT_DATA_DIR` được tạo mode 0700 với:
 
 | File | Nội dung |
