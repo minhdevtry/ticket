@@ -79,6 +79,11 @@ export interface ReceptionistDefinition {
   };
   /** Cổng xác định quyền sở hữu ticket (ADR-0008). */
   ownership?: OwnershipPort;
+  /**
+   * Yêu cầu duyệt name code người báo (mặc định: false - không duyệt).
+   * Bật khi cấu hình .env (REQUIRE_APPROVAL=true).
+   */
+  requireApproval?: boolean;
 }
 
 /** Khai báo đầy đủ của một bot. `E` là hình dạng env, suy ra từ `env`. */
@@ -381,8 +386,8 @@ function validateReceptionist(
     rec.extractor !== undefined ||
     rec.channels !== undefined ||
     rec.techReviewPolicy !== undefined ||
-    rec.techReviewer !== undefined;
-
+    rec.techReviewer !== undefined ||
+    rec.requireApproval !== undefined;
   if (!hasFields) {
     bad("receptionist", "lễ tân cần ít nhất catalog hoặc cấu hình hợp lệ");
     return;
@@ -407,6 +412,10 @@ function validateReceptionist(
     if (typeof ext?.extract !== "function") {
       bad("receptionist.extractor", "extractor phải có phương thức `extract(input)`");
     }
+  }
+
+  if (rec.requireApproval !== undefined && typeof rec.requireApproval !== "boolean") {
+    bad("receptionist.requireApproval", "requireApproval phải là boolean");
   }
 }
 

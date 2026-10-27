@@ -39,6 +39,8 @@ export const tieulinhEnv = defineEnv({
   TECH_INFO_REVIEW: z.enum(["off", "checklist", "llm"]).default("checklist"),
   /** Đường dẫn file SQLite chứa dữ liệu tự học cho reviewer dạng checklist (F3). */
   ASK_LEARN_DB: z.string().min(1).optional(),
+  /** Bật duyệt name code người báo (mặc định: false - không duyệt). */
+  REQUIRE_APPROVAL: z.stringbool().default(false),
 });
 
 /**

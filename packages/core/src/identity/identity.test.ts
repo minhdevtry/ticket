@@ -93,14 +93,14 @@ describe("SqliteIdentityRepository (:memory:)", () => {
 
 // ── registration ────────────────────────────────────────────────────────────
 describe("IdentityService.registerIdentity", () => {
-  test("valid pending registration (requireApproval default true)", () => {
+  test("valid registration (requireApproval default false)", () => {
     const svc = new IdentityService(repo);
     const r = svc.registerIdentity({ userId: "1", nameCode: "te_usera" });
     expect(r.success).toBe(true);
-    expect(r.autoApproved).toBe(false);
-    expect(r.reason).toBe("pending");
+    expect(r.autoApproved).toBe(true);
+    expect(r.reason).toBe("auto_approved_open");
     expect(r.nameCode).toBe("TE_usera"); // normalized prefix upper-cased
-    expect(repo.getUserIdentity("1")?.status).toBe("pending");
+    expect(repo.getUserIdentity("1")?.status).toBe("approved");
   });
 
   test("invalid format is refused with a reason code and no copy", () => {
@@ -134,26 +134,27 @@ describe("IdentityService.registerIdentity", () => {
 
   test("auto-approve: approved prefix", () => {
     repo.approvePrefix("TE", "admin");
-    const svc = new IdentityService(repo);
+    const svc = new IdentityService(repo, { requireApproval: true });
     const r = svc.registerIdentity({ userId: "1", nameCode: "TE_usera" });
     expect(r.autoApproved).toBe(true);
     expect(r.reason).toBe("auto_approved_prefix");
     expect(repo.getUserIdentity("1")?.approvedBy).toBe("prefix_rule");
   });
 
-  test("auto-approve: requireApproval=false (open mode)", () => {
-    const svc = new IdentityService(repo, { requireApproval: false });
+  test("pending registration when requireApproval is true", () => {
+    const svc = new IdentityService(repo, { requireApproval: true });
     const r = svc.registerIdentity({ userId: "1", nameCode: "TE_usera" });
-    expect(r.autoApproved).toBe(true);
-    expect(r.reason).toBe("auto_approved_open");
-    expect(repo.getUserIdentity("1")?.status).toBe("approved");
+    expect(r.success).toBe(true);
+    expect(r.autoApproved).toBe(false);
+    expect(r.reason).toBe("pending");
+    expect(repo.getUserIdentity("1")?.status).toBe("pending");
   });
 });
 
 // ── approve / reject ──────────────────────────────────────────────────────────
 describe("IdentityService.approveUser / rejectUser", () => {
   test("approve a pending user; reject sets rejected; not_found on unknown", () => {
-    const svc = new IdentityService(repo);
+    const svc = new IdentityService(repo, { requireApproval: true });
     svc.registerIdentity({ userId: "1", nameCode: "TE_a" });
     const a = svc.approveUser("1", "admin42");
     expect(a.success).toBe(true);
@@ -170,7 +171,7 @@ describe("IdentityService.approveUser / rejectUser", () => {
 // ── checkUserApproval ─────────────────────────────────────────────────────────
 describe("IdentityService.checkUserApproval", () => {
   test("admin always approved; unknown user not approved; approved user approved", () => {
-    const svc = new IdentityService(repo, { adminIds: ["9"] });
+    const svc = new IdentityService(repo, { adminIds: ["9"], requireApproval: true });
     expect(svc.checkUserApproval("9").isApproved).toBe(true);
     expect(svc.checkUserApproval("unknown").isApproved).toBe(false);
     svc.registerIdentity({ userId: "1", nameCode: "TE_a" });
@@ -179,7 +180,7 @@ describe("IdentityService.checkUserApproval", () => {
   });
 
   test("rejected user reports isRejected", () => {
-    const svc = new IdentityService(repo);
+    const svc = new IdentityService(repo, { requireApproval: true });
     svc.registerIdentity({ userId: "1", nameCode: "TE_a" });
     svc.rejectUser("1");
     const c = svc.checkUserApproval("1");
@@ -188,7 +189,7 @@ describe("IdentityService.checkUserApproval", () => {
   });
 
   test("prefix auto-promote on check: a pending user is promoted when its prefix is approved", () => {
-    const svc = new IdentityService(repo);
+    const svc = new IdentityService(repo, { requireApproval: true });
     svc.registerIdentity({ userId: "1", nameCode: "TE_a" }); // pending
     expect(svc.checkUserApproval("1").isPending).toBe(true);
     repo.approvePrefix("TE", "admin");
@@ -200,7 +201,7 @@ describe("IdentityService.checkUserApproval", () => {
   });
 
   test("a rejected user is NOT revived by a prefix approval", () => {
-    const svc = new IdentityService(repo);
+    const svc = new IdentityService(repo, { requireApproval: true });
     svc.registerIdentity({ userId: "1", nameCode: "TE_a" });
     svc.rejectUser("1");
     repo.approvePrefix("TE", "admin");
