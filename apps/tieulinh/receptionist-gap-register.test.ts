@@ -220,8 +220,13 @@ const ROWS: Row[] = [
   row(
     "lib/intake-step/pipeline.flow.test.ts",
     "tạo ticket: có binding, dọn bản nháp, nút xác nhận hiện lúc tóm tắt và bị xoá sau khi tạo",
-    "deferred",
-    "Chờ port ở PR 16 (adapter OpenClaw cho pack lễ tân): nút xác nhận do plugin OpenClaw vẽ và xoá; binding thuộc PR 3",
+    "ported",
+    [
+      C(
+        "openclaw/openclaw-adapter.test.ts",
+        "tạo ticket: có binding, dọn bản nháp, nút xác nhận hiện lúc tóm tắt và bị xoá sau khi tạo",
+      ),
+    ],
   ),
   row(
     "lib/intake-step/pipeline.flow.test.ts",
@@ -2493,20 +2498,35 @@ const ROWS: Row[] = [
   row(
     "mcp/shared/tools/confirmation-and-binding.test.ts",
     "checkIdentity: lưu initialButtons vào file nút tạm khi user được duyệt và chưa có draft",
-    "deferred",
-    "Chờ port ở PR 16 (adapter OpenClaw cho pack lễ tân): nút đầu tiên ghi qua file chờ của OpenClaw",
+    "ported",
+    [
+      C(
+        "openclaw/openclaw-adapter.test.ts",
+        "checkIdentity: lưu initialButtons vào file nút tạm khi user được duyệt và chưa có draft",
+      ),
+    ],
   ),
   row(
     "mcp/shared/tools/confirmation-and-binding.test.ts",
     "checkRequiredFields: tự động lưu branch buttons và nhắc chọn nhánh khi thiếu variant",
-    "deferred",
-    "Chờ port ở PR 16 (adapter OpenClaw cho pack lễ tân): nút nhánh ghi qua file chờ của OpenClaw",
+    "ported",
+    [
+      C(
+        "openclaw/openclaw-adapter.test.ts",
+        "checkRequiredFields: tự động lưu branch buttons và nhắc chọn nhánh khi thiếu variant",
+      ),
+    ],
   ),
   row(
     "mcp/shared/tools/confirmation-and-binding.test.ts",
     "checkRequiredFields: đã đính nút thì thôi liệt kê lựa chọn trong câu hỏi",
-    "deferred",
-    "Chờ port ở PR 16 (adapter OpenClaw cho pack lễ tân): nút nhánh ghi qua file chờ của OpenClaw",
+    "ported",
+    [
+      C(
+        "openclaw/openclaw-adapter.test.ts",
+        "checkRequiredFields: đã đính nút thì thôi liệt kê lựa chọn trong câu hỏi",
+      ),
+    ],
   ),
   row(
     "mcp/shared/tools/confirmation-and-binding.test.ts",
@@ -4050,8 +4070,13 @@ const ROWS: Row[] = [
   row(
     "lib/telegram/buttons.test.ts",
     "dùng đúng chữ được truyền vào, callback_data cố định 'đúng rồi'",
-    "deferred",
-    "Chờ port ở PR 16 (adapter OpenClaw cho pack lễ tân)",
+    "ported",
+    [
+      C(
+        "openclaw/openclaw-adapter.test.ts",
+        "dùng đúng chữ được truyền vào, callback_data cố định 'đúng rồi'",
+      ),
+    ],
   ),
   row(
     "lib/telegram/buttons.test.ts",
@@ -4062,15 +4087,17 @@ const ROWS: Row[] = [
   row(
     "lib/telegram/buttons.test.ts",
     "không tự bịa thêm hay bớt phòng ban nào so với danh sách truyền vào",
-    "deferred",
-    "Chờ port ở PR 16 (adapter OpenClaw cho pack lễ tân)",
+    "ported",
+    [
+      C(
+        "openclaw/openclaw-adapter.test.ts",
+        "không tự bịa thêm hay bớt phòng ban nào so với danh sách truyền vào",
+      ),
+    ],
   ),
-  row(
-    "lib/telegram/buttons.test.ts",
-    "trả về danh sách 3 nút nhánh chuẩn cho IRIS",
-    "deferred",
-    "Chờ port ở PR 16 (adapter OpenClaw cho pack lễ tân)",
-  ),
+  row("lib/telegram/buttons.test.ts", "trả về danh sách 3 nút nhánh chuẩn cho IRIS", "ported", [
+    C("openclaw/openclaw-adapter.test.ts", "trả về danh sách 3 nút nhánh chuẩn cho IRIS"),
+  ]),
   row(
     "lib/telegram/buttons.test.ts",
     "đổi callbackData -> callback_data, giữ nguyên text và bố cục hàng",

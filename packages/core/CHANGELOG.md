@@ -3,6 +3,31 @@
 All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded here.
 
 ## Unreleased
+- **Adapter OpenClaw cho pack lễ tân** (RFC 0002 PR 16, issue #30). Additive:
+  - `@vuihoc/bot-core/openclaw`:
+    - `packages/core/src/openclaw/receptionist-adapter.ts`:
+      - `generateReceptionistOpenClawConfig(def, options)`: sinh cấu hình `openclaw.json` chuẩn khai báo MCP server (`intake-<botId>`), agent (`tieulinh`), model, skills (`incident-intake`, `check-status`), và plugin (`iris-tuong-tac`, `xac-nhan-xong`), tương thích cả schema mới (`mcp.servers`, `agents.entries`) và legacy (`mcpServers`, `agents[id]`).
+      - `syncReceptionistWorkspace(def, targetDir, options)`: đồng bộ skill pack vào thư mục workspace OpenClaw được chỉ định thông qua `exportSkillPack` và `planWorkspaceSync`, hỗ trợ `dryRun`.
+      - `connectPendingButtons(options)`: cầu nối mảng nút với file chờ Telegram (`savePendingButtons`, `readPendingButtons`, `clearPendingButtons`), hỗ trợ `handleStepResult` tự động lưu khi có nút và dọn khi tạo ticket xong, kèm `sink` tương thích `PendingButtonsSink`.
+      - Helper nút Telegram chuẩn: `getConfirmationButtons` (`callback_data` cố định "đúng rồi"), `getDepartmentButtons` (xếp hàng đôi, giữ nhãn), `getBranchButtons` (3 nút nhánh chuẩn IRIS).
+      - `forwardSessionToIdentityTools(event, ctx)`: tự động chuyển tiếp `chatId`/`userId` từ context phiên vào `check_identity` và `register_identity`.
+      - `createForceNewTracker()`: quản lý cờ `forceNew` cho `/new`, cung cấp `asHandler()` cho webhook `/internal/force-new`.
+    - Xuất các kiểu và hàm trên tại `@vuihoc/bot-core/openclaw`.
+  - `@vuihoc/bot-core/backoffice` & `@vuihoc/bot-core/bot`:
+    - `InboundDefinition`: hỗ trợ trường `forceNew?: (ctx: InboundContext<C>, request: { chatId: string }) => Promise<void> | void`.
+    - `defineBot`: cho phép `forceNew` trong `backoffice.inbound`.
+    - `createBot`: tự động đăng ký `webhookServer.onForceNew` khi `inbound.forceNew` được khai báo.
+  - Test hợp đồng và kiểm chéo:
+    - `packages/core/src/openclaw/openclaw-adapter.test.ts`:
+      - Kiểm chứng hợp đồng `intake_step` (`action`, `buttonsShown`, `agentInstruction`, mảng nút đẩy qua file chờ và không lộ trong JSON của model).
+      - Kiểm chứng tin tóm tắt chuẩn của TL2 và tin xem trước khớp hàm `choPhepNutTrenTinCoMa` của plugin `iris-tuong-tac` (RFC 0002 dòng 491, ADR-0008).
+      - Kiểm chéo 45 ca test legacy qua các hàm xuất của plugin: 12 ca của `iris-tuong-tac` (`layAccountId`, `choPhepNutTrenTinCoMa`, `xuLyDebounceCallback`, `laCallbackNoiBo`, `donDepVanBanKhiCoNut`, hooks), 33 ca của `xac-nhan-xong` (`docXacNhan`, `layChatId`, `layReplyToId`, `boPhongBiKenh`, `laLenhSuCoMoi`, `docBangWorker`, `xuLyXacNhan`, `xuLyTruocDispatch`).
+  - Port 7 test legacy từ `apps/tieulinh-legacy`:
+    - `lib/intake-step/pipeline.flow.test.ts`: "tạo ticket: có binding, dọn bản nháp, nút xác nhận hiện lúc tóm tắt và bị xoá sau khi tạo".
+    - `mcp/shared/tools/confirmation-and-binding.test.ts`: "checkIdentity: lưu initialButtons vào file nút tạm khi user được duyệt và chưa có draft", "checkRequiredFields: tự động lưu branch buttons và nhắc chọn nhánh khi thiếu variant", "checkRequiredFields: đã đính nút thì thôi liệt kê lựa chọn trong câu hỏi".
+    - `lib/telegram/buttons.test.ts`: "dùng đúng chữ được truyền vào, callback_data cố định 'đúng rồi'", "không tự bịa thêm hay bớt phòng ban nào so với danh sách truyền vào", "trả về danh sách 3 nút nhánh chuẩn cho IRIS".
+  - Cập nhật sổ đối chiếu `apps/tieulinh/receptionist-gap-register.test.ts` và `ENGINE.md`: 7 dòng `deferred` chuyển sang `ported` (`total=450 core=61 ported=326 deferred=52 by-design=11`, PR 16 còn 0 dòng deferred).
+
 - **defineBot lễ tân thành pack MCP và skill** (RFC 0002 PR 15, issue #29). Additive & Refactor:
   - `@vuihoc/bot-core/bot`:
     - Thay `unknown` bằng kiểu cụ thể trong `ReceptionistDefinition`: `catalog?: FieldCatalog`, `priorityRules?: UrgencyRules`, `extractor?: FieldExtractorPort`, `variant?`, `techReviewPolicy?`, `techReviewer?`, `techReviewGuide?`, `learned?`, `policy?`, `ownership?`.

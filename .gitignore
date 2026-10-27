@@ -28,6 +28,7 @@ apps/*/data/*
 !apps/*/data/.gitkeep
 
 # Tooling
+.agents/
 .tgrep/
 .claude/settings.local.json
 __pycache__/

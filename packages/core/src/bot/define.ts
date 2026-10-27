@@ -467,20 +467,20 @@ export function validateBotDefinition(def: BotDefinition<any>): BotDefinitionIss
       if (back.inbound === null || typeof back.inbound !== "object") {
         bad(
           "backoffice.inbound",
-          "phải là object { reporterOk?, reporterReply?, telegramUpdate? }",
+          "phải là object { reporterOk?, reporterReply?, telegramUpdate?, forceNew? }",
         );
       } else {
-        for (const key of ["reporterOk", "reporterReply", "telegramUpdate"] as const) {
+        for (const key of ["reporterOk", "reporterReply", "telegramUpdate", "forceNew"] as const) {
           const handler = (back.inbound as Record<string, unknown>)[key];
           if (handler !== undefined && typeof handler !== "function") {
             bad(`backoffice.inbound.${key}`, "phải là hàm");
           }
         }
         for (const key of Object.keys(back.inbound)) {
-          if (!["reporterOk", "reporterReply", "telegramUpdate"].includes(key)) {
+          if (!["reporterOk", "reporterReply", "telegramUpdate", "forceNew"].includes(key)) {
             bad(
               `backoffice.inbound.${key}`,
-              "không biết (hợp lệ: reporterOk, reporterReply, telegramUpdate)",
+              "không biết (hợp lệ: reporterOk, reporterReply, telegramUpdate, forceNew)",
             );
           }
         }
