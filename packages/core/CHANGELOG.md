@@ -16,7 +16,7 @@ All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded
       - `CANON_ITEMS`, `ASK_LINE`, `CHECKLIST_KEY_ITEMS` (`packages/core/src/intake/review/items.ts`): 15 mục canonical và dòng hỏi chuẩn.
       - Phân loại bình luận kỹ thuật viên `classifyComment` (`packages/core/src/intake/review/classify.ts`): phân loại kind, trích xuất mục cần hỏi, lọc `alreadyInReport`.
       - Thống kê và tính tỉ lệ `systemReport`, `learnedItems`, `learnedShares`, `learnedReport` (`packages/core/src/intake/review/learned.ts`): tính suy giảm theo thời gian (halfLife 90 ngày), ngưỡng `minTickets` và `minShare`, chuẩn hoá nhãn hệ thống theo 9 hệ thống chuẩn (`system-taxonomy.ts`).
-      - Cổng và tra cứu `LearnedItemsPort`, `createAskLearnedLookup`, `SqliteLearnedItemsPort` (`packages/core/src/intake/review/lookup.ts`), `AskLearnStore` (`packages/core/src/intake/review/store.ts`): đọc các mục học được theo hệ thống, tích hợp vào `ChecklistTechReviewer` để sắp xếp mục theo tỉ lệ giảm dần (ghim ảnh màn hình đầu tiên khi được hỏi).
+      - Cổng đọc `LearnedItemsPort` trong core: đọc các mục học được theo hệ thống, tích hợp vào `ChecklistTechReviewer` để sắp xếp mục theo tỉ lệ giảm dần (ghim ảnh màn hình đầu tiên khi được hỏi). **Kho `ASK_LEARN_DB` do APP sở hữu** — `AskLearnStore` và `SqliteLearnedItemsPort` nằm ở `apps/tieulinh/ask-learning/`, core không đọc/ghi kho.
     - `F4`: Công tắc chính sách soát `TechReviewPolicy` (`"off" | "checklist" | "llm"`) trong `IntakeEngineDeps`:
       - `"off"`: tắt soát thông tin, chuyển thẳng sang tóm tắt.
       - `"checklist"`: soát bằng danh sách cố định (tự fallback sang `ChecklistTechReviewer` nếu chưa tiêm).
@@ -30,11 +30,11 @@ All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded
   - Port 46 bài kiểm thử từ legacy:
     - 21 ca checklist review từ `lib/intake-step/checklist-review.test.ts` (port sang `packages/core/src/intake/review/checklist-review.test.ts`).
     - 3 ca tech review từ `lib/intake-step/tech-review.test.ts` (port sang `packages/core/src/intake/review/llm-review.test.ts`).
-    - 3 ca lookup từ `lib/ask-learning/lookup.test.ts` (port sang `packages/core/src/intake/review/lookup.test.ts`).
+    - 3 ca lookup từ `lib/ask-learning/lookup.test.ts` (port sang `apps/tieulinh/ask-learning/lookup.test.ts` — phần cầu nối kho thuộc app).
     - 13 ca learned từ `lib/ask-learning/learned.test.ts` (port sang `packages/core/src/intake/review/learned.test.ts`).
     - 6 ca flow từ `lib/intake-step/pipeline.flow.test.ts` (port sang `packages/core/src/intake/engine/pr13-review-checklist.test.ts`), kèm các ca kiểm tra công tắc chính sách `techReviewPolicy`.
     - Thêm 9 ca phân loại bình luận từ `lib/ask-learning/classify.test.ts` (port sang `packages/core/src/intake/review/classify.test.ts`).
-  - Cập nhật sổ đối chiếu (`apps/tieulinh/receptionist-gap-register.test.ts`) và bảng parity `ENGINE.md`: 46 dòng `deferred` chuyển sang `ported` (tổng `ported` tăng từ 186 lên 232; `deferred` giảm từ 192 xuống 146; PR 13 còn 0 dòng).
+  - Cập nhật sổ đối chiếu (`apps/tieulinh/receptionist-gap-register.test.ts`) và bảng parity `ENGINE.md`: 55 dòng `deferred` chuyển sang `ported` (tổng `ported` tăng từ 186 lên 241; `deferred` giảm từ 192 xuống 137; PR 13 còn 0 dòng).
   - Cập nhật các dòng F1-F4 bảng khoảng trống RFC 0002 mục 1.4 và mục 5 (`docs/rfc/0002-receptionist.md`).
   - Sửa sau vòng review của coordinator:
     - **Kho `learned` (F3) không còn nằm trong core** — phần đọc/ghi SQLite tách sang app (`apps/tieulinh/ask-learning/`), core chỉ nhận qua cổng `LearnedItemsPort` (read-only), đúng như đặc tả.

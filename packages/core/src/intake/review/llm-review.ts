@@ -11,7 +11,8 @@ import type { TechReviewInput, TechReviewOutput, TechReviewerPort } from "../por
 
 const SYSTEM_PROMPT = (
   guide: string,
-) => `Bạn là kỹ thuật viên TECH sẽ nhận ticket này. Trước khi ticket được tạo, bạn soát xem lời báo đã đủ DỮ KIỆN để bắt tay kiểm tra ngay chưa, theo hướng dẫn dưới đây (chắt từ những lần kỹ thuật phải hỏi lại người báo).
+  project: string,
+) => `Bạn là kỹ thuật viên ${project} sẽ nhận ticket này. Trước khi ticket được tạo, bạn soát xem lời báo đã đủ DỮ KIỆN để bắt tay kiểm tra ngay chưa, theo hướng dẫn dưới đây (chắt từ những lần kỹ thuật phải hỏi lại người báo).
 
 ${guide}
 
@@ -46,10 +47,16 @@ export class LlmTechReviewer implements TechReviewerPort {
     private readonly guide: string,
     private readonly completeFn: CompleteFn = defaultComplete,
     private readonly timeoutMs = 15_000,
+    /** Mã dự án (ví dụ "TECH") — tên của app, không hardcode trong core. */
+    private readonly project: string = "",
   ) {}
 
   async review(input: TechReviewInput): Promise<TechReviewOutput> {
-    const call = this.completeFn(this.llm, SYSTEM_PROMPT(this.guide), userPrompt(input));
+    const call = this.completeFn(
+      this.llm,
+      SYSTEM_PROMPT(this.guide, this.project),
+      userPrompt(input),
+    );
     const { promise: timeout, reject } = Promise.withResolvers<never>();
     const timer = setTimeout(() => reject(new Error("tech-review timeout")), this.timeoutMs);
     const raw = await Promise.race([call, timeout]).finally(() => clearTimeout(timer));

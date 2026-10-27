@@ -20,7 +20,7 @@ import type {
   TechReviewOutput,
   TechReviewerPort,
 } from "../ports";
-import { CHECKLIST_KEY_ITEMS, isCanonItem, type CanonItem } from "./items";
+import { ASK_LINE_COPY_KEY, CHECKLIST_KEY_ITEMS, isCanonItem, type CanonItem } from "./items";
 
 export interface ChecklistOptions {
   copy?: CopyCatalog;
@@ -129,9 +129,10 @@ const ITEMS: Item[] = [
  */
 function resolveAskLine(item: CanonItem, options?: ChecklistOptions): string {
   if (options?.askLines?.[item]) return options.askLines[item];
-  if (options?.copy) {
+  const copyKey = ASK_LINE_COPY_KEY[item];
+  if (options?.copy && copyKey) {
     try {
-      const text = options.copy.text(`checklist.ask.${item}` as CopyKey);
+      const text = options.copy.text(copyKey);
       if (text) return text;
     } catch {
       // khoá copy chưa khai báo → rơi về mã mục

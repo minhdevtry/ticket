@@ -6,6 +6,7 @@
  * của các mục đã có trong danh sách cố định được tách ra đây để checklist và bộ học
  * dùng chung, khỏi lệch nhau.
  */
+import type { CopyKey } from "../ports";
 
 export const CANON_ITEMS = [
   "SCREENSHOT",
@@ -30,6 +31,29 @@ export type CanonItem = (typeof CANON_ITEMS)[number];
 export function isCanonItem(value: unknown): value is CanonItem {
   return typeof value === "string" && (CANON_ITEMS as readonly string[]).includes(value);
 }
+
+/**
+ * Khoá `CopyCatalog` của dòng hỏi cho từng mục.
+ *
+ * Bảng TČNH (không dựng khoá động) để union `CopyKey` vẫn là union đóng — gõ sai
+ * khoá thì phải là lỗi kiểu, không phải lỗi chạy. `OTHER` không có dòng hỏi.
+ */
+export const ASK_LINE_COPY_KEY: Partial<Record<CanonItem, CopyKey>> = {
+  SCREENSHOT: "checklist.ask.SCREENSHOT",
+  ERROR_TEXT: "checklist.ask.ERROR_TEXT",
+  STEPS: "checklist.ask.STEPS",
+  EXPECTED_VS_ACTUAL: "checklist.ask.EXPECTED_VS_ACTUAL",
+  TIME: "checklist.ask.TIME",
+  DEVICE_APP: "checklist.ask.DEVICE_APP",
+  STUDENT_ID: "checklist.ask.STUDENT_ID",
+  CARE_STUDENT_LINK: "checklist.ask.CARE_STUDENT_LINK",
+  CRM_CONTACT_LINK: "checklist.ask.CRM_CONTACT_LINK",
+  LMS_UID_LINK: "checklist.ask.LMS_UID_LINK",
+  ORDER_CODE: "checklist.ask.ORDER_CODE",
+  COURSE_CLASS_SCOPE: "checklist.ask.COURSE_CLASS_SCOPE",
+  OTHER_LINK: "checklist.ask.OTHER_LINK",
+  EXTENT: "checklist.ask.EXTENT",
+};
 
 /**
  * Dòng hỏi cố định trong checklist-review.ts (key là tên ngắn trong `missing`) →

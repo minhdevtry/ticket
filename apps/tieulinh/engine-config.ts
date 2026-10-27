@@ -2,6 +2,7 @@
  * Lắp ráp IntakeEngine cho Tiểu Linh sử dụng dữ liệu domain và copy của app.
  */
 import type { Database } from "bun:sqlite";
+import { readFileSync } from "node:fs";
 import { makeOpenLazyDb } from "@vuihoc/bot-core/core";
 import {
   IntakeEngine,
@@ -16,6 +17,7 @@ import {
   passthroughMediaResolver,
   type FieldExtractorPort,
   type TechReviewerPort,
+  type LlmConfig,
   type TechReviewPolicy,
   type TicketCommandInterpreterPort,
   type TicketActionExecutorPort,
@@ -63,6 +65,27 @@ export interface TieulinhWiring {
   actions?: TicketActionExecutorPort;
   postCreate?: PostCreateHookPort;
   copy?: Record<string, string>;
+  /**
+   * Cấu hình LLM cho soát bằng LLM (F1). Chỉ dùng khi
+   * `techReviewPolicy === "llm"` — lúc đó app tự dựng `LlmTechReviewer` với
+   * hướng dẫn trong `domain/tech-info-needs.md`.
+   */
+  techReviewLlm?: LlmConfig;
+  /**
+   * Hướng dẫn cho LLM soát (F1) — mặc định đọc từ `domain/tech-info-needs.md`
+   * (văn bản của app, không nằm trong core).
+   */
+  techReviewGuide?: string;
+}
+
+/** Đọc hướng dẫn soát LLM của app; không có thì trả `undefined` (không chặn). */
+function readTechReviewGuide(): string | undefined {
+  try {
+    const path = new URL("./domain/tech-info-needs.md", import.meta.url);
+    return readFileSync(path, "utf8");
+  } catch {
+    return undefined;
+  }
 }
 
 export function makeTieulinhEngine(w: TieulinhWiring): IntakeEngine {
@@ -94,6 +117,8 @@ export function makeTieulinhEngine(w: TieulinhWiring): IntakeEngine {
     urgencyRules: tieulinhUrgency,
     techReviewer: w.techReviewer,
     techReviewPolicy: w.techReviewPolicy ?? "checklist",
+    techReviewLlm: w.techReviewLlm,
+    techReviewGuide: w.techReviewGuide ?? readTechReviewGuide(),
     learned: learnedPort,
     ownership: bindingOwnershipPort(bindings),
     commands: w.commands,
