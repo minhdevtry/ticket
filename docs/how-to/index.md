@@ -10,6 +10,7 @@ Mỗi trang là một việc cụ thể, làm theo từng bước. Trạng thái
 | [Dùng chung binding với Tiểu Linh 1](/how-to/share-bindings-with-tl1) | Đã viết, mẫu code được CI chạy |
 | [Chạy shadow](/how-to/run-shadow) | Một phần: công cụ parity đã có; chế độ shadow chung cho bot **đang viết** |
 | [Chạy bóng Tiểu Linh 2](/how-to/shadow-tl2) | Có: relay, proxy giữ secret và gateway Colab chạy song song với Tiểu Linh 1 |
+| [Runbook canary và hoàn nguyên lễ tân](/how-to/receptionist-canary-rollback) | Đã viết: nguyên tắc shadow, cấu hình canary theo chat ID, hoàn nguyên < 1 phút, xử lý sự cố |
 | [Deploy và đẩy secret qua SSH](/how-to/deploy) | Một phần: đẩy secret và cập nhật code đã viết; unit systemd và rollback **đang viết** |
 | [Gọi LLM trong handler hậu cần](/how-to/call-llm) | Đã viết, mẫu code được CI chạy với LLM giả |
 | [Lịch chạy và hẹn giờ](/how-to/schedule-and-timers) | Đã viết, mẫu code được CI chạy |

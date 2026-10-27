@@ -2,7 +2,13 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { cleanTmp, tmpDir } from "../fixtures.ts";
-import { PROXY_INJECTS_KEY, buildEnv, readPid } from "./tieulinh-run.ts";
+import {
+  PROXY_INJECTS_KEY,
+  buildEnv,
+  healthyGateway,
+  readPid,
+  stopProcess,
+} from "./tieulinh-run.ts";
 
 afterEach(cleanTmp);
 
@@ -52,5 +58,19 @@ describe("readPid", () => {
     expect(readPid(join(d, "chet.pid"))).toBeNull();
     writeFileSync(join(d, "song.pid"), String(process.pid));
     expect(readPid(join(d, "song.pid"))).toBe(process.pid);
+  });
+});
+
+describe("stopProcess & healthyGateway", () => {
+  it("stopProcess trả false khi pid file không tồn tại hoặc pid không hợp lệ", async () => {
+    const d = tmpDir();
+    expect(await stopProcess(join(d, "non-existent.pid"))).toBe(false);
+    writeFileSync(join(d, "dead.pid"), "999999999");
+    expect(await stopProcess(join(d, "dead.pid"))).toBe(false);
+  });
+
+  it("healthyGateway trả false khi không kết nối được cổng", async () => {
+    // Cổng loopback ngẫu nhiên chưa mở
+    expect(await healthyGateway(59123, "dummy-token")).toBe(false);
   });
 });

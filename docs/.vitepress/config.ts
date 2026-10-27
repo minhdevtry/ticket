@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitepress";
 
@@ -18,6 +18,27 @@ export default defineConfig({
   base: "/ticket/",
   cleanUrls: true,
   lastUpdated: false,
+  vite: {
+    plugins: [
+      {
+        name: "precreate-dist-dirs",
+        writeBundle() {
+          const dist = join(here, "dist");
+          function walk(dir: string) {
+            for (const e of readdirSync(dir, { withFileTypes: true })) {
+              if (e.isDirectory() && e.name !== "node_modules" && e.name !== ".vitepress") {
+                const full = join(dir, e.name);
+                const rel = relative(join(here, ".."), full);
+                mkdirSync(join(dist, rel), { recursive: true });
+                walk(full);
+              }
+            }
+          }
+          walk(join(here, ".."));
+        },
+      },
+    ],
+  },
   // Cố ý KHÔNG đặt ignoreDeadLinks: link chết làm hỏng build.
   themeConfig: {
     nav: [
@@ -47,6 +68,10 @@ export default defineConfig({
             { text: "Dùng chung binding với Tiểu Linh 1", link: "/how-to/share-bindings-with-tl1" },
             { text: "Chạy shadow", link: "/how-to/run-shadow" },
             { text: "Chạy bóng Tiểu Linh 2", link: "/how-to/shadow-tl2" },
+            {
+              text: "Runbook canary và hoàn nguyên lễ tân",
+              link: "/how-to/receptionist-canary-rollback",
+            },
             { text: "Deploy và đẩy secret qua SSH", link: "/how-to/deploy" },
             { text: "Gọi LLM trong handler hậu cần", link: "/how-to/call-llm" },
             { text: "Lịch chạy và hẹn giờ", link: "/how-to/schedule-and-timers" },

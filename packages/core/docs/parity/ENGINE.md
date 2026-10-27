@@ -59,8 +59,8 @@ không còn tồn tại, hoặc khi các con số dưới đây lệch khỏi s�
 | Trạng thái | Số test legacy | Nghĩa |
 |---|---|---|
 | `core` | 61 | Engine hoặc thư viện core hiện có đã có test tương ứng (mỗi dòng trỏ tới test đó) |
-| `ported` | 319 | Đã port sang engine của core và app `apps/tieulinh` — PR 4 port 15 dòng; PR 5 port thêm 44 dòng; PR 7 port thêm 10 dòng (hỏi bổ sung theo luật, chốt tiêu đề); PR 8 port thêm 18 dòng (gác tờ khai khi có sự cố mới, định danh); PR 9 port thêm 22 dòng (tách báo cáo nhiều sự cố, đối kháng); PR 10 port thêm 37 dòng (tin sau khi tạo ticket); PR 11 port thêm 28 dòng (lệnh nhắm vào ticket đã có); PR 12 port thêm 12 dòng (huỷ và đóng ticket theo yêu cầu người báo); PR 13 port thêm 55 dòng (soát thông tin: checklist, LLM, ask-learning, lookup, learned, classify); PR 14 port thêm 77 dòng (dữ liệu domain, chữ, định dạng ticket); PR 15 port thêm 1 dòng (`intake-step.test.ts`) |
-| `deferred` | 59 | Chưa có; dòng nêu PR của RFC 0002 sẽ port, hoặc lý do nằm ngoài chuỗi di trú (KG, Onyx, nạp tri thức) |
+| `ported` | 326 | Đã port sang engine của core và app `apps/tieulinh` — PR 4 port 15 dòng; PR 5 port thêm 44 dòng; PR 7 port thêm 10 dòng (hỏi bổ sung theo luật, chốt tiêu đề); PR 8 port thêm 18 dòng (gác tờ khai khi có sự cố mới, định danh); PR 9 port thêm 22 dòng (tách báo cáo nhiều sự cố, đối kháng); PR 10 port thêm 37 dòng (tin sau khi tạo ticket); PR 11 port thêm 28 dòng (lệnh nhắm vào ticket đã có); PR 12 port thêm 12 dòng (huỷ và đóng ticket theo yêu cầu người báo); PR 13 port thêm 55 dòng (soát thông tin: checklist, LLM, ask-learning, lookup, learned, classify); PR 14 port thêm 77 dòng (dữ liệu domain, chữ, định dạng ticket); PR 15 port thêm 1 dòng (`intake-step.test.ts`); PR 16 port thêm 7 dòng (adapter OpenClaw); PR 17 runbook và script vận hành (0 dòng, hoàn tất chuỗi di trú) |
+| `deferred` | 52 | Chưa có; các dòng còn lại nằm ngoài chuỗi di trú (KG, Onyx, nạp tri thức) |
 | `by-design` | 11 | Cố ý không có ở bản mới, có lý do (tool ghi trực tiếp của legacy, đường tạo ticket thứ hai, bot khác) |
 | Tổng | 450 | Test của lễ tân và phần dùng chung |
 
