@@ -741,7 +741,8 @@ export function createBot<E extends EnvShape = Record<never, never>>(
         const hasInbound = !!(
           inbound?.reporterOk ||
           inbound?.reporterReply ||
-          inbound?.telegramUpdate
+          inbound?.telegramUpdate ||
+          inbound?.forceNew
         );
         if (engine || hasInbound) {
           if (webhookPort === undefined) {
@@ -811,6 +812,10 @@ export function createBot<E extends EnvShape = Record<never, never>>(
                 webhookServer.onTelegramUpdate(async (update) => {
                   await handle(inboundCtx, update);
                 });
+              }
+              if (inbound.forceNew) {
+                const handle = inbound.forceNew;
+                webhookServer.onForceNew((req) => Promise.resolve(handle(inboundCtx, req)));
               }
             }
             await webhookServer.start(webhookPort);

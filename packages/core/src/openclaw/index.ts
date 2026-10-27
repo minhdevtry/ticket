@@ -102,3 +102,22 @@ export type {
   BeforePromptBuildEvent,
   BeforePromptBuildResult,
 } from "./hook-types";
+
+// ── adapter OpenClaw cho pack lễ tân ──────────────────────────────────────────
+export {
+  type ReceptionistOpenClawConfigOptions,
+  generateReceptionistOpenClawConfig,
+  type SyncWorkspaceOptions,
+  type SyncPlanSummary,
+  type SyncWorkspaceResult,
+  syncReceptionistWorkspace,
+  type PendingButtonsAdapterOptions,
+  type PendingButtonsConnector,
+  connectPendingButtons,
+  getConfirmationButtons,
+  getDepartmentButtons,
+  getBranchButtons,
+  forwardSessionToIdentityTools,
+  type ForceNewTracker,
+  createForceNewTracker,
+} from "./receptionist-adapter";

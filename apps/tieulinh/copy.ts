@@ -117,7 +117,7 @@ export const tieulinhReceptionistCopy: Record<CopyKey, string> = {
     "đã được giữ nguyên — anh/chị bấm xác nhận lại sau ít phút giúp em nhé.",
   "ask.opening": "Dạ anh/chị mô tả giúp em vấn đề đang gặp với ạ.",
   "summary.confirm_hint":
-    "Anh/chị xem lại giúp em, đúng thì bấm nút xác nhận để em tạo ticket nhé ạ.",
+    "Anh/chị vui lòng kiểm tra kỹ thông tin trước khi xác nhận để em tạo ticket nhé ạ.",
   "button.confirm_create": "✅ Đúng rồi, tạo ticket",
   "button.confirm_append": "✅ Bổ sung vào {identifier}",
   "button.confirm_edit": "✅ Sửa {identifier}",

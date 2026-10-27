@@ -378,4 +378,28 @@ describe("MCP Tools: intake_step & inspect_tools", () => {
     const greeting = pack.files.find((f) => f.path === "messages/greeting.md")?.content;
     expect(greeting).toBe(TEST_COPY["skill.message.greeting"]);
   });
+
+  it("botDisplayName tuỳ biến không bị đè thành Tiểu Linh", async () => {
+    const def = defineBot({
+      id: "tieulinh",
+      tracker: { team: "tech", project: "TECH" },
+      receptionist: {
+        catalog: testCatalog,
+        priorityRules: testUrgency,
+        extractor: {
+          extract: async () => ({
+            userIntent: "report_issue",
+            title: "test",
+            values: {},
+            rawText: "",
+          }),
+        },
+      },
+    });
+
+    const pack = exportSkillPack(def, { botDisplayName: "Iris" });
+    const identity = pack.files.find((f) => f.path === "IDENTITY.md")?.content ?? "";
+    expect(identity).toContain("- **Tên:** Iris");
+    expect(identity).not.toContain("- **Tên:** Tiểu Linh");
+  });
 });

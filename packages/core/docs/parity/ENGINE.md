@@ -66,7 +66,7 @@ không còn tồn tại, hoặc khi các con số dưới đây lệch khỏi s�
 
 Số test `deferred` theo PR sẽ port (RFC 0002, mục 5):
 
-<!-- gap-register: total=450 core=61 ported=319 deferred=59 by-design=11 -->
+<!-- gap-register: total=450 core=61 ported=326 deferred=52 by-design=11 -->
 
 <!-- gap-register-deferred-by-pr -->
 | PR | Số test | Chủ đề |
@@ -83,7 +83,7 @@ Số test `deferred` theo PR sẽ port (RFC 0002, mục 5):
 | 13 | 0 | Đã port ở PR 13 (soát thông tin, `learned`) |
 | 14 | 0 | Đã port ở PR 14 (dữ liệu domain, chữ, định dạng ticket) |
 | 15 | 10 | Pack MCP và skill (tool MCP create_issue, check_required_fields, validate_fields) |
-| 16 | 7 | Adapter OpenClaw |
+| 16 | 0 | Adapter OpenClaw |
 <!-- /gap-register-deferred-by-pr -->
 
 Phần còn lại của `deferred` (KG, Onyx, nạp tri thức `ask-learning`, `related-curator`) nằm ngoài chuỗi di

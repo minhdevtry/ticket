@@ -195,6 +195,7 @@ export interface InboundDefinition<C = unknown> {
     request: ReporterReplyRequest,
   ) => Promise<unknown> | unknown;
   telegramUpdate?: (ctx: InboundContext<C>, update: unknown) => Promise<void> | void;
+  forceNew?: (ctx: InboundContext<C>, request: { chatId: string }) => Promise<void> | void;
 }
 
 /** Handler của lịch. Giá trị trả về được bỏ qua; ném lỗi thì ghi log (mốc không chạy lại). */
