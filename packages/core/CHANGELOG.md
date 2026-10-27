@@ -3,6 +3,9 @@
 All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded here.
 
 ## Unreleased
+- **Hỗ trợ tạo issue giả lập qua `POST /projects/:project/issues` trên FakeItsaplan** (@vuihoc/bot-core/testing). Changed:
+  - `FakeItsaplan`: bổ sung route handler `POST /projects/:project/issues` trả mã `201` với `FakeIssue`, cho phép `ItsaplanClient.createIssue` và `itsaplanTrackerPort.createIssue` hoạt động trơn tru trong mọi kịch bản kiểm thử intake.
+
 - **Bật/tắt duyệt name code qua cấu hình và .env, mặc định không duyệt** (issue #73). Changed:
   - `@vuihoc/bot-core/identity`:
     - `IdentityService`: đổi mặc định của `requireApproval` sang `false` (`options.requireApproval ?? false`). Khi không cấu hình tường minh, đăng ký người dùng mới được tự động duyệt (`autoApproved: true, reason: "auto_approved_open"`), `checkUserApproval` trả về `isApproved: true, isPending: false`. Bật duyệt name code khi truyền `{ requireApproval: true }`.

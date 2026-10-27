@@ -469,6 +469,17 @@ export class FakeItsaplan {
         .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt) || b.id - a.id);
       return this.json(rows.slice(0, limit));
     }
+    if (is(/^POST \/projects\/([^/]+)\/issues$/)) {
+      if (!this.resolves(m![1])) return this.json({ error: "Project not found" }, 404);
+      const issue = this.addIssue({
+        title: String(b.title ?? ""),
+        description: b.description ? String(b.description) : undefined,
+        priority: b.priority ? String(b.priority) : null,
+        columnId: b.columnId !== undefined ? Number(b.columnId) : 1,
+        assigneeUserId: b.assigneeUserId ? String(b.assigneeUserId) : null,
+      });
+      return this.json(issue, 201);
+    }
     if (is(/^GET \/projects\/([^/]+)\/issues\/search$/)) {
       if (!this.resolves(m![1])) return this.json({ error: "Project not found" }, 404);
       const q = (url.searchParams.get("q") ?? "").toLowerCase();

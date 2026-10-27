@@ -54,4 +54,18 @@ describe("FakeItsaplan: phần mở rộng cho bot hậu cần", () => {
     expect(hits.map((h) => h.title)).toEqual(["Đăng nhập lỗi", "Báo cáo chậm"]);
     expect(await tracker.search("không có gì")).toEqual([]);
   });
+
+  it("POST /projects/:project/issues tạo issue và trả 201 với FakeIssue", async () => {
+    const created = await client.createIssue(fake.ref, {
+      title: "Sự cố phòng học",
+      description: "Lỗi camera phòng 502",
+      priority: "high",
+      columnId: 1,
+    });
+    expect(created.id).toBeGreaterThan(0);
+    expect(created.identifier).toBe("TECH-1");
+    expect(created.title).toBe("Sự cố phòng học");
+    expect(fake.issues.length).toBe(1);
+    expect(fake.issues[0].title).toBe("Sự cố phòng học");
+  });
 });
