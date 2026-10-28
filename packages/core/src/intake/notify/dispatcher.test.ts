@@ -196,6 +196,20 @@ describe("NotificationDispatcher — comments", () => {
     expect(ch.comments).toHaveLength(0);
   });
 
+  test("#nhac_nho và [nhắc nhở] comment cũng được giữ lại, không bắn về người báo", async () => {
+    const ch = makeChannel();
+    const d = new NotificationDispatcher({
+      bindings: bindingReader(TECH_BINDING),
+      routes: makeRoutes().store,
+      channel: ch.port,
+      copy,
+      projectKey: "TECH",
+    });
+    await d.handleEvent(commentEvent("#nhac_nho @support kiểm tra lại đơn này gấp"));
+    await d.handleEvent(commentEvent("[nhắc nhở] quá hạn 30 phút"));
+    expect(ch.comments).toHaveLength(0);
+  });
+
   test("wrong-project event is skipped (project-lock, 837fb08)", async () => {
     const ch = makeChannel();
     const d = new NotificationDispatcher({

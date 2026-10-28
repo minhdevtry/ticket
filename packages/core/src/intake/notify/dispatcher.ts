@@ -53,7 +53,17 @@ import type {
 export type CommentForwardPolicy = "mention" | "all";
 
 /** Cờ để lại một comment trên tracker, không đẩy về người báo. NGUỒN: intake. */
-export const INTERNAL_COMMENT_MARKERS = ["#noibo", "#nộibộ", "#internal", "[nội bộ]", "[noi bo]"];
+export const INTERNAL_COMMENT_MARKERS = [
+  "#noibo",
+  "#nộibộ",
+  "#internal",
+  "[nội bộ]",
+  "[noi bo]",
+  "#nhac_nho",
+  "#nhacnho",
+  "[nhắc nhở]",
+  "[nhac nho]",
+];
 
 /**
  * Resolve a column id to a lifecycle state. The webhook carries only a numeric

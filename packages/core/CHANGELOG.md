@@ -3,6 +3,9 @@
 All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded here.
 
 ## Unreleased
+- **Bổ sung thẻ nhắc nhở nội bộ vào INTERNAL_COMMENT_MARKERS** (@vuihoc/bot-core/intake). Changed:
+  - `NotificationDispatcher`: bổ sung `"#nhac_nho"`, `"#nhacnho"`, `"[nhắc nhở]"`, `"[nhac nho]"` vào danh sách nhận diện comment nội bộ, ngăn chặn việc bắn ngược các tin nhắc nhở SLA/vận hành về Telegram của người báo sự cố.
+
 - **Nới lỏng định danh bot chấp nhận snake_case và bổ sung trường name trong BotDefinition** (@vuihoc/bot-core/bot). Changed:
   - `defineBot`: biểu thức chính quy `id` chấp nhận cả ký tự gạch dưới `_` (`/^[a-z][a-z0-9-_]{1,39}$/`, vd: `cm_support`, `ops_sales`).
   - `BotDefinition`: bổ sung trường tuỳ chọn `name?: string` (tên hiển thị người dùng, vd: "Tiểu Linh", "CM Support Bot").
