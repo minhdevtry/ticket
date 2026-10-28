@@ -31,7 +31,8 @@ function resolveCopy(copy: CopyCatalog | undefined, key: string, fallback: strin
 
 export function exportSkillPack(def: BotDefinition, options: SkillPackOptions = {}): SkillPack {
   const copy = options.copy ?? def.persona;
-  const botDisplayName = options.botDisplayName ?? (def.id === "tieulinh" ? "Tiểu Linh" : def.id);
+  const botDisplayName =
+    options.botDisplayName ?? def.name ?? (def.id === "tieulinh" ? "Tiểu Linh" : def.id);
   const projectKey = def.tracker.project;
 
   const greetingContent = resolveCopy(

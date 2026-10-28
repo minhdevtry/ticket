@@ -88,8 +88,10 @@ export interface ReceptionistDefinition {
 
 /** Khai báo đầy đủ của một bot. `E` là hình dạng env, suy ra từ `env`. */
 export interface BotDefinition<E extends EnvShape = EnvShape> {
-  /** Định danh ổn định: chữ thường, số, gạch ngang, 2–40 ký tự (dùng trong log, health, khoá). */
+  /** Định danh ổn định: chữ thường, số, gạch ngang, gạch dưới, 2–40 ký tự (dùng trong log, health, khoá). */
   id: string;
+  /** Tên hiển thị người dùng (vd "Tiểu Linh", "CM Support Bot"). Dùng trong skill pack, thông báo. */
+  name?: string;
   tracker: TrackerRef;
   /** Giọng điệu/chuỗi hiển thị cho người dùng cuối (`CopyCatalog` của lễ tân). */
   persona?: CopyCatalog;
@@ -122,7 +124,7 @@ export class BotDefinitionError extends Error {
   }
 }
 
-const ID = /^[a-z][a-z0-9-]{1,39}$/;
+const ID = /^[a-z][a-z0-9-_]{1,39}$/;
 /**
  * Ref team theo luật của itsaplan: slug (`tech`) hoặc, với team chưa có slug, id số (`12`);
  * server chấp nhận cả hai trong `<team>.<KEY>`.
@@ -425,7 +427,10 @@ export function validateBotDefinition(def: BotDefinition<any>): BotDefinitionIss
   const bad = (path: string, message: string) => issues.push({ path, message });
 
   if (typeof def?.id !== "string" || !ID.test(def.id)) {
-    bad("id", 'bắt buộc, chữ thường/số/gạch ngang, bắt đầu bằng chữ, 2–40 ký tự (vd "tieulinh")');
+    bad(
+      "id",
+      'bắt buộc, chữ thường/số/gạch ngang/gạch dưới, bắt đầu bằng chữ, 2–40 ký tự (vd "tieulinh", "cm_support")',
+    );
   }
   if (typeof def?.tracker?.team !== "string" || !TEAM_SLUG.test(def.tracker.team)) {
     bad(

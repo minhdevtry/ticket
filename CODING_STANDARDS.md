@@ -66,6 +66,10 @@ phải đổi dữ liệu đầu vào của một ca cũ (ví dụ `"none"` -> `
 nội bộ), thì nói rõ trong `packages/core/CHANGELOG.md` và trong PR. Sổ đối chiểu chỉ ghi
 `ported` cho hành vi **đã port thật**; chưa port thì để `deferred` và ghi lý do.
 
+Triết lý 80/20: bỏ 80% mock nội bộ vô bổ, chạy thẳng vào hệ thống thật với LLM thật (không tốn tiền). Giữ 20% mock cho việc bơm lỗi hiểm (Fault Injection: 429, 503, timeout) và test offline.
+
+**Cổng Dự Án Test (Designated Test Project Gate)**: Mọi PR thêm tính năng hoặc sửa lỗi của bot phải đính kèm bằng chứng mã ticket thật sinh ra từ dự án test chỉ định (`TECH2`, `CM_TEST`, `OPS_TEST`). Reviewer bắt buộc từ chối duyệt nếu thiếu bằng chứng này.
+
 ## 8. Một hằng, một hàm, một kiểu: một chủ duy nhất
 
 Trước khi thêm hằng, hàm hay kiểu, grep xem đã có chưa. Hai bản sao của cùng một khái niệm

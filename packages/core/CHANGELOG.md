@@ -3,6 +3,11 @@
 All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded here.
 
 ## Unreleased
+- **Nới lỏng định danh bot chấp nhận snake_case và bổ sung trường name trong BotDefinition** (@vuihoc/bot-core/bot). Changed:
+  - `defineBot`: biểu thức chính quy `id` chấp nhận cả ký tự gạch dưới `_` (`/^[a-z][a-z0-9-_]{1,39}$/`, vd: `cm_support`, `ops_sales`).
+  - `BotDefinition`: bổ sung trường tuỳ chọn `name?: string` (tên hiển thị người dùng, vd: "Tiểu Linh", "CM Support Bot").
+  - `exportSkillPack`: tự động ưu tiên `options.botDisplayName ?? def.name ?? def.id` để đặt tên hiển thị nhất quán cho bot trong toàn bộ skill pack.
+
 - **Hỗ trợ tạo issue giả lập qua `POST /projects/:project/issues` trên FakeItsaplan** (@vuihoc/bot-core/testing). Changed:
   - `FakeItsaplan`: bổ sung route handler `POST /projects/:project/issues` trả mã `201` với `FakeIssue`, cho phép `ItsaplanClient.createIssue` và `itsaplanTrackerPort.createIssue` hoạt động trơn tru trong mọi kịch bản kiểm thử intake.
 

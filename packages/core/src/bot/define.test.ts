@@ -55,6 +55,31 @@ describe("defineBot", () => {
     expect((error as Error).message).toContain("(5 lỗi)");
   });
 
+  it("id chấp nhận chữ thường, số, gạch ngang và gạch dưới (vd cm_support, bot-v2)", () => {
+    const base = {
+      tracker: { team: "tech", project: "TECH2" },
+      backoffice: { on: { mention: handler } },
+    };
+    expect(validateBotDefinition({ ...base, id: "cm_support" } as any)).toEqual([]);
+    expect(validateBotDefinition({ ...base, id: "bot-v2" } as any)).toEqual([]);
+    expect(validateBotDefinition({ ...base, id: "a_b_c" } as any)).toEqual([]);
+    expect(validateBotDefinition({ ...base, id: "1bot" } as any).map((i) => i.path)).toEqual([
+      "id",
+    ]);
+    expect(validateBotDefinition({ ...base, id: "Bot" } as any).map((i) => i.path)).toEqual(["id"]);
+  });
+
+  it("BotDefinition chấp nhận trường name tuỳ chọn và bảo toàn khi đóng băng", () => {
+    const def = defineBot({
+      id: "cm_support",
+      name: "CM Support Bot",
+      tracker: { team: "cm", project: "CM" },
+      backoffice: { on: { mention: handler } },
+    });
+    expect(def.name).toBe("CM Support Bot");
+    expect(def.id).toBe("cm_support");
+  });
+
   it("tracker bắt buộc team (slug) và mã dự án IN HOA", () => {
     const base = { id: "tk", backoffice: { on: { mention: handler } } };
     const paths = (tracker: unknown) =>

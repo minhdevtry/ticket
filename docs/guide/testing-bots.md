@@ -186,3 +186,25 @@ bun run check                       # Typecheck toàn bộ workspace
 bun run test                        # Chạy toàn bộ unit test
 bun run docs:check                  # Kiểm tra TypeDoc và VitePress build
 ```
+
+---
+
+## 8. Cổng Kiểm Soát Triển Khai: Dự Án Test Chỉ Định (Designated Test Project Gate)
+
+Triết lý kiểm thử hiện đại của `@vuihoc/bot-core` là **bỏ 80% mock nội bộ vô bổ và chạy thẳng vào hệ thống thật với LLM thật (không tốn tiền)**. Để bảo đảm kiểm soát rủi ro và giữ vững tính ổn định, hệ thống thiết lập một quy tắc bắt buộc: **Mọi tính năng trước khi deploy đều phải vượt qua Cổng Dự Án Test**.
+
+### 8.1. Tại sao dùng Dự Án Test Cố Định thay vì Dự Án Tạm Xoá Ngay?
+1. **Lưu giữ Hiện trường Nghiệm thu Trực quan**: Khi ticket được tạo trên dự án test (như `TECH2`, `CM_TEST`), lập trình viên và reviewer có thể mở trực tiếp giao diện Itsaplan để kiểm tra bằng mắt: định dạng bảng Markdown, ảnh đính kèm, các nhãn và bước chuyển cột Kanban. Nếu xoá ngay sau khi test chạy xong thì mất toàn bộ bằng chứng.
+2. **Đường truyền Webhook 2 Chiều Ổn Định 24/7**: Tránh việc liên tục đăng ký và huỷ webhook subscription gây trễ mạng hoặc tồn đọng webhook rác trên server Itsaplan.
+3. **Triệt Tiêu Ảo Giác Prompt (Prompt Drift)**: Gọi trực tiếp mô hình ngôn ngữ lớn (LLM) thật thay vì mock, đảm bảo bot hiểu đúng câu từ tiếng Việt thực tế của người dùng.
+
+### 8.2. Bản Đồ Cặp Dự Án Chuẩn Trong Hệ Thống:
+
+| Tên Bot | Dự Án Production (Thật) | Dự Án Test Chỉ Định (Cổng Kiểm Soát) | Mục Đích Của Dự Án Test |
+| :--- | :---: | :---: | :--- |
+| **Tiểu Linh (Kỹ thuật)** | `TECH` | `TECH2` | Chạy thử toàn trình các kịch bản tiếp nhận sự cố kỹ thuật |
+| **Teacher Agent (CM Support)** | `CM` | `CM_TEST` (hoặc `CM2`) | Chạy thử kịch bản giáo viên báo nghỉ dạy, đổi ca, sự cố phòng học |
+| **Bot Vận hành (Sales & QLL)** | `OPS` (hoặc `GS`) | `OPS_TEST` | Chạy thử kịch bản phân luồng tư vấn và chuyển đơn |
+
+### 8.3. Điều Kiện Bắt Buộc Trước Khi Merge & Deploy:
+Mọi Pull Request thêm tính năng hoặc sửa lỗi của bot phải đính kèm bằng chứng mã ticket thật sinh ra trên dự án test (ví dụ: `TECH2-6`, `TECH2-9`). **Cấm tuyệt đối merge và deploy khi chưa có bằng chứng chạy thật trên dự án test.**

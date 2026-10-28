@@ -41,6 +41,8 @@ bun run setup:hooks                                # cài hook chặn trước c
 - Sửa core → thêm test trong core và ghi `packages/core/CHANGELOG.md`.
 - Đổi hành vi hoặc API công khai → cập nhật `docs/` trong cùng PR (CI chặn nếu thiếu; nhãn `no-docs` chỉ cho refactor thuần và test). Mẫu `ts` trong docs phải có cờ `check`, `run` hoặc `no-check`. Không bao giờ chép chữ ký hàm vào docs bằng tay khi TypeDoc đã sinh.
 - Commit theo Conventional Commits, scope là tên package.
+- **Cổng Dự Án Test (Designated Test Project Gate)**: Mọi bot và tính năng trước khi deploy đều phải chạy và vượt qua bài test toàn trình trên dự án test chỉ định (`TECH2`, `CM_TEST`, `OPS_TEST`). Bằng chứng nghiệm thu trong PR phải chứa mã ticket thật sinh ra từ dự án test đó (như `TECH2-6`, `TECH2-9`). Cấm merge và cấm deploy khi chưa có bằng chứng chạy thật trên dự án test.
+- **Triết lý kiểm thử 80/20**: Bỏ 80% mock nội bộ vô bổ; chạy thẳng vào hệ thống thật với LLM thật (không tốn tiền). Giữ lại 20% mock chỉ cho việc bơm lỗi hiểm (Fault Injection: 429, 503, timeout) và kiểm thử offline.
 
 ## Quy trình PR và commit
 
