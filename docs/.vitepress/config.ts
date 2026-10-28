@@ -55,6 +55,7 @@ export default defineConfig({
             { text: "Giới thiệu", link: "/guide/" },
             { text: "Dựng bot đầu tiên", link: "/guide/first-bot" },
             { text: "Kiểm thử & Kịch bản Bot", link: "/guide/testing-bots" },
+            { text: "Mẫu: Phê duyệt trong nhóm", link: "/guide/templates-group-approval" },
           ],
         },
       ],
