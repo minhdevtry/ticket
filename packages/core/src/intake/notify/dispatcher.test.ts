@@ -365,7 +365,7 @@ describe("NotificationDispatcher — state changes (ADR-0006)", () => {
     expect(routes.saved[0]).toMatchObject({ kind: "state", identifier: "TECH-7" });
   });
 
-  test("done → message sent WITHOUT a button", async () => {
+  test("done → message sent WITH a button (spec-5 parity)", async () => {
     const ch = makeChannel();
     const d = new NotificationDispatcher({
       bindings: bindingReader(TECH_BINDING),
@@ -377,7 +377,7 @@ describe("NotificationDispatcher — state changes (ADR-0006)", () => {
     });
     await d.handleEvent(stateEvent(40));
     expect(ch.states).toHaveLength(1);
-    expect(ch.states[0].withReporterOkButton).toBe(false);
+    expect(ch.states[0].withReporterOkButton).toBe(true);
     expect(ch.states[0].state).toBe("done");
   });
 

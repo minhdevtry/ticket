@@ -18,6 +18,7 @@ export interface SkillPackOptions {
   copy?: CopyCatalog;
   botDisplayName?: string;
   targetDir?: string;
+  helpText?: string;
 }
 
 function resolveCopy(copy: CopyCatalog | undefined, key: string, fallback: string): string {
@@ -45,17 +46,20 @@ export function exportSkillPack(def: BotDefinition, options: SkillPackOptions = 
     ),
   );
 
-  const helpContent = resolveCopy(
-    copy,
-    "skill.message.help",
-    `**Em là ${botDisplayName} — Hỗ trợ kỹ thuật.**\n\n` +
-      `Em giúp anh/chị gửi sự cố trực tiếp tới đội Kỹ thuật:\n` +
-      `- **Báo sự cố:** Gửi mô tả lỗi kèm ảnh chụp màn hình nếu có.\n` +
-      `- **Tra cứu tiến độ:** Nhắn *"tiến độ sao rồi em"* hoặc kèm mã ticket (ví dụ *"${projectKey}-27 sao rồi"*).\n` +
-      `- **Giục xử lý khẩn cấp:** Nhắn *"gấp lắm em ơi"* để ưu tiên xử lý ngay cho lớp học.\n` +
-      `- **Bổ sung thông tin:** Gửi thêm số điện thoại, tài khoản hoặc ảnh lỗi để em cập nhật vào ticket đang xử lý.\n\n` +
-      `*Gõ /reset nếu muốn hủy phiên trao đổi dở để bắt đầu lại.*`,
-  );
+  const helpContent =
+    options.helpText ??
+    def.helpText ??
+    resolveCopy(
+      copy,
+      "skill.message.help",
+      `**Em là ${botDisplayName} — Hỗ trợ kỹ thuật.**\n\n` +
+        `Em giúp anh/chị gửi sự cố trực tiếp tới đội Kỹ thuật:\n` +
+        `- **Báo sự cố:** Gửi mô tả lỗi kèm ảnh chụp màn hình nếu có.\n` +
+        `- **Tra cứu tiến độ:** Nhắn *"tiến độ sao rồi em"* hoặc kèm mã ticket (ví dụ *"${projectKey}-27 sao rồi"*).\n` +
+        `- **Giục xử lý khẩn cấp:** Nhắn *"gấp lắm em ơi"* để ưu tiên xử lý ngay cho lớp học.\n` +
+        `- **Bổ sung thông tin:** Gửi thêm số điện thoại, tài khoản hoặc ảnh lỗi để em cập nhật vào ticket đang xử lý.\n\n` +
+        `*Gõ /reset nếu muốn hủy phiên trao đổi dở để bắt đầu lại.*`,
+    );
 
   const afterResetContent = resolveCopy(
     copy,

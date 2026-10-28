@@ -31,7 +31,7 @@ import type {
   ProjectAssignee,
   ProjectColumn,
 } from "@vuihoc/bot-core/itsaplan";
-import { classifyColumn, type TicketState } from "@vuihoc/bot-core/itsaplan";
+import { classifyColumn } from "@vuihoc/bot-core/itsaplan";
 import { isSystemActor } from "../kg/human-signals";
 import { isBotComment, markBotComment } from "@vuihoc/bot-core/core";
 import { escapeItsaplanMarkdown } from "../html-entities";

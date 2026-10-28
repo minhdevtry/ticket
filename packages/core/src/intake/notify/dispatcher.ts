@@ -262,7 +262,8 @@ export class NotificationDispatcher {
         message,
         state,
         // ADR-0006: resolved → nút "Đã ổn" (chỉ ghi comment, không đổi trạng thái).
-        withReporterOkButton: state === "resolved",
+        // ADR-0006: resolved hoặc done → nút "Đã ổn" (chỉ ghi comment, không đổi trạng thái).
+        withReporterOkButton: state === "resolved" || state === "done",
       });
       if (sent !== undefined && sent !== null) {
         this.o.routes.saveMessageRoute({

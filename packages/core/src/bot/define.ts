@@ -92,6 +92,8 @@ export interface BotDefinition<E extends EnvShape = EnvShape> {
   id: string;
   /** Tên hiển thị người dùng (vd "Tiểu Linh", "CM Support Bot"). Dùng trong skill pack, thông báo. */
   name?: string;
+  /** Nội dung hướng dẫn sử dụng bot (/help). Ưu tiên hơn persona["skill.message.help"]. */
+  helpText?: string;
   tracker: TrackerRef;
   /** Giọng điệu/chuỗi hiển thị cho người dùng cuối (`CopyCatalog` của lễ tân). */
   persona?: CopyCatalog;

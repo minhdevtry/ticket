@@ -228,7 +228,7 @@ export class IntakeEngine {
 
   private async run(input: StepInput): Promise<StepOutput> {
     const { deps } = this;
-    const text = stripChannelEnvelope(input.message ?? "").trim(); // TECH-924: envelope never enters a ticket
+    let text = stripChannelEnvelope(input.message ?? "").trim(); // TECH-924: envelope never enters a ticket
     const mediaPaths = input.mediaPaths ?? [];
     const nowIso = new Date(deps.clock.now()).toISOString();
 
@@ -279,18 +279,42 @@ export class IntakeEngine {
       return this.respondToMeaningless(draft);
     }
 
-    // 4. Explicit /new flag → park the open draft and open a new one.
-    // Legacy parity: `/new` được kiểm TRƯỚC nhánh câu hỏi tách
+    // 4. Explicit /new or /reset flag → park the open draft and open a new one.
+    // Legacy parity: `/new` và `/reset` được kiểm TRƯỚC nhánh câu hỏi tách
     // (`pipeline.ts:537-548` đứng trước `collect()`, còn `collect()` mới kiểm
     // `pendingSplit` ở `pipeline.ts:745`). Nếu nhánh `pendingSplit` đứng trước
     // thì cờ `/new` bị nuốt: người báo bấm `/new` lúc đang treo câu hỏi tách
     // vẫn bị hỏi lại "tách hay gộp" thay vì mở sự cố mới (ADR-0008, A12).
-    if (input.forceNew && draft && !CLOSED_STATUSES.has(draft.status)) {
+    const trimmedText = text.trim();
+    const isBareReset = /^\/(?:new|reset)(?:@\w+)?$/i.test(trimmedText);
+    const isCommandReset = Boolean(
+      input.forceNew || /^\/(?:new|reset)(?:@\w+)?(?:\s|$)/i.test(trimmedText),
+    );
+
+    if (isCommandReset && draft && !CLOSED_STATUSES.has(draft.status)) {
       const fresh = this.openFresh(input.chatId, nowIso);
       fresh.parkedDocId = draft.docId;
       deps.drafts.saveRevision(fresh);
       // Fall through: collect the message onto the fresh draft.
       draft = fresh;
+    }
+
+    if (isBareReset) {
+      let resetMsg = "Đã làm mới phiên làm việc! Thầy/Cô gửi mô tả yêu cầu để em hỗ trợ nhé ạ.";
+      try {
+        resetMsg = deps.copy.text("skill.message.after_reset");
+      } catch {
+        // giữ resetMsg mặc định
+      }
+      return {
+        outcome: "canceled",
+        docId: draft?.docId,
+        messages: [{ text: resetMsg }],
+      };
+    }
+
+    if (isCommandReset) {
+      text = text.replace(/^\/(?:new|reset)(?:@\w+)?\s+/i, "");
     }
 
     // 4.05. A split question ("split N tickets or keep 1?") is awaiting the reporter's choice (W29-SPLIT).
@@ -299,9 +323,11 @@ export class IntakeEngine {
     }
 
     // 5. Existing ticket commands (e.g. "bổ sung TECH-X", "sửa TECH-X", lookup)
-    const routed = await this.routeExistingTicket(draft, input.chatId, text, mediaPaths);
-    if (routed) return routed;
-
+    // Khi người dùng bấm /new hoặc /reset: BỎ QUA kiểm tra ticket cũ để không kẹt gate
+    if (!isCommandReset) {
+      const routed = await this.routeExistingTicket(draft, input.chatId, text, mediaPaths);
+      if (routed) return routed;
+    }
     // 5.1 Post-create ticket flow (RFC 0002 PR 10, C1-C4, G2, B8):
     if (draft && draft.status === "created" && draft.issueId) {
       return this.handlePostCreate(draft, input, text, mediaPaths, nowIso);

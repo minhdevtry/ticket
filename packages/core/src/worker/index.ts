@@ -33,6 +33,11 @@ import {
 import { ReplyRouter, type ReplyRouterOptions } from "../intake/notify/reply-router";
 import { getLogger } from "../core/logger";
 import { inspectBindingDb } from "../core/lazy-db";
+export { ReplyRouter, type ReplyRouterOptions } from "../intake/notify/reply-router";
+export {
+  NotificationDispatcher,
+  type NotificationDispatcherOptions,
+} from "../intake/notify/dispatcher";
 
 export interface IntakeWorkerConfig {
   /** Client Itsaplan đã cấu hình (admin/agent key). */
