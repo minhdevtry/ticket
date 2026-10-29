@@ -3,6 +3,11 @@
 All notable changes to `@vuihoc/bot-core`. 0.x allows breaking changes, recorded here.
 
 ## Unreleased
+- **Tự động phân giải cấu hình LLM từ OpenClaw** (@vuihoc/bot-core/openclaw). Additive:
+  - `readAgentLlm(config, agentId, readFile?)`: phân giải model, provider, baseUrl, apiKey, api style và fallbacks từ object `openclaw.json` của agent (hỗ trợ cả schema `agents.list` lẫn `agents.entries`, fallback về `agents.defaults`, và phân giải secret file).
+  - `loadAgentLlm(configPath, agentId, readFile?)`: nạp file `openclaw.json` và gọi `readAgentLlm`.
+  - Xuất các kiểu `ResolvedAgentLlm`, `OpenClawConfigWithModels` và các hàm trên tại `@vuihoc/bot-core/openclaw`.
+
 - **Bổ sung thẻ nhắc nhở nội bộ vào INTERNAL_COMMENT_MARKERS** (@vuihoc/bot-core/intake). Changed:
   - `NotificationDispatcher`: bổ sung `"#nhac_nho"`, `"#nhacnho"`, `"[nhắc nhở]"`, `"[nhac nho]"` vào danh sách nhận diện comment nội bộ, ngăn chặn việc bắn ngược các tin nhắc nhở SLA/vận hành về Telegram của người báo sự cố.
 

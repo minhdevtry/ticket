@@ -6,7 +6,7 @@ describe("@vuihoc/bot-core/openclaw — agent-llm resolver", () => {
     agents: {
       defaults: {
         model: {
-          primary: "2tocom/MiniMax-M3.1-Flash",
+          primary: "custom-ai/MiniMax-M3.1-Flash",
           fallbacks: ["openai/gpt-4o-mini"],
         },
       },
@@ -15,7 +15,7 @@ describe("@vuihoc/bot-core/openclaw — agent-llm resolver", () => {
           id: "op-agent",
           model: {
             primary: "op-deepseek/deepseek-v4.1-flash",
-            fallbacks: ["2tocom/MiniMax-M3.1-Flash"],
+            fallbacks: ["custom-ai/MiniMax-M3.1-Flash"],
           },
         },
         {
@@ -25,7 +25,7 @@ describe("@vuihoc/bot-core/openclaw — agent-llm resolver", () => {
       entries: {
         "cm-support": {
           model: {
-            primary: "2tocom/MiniMax-M3.1-Flash",
+            primary: "custom-ai/MiniMax-M3.1-Flash",
             fallbacks: [],
           },
         },
@@ -34,17 +34,17 @@ describe("@vuihoc/bot-core/openclaw — agent-llm resolver", () => {
     models: {
       providers: {
         "op-deepseek": {
-          baseUrl: "http://192.168.10.194:8090",
+          baseUrl: "https://deepseek.example.internal:8090",
           api: "anthropic-messages",
           apiKey: {
             source: "file",
             provider: "op_deepseek_file",
           },
         },
-        "2tocom": {
-          baseUrl: "https://aiapi.2tocom.space",
+        "custom-ai": {
+          baseUrl: "https://api.custom-ai.internal",
           api: "anthropic-messages",
-          apiKey: "sk-plain-2tocom-key",
+          apiKey: "sk-plain-custom-key",
         },
       },
     },
@@ -63,10 +63,10 @@ describe("@vuihoc/bot-core/openclaw — agent-llm resolver", () => {
     expect(res).not.toBeNull();
     expect(res?.agentId).toBe("cm-support");
     expect(res?.model).toBe("MiniMax-M3.1-Flash");
-    expect(res?.rawModel).toBe("2tocom/MiniMax-M3.1-Flash");
-    expect(res?.provider).toBe("2tocom");
-    expect(res?.baseUrl).toBe("https://aiapi.2tocom.space");
-    expect(res?.apiKey).toBe("sk-plain-2tocom-key");
+    expect(res?.rawModel).toBe("custom-ai/MiniMax-M3.1-Flash");
+    expect(res?.provider).toBe("custom-ai");
+    expect(res?.baseUrl).toBe("https://api.custom-ai.internal");
+    expect(res?.apiKey).toBe("sk-plain-custom-key");
     expect(res?.api).toBe("anthropic-messages");
   });
 
@@ -80,9 +80,9 @@ describe("@vuihoc/bot-core/openclaw — agent-llm resolver", () => {
     expect(res?.agentId).toBe("op-agent");
     expect(res?.model).toBe("deepseek-v4.1-flash");
     expect(res?.provider).toBe("op-deepseek");
-    expect(res?.baseUrl).toBe("http://192.168.10.194:8090");
+    expect(res?.baseUrl).toBe("https://deepseek.example.internal:8090");
     expect(res?.apiKey).toBe("sk-mocked-deepseek-token");
-    expect(res?.fallbacks).toEqual(["2tocom/MiniMax-M3.1-Flash"]);
+    expect(res?.fallbacks).toEqual(["custom-ai/MiniMax-M3.1-Flash"]);
   });
 
   it("loadAgentLlm đọc file JSON và phân giải chính xác", () => {
@@ -106,7 +106,7 @@ describe("@vuihoc/bot-core/openclaw — agent-llm resolver", () => {
     expect(res).not.toBeNull();
     expect(res?.agentId).toBe("default-agent");
     expect(res?.model).toBe("MiniMax-M3.1-Flash");
-    expect(res?.provider).toBe("2tocom");
+    expect(res?.provider).toBe("custom-ai");
   });
 
   it("trả về null nếu config rỗng hoặc không có agents", () => {

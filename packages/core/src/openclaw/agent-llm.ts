@@ -12,7 +12,7 @@ export interface ResolvedAgentLlm {
   agentId: string;
   /** Tên model đã tách provider (vd: "deepseek-v4.1-flash", "MiniMax-M3.1-Flash", "gpt-4o-mini"). */
   model: string;
-  /** Tên model nguyên bản có tiền tố provider (vd: "2tocom/MiniMax-M3.1-Flash"). */
+  /** Tên model nguyên bản có tiền tố provider (vd: "provider/MiniMax-M3.1-Flash"). */
   rawModel: string;
   provider: string;
   baseUrl: string | null;
@@ -42,22 +42,24 @@ export interface OpenClawConfigWithModels {
   models?: {
     providers?: Record<
       string,
-      {
-        baseUrl?: string;
-        apiKey?: string | { source?: string; provider?: string; id?: string };
-        api?: string;
-        [key: string]: unknown;
-      } | undefined
+      | {
+          baseUrl?: string;
+          apiKey?: string | { source?: string; provider?: string; id?: string };
+          api?: string;
+          [key: string]: unknown;
+        }
+      | undefined
     >;
   };
   secrets?: {
     providers?: Record<
       string,
-      {
-        source?: string;
-        path?: string;
-        mode?: string;
-      } | undefined
+      | {
+          source?: string;
+          path?: string;
+          mode?: string;
+        }
+      | undefined
     >;
   };
 }
