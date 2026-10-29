@@ -51,6 +51,14 @@ export {
   loadTelegramBotToken,
 } from "./telegram-token";
 
+// ── đọc cấu hình LLM của agent từ openclaw.json ────────────────────────────────
+export {
+  type ResolvedAgentLlm,
+  type OpenClawConfigWithModels,
+  resolveSecretValue,
+  readAgentLlm,
+  loadAgentLlm,
+} from "./agent-llm";
 // ── hợp đồng file nút bấm chờ ────────────────────────────────────────────────
 export {
   MAX_CALLBACK_DATA_BYTES,

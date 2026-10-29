@@ -495,7 +495,7 @@ app gia sư vui học`;
     expect(res3.document.fields.rawText?.value).not.toContain("Lê Văn Anh C");
 
     // Lượt 4: Xác nhận tạo ticket 2
-    const res4 = await pipeline.run({
+    await pipeline.run({
       chatId: CHAT,
       message: "đúng rồi",
     });

@@ -84,7 +84,7 @@ describe("TECH-1148: Chặn tin noop và chặn tạo ticket với tiêu đề/m
   });
 
   it("1. Tin noop độc lập: bị bỏ qua, KHÔNG tạo tờ khai trong DB, KHÔNG tạo ticket", async () => {
-    const res = await pipeline.run({
+    await pipeline.run({
       chatId: "chat_noop_standalone",
       message: "noop",
     });
@@ -98,7 +98,7 @@ describe("TECH-1148: Chặn tin noop và chặn tạo ticket với tiêu đề/m
   });
 
   it("2. Tin callback_data: noop khi chưa có tờ khai: bị bỏ qua, không tạo tờ khai trong DB", async () => {
-    const res = await pipeline.run({
+    await pipeline.run({
       chatId: "chat_cb_noop_standalone",
       message: "callback_data: noop",
     });
@@ -137,7 +137,7 @@ describe("TECH-1148: Chặn tin noop và chặn tạo ticket với tiêu đề/m
     expect(noopRes.action).toBe("already_created");
 
     // Bước 3: Người dùng bấm "Sự cố mới" -> KHÔNG được lấy chữ "noop" tạo thành ticket mới!
-    const newIncRes = await pipeline.run({
+    await pipeline.run({
       chatId: "chat_tech_1148",
       message: "Sự cố mới",
     });

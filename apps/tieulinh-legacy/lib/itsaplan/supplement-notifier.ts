@@ -116,7 +116,7 @@ export async function resolveSupplementMentionTarget(
   // 1. Ưu tiên assignee đang nhận ticket
   if (options.issue.assigneeUserId) {
     const assigned = assignees.find((a) => a.userId === options.issue.assigneeUserId);
-    if (assigned && assigned.username) {
+    if (assigned?.username) {
       const clean = assigned.username.trim().replace(/^@/, "");
       if (clean) return { username: clean, name: assigned.name, source: "assignee" };
     }
@@ -191,7 +191,7 @@ export async function resolveSupplementMentionTarget(
           (actorName && a.username && a.username.toLowerCase() === actorName.toLowerCase()),
       );
 
-      if (matched && matched.username) {
+      if (matched?.username) {
         const clean = matched.username.trim().replace(/^@/, "");
         if (clean) return { username: clean, name: matched.name, source: "last_commenter" };
       }
