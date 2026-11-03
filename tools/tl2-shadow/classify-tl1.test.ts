@@ -2,14 +2,14 @@
  * Tests for classifyTl1Reply and readTl1Summary (RFC 0002 PR 6).
  *
  * Tiêu chí chấp nhận 1: Bộ phân loại đúng 100% chuỗi vàng của PR 2
- * (6 kịch bản trong packages/core/golden/intake/). Một ca sai là không đạt.
+ * (6 kịch bản trong ../vhitsaplanbot/golden/intake/). Một ca sai là không đạt.
  */
 import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { classifyTl1Reply, extractAskedField, readTl1Summary } from "./classify-tl1";
 
-const GOLDEN_DIR = join(import.meta.dir, "../../packages/core/golden/intake");
+const GOLDEN_DIR = join(import.meta.dir, "../../../vhitsaplanbot/golden/intake");
 
 describe("classifyTl1Reply — kiểm thử trên chuỗi vàng PR 2 (tiêu chí 100%)", () => {
   const files = readdirSync(GOLDEN_DIR)

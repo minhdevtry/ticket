@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Ghi bản ghi vàng của lễ tân legacy vào `packages/core/golden/intake/`.
+ * Ghi bản ghi vàng của lễ tân legacy vào `../vhitsaplanbot/golden/intake/`.
  *
  *   bun run golden:record            ghi (ghi đè) các file JSON
  *   bun run golden:record --check    không ghi; thoát 1 nếu file trong repo khác bản ghi mới

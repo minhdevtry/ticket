@@ -16,7 +16,7 @@ const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
 
 const LEGACY = "apps/tieulinh-legacy/worker/";
 const APP = "apps/tieulinh/";
-const CORE = "packages/core/src/";
+const CORE = "../vhitsaplanbot/src/";
 
 type Ref = { file: string; title: string };
 type Row = {

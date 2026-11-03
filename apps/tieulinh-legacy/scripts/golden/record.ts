@@ -29,8 +29,8 @@ import urgencyRules from "../../mcp/tieulinh/domain/urgency-rules.json";
 import validationRules from "../../mcp/tieulinh/domain/validation-rules.json";
 import { MIN_CONFIRM_DELAY_MS, SCENARIOS, START_MS, type Scenario } from "./scenarios";
 
-/** Thư mục fixture trong repo (cạnh `packages/core`, nơi engine mới đọc). */
-export const GOLDEN_DIR = join(import.meta.dir, "../../../../packages/core/golden/intake");
+/** Thư mục fixture trong repo (trong thư viện `vhitsaplanbot`, nơi engine mới đọc). */
+export const GOLDEN_DIR = join(import.meta.dir, "../../../../../vhitsaplanbot/golden/intake");
 
 const CHAT = "telegram:-1000000000001";
 

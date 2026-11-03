@@ -13,6 +13,6 @@
     "compare": "bun run compare.ts"
   },
   "dependencies": {
-    "@vuihoc/bot-core": "workspace:*"
+    "@vuihoc/bot-core": "file:../../../vhitsaplanbot"
   }
 }

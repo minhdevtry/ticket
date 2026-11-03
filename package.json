@@ -4,7 +4,6 @@
   "type": "module",
   "description": "VuiHoc ticket bots: Tiểu Linh intake on top of the shared bot-core library.",
   "workspaces": [
-    "packages/*",
     "apps/*",
     "tools/*",
     "docs"

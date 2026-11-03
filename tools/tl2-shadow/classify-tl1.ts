@@ -2,7 +2,7 @@
  * Bộ phân loại câu trả lời và bộ đọc tóm tắt của Tiểu Linh 1 (RFC 0002 §4.3, PR 6).
  *
  * 1. `classifyTl1Reply`: ánh xạ chữ trả lời của TL1 -> `LegacyIntakeAction` theo các neo chữ cố định.
- *    Độ chính xác: 100% trên toàn bộ các chuỗi vàng trong `packages/core/golden/intake/`.
+ *    Độ chính xác: 100% trên toàn bộ các chuỗi vàng trong `../vhitsaplanbot/golden/intake/`.
  * 2. `readTl1Summary`: đọc ngược các trường có trong tóm tắt TL1 (`pipeline.ts` mục `collect`),
  *    gồm: tiêu đề, sản phẩm, hệ thống, bộ phận, mã khách hàng / HS, mức ưu tiên, số tệp đính kèm.
  * 3. `extractAskedField`: xác định trường mà TL1 đang hỏi trong câu hỏi thiếu thông tin.

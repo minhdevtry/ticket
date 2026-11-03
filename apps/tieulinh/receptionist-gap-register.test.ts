@@ -11,7 +11,7 @@
  *   lý do; `deferred` nói rõ PR nào của RFC 0002 sẽ port.
  * - File test legacy không thuộc lễ tân (hạ tầng dùng chung, KG/Onyx, hậu cần) ghi một dòng cho cả
  *   file ở `FILE_ROWS`; mọi file test của legacy phải nằm trong đúng một nơi.
- * - Số liệu ở `packages/core/docs/parity/ENGINE.md` (dòng `gap-register`) phải khớp sổ này.
+ * - Số liệu ở `../vhitsaplanbot/docs/parity/ENGINE.md` (dòng `gap-register`) phải khớp sổ này.
  *
  * Khi PR 2..13 port một nhóm test: đổi dòng từ `deferred` sang `ported` và trỏ tới test mới.
  */
@@ -23,7 +23,7 @@ const ROOT = join(import.meta.dir, "..", "..");
 const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
 
 const LEGACY = "apps/tieulinh-legacy/";
-const CORE = "packages/core/src/";
+const CORE = "../vhitsaplanbot/src/";
 
 type Status = "ported" | "core" | "deferred" | "by-design";
 type Ref = { file: string; title: string };
@@ -42,7 +42,7 @@ type FileRow = {
   file: string;
   status: Exclude<Status, "ported">;
   why: string;
-  /** `core`: file test tương đương ở core (tương đối từ `packages/core/src/`). */
+  /** `core`: file test tương đương ở core (tương đối từ `../vhitsaplanbot/src/`). */
   to?: string;
 };
 
@@ -4444,7 +4444,7 @@ describe("sổ đối chiếu lễ tân legacy -> core / Tiểu Linh mới", () 
   });
 
   test("số liệu trong ENGINE.md khớp sổ", () => {
-    const doc = text("packages/core/docs/parity/ENGINE.md");
+    const doc = text("../vhitsaplanbot/docs/parity/ENGINE.md");
     const total = ROWS.length;
     const marker = `<!-- gap-register: total=${total} core=${count("core")} ported=${count("ported")} deferred=${count("deferred")} by-design=${count("by-design")} -->`;
     expect(doc.includes(marker), `ENGINE.md thiếu dòng: ${marker}`).toBe(true);
@@ -4461,7 +4461,7 @@ describe("sổ đối chiếu lễ tân legacy -> core / Tiểu Linh mới", () 
       byPr.set(pr, (byPr.get(pr) ?? 0) + 1);
     }
 
-    const doc = text("packages/core/docs/parity/ENGINE.md");
+    const doc = text("../vhitsaplanbot/docs/parity/ENGINE.md");
     const block =
       /<!-- gap-register-deferred-by-pr -->([\s\S]*?)<!-- \/gap-register-deferred-by-pr -->/.exec(
         doc,

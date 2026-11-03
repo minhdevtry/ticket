@@ -10,7 +10,7 @@
     "check": "tsc --noEmit -p ."
   },
   "dependencies": {
-    "@vuihoc/bot-core": "workspace:*",
+    "@vuihoc/bot-core": "file:../../../vhitsaplanbot",
     "zod": "^4.5.4"
   }
 }
