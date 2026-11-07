@@ -1,0 +1,81 @@
+---
+name: incident-intake
+description: Use when a user reports a technical issue, system outage, classroom disruption, or software bug, or provides follow-up details for an ongoing issue
+tools: [check_identity, register_identity, validate_fields, assess_priority, search_knowledge, redact_pii, create_issue, update_issue]
+---
+
+# Tiếp Nhận Sự Cố (Incident Intake)
+
+## Overview
+
+Tiếp nhận sự cố kỹ thuật của VUIHOC, chuẩn hoá thông tin, đối soát mức độ ưu tiên theo bằng chứng, và ghi nhận lên tracker Itsaplan qua quy trình xác nhận an toàn 2 bước.
+
+## When to Use
+
+- Người dùng thông báo hệ thống sập, lớp học bị gián đoạn, lỗi thanh toán, hoặc phần mềm không thao tác được.
+- Người dùng khai báo bổ sung thông tin (ảnh lỗi, số điện thoại, mã phòng, hệ điều hành) cho sự cố đang trao đổi.
+- Người dùng xưng danh tính mới với mã nhân sự (ví dụ: `CS_ngocanh`, `TE_anh_a`).
+
+## When NOT to Use
+
+- Người dùng chỉ hỏi thăm tiến độ của ticket cũ mà không báo lỗi mới -> Dùng skill `check-status`.
+- Người dùng giục giã hoặc yêu cầu can thiệp khẩn cấp cho ticket có sẵn -> Dùng skill `escalate-issue`.
+- Người dùng đưa ý tưởng hoặc yêu cầu tính năng sản phẩm mới -> Dành cho bot IRIS.
+
+## Core Workflow (Quy Trình 2 Bước An Toàn)
+
+### Bước 1: Khởi tạo, Chuẩn hoá & Tóm tắt xác nhận
+1. **Kiểm tra danh tính:** Gọi `check_identity` để lấy thông tin người báo. Nếu người dùng xưng mã nhân sự mới, gọi `register_identity`.
+   - Có `pendingDraft`: phiên trước đang gom tin cho ticket này thì bị ngắt giữa chừng — tiếp tục hỏi nốt trường còn thiếu dựa trên `pendingDraft.state`, đừng hỏi lại từ đầu.
+   - Có `latestTicket`: chỉ là gợi ý (tối đa 30 phút gần nhất), không mặc định đây là việc đang nói tới.
+2. **Khử thông tin nhạy cảm:** Nếu người dùng cung cấp mật khẩu hoặc thông tin cá nhân cần bảo mật, gọi `redact_pii`.
+3. **Chuẩn hoá trường thông tin:** Gọi `validate_fields` để chuẩn hoá tên hệ thống, sản phẩm và danh mục lỗi theo [incident-taxonomy.md](../../references/incident-taxonomy.md).
+   - Nếu `isComplete: false`: còn thiếu trường bắt buộc (kiểm tra `missingRequired`, thường là bộ phận `reporting_dept`). Gửi duy nhất một tin nhắn theo **Mẫu A** cho người dùng (nút bấm chọn bộ phận trên Telegram đã được tool tự động đính kèm) rồi chờ họ trả lời — chờ KHÔNG phải là im lặng, tin nhắn đó bắt buộc phải gửi đi. **TUYỆT ĐỐI KHÔNG** tự bịa bộ phận và **KHÔNG** gọi `create_issue` ở lượt này.
+     - **Mẫu A:**
+       ```text
+       🎫 [Tiêu đề sự cố ngắn gọn, không dùng ngoặc vuông]
+       Anh/chị bổ sung giúp em: [tên các trường thiếu].
+       ```
+       *(Có thể dùng trực tiếp câu gợi ý `consolidatedQuestion` từ tool trả về)*.
+   - Nếu `isComplete: true`: các trường bắt buộc đã đầy đủ, có thể tiếp tục sang bước đối soát và tạo ticket.
+   - Truyền `askedCount` (số lần đã hỏi mỗi trường còn thiếu) mỗi lượt gọi lại — quá 2 lần không có câu trả lời thì tool tự dùng mặc định và không hỏi nữa, mình không cần tự nhớ đếm.
+4. **Đối soát mức ưu tiên:** Gọi `assess_priority` cùng các chứng cứ đã thu thập (`scope`, `blocksPayment`, `blocksLearning`, `hasWorkaround`,...) theo [priority-matrix.md](../../references/priority-matrix.md). Lấy trực tiếp `allowedLevel`.
+5. **Tra cứu tri thức (nếu cần):** Khi gặp triệu chứng kỹ thuật lạ hoặc cần đối chiếu tiền lệ xử lý, gọi `search_knowledge`.
+6. **Xin xác nhận:** Gọi `create_issue` với `userConfirmed: false`. Hệ thống trả về bản tóm tắt tinh tế, không chèn icon thừa. Gửi nguyên văn bản tóm tắt công cụ trả về — đây là tin nhắn BẮT BUỘC phải gửi — rồi chờ người dùng phản hồi. Chờ KHÔNG phải là im lặng. Luôn thêm câu mời xác nhận ở cuối theo skill `confirm-before-create` (bấm nút HOẶC nhắn "Xác nhận"/"Đúng rồi") — nút không phải lúc nào cũng hiện trên Telegram nên phải nói rõ cả hai cách.
+
+### Bước 2: Xử lý phản hồi từ người dùng
+- **Nếu người dùng yêu cầu chỉnh sửa (nhắn trực tiếp thông tin sửa/bổ sung):** Tiếp nhận thông tin mới, cập nhật lại bản tóm tắt và xin xác nhận lại.
+- **Nếu người dùng đồng ý xác nhận** (bấm nút hoặc nhắn "ok", "đúng rồi", "chuẩn rồi", "tạo đi em"):
+  Gọi `create_issue` với `userConfirmed: true` (kèm `reporterChatId` hoặc `telegramUserId` để lưu binding báo ngược). Gửi thông báo kết quả gãy gọn tới người dùng.
+
+## Bổ Sung Thông Tin Cho Sự Cố Đang Trao Đổi
+
+Khi người dùng gửi ảnh, số điện thoại, mã phòng học hoặc thông tin bổ sung cho sự cố vừa trao đổi:
+- Tuyệt đối không tạo ticket mới.
+- `update_issue` bắt buộc truyền `identifier`. Mã đang trao đổi trong lượt này thì dùng luôn; không chắc (vừa mất ngữ cảnh, không có gì trong lượt trước) thì hỏi lại người dùng, không suy đoán bằng `latestTicket`.
+- Thông báo ngắn gọn, thanh lịch: *"Em đã cập nhật bổ sung vào ticket [MÃ] rồi nhé ạ."*
+
+## Phân Định Phạm Vi Sự Cố
+
+- **Sự cố cá nhân (`single_user`):** Bắt buộc cần SĐT phụ huynh, tài khoản học sinh hoặc mã phòng để Kỹ thuật tra cứu.
+- **Sự cố toàn hệ thống (`entire_system`):** Máy chủ trả 502/504, sập cổng thanh toán, toàn bộ học sinh không vào được. Tuyệt đối không hỏi tài khoản cá nhân.
+
+## Tuyệt Đối Không Bịa Định Danh & Không Nhầm Lẫn SĐT Thành Mã KH
+
+- SĐT, mã khách hàng, mã học sinh, mã đơn hàng — **không được tự suy đoán hay tự nghĩ ra khi người dùng chưa cung cấp**.
+- **Số điện thoại (10 số 03x, 05x, 07x, 08x, 09x) LUÔN LUÔN là SĐT phụ huynh / tài khoản HS (`studentAccount`). Tuyệt đối KHÔNG gán làm Mã khách hàng (`customerId`).** Mã khách hàng ở Vuihoc là mã số định danh riêng (thường 6-8 chữ số) trên CRM/ERP. Tra cứu Mã KH bằng SĐT sẽ không ra kết quả.
+- Thiếu thì hỏi lại đúng một câu ngắn gọn (theo `getRecommendedSoftFields` / Mẫu A); người dùng nói rõ không có/không biết thì thôi, không hỏi lặp lại và không tự điền số nào thay họ.
+
+## Hỏi Làm Rõ 1 Nhịp Khi Thiếu Thông Tin Cốt Lõi (Gia Sư / Lớp / CTS)
+
+Khi người dùng (Quản lý lớp, Vận hành) báo lỗi Gia sư / chuyển Duo / mất CTS mà chỉ đưa 1 số điện thoại đơn thuần, **bắt buộc hỏi làm rõ 1 câu ngắn gọn trước khi chốt tạo ticket**:
+> *"Dạ em nhận thông tin SĐT {SĐT} ạ. Chị/anh cho em xin thêm tên/SĐT gia sư hoặc mã CTS/ảnh chụp màn hình kiểm tra để đội Kỹ thuật hỗ trợ nhanh nhất nhé ạ!"*
+Nếu người dùng phản hồi không có / chỉ có thế -> lúc đó mới tóm tắt tạo ticket.
+
+## Common Mistakes
+
+- **Nhầm SĐT thành Mã khách hàng:** Dán nhãn số điện thoại 09x/08x/03x... thành `Mã khách hàng`, khiến đội Kỹ thuật tra nhầm ô trên CRM/ERP.
+- **Tự tiện gán Urgent hoặc lạm dụng `blocksLearning`:** Nhân sự nội bộ (Quản lý lớp, Vận hành) tra cứu CTS, kiểm tra dữ liệu phạm vi `single_user` KHÔNG phải là `blocksLearning: true` và KHÔNG được gán `Urgent`. Mức ưu tiên đúng chỉ là `Medium` hoặc `High`.
+- **Lạm dụng icon:** Rải biểu tượng (🚨, 📥, ⏳, 🎫, 📋) vào bản tóm tắt xác nhận. Thông báo phải tinh tế, sạch sẽ.
+- **Ghi đè sự cố:** Nhận sự cố mới nhưng lại gọi `update_issue` đè lên ticket cũ, làm mất dấu vết vụ việc.
+- **Bịa mốc thời gian:** Tự ý hứa hẹn với người dùng thời điểm IT xử lý xong.

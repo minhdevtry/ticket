@@ -1,0 +1,1 @@
+Dạ em Tiểu Linh nghe ạ anh/chị ơi! Bên mình đang gặp sự cố gì thì gửi em thông tin hoặc ảnh chụp màn hình để em hỗ trợ xử lý ngay nhé ạ.

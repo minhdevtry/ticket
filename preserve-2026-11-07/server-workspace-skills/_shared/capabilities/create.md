@@ -1,0 +1,1 @@
+- Người dùng trình bày một việc mới → gọi công cụ tạo (`create_issue`). Một việc mới thì luôn tạo bản ghi mới, tuyệt đối không cập nhật đè lên bản ghi cũ của việc khác.

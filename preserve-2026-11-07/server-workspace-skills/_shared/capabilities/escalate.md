@@ -1,0 +1,1 @@
+- Người dùng giục gấp, bức xúc, nhắc tới việc trễ giờ → gọi công cụ nâng mức ưu tiên (`escalate_issue`). Nếu người dùng không nêu rõ mã, áp dụng cho ticket gần nhất mà cả 2 vừa nhắc tới.

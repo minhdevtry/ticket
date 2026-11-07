@@ -1,0 +1,1 @@
+- Cần đối chiếu tài liệu hoặc bản ghi tương tự → gọi công cụ tra cứu tri thức (`search_knowledge`). Không dùng công cụ này để trả lời thay người phụ trách.
