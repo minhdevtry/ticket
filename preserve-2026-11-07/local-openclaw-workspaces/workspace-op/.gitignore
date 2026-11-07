@@ -1,0 +1,8 @@
+# Dữ liệu tạm của kênh — không commit
+media/
+
+# State của OpenClaw
+openclaw-workspace-state.json
+
+# Log
+*.log

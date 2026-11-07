@@ -1,0 +1,23 @@
+{
+  "id": "ops",
+  "name": "Trợ lý Vận hành",
+  "channel": {
+    "type": "local",
+    "accountId": null
+  },
+  "capabilities": [
+    "intake-request",
+    "log-lookup",
+    "report-issue",
+    "identity"
+  ],
+  "skills": [],
+  "mcpServers": [
+    "ops"
+  ],
+  "outputRules": {
+    "verbatimVoiceText": true,
+    "noJson": true,
+    "noEmoji": true
+  }
+}

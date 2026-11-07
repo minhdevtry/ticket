@@ -1,0 +1,13 @@
+{
+  "id": "iris",
+  "channel": { "type": "telegram", "accountId": "iris" },
+  "tracker": { "type": "itsaplan", "projectKey": "PRODUCT" },
+  "capabilities": ["create", "update", "inquire"],
+  "recap": { "required": true },
+  "skills": [
+    "_shared/confirm-before-create",
+    "feature-intake",
+    "check-request"
+  ],
+  "outputRules": [{ "keepFrom": "📋 Yêu cầu" }, { "keepFrom": "Em tóm tắt lại nhé" }]
+}
